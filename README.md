@@ -6,6 +6,8 @@
 
 [真实灵矽语音演示](docs/media/live-linx-voice.mp4) · [本地演示](docs/media/local-preview.mp4) · [官方物理仿真演示](docs/media/official-simulation.mp4) · [架构与模块规格](docs/ARCHITECTURE.md) · [验证记录](docs/VALIDATION.md) · [演示复现](docs/DEMO.md)
 
+新增「闪身步」「狗熊哆嗦毛」两个三秒小节目，可通过按钮或灵矽语音触发。[查看编排与演示](docs/CHOREOGRAPHY.md)。
+
 ## 本地运行
 
 需要 Python 3.12+、[uv](https://docs.astral.sh/uv/) 和 Node.js 22.12+。
@@ -21,7 +23,7 @@ cd ..
 uv run duckking
 ```
 
-打开 <http://127.0.0.1:8765>。当前可直接使用点头、前进、左右转向、停止和复位；Esc 可取消动作。
+打开 <http://127.0.0.1:8765>。可直接使用点头、前进、左右转向、闪身步、狗熊哆嗦毛、停止和复位；Esc 可取消动作。
 
 默认运行原创动画预览，不进行物理计算。语音需另外连接灵矽，不会把本地按钮操作冒充为识别结果。
 
@@ -42,7 +44,7 @@ uv run duckking-setup --key-file ~/.secrets/lingxi
 
 如果已有设备连接凭证，将 `.env.example` 中对应项填入 `~/.secrets/duckking.env`；设置文件权限为 `600`。设备 token 不等于平台管理 API Key。后端读取凭证，浏览器不接触 token；本地设备身份保存于 `~/.local/share/duckking/identity.json`。文件填好后重新打开页面连接。
 
-可用工具：`duck_nod`、`duck_walk_short`、`duck_stop`、`duck_get_status`。断线后界面明确提示，通过「连接灵矽」重新建立会话；首版不会自动恢复录音。
+可用工具：`duck_nod`、`duck_walk_short`、`duck_stop`、`duck_get_status`、`duck_flash_step`、`duck_bear_shake`。可以说“来一段闪身步”或“来一段狗熊哆嗦毛”。新增工具需要断开旧语音会话后重连。断线后界面明确提示；首版不会自动恢复录音。
 
 **真实云端联调已完成。** 已使用系统合成中文语音验证灵矽 STT → MCP 工具调用 → 本地动作 → 真实 TTS，也验证了灵矽调用官方仿真前进。浏览器演示中的输入为合成语音，识别、工具调用和回复均来自真实灵矽服务；没有伪造回复。验收范围与记录见 [VALIDATION.md](docs/VALIDATION.md)。
 

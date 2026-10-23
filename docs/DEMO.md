@@ -2,6 +2,7 @@
 
 ## 已录制视频
 
+- 新增：[闪身步与狗熊哆嗦毛编排、物理和真实语音演示](CHOREOGRAPHY.md)。
 - [真实灵矽语音演示](media/live-linx-voice.mp4)：输入为系统合成中文语音，经过浏览器麦克风采集链路；STT、MCP 工具调用和 TTS 均来自真实灵矽。音轨由实际输入 WAV 与收到的 PCM 按近似采集时间重建。
 - [真实灵矽回复音频](media/linx-response.wav)、[对应语音记录](media/live-linx-voice.json)。
 - [本地工作台演示](media/local-preview.mp4)：按钮点头、前进、左右转向、Esc 停止、复位及真实执行记录。使用原创动画预览，没有调用灵矽云端。

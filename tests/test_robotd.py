@@ -198,14 +198,17 @@ async def test_body_pose_never_sends_out_of_training_range(socket_dir, values):
 
 
 @pytest.mark.parametrize("failed_method", [None, "robot.pose", "robot.head"])
-async def test_stop_attempts_all_restores_even_when_stop_ack_fails(socket_dir, failed_method):
+@pytest.mark.parametrize("ack_error", [OSError, ValueError])
+async def test_stop_attempts_all_restores_even_when_stop_ack_fails(
+    socket_dir, failed_method, ack_error
+):
     backend = RobotdBackend(str(socket_dir / "unused"))
     backend.neutral_head = [0.1, 0.2, 0.3, 0.04]
     backend.pose_active = True
     attempts = []
 
     async def failed_rpc(*args):
-        raise OSError("no stop ack")
+        raise ack_error("no stop ack")
 
     async def notify(method, params):
         attempts.append((method, params))

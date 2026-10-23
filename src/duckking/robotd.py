@@ -106,7 +106,7 @@ class RobotdBackend:
         errors = []
         try:
             await self._rpc("robot.stop")
-        except OSError as exc:
+        except (OSError, ValueError) as exc:
             errors.append(str(exc))
         if self.pose_active:
             try:

@@ -27,6 +27,7 @@ def main():
     parser.add_argument("--rl-root", type=Path, required=True)
     parser.add_argument("--api-port", type=int, default=8767)
     parser.add_argument("--body-port", type=int, default=7801)
+    parser.add_argument("--sequence", choices=["basic", "choreography"], default="basic")
     parser.add_argument("--output", type=Path, default=Path("docs/media/official-simulation.mp4"))
     args = parser.parse_args()
     api = f"http://127.0.0.1:{args.api_port}"
@@ -63,6 +64,9 @@ def main():
     schedule = [(2, {"name": "nod"}), (5, {"name": "walk"}),
                 (8, {"name": "turn_left"}), (10, {"name": "walk", "duration": 3}),
                 (12, {"name": "stop"})]
+    if args.sequence == "choreography":
+        schedule = [(1, {"name": "flash_step"}), (5, {"name": "bear_shake"}),
+                    (9, {"name": "flash_step"}), (10.3, {"name": "stop"})]
     actions, observations = [], []
     with socket.create_connection(("127.0.0.1", args.body_port), timeout=2) as connection:
         stream = connection.makefile("rwb")
@@ -87,7 +91,8 @@ def main():
                 encoder.stdin.write(renderer.render().tobytes())
                 if frame_index % 10 == 0:
                     observations.append({"t": elapsed, "trunk": state["trunk"],
-                                         "gravity": state["imu"]["gravity"]})
+                                         "gravity": state["imu"]["gravity"],
+                                         "head": state["positions"][5:9], "sim_time": state["sim_time"]})
                 time.sleep(max(0, started + (frame_index + 1) / 20 - time.monotonic()))
         finally:
             request("/api/actions", {"name": "stop"})
@@ -99,6 +104,8 @@ def main():
     result = {
         "tested_at": time.strftime("%Y-%m-%d %H:%M:%S %z"),
         "source": "live official robotd + MuJoCo body state, re-rendered with official scene",
+        "sequence": args.sequence,
+        "capture_wall_seconds": time.monotonic() - started,
         "cloud_voice_tested": False,
         "actions": [request(f"/api/actions/{action['id']}") for action in actions],
         "observations": observations,

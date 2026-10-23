@@ -33,6 +33,8 @@ class Action(BaseModel):
     def choreography_timing(self):
         if self.name in CHOREOGRAPHIES and self.duration < MIN_DURATION:
             raise ValueError("组合动作至少需要 2.4 秒，不能压缩成高速抖动")
+        if self.name in CHOREOGRAPHIES and self.speed is not None:
+            raise ValueError("组合动作使用固定编排速度，不接受 speed 参数")
         return self
 
 

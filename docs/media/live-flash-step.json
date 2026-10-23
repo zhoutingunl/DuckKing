@@ -1,0 +1,38 @@
+{
+  "tested_at": "2026-10-23T12:34:56.413Z",
+  "input": "System-generated Chinese speech supplied through browser microphone capture",
+  "cloud": "Real Linx service",
+  "audio_note": "Audio track reconstructed from the actual input WAV and received PCM; approximate capture timestamps",
+  "expected_action": "flash_step",
+  "actions": [
+    {
+      "id": "c9f5889c8511:3",
+      "name": "flash_step",
+      "input": {
+        "name": "flash_step",
+        "duration": 3,
+        "speed": null
+      },
+      "status": "completed",
+      "started_at": 1792758880.318732,
+      "phase": "收势",
+      "finished_at": 1792758883.324866
+    }
+  ],
+  "transcripts": [
+    {
+      "role": "user",
+      "text": "来一段闪身步。"
+    },
+    {
+      "role": "assistant",
+      "text": "好嘞，闪身步表演完成啦！"
+    },
+    {
+      "role": "assistant",
+      "text": "左闪回闪，动作利落。"
+    }
+  ],
+  "sample_rate": 16000,
+  "audio_bytes": 192000
+}

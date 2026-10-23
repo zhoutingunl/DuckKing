@@ -73,6 +73,8 @@ def test_named_gestures_have_their_own_default_and_minimum_duration(name):
     assert Action(name=name, duration=2.4).duration == 2.4
     with pytest.raises(ValidationError):
         Action(name=name, duration=1.2)
+    with pytest.raises(ValidationError):
+        Action(name=name, speed=0.2)
     assert Action(name="nod").duration == 1.2
 
 
