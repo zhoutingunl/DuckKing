@@ -3,7 +3,8 @@ import { createDuckScene } from './duck.js';
 import { setupVoice } from './voice.js';
 
 const $ = (id) => document.getElementById(id);
-const names = {nod:'点头',walk:'前进',turn_left:'左转',turn_right:'右转',stop:'停止',reset:'回到起点'};
+const names = {nod:'点头',walk:'前进',turn_left:'左转',turn_right:'右转',stop:'停止',reset:'回到起点',flash_step:'闪身步',bear_shake:'狗熊哆嗦毛'};
+const actionNames = new RegExp(Object.keys(names).join('|'),'g');
 let scene;
 try { scene = createDuckScene($('viewport')); }
 catch { $('canvas-fallback').hidden = false; }
@@ -52,13 +53,14 @@ function connect(){
     if(data.backend.error&&backendKind!=='preview')notify(data.backend.error);
     scene?.update(data.backend);
     $('current-action').textContent=names[data.action?.name]??'待机';
-    $('duck-mood').innerHTML=`<i></i>${data.action?'正在'+(names[data.action.name]??'执行动作'):'正在等待你的指令'}`;
+    const mood=data.action?'正在'+(names[data.action.name]??'执行动作')+(data.action.phase?' · '+data.action.phase:''):'正在等待你的指令';
+    $('duck-mood').replaceChildren(document.createElement('i'),document.createTextNode(mood));
     $('velocity').textContent=Number(data.backend.velocity?.forward??0).toFixed(2);
     for(const event of data.events){
       if(event.id<=seen)continue;seen=event.id;
       if(event.status==='completed')completed.add(event.action_id);
-      const text=event.text.replace(/nod|walk|turn_left|turn_right|stop|reset/g,key=>names[key]);
-      appendLog(text,event.kind==='action'?'动作请求':'执行结果',event.status==='failed');
+      const text=event.text.replace(actionNames,key=>names[key]);
+      appendLog(text,({action:'动作请求',phase:'动作节拍',result:'执行结果'})[event.kind]??'系统',event.status==='failed');
     }
     $('action-count').textContent=String(completed.size).padStart(2,'0');
     if(data.error)notify(data.error);

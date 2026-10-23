@@ -21,6 +21,7 @@ class RobotdBackend:
         self.received = 0.0
         self.error = "尚未连接官方 robotd"
         self.neutral_head = None
+        self.pose_active = False
 
     async def _rpc(self, method, params=None):
         reader, writer = await asyncio.wait_for(asyncio.open_unix_connection(self.path), 2)
@@ -54,14 +55,19 @@ class RobotdBackend:
                 self.writer = None
                 raise
 
-    async def move(self, vx, vyaw):
+    def _ensure_ready(self):
         if time.monotonic() - self.received > 1:
             raise OSError("robotd 状态过期，拒绝启动动作")
-        await self._notify("robot.move", {"vx": vx, "vy": 0.0, "vyaw": vyaw})
+        safety = (self.state or {}).get("safety", {})
+        if any(safety.get(key) for key in ("fallen", "limp", "picked_up")):
+            raise OSError("机器人姿态不允许继续动作")
 
-    async def head(self, pitch):
-        if time.monotonic() - self.received > 1:
-            raise OSError("robotd 状态过期，拒绝启动动作")
+    async def move(self, vx, vyaw, vy=0.0):
+        self._ensure_ready()
+        await self._notify("robot.move", {"vx": vx, "vy": vy, "vyaw": vyaw})
+
+    async def head(self, pitch, yaw=0.0, roll=0.0):
+        self._ensure_ready()
         # Preserve the daemon's current head intent rather than assuming a joint zero.
         if self.neutral_head is None:
             current = (self.state or {}).get("head")
@@ -74,21 +80,54 @@ class RobotdBackend:
             ):
                 raise ValueError("robotd 未提供有效头部状态")
             self.neutral_head = current.copy()
-        neck, head, yaw, roll = self.neutral_head
+        neck, head, base_yaw, base_roll = self.neutral_head
         await self._notify(
             "robot.head",
-            {"neck_pitch": neck, "head_pitch": head + pitch, "head_yaw": yaw, "head_roll": roll},
+            {
+                "neck_pitch": neck,
+                "head_pitch": max(-1.1, min(1.1, head + pitch)),
+                "head_yaw": max(-1.4, min(1.4, base_yaw + yaw)),
+                "head_roll": max(-0.31, min(0.31, base_roll + roll)),
+            },
         )
 
+    async def body_pose(self, z, roll, pitch, active):
+        self._ensure_ready()
+        if not all(math.isfinite(value) for value in (z, roll, pitch)) or not (
+            -0.025 <= z <= 0.010 and abs(roll) <= 0.26 and abs(pitch) <= 0.26
+        ):
+            raise ValueError("身体姿态超出当前模型的训练范围")
+        # Keep the restore flag on if a write fails after possibly reaching robotd.
+        self.pose_active = self.pose_active or active
+        await self._notify("robot.pose", {"z": z, "roll": roll, "pitch": pitch, "active": active})
+        self.pose_active = active
+
     async def stop(self):
-        await self._rpc("robot.stop")
+        errors = []
+        try:
+            await self._rpc("robot.stop")
+        except (OSError, ValueError) as exc:
+            errors.append(str(exc))
+        if self.pose_active:
+            try:
+                await self._notify(
+                    "robot.pose", {"z": 0.0, "roll": 0.0, "pitch": 0.0, "active": False}
+                )
+                self.pose_active = False
+            except OSError as exc:
+                errors.append(str(exc))
         if self.neutral_head is not None:
             neck, head, yaw, roll = self.neutral_head
-            await self._notify(
-                "robot.head",
-                {"neck_pitch": neck, "head_pitch": head, "head_yaw": yaw, "head_roll": roll},
-            )
-            self.neutral_head = None
+            try:
+                await self._notify(
+                    "robot.head",
+                    {"neck_pitch": neck, "head_pitch": head, "head_yaw": yaw, "head_roll": roll},
+                )
+                self.neutral_head = None
+            except OSError as exc:
+                errors.append(str(exc))
+        if errors:
+            raise OSError("; ".join(errors))
 
     async def reset(self):
         raise ValueError("官方仿真请使用 duck-sim 重置；本界面不执行机器人上电或断扭矩")

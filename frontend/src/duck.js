@@ -84,14 +84,20 @@ export function createDuckScene(container) {
   });observer.observe(container);
   function animate(){
     frame=requestAnimationFrame(animate);
-    const t=clock.getElapsedTime(), p=state.pose??{}, moving=Math.abs(state.velocity?.forward??0)+Math.abs(state.velocity?.yaw??0)>.001;
+    const t=clock.getElapsedTime(), p=state.pose??{}, moving=Math.abs(state.velocity?.forward??0)+Math.abs(state.velocity?.lateral??0)+Math.abs(state.velocity?.yaw??0)>.001;
     duck.position.x=THREE.MathUtils.lerp(duck.position.x,(p.x??0)*3,.16);
     duck.position.z=THREE.MathUtils.lerp(duck.position.z,(p.z??0)*3,.16);
     duck.rotation.y=THREE.MathUtils.lerp(duck.rotation.y,p.yaw??0,.2);
     head.rotation.x=-(p.pitch??0);
+    head.rotation.y=p.head_yaw??0;
+    head.rotation.z=-(p.head_roll??0);
     const gait=moving?Math.sin(t*11)*.19:0;
     feet[0].rotation.x=gait;feet[1].rotation.x=-gait;
-    body.position.y=.83+(moving?Math.abs(Math.sin(t*11))*.025:Math.sin(t*2)*.006);
+    const sideGait=gait*Math.min(1,Math.abs(state.velocity?.lateral??0)/.28)*.65;
+    feet[0].rotation.z=sideGait;feet[1].rotation.z=-sideGait;
+    body.position.y=.83+(p.body_z??0)*5+(moving?Math.abs(Math.sin(t*11))*.025:Math.sin(t*2)*.006);
+    body.rotation.z=-(p.body_roll??0);
+    body.rotation.x=-(p.body_pitch??0);
     controls.update();renderer.render(scene,camera);
   }animate();
   return {update(next){state=next},resetCamera(){controls.reset()},dispose(){cancelAnimationFrame(frame);observer.disconnect();renderer.dispose();controls.dispose()}};

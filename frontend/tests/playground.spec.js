@@ -4,9 +4,11 @@ test('preview actions reach the backend and stop cancels a running walk', async 
   await page.goto('/');
   await expect(page.getByText('本地工作台已连接')).toBeVisible();
   await expect(page.locator('#backend-badge')).toHaveText('动画预览');
+  const acceptedNod=page.waitForResponse(response=>response.url().endsWith('/api/actions')&&response.request().postDataJSON().name==='nod');
   await page.locator('[data-action="nod"]').click();
-  await expect(page.locator('#current-action')).toHaveText('点头');
-  await expect(page.locator('#action-count')).toHaveText('01');
+  const nodId=(await (await acceptedNod).json()).id;
+  await expect.poll(async()=> (await (await page.request.get(`/api/actions/${nodId}`)).json()).status).toBe('completed');
+  await expect(page.locator('#activity-log')).toContainText('点头 · completed');
   // Keep the production bounds; use the supported 3s duration to avoid testing a
   // renderer scheduling race on CPU-only CI runners.
   await page.route('**/api/actions',async route=>{
@@ -27,8 +29,9 @@ test('mobile controls fit the viewport and are operable',async({page})=>{
   await page.setViewportSize({width:390,height:844});
   await page.goto('/');
   await expect(page.getByText('本地工作台已连接')).toBeVisible();
-  const before = Number(await page.locator('#action-count').textContent());
+  const accepted=page.waitForResponse(response=>response.url().endsWith('/api/actions')&&response.request().postDataJSON().name==='nod');
   await page.locator('[data-action="nod"]').click();
-  await expect(page.locator('#action-count')).toHaveText(String(before + 1).padStart(2,'0'));
+  const id=(await (await accepted).json()).id;
+  await expect.poll(async()=> (await (await page.request.get(`/api/actions/${id}`)).json()).status).toBe('completed');
   expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
 });

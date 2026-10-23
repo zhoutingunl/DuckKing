@@ -19,7 +19,14 @@ async def test_discovery_protocol_errors_and_status():
     response = await mcp.handle(request("initialize"))
     assert response["result"]["capabilities"] == {"tools": {}}
     listing = await mcp.handle(request("tools/list", ident=2))
-    assert len(listing["result"]["tools"]) == 4
+    assert {tool["name"] for tool in listing["result"]["tools"]} == {
+        "duck_nod",
+        "duck_walk_short",
+        "duck_stop",
+        "duck_get_status",
+        "duck_flash_step",
+        "duck_bear_shake",
+    }
     assert "error" in await mcp.handle(request("not-a-method", ident=3))
     assert "error" in await mcp.handle(request("tools/call", [1], ident=4))
     status = await mcp.handle(request("tools/call", {"name": "duck_get_status"}, ident=5))
@@ -77,4 +84,30 @@ async def test_replay_cache_is_bounded_and_session_closes_pending_tasks():
     await mcp.close()
     with pytest.raises(asyncio.CancelledError):
         await call
+    await motion.close()
+
+
+async def test_flash_tool_executes_choreography_and_retries_do_not_replay():
+    motion = MotionController(PreviewBackend())
+    mcp = DeviceMCP(motion, "choreo")
+    call = request("tools/call", {"name": "duck_flash_step"})
+    first, second = await asyncio.gather(mcp.handle(call), mcp.handle(call))
+    assert first == second
+    result = json.loads(first["result"]["content"][0]["text"])
+    assert result["name"] == "flash_step" and result["status"] == "completed"
+    assert len(motion.records) == 1
+    assert {
+        event["text"].split(" · ")[-1] for event in motion.events if event["kind"] == "phase"
+    } == {"预备", "左闪", "回闪", "收势"}
+    await motion.close()
+
+
+async def test_bear_tool_can_be_stopped_by_another_tool_call():
+    motion = MotionController(PreviewBackend())
+    mcp = DeviceMCP(motion, "choreo")
+    dance = asyncio.create_task(mcp.handle(request("tools/call", {"name": "duck_bear_shake"})))
+    await asyncio.sleep(0.1)
+    await mcp.handle(request("tools/call", {"name": "duck_stop"}, ident=2))
+    assert (await dance)["result"]["isError"] is True
+    assert (await motion.backend.snapshot())["pose"]["body_z"] == 0
     await motion.close()

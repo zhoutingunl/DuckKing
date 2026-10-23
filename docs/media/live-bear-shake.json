@@ -1,0 +1,38 @@
+{
+  "tested_at": "2026-10-23T12:37:55.689Z",
+  "input": "System-generated Chinese speech supplied through browser microphone capture",
+  "cloud": "Real Linx service",
+  "audio_note": "Audio track reconstructed from the actual input WAV and received PCM; approximate capture timestamps",
+  "expected_action": "bear_shake",
+  "actions": [
+    {
+      "id": "e4399e7bf665:3",
+      "name": "bear_shake",
+      "input": {
+        "name": "bear_shake",
+        "duration": 3,
+        "speed": null
+      },
+      "status": "completed",
+      "started_at": 1792759057.7499928,
+      "phase": "收势",
+      "finished_at": 1792759060.76383
+    }
+  ],
+  "transcripts": [
+    {
+      "role": "user",
+      "text": "来一段狗熊哆嗦毛。"
+    },
+    {
+      "role": "assistant",
+      "text": "狗熊哆嗦毛表演完了，"
+    },
+    {
+      "role": "assistant",
+      "text": "轻蹲、四拍摆身抖头加收势，一气呵成！"
+    }
+  ],
+  "sample_rate": 16000,
+  "audio_bytes": 251520
+}
