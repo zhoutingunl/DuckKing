@@ -133,3 +133,22 @@ P50/P95 使用最近秩法；缺失数据不补零，结束录音前出现的识
 识别 CER/WER、意图正确率、动作顺序符合率需要人工标注原话和目标动作，当前不自动打分。页面可核对识别文字和实际动作。这里不测量麦克风、扬声器、浏览器画面呈现、MuJoCo 首次物理响应延迟；动画预览与官方 robotd 样本明确区分。
 
 左右转工具新增后，已有 DuckKing 可执行 `uv run duckking-setup --sync-prompt` 同步串行动作约束。只更新提示词，原文备份为数据目录下 `prompt-backup-*.txt`（0600）。同步后断开旧语音连接再重连以重新发现工具。
+
+## 本地物理实验室
+
+运行 `scripts/setup_scenarios.sh` 安装锁定的 `simulation` 可选依赖、获取官方模型与策略并构建前端，然后运行 `scripts/run_local.sh`。已有服务需要重启以加载新增后端路由；页面入口 `/scenarios.html`。依赖就绪时在 CPU 推理，不安装 CUDA 训练环境。普通 `setup_local.sh` 只保证基础预览与语音依赖，若执行后物理依赖缺失，请重新运行场景安装脚本。
+
+`scripts/fetch_scene_assets.py` 固定 Microduck RL 提交与 Hugging Face 策略提交，并校验策略 SHA-256；拒绝覆盖修改过的上游目录。`DUCKKING_SIM_DIR` 可替换默认 `external/`，下设 `microduck_rl/` 和 `policies/`。上游模型及许可证保持原样，不提交到本仓库。
+
+全量后端测试需要先安装场景依赖和资产；CI 自动执行。只复测场景：
+
+```bash
+uv run --frozen --no-sync pytest tests/test_simulation.py
+uv run --frozen --no-sync python scripts/verify_scenarios.py
+cd frontend
+npx playwright test scenarios.spec.js
+```
+
+实测脚本默认输出 `.duckking/physics-scenes.json`，包含实际脚球接触、位移、双鸭接触与感知结果，不调用灵矽。真实云端验收需另行连接灵矽；现有证据标明使用系统合成录音，不是人工麦克风录音。
+
+浏览器若显示“物理场景未就绪”，检查安装与资产目录后重启服务；不会自动回退。动作返回“未确认所选脚踢中球”时检查姿态并重置场景。运行速度低于 1× 表示物理时间慢于墙钟时间，不要把仿真耗时当作真人交互的完整端到端延迟。场景物理保持运行，动作限时；停止仅清零意图，不停止重力和惯性。灵矽等待超时也会取消场景动作。

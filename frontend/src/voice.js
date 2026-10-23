@@ -1,6 +1,6 @@
 import { PCMFramer, decodePCM } from './audio-codec.js';
 
-export function setupVoice({appendLog,notify}){
+export function setupVoice({appendLog,notify,endpoint='/voice'}){
   const $=id=>document.getElementById(id),talk=$('talk-button'),connect=$('connect-voice');
   let ws=null,state='disconnected',pressed=false,recording=null,playContext=null,nextTime=0,timeout=null,owner=true;
   const sources=new Set();
@@ -64,7 +64,7 @@ export function setupVoice({appendLog,notify}){
     state='connecting';update();
     if(ws?.readyState===WebSocket.OPEN){send({type:'connect'});return}
     let receivedStatus=false;
-    owner=true;ws=new WebSocket(`${location.protocol==='https:'?'wss':'ws'}://${location.host}/voice`);
+    owner=true;ws=new WebSocket(`${location.protocol==='https:'?'wss':'ws'}://${location.host}${endpoint}`);
     ws.onopen=()=>send({type:'connect'});
     ws.onmessage=async(event)=>{
       const data=JSON.parse(event.data);

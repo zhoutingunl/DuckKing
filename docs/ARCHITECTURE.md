@@ -111,6 +111,20 @@ flowchart LR
 
 提示词要求多动作按用户顺序串行调用，失败/取消后停止后续步骤，不将普通转向替换为舞步。这是云端指令约束，不是本地语义规划器；模型仍可能选错工具，统计页显示实际调用供核对。`action_start/end` 仅在去重后的真实调度处产生，使用本地序号关联并捕获原轮次，避免重连和新录音串轮。控制器受理时间不代表首帧物理动作或浏览器画面出现时间。
 
+## 共享物理场景
+
+`simulation.py` 在 Python 进程中运行 MuJoCo CPU 与官方 ONNX 推理，`kind=mujoco`、`physics=true`、`runtime=mujoco_cpu_onnx`；它不是 robotd 适配器，也不复用原创预览的姿态动画。原工作台控制器与场景控制器相互独立。
+
+`POST /api/scenes/start` 显式惰性加载模型；模型文件和策略在外部目录，不打包进应用。球场使用官方 `scene_ball.xml`，双鸭场景用 `MjSpec.attach` 将两个官方 `robot_allcollisions.xml` 放到同一个模型中。控制频率 50 Hz，每次推进 4 个 5 ms 物理步，双鸭共用一次 `mj_step`。策略采用官方 61 维观测、14 维关节输出、默认姿态与 0.5 秒踢球时长；沿用 MJCF 的位置执行器参数，没有接入训练时的动态 BAM 电机模型。
+
+`/api/scenes/actions` 与原工作台共用有界、可取消、按请求 ID 去重的 `MotionController`。场景动作结束前会验证所选脚接触和位移，或者双鸭接触；失败不会返回完成。正常动作的 `target` 可为 a/b/both；停止与场景切换总是清零两只鸭的运动、头部和身体意图。标准动作最长 3 秒；物理场景等待按仿真时间计时，另有「目标时长 + 3 秒」墙钟超时。清零命令不冻结物理世界。
+
+`GET /api/scenes/model` 提供编译后的官方网格和外观，顶点 float32、索引 uint32 以小端 base64 传输，按场景缓存。`/scene-ws` 只发送实际 `geom_xpos/geom_xmat`、接触计数、球位移、双鸭姿态和合唱节拍。模型响应与状态流使用 revision 配对，避免切换时套用旧模型。Three.js 渲染官方几何；不会用预设踢球动画替换实际关节结果。
+
+`/scene-voice` 复用真实 `VoiceSession`，连接场景控制器，按同源规则保护。和 `/voice` 共用单一语音所有权，不能同时连接同一设备。新增 MCP 工具仅对 MuJoCo 控制器公布：`duck_set_scene`、`duck_kick`（必填 left/right）、`duck_find_companion`、`duck_duo_walk`、`duck_collide`、`duck_chorus`。状态工具剔除渲染网格，避免将大量图形数据送入模型上下文。统计按 `mujoco` 单独筛选。
+
+发现同伴使用仿真真值：距离 ≤1.2 m、相对朝向 ±60°、`mj_ray` 检查遮挡。合唱为应用自己的 3 秒双声部旋律，两只鸭收到相同点头节拍，浏览器两个声部共享 AudioContext；声音依赖用户启用，工具成功表示控制编排完成，不承诺扬声器播放或跨设备同步。不是官方 BLE/duckether 合唱实现。
+
 ## 身份与配置
 
 默认私有配置路径是 `~/.secrets/duckking.env`，设备身份位于 `~/.local/share/duckking/identity.json`。设备 ID 使用主机网卡标识派生的稳定伪 MAC，Client ID 使用 UUIDv4；身份文件以 `0600` 权限创建。

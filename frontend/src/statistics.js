@@ -3,9 +3,10 @@ import './statistics.css';
 
 const $ = id => document.getElementById(id);
 const tools = {duck_walk_short:'前进',duck_turn_left:'左转',duck_turn_right:'右转',duck_nod:'点头',duck_stop:'停止',duck_flash_step:'闪身步',duck_bear_shake:'狗熊哆嗦毛'};
+Object.assign(tools,{duck_set_scene:'切换场景',duck_kick:'踢球',duck_find_companion:'发现同伴',duck_duo_walk:'双鸭一起走',duck_collide:'相向碰面',duck_chorus:'同步合唱'});
 const statuses = {listening:'录音中',waiting:'等待回复',completed:'已结束',timeout:'超时',interrupted:'已中断',error:'异常'};
 const actionStatuses = {running:'进行中',completed:'完成',cancelled:'取消',failed:'失败'};
-const backendName = kind => kind === 'robotd' ? '官方 robotd 仿真' : '动画预览';
+const backendName = kind => ({robotd:'官方 robotd 仿真',mujoco:'MuJoCo 物理实验室',preview:'动画预览'})[kind] ?? kind;
 const duration = ms => ms == null ? '—' : Math.abs(ms) < 1000 ? `${ms} ms` : `${(ms / 1000).toFixed(2)} s`;
 const rate = (value,total) => total ? `${(100 * value / total).toFixed(1)}%` : '—';
 const element = (tag,text,className) => {
@@ -76,6 +77,7 @@ function render() {
   $('backend-note').textContent = data.current_backend === 'robotd'
     ? '当前服务使用官方 robotd 后端。动作完成反映控制流程状态，未测量物理反馈延迟。'
     : '当前服务使用原创动画预览，不进行物理仿真。灵矽语音与动作后端分别统计。';
+  if($('backend-filter').value==='mujoco')$('backend-note').textContent='物理实验室使用 MuJoCo CPU 和官方 ONNX 策略，未经过 robotd。踢球和接触结果在场景页显示；此处统计语音链路的时间。';
   $('round-rows').replaceChildren();
   for (const row of data.rounds) {
     const tr = element('tr');

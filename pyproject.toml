@@ -21,6 +21,13 @@ dependencies = [
 duckking = "duckking.app:main"
 duckking-setup = "duckking.onboarding:main"
 
+[project.optional-dependencies]
+simulation = [
+    "mujoco==3.3.7",
+    "numpy>=2,<3",
+    "onnxruntime==1.19.2",
+]
+
 [dependency-groups]
 dev = ["pytest>=8,<10", "pytest-asyncio>=1,<2", "pytest-cov>=6,<8", "ruff>=0.12,<1"]
 

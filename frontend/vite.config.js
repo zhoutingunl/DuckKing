@@ -13,6 +13,7 @@ export default defineConfig({
       input: {
         main: fileURLToPath(new URL('./index.html', import.meta.url)),
         statistics: fileURLToPath(new URL('./statistics.html', import.meta.url)),
+        scenarios: fileURLToPath(new URL('./scenarios.html', import.meta.url)),
       },
     },
   },
@@ -25,7 +26,7 @@ export default defineConfig({
     // protect development requests. Never rewrite an untrusted Origin.
     proxy: {
       '/api': { target, changeOrigin: false },
-      '^/(ws|voice)(\\?.*)?$': {
+      '^/(ws|voice|scene-ws|scene-voice)(\\?.*)?$': {
         target, ws: true, changeOrigin: false, rewriteWsOrigin: false,
       },
     },
