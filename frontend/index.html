@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#f6f7f2" />
+    <title>DuckKing · 语音与动作工作台</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="DuckKing 首页"><span class="brand-mark">dk<span>●</span></span>DuckKing</a>
+      <div class="top-label">VOICE × MOTION LAB <span> / 001</span></div>
+      <a class="repo-link" href="https://github.com/zhoutingunl/DuckKing" target="_blank" rel="noopener">源代码 <span>↗</span></a>
+    </header>
+    <main>
+      <section class="intro">
+        <div><p class="eyebrow"><span class="tiny-dot"></span> YOUR LITTLE DESKTOP COMPANION</p>
+          <h1>让一句话，<span>变成一个动作。</span></h1>
+          <p class="subtitle">遇见你的虚拟小鸭。先打个招呼，再一起迈出第一步。</p></div>
+        <div class="connection-pill"><span id="connection-dot" class="tiny-dot"></span><span id="connection-label">正在连接工作台</span></div>
+      </section>
+
+      <div class="workspace">
+        <section class="stage-card" aria-label="鸭子预览">
+          <div class="stage-toolbar"><div class="stage-title"><span class="mini-crown">♛</span><b>DUCK / 01</b><span id="backend-badge" class="tag">动画预览</span></div>
+            <button class="subtle-button" id="reset-camera" aria-label="复位视角">↺ 复位视角</button></div>
+          <div id="viewport"><div id="canvas-fallback" hidden>当前浏览器无法启动 WebGL。动作控制和状态面板仍然可用。</div></div>
+          <div class="stage-caption"><span id="duck-mood"><i></i>正在等待你的指令</span><span>拖动旋转 · 滚轮缩放</span></div>
+          <div class="telemetry"><div><span>当前动作</span><strong id="current-action">待机</strong></div><div><span>前进速度</span><strong><span id="velocity">0.00</span> <small>m/s</small></strong></div><div><span>已执行动作</span><strong id="action-count">00</strong></div><div><span>数据来源</span><strong id="data-source">本地预览</strong></div></div>
+        </section>
+
+        <aside class="controls">
+          <section class="voice-card">
+            <div class="section-heading"><h2>和小鸭聊聊</h2><span id="voice-badge" class="tag neutral">未连接灵矽</span></div>
+            <p class="muted">连接灵矽后，按住说话，松开等待回答。</p>
+            <button id="talk-button" class="talk-button" disabled aria-label="按住说话"><svg viewBox="0 0 24 24" width="25" height="25" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="8" y="2" width="8" height="13" rx="4"/><path d="M5 10v2a7 7 0 0 0 14 0v-2M12 19v3M8 22h8"/></svg><span>按住说话</span><span class="key-hint">SPACE</span></button>
+            <div class="voice-caption" id="voice-caption">当前可以先用下方按钮探索动作。</div>
+            <div class="voice-setup"><button id="connect-voice" class="text-button" disabled>连接灵矽 <span>↗</span></button><span id="voice-connection-hint">接入模块准备中</span></div>
+            <div id="activation" class="activation" hidden></div>
+          </section>
+          <section class="action-card">
+            <div class="section-heading"><h2>先动起来</h2><span class="step-number">01 — 05</span></div>
+            <div class="action-grid">
+              <button data-action="nod"><span class="action-icon">↕</span><span>点点头<small>和你打个招呼</small></span><span class="arrow">↗</span></button>
+              <button data-action="walk"><span class="action-icon">↑</span><span>向前走<small>走一小段，自动停</small></span><span class="arrow">↗</span></button>
+              <button data-action="turn_left"><span class="action-icon">↶</span><span>向左转<small>换个方向看看</small></span><span class="arrow">↗</span></button>
+              <button data-action="turn_right"><span class="action-icon">↷</span><span>向右转<small>再看看另一边</small></span><span class="arrow">↗</span></button>
+            </div>
+            <button data-action="stop" class="stop-button"><span>■</span> 停止动作 <span class="key-hint">ESC</span></button>
+            <button data-action="reset" id="reset-position" class="reset-position">↺ 回到起点</button>
+          </section>
+        </aside>
+      </div>
+
+      <section class="activity-card">
+        <div class="section-heading"><div class="activity-title"><h2>交互记录</h2><span class="live-dot"></span><span>LIVE</span></div><button id="clear-log" class="subtle-button">清空显示</button></div>
+        <div id="activity-log" class="activity-log" role="log" aria-live="polite"><div class="empty-log">小鸭已经准备好了。试着让它点点头吧。</div></div>
+      </section>
+      <div id="notice" class="notice" role="alert" hidden></div>
+      <footer><span id="scope-note">动画预览为原创示意形象，不进行物理计算。灵矽语音尚未连接。</span><span>BUILT TO LISTEN. READY TO MOVE. <b>✳</b></span></footer>
+    </main>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

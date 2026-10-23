@@ -18,3 +18,31 @@ jobs:
           test "$(git ls-tree -r --name-only v0 | wc -l)" -eq 0
           test -f CONTRIBUTING.md
           test -f THIRD_PARTY.md
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: uv sync --frozen
+      - run: uv run ruff check src tests
+      - run: uv run pytest --cov --cov-report=term-missing --cov-report=json --cov-report=html --cov-report=xml
+      - run: uv run python scripts/check_coverage.py
+      - run: npm ci && npm run build
+        working-directory: frontend
+      - run: npx playwright install --with-deps chromium
+        working-directory: frontend
+      - run: npm run test:e2e
+        working-directory: frontend
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-and-browser-results
+          path: |
+            htmlcov/
+            coverage.xml
+            coverage.json
+            frontend/playwright-report/
+            frontend/test-results/

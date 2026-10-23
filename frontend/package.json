@@ -1,0 +1,12 @@
+{
+  "name": "duckking-ui",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "build": "vite build",
+    "test:e2e": "playwright test"
+  },
+  "dependencies": {"three": "0.186.1"},
+  "devDependencies": {"vite": "8.3.5", "@playwright/test": "1.64.1"}
+}

@@ -1,0 +1,45 @@
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[project]
+name = "duckking"
+version = "0.1.0"
+description = "A local voice and motion workbench for a virtual Micro Duck"
+readme = "README.md"
+requires-python = ">=3.12"
+license = "MIT"
+dependencies = [
+  "fastapi>=0.115,<1",
+  "uvicorn[standard]>=0.34,<1",
+  "httpx>=0.28,<1",
+  "websockets>=15,<17",
+  "python-dotenv>=1,<2",
+]
+
+[project.scripts]
+duckking = "duckking.app:main"
+
+[dependency-groups]
+dev = ["pytest>=8,<10", "pytest-asyncio>=1,<2", "pytest-cov>=6,<8", "ruff>=0.12,<1"]
+
+[tool.coverage.run]
+branch = true
+source = ["duckking"]
+
+[tool.coverage.report]
+show_missing = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "ASYNC"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/duckking"]
