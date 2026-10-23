@@ -1,5 +1,5 @@
-from fastapi.testclient import TestClient
 import pytest
+from fastapi.testclient import TestClient
 from starlette.websockets import WebSocketDisconnect
 
 from duckking.app import create_app, main
@@ -19,10 +19,13 @@ def test_http_action_and_real_state_stream():
 
 def test_cross_origin_motion_is_rejected():
     with TestClient(create_app()) as client:
-        response = client.post("/api/actions", json={"name": "walk"},
-                               headers={"Origin": "https://untrusted.example"})
+        response = client.post(
+            "/api/actions", json={"name": "walk"}, headers={"Origin": "https://untrusted.example"}
+        )
         assert response.status_code == 403
-        assert client.post("/api/actions", json={"name": "walk", "duration": 999}).status_code == 422
+        assert (
+            client.post("/api/actions", json={"name": "walk", "duration": 999}).status_code == 422
+        )
 
 
 def test_results_conflicts_unknown_ids_and_origin_websocket():

@@ -31,7 +31,9 @@ def create_app(controller: MotionController | None = None) -> FastAPI:
 
     app = FastAPI(title="DuckKing", lifespan=lifespan)
     app.state.motion = motion
-    app.add_middleware(TrustedHostMiddleware, allowed_hosts=["localhost", "127.0.0.1", "testserver"])
+    app.add_middleware(
+        TrustedHostMiddleware, allowed_hosts=["localhost", "127.0.0.1", "testserver"]
+    )
 
     @app.middleware("http")
     async def protect_local_mutations(request: Request, call_next):
@@ -79,9 +81,11 @@ def create_app(controller: MotionController | None = None) -> FastAPI:
     if static.is_dir():
         app.mount("/", StaticFiles(directory=static, html=True), name="frontend")
     else:
+
         @app.get("/")
         async def missing_frontend():
             return JSONResponse({"detail": "先执行 cd frontend && npm ci && npm run build"}, 503)
+
     return app
 
 

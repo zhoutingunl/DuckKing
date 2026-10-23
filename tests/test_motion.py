@@ -57,10 +57,16 @@ async def test_backend_failure_is_not_reported_as_success():
     assert controller.failure
 
 
-@pytest.mark.parametrize("fields", [
-    {"duration": 99}, {"duration": float("nan")}, {"speed": -1},
-    {"name": "shell"}, {"unexpected": True},
-])
+@pytest.mark.parametrize(
+    "fields",
+    [
+        {"duration": 99},
+        {"duration": float("nan")},
+        {"speed": -1},
+        {"name": "shell"},
+        {"unexpected": True},
+    ],
+)
 def test_actions_reject_unbounded_or_unknown_input(fields):
     with pytest.raises(ValidationError):
         Action(**({"name": "walk"} | fields))

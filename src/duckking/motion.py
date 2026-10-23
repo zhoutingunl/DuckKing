@@ -90,8 +90,9 @@ class MotionController:
 
     def event(self, kind: str, text: str, **data):
         self.event_sequence += 1
-        self.events.append({"id": self.event_sequence, "time": time.time(),
-                            "kind": kind, "text": text, **data})
+        self.events.append(
+            {"id": self.event_sequence, "time": time.time(), "kind": kind, "text": text, **data}
+        )
 
     async def submit(self, action: Action) -> dict:
         async with self.lock:
@@ -102,8 +103,13 @@ class MotionController:
                     raise ValueError("相同请求 ID 不能用于不同动作")
                 return dict(previous)
             await self._cancel()
-            record = {"id": action.request_id, "name": action.name, "input": fingerprint,
-                      "status": "running", "started_at": time.time()}
+            record = {
+                "id": action.request_id,
+                "name": action.name,
+                "input": fingerprint,
+                "status": "running",
+                "started_at": time.time(),
+            }
             self.records[action.request_id] = record
             self.done[action.request_id] = asyncio.get_running_loop().create_future()
             while len(self.records) > 200:
@@ -162,8 +168,12 @@ class MotionController:
                 record["error"] = f"停止确认失败：{exc}"
                 self.failure = record["error"]
             record["finished_at"] = time.time()
-            self.event("result", f"{action.name} · {record['status']}",
-                       action_id=action.request_id, status=record["status"])
+            self.event(
+                "result",
+                f"{action.name} · {record['status']}",
+                action_id=action.request_id,
+                status=record["status"],
+            )
             if self.current is record:
                 self.current = None
             future = self.done[action.request_id]
@@ -174,9 +184,12 @@ class MotionController:
         return await asyncio.shield(self.done[request_id])
 
     async def snapshot(self):
-        return {"backend": await self.backend.snapshot(),
-                "action": dict(self.current) if self.current else None,
-                "error": self.failure, "events": list(self.events)}
+        return {
+            "backend": await self.backend.snapshot(),
+            "action": dict(self.current) if self.current else None,
+            "error": self.failure,
+            "events": list(self.events),
+        }
 
     async def close(self):
         async with self.lock:
