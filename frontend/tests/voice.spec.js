@@ -53,3 +53,20 @@ test('activation and connection failure stay explicit instead of faking a reply'
   await expect(page.locator('#notice')).toContainText('账号尚未绑定');
   await expect(page.locator('#voice-badge')).toHaveText('连接异常');
 });
+
+test('a rejected local voice connection gives actionable feedback and can be retried',async({page})=>{
+  let attempts=0;
+  await page.routeWebSocket('**/voice',socket=>socket.onMessage(message=>{
+    if(typeof message!=='string'||JSON.parse(message).type!=='connect')return;
+    if(++attempts===1)socket.close({code:1008,reason:'Local protocol test rejection'});
+    else socket.send(JSON.stringify({type:'voice_status',state:'ready'}));
+  }));
+  await page.goto('/');
+  await page.locator('#connect-voice').click();
+  await expect(page.locator('#voice-badge')).toHaveText('连接异常');
+  await expect(page.locator('#notice')).toContainText('本地语音通道连接失败');
+  await expect(page.locator('#talk-button')).toBeDisabled();
+  await page.locator('#connect-voice').click();
+  await expect(page.locator('#voice-badge')).toHaveText('灵矽已连接');
+  await expect(page.locator('#talk-button')).toBeEnabled();
+});

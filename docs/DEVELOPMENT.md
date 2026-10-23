@@ -78,6 +78,8 @@ npm run test:e2e:dev
 | 5173 页面能打开，但动作报错 / 状态持续重连 | 确认后端正在运行，且 `DUCKKING_API_PORT` 与后端端口相同 |
 | 修改前端后 demo 未变化 | 使用 5173 开发页面，或重新构建后刷新 8765 页面 |
 | 语音提示缺少 libopus | macOS：`brew install opus`；Ubuntu：`sudo apt-get install libopus0` |
+| 工作台持续重连 / 本地语音通道连接失败 | 用 Chrome 无痕窗口直接打开本地地址；检查是否有扩展或代理改写 `Origin` 请求头，同源检查不会自动放宽 |
+| 灵矽显示等待绑定 | 本机设备身份与其他机器不同，需按 README 绑定本机设备；已有平台 Key 可显式运行 `uv run duckking-setup` |
 | 浏览器测试缺少 Chromium | 执行 `npx playwright install chromium`，或配置上述浏览器可执行路径 |
 
 默认 demo 为原创动画预览，不进行物理计算。官方仿真仍需单独按 README 安装和启动，再显式传入 `--backend robotd`。连接失败不会回退到预览。

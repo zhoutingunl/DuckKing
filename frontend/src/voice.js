@@ -58,12 +58,16 @@ export function setupVoice({appendLog,notify}){
     if(['ready','listening','thinking','speaking'].includes(state)){
       await release(false);send({type:'disconnect'});clearPlayback();return;
     }
+    if(ws?.readyState===WebSocket.CONNECTING)return;
+    state='connecting';update();
     if(ws?.readyState===WebSocket.OPEN){send({type:'connect'});return}
+    let receivedStatus=false;
     owner=true;ws=new WebSocket(`${location.protocol==='https:'?'wss':'ws'}://${location.host}/voice`);
     ws.onopen=()=>send({type:'connect'});
     ws.onmessage=async(event)=>{
       const data=JSON.parse(event.data);
       if(data.type==='voice_status'){
+        receivedStatus=true;
         state=data.state;if(state==='busy')owner=false;
         $('activation').hidden=!data.activation_code;
         $('activation').textContent=data.activation_code?`激活码：${data.activation_code}。请在灵矽控制台添加设备，再点击重新连接。`:'';
@@ -75,7 +79,11 @@ export function setupVoice({appendLog,notify}){
       else if(data.type==='playback_end'&&data.aborted){clearPlayback()}
       else if(data.type==='error'){notify(data.message);await release(false)}
     };
-    ws.onclose=async()=>{await release(false);clearPlayback();state=owner?'disconnected':'busy';update()};
+    ws.onclose=async()=>{
+      await release(false);clearPlayback();state=owner?(receivedStatus?'disconnected':'error'):'busy';
+      if(owner&&!receivedStatus)notify('本地语音通道连接失败，请检查页面地址、代理或修改请求头的浏览器扩展。');
+      update();
+    };
   });
   talk.addEventListener('pointerdown',event=>{event.preventDefault();talk.setPointerCapture(event.pointerId);press()});
   talk.addEventListener('pointerup',()=>release());talk.addEventListener('pointercancel',()=>release());
