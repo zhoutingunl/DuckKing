@@ -88,6 +88,8 @@ class MuJoCoBackend:
             }.items()
         }
         self.models = {"ball": self._build("ball"), "duo": self._build("duo")}
+        # Geometry belongs to the compiled model, not to a reset of its dynamic state.
+        self.revisions = {scene: uuid.uuid4().hex for scene in self.models}
         self.visual_cache = {}
         self.task = None
         self.error = None
@@ -114,7 +116,7 @@ class MuJoCoBackend:
         self.scene = scene
         self.model = self.models[scene]
         self.data = mujoco.MjData(self.model)
-        self.revision = uuid.uuid4().hex
+        self.revision = self.revisions[scene]
         self.drivers = [
             Driver(self.model, p, self.sessions)
             for p in ([""] if scene == "ball" else ["a_", "b_"])

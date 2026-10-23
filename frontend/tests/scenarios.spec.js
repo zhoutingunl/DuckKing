@@ -3,6 +3,7 @@ import { test, expect } from '@playwright/test';
 test('real MuJoCo left/right contacts, duo discovery/collision, chorus and stop',async({page})=>{
   test.setTimeout(90000);
   const errors=[];page.on('pageerror',e=>errors.push(e.message));
+  let modelRequests=0;page.on('request',r=>{if(r.url().endsWith('/api/scenes/model'))modelRequests++;});
   await page.goto('/scenarios.html');
   await page.getByRole('button',{name:'单鸭定点踢球'}).click();
   await expect(page.locator('#sim-status')).toHaveText('MuJoCo 物理运行中',{timeout:45000});
@@ -13,6 +14,7 @@ test('real MuJoCo left/right contacts, duo discovery/collision, chorus and stop'
   expect(parseFloat(await page.locator('#ball-distance').textContent())).toBeGreaterThan(.02);
   await page.getByRole('button',{name:'重置场景',exact:true}).click();
   await expect(page.locator('#action-result')).toContainText('重置场景 · 完成');
+  expect(modelRequests).toBe(1);
   await page.getByRole('button',{name:'右脚踢球',exact:true}).click();
   await expect(page.locator('#action-result')).toContainText('右脚踢球 · 完成',{timeout:15000});
   await expect(page.locator('#ball-contact')).toHaveText('右脚');

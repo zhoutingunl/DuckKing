@@ -115,11 +115,15 @@ async def test_target_selection_reset_and_wrong_scene_fail_explicitly(backend):
     kick = Action(name="kick_left")
     await motion.submit(kick)
     assert (await motion.wait(kick.request_id))["status"] == "failed"
+    revision = backend.revision
     await backend.reset()
     assert all(not d.command.any() for d in backend.drivers)
+    assert backend.revision == revision
     geometry = backend.geometry()
     assert geometry["revision"] == (await backend.snapshot())["revision"]
     assert geometry["meshes"] and len(geometry["geoms"]) > 100
+    backend.load("ball")
+    assert backend.revision != revision
     await motion.close()
 
 
