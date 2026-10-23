@@ -1,0 +1,20 @@
+name: CI
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Verify pre-development baseline
+        run: |
+          git merge-base --is-ancestor v0 HEAD
+          test "$(git ls-tree -r --name-only v0 | wc -l)" -eq 0
+          test -f CONTRIBUTING.md
+          test -f THIRD_PARTY.md

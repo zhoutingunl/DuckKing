@@ -1,0 +1,19 @@
+name: Development task
+description: Track an implementation or verification task
+body:
+  - type: textarea
+    id: goal
+    attributes:
+      label: Goal / 目标
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance / 验收方法
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope and owner / 范围与实际负责人
