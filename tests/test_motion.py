@@ -9,7 +9,7 @@ from duckking.motion import Action, MotionController, PreviewBackend
 async def test_walk_is_bounded_and_returns_to_rest():
     backend = PreviewBackend()
     controller = MotionController(backend)
-    action = Action(name="walk", duration=0.2, request_id="walk")
+    action = Action(name="walk", duration=0.2, speed=0.12, request_id="walk")
     await controller.submit(action)
     result = await controller.wait("walk")
     state = await backend.snapshot()

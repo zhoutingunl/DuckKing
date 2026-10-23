@@ -12,7 +12,10 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
+from .config import Settings
 from .motion import Action, MotionController, PreviewBackend
+from .robotd import RobotdBackend
+from .voice import VoiceSession
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -21,16 +24,21 @@ def same_origin(origin: str | None, host: str) -> bool:
     return origin is None or origin in {f"http://{host}", f"https://{host}"}
 
 
-def create_app(controller: MotionController | None = None) -> FastAPI:
+def create_app(
+    controller: MotionController | None = None, settings: Settings | None = None
+) -> FastAPI:
     motion = controller or MotionController(PreviewBackend())
 
     @asynccontextmanager
     async def lifespan(app):
         yield
+        if app.state.voice:
+            await app.state.voice.disconnect()
         await motion.close()
 
     app = FastAPI(title="DuckKing", lifespan=lifespan)
     app.state.motion = motion
+    app.state.voice = None
     app.add_middleware(
         TrustedHostMiddleware, allowed_hosts=["localhost", "127.0.0.1", "testserver"]
     )
@@ -77,6 +85,58 @@ def create_app(controller: MotionController | None = None) -> FastAPI:
         except (WebSocketDisconnect, RuntimeError, OSError):
             pass
 
+    @app.websocket("/voice")
+    async def voice_stream(ws: WebSocket):
+        if not same_origin(ws.headers.get("origin"), ws.headers.get("host", "")):
+            await ws.close(code=1008)
+            return
+        if app.state.voice is not None:
+            await ws.accept()
+            await ws.send_json(
+                {
+                    "type": "voice_status",
+                    "state": "busy",
+                    "error": "另一个页面正在使用语音，请先在该页面断开",
+                }
+            )
+            await ws.close(code=1008)
+            return
+        await ws.accept()
+        session = VoiceSession(ws.send_json, motion, settings or Settings.load())
+        app.state.voice = session
+        try:
+            await session.publish_status()
+            while True:
+                message = await ws.receive()
+                if message["type"] == "websocket.disconnect":
+                    break
+                try:
+                    if message.get("bytes") is not None:
+                        await session.audio(message["bytes"])
+                        continue
+                    data = json.loads(message.get("text") or "{}")
+                    if not isinstance(data, dict):
+                        raise ValueError("语音指令必须为 JSON 对象")
+                    command = data.get("type")
+                    if command == "connect":
+                        await session.open()
+                    elif command == "listen_start":
+                        await session.listen(True)
+                    elif command == "listen_stop":
+                        await session.listen(False)
+                    elif command == "disconnect":
+                        await session.disconnect()
+                        await session.publish_status()
+                    else:
+                        raise ValueError("未知语音指令")
+                except (ValueError, OSError) as exc:
+                    await ws.send_json({"type": "error", "message": str(exc)})
+        except (WebSocketDisconnect, RuntimeError, OSError):
+            pass
+        finally:
+            await session.disconnect()
+            app.state.voice = None
+
     static = ROOT / "frontend" / "dist"
     if static.is_dir():
         app.mount("/", StaticFiles(directory=static, html=True), name="frontend")
@@ -92,8 +152,11 @@ def create_app(controller: MotionController | None = None) -> FastAPI:
 def main():
     parser = argparse.ArgumentParser(description="DuckKing local workbench")
     parser.add_argument("--port", type=int, default=8765)
+    parser.add_argument("--backend", choices=["preview", "robotd"], default="preview")
+    parser.add_argument("--socket", default="~/.cache/duck-sim/duck-a.sock")
     args = parser.parse_args()
-    uvicorn.run(create_app(), host="127.0.0.1", port=args.port)
+    backend = PreviewBackend() if args.backend == "preview" else RobotdBackend(args.socket)
+    uvicorn.run(create_app(MotionController(backend)), host="127.0.0.1", port=args.port)
 
 
 if __name__ == "__main__":

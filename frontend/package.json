@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "build": "vite build",
+    "test:unit": "node --test --experimental-test-coverage --test-coverage-include=src/audio-codec.js --test-coverage-lines=90 --test-coverage-branches=85 tests/audio-codec.test.js",
     "test:e2e": "playwright test"
   },
   "dependencies": {"three": "0.186.1"},
