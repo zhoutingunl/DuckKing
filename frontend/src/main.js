@@ -28,9 +28,13 @@ export async function post(url,body={}) {
   const response=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
   const value=await response.json();if(!response.ok)throw new Error(typeof value.detail==='string'?value.detail:'请求参数或服务状态异常');return value;
 }
-async function action(name){
-  try { await post('/api/actions',{name,request_id:crypto.randomUUID()}); }
-  catch(error){notify(error.message);}
+let actionRequests=Promise.resolve();
+function action(name){
+  // Serialize request acceptance, not motion duration, so a rapid Stop cannot
+  // arrive before the preceding Walk request on another HTTP connection.
+  actionRequests=actionRequests.then(()=>post('/api/actions',{name,request_id:crypto.randomUUID()}))
+    .catch(error=>notify(error.message));
+  return actionRequests;
 }
 document.querySelectorAll('[data-action]').forEach(button=>button.addEventListener('click',()=>action(button.dataset.action)));
 $('reset-camera').addEventListener('click',()=>scene?.resetCamera());

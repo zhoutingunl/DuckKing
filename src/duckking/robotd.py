@@ -10,6 +10,7 @@ from pathlib import Path
 
 class RobotdBackend:
     kind = "robotd"
+    default_speed = 0.35
 
     def __init__(self, socket_path: str):
         self.path = str(Path(socket_path).expanduser())
@@ -137,7 +138,9 @@ class RobotdBackend:
             "connected": connected,
             "physics": None,
             "pose": {},
-            "velocity": {},
+            "velocity": {"forward": ((self.state or {}).get("move", {}).get("applied") or [0])[0]}
+            if connected
+            else {},
             "telemetry": self.state if connected else None,
             "error": self.error,
             "visualization": "schematic_only",

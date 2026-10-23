@@ -13,7 +13,10 @@ test('preview actions reach the backend and stop cancels a running walk', async 
     const data=route.request().postDataJSON();
     await route.continue({postData:JSON.stringify(data.name==='walk'?{...data,duration:3}:data)});
   });
-  await page.locator('[data-action="walk"]').click();
+  await Promise.all([
+    page.waitForResponse(response=>response.url().endsWith('/api/actions')&&response.request().postDataJSON().name==='walk'),
+    page.locator('[data-action="walk"]').click(),
+  ]);
   await page.keyboard.press('Escape');
   await expect(page.locator('#current-action')).toHaveText('待机');
   await expect(page.locator('#activity-log')).toContainText('cancelled');

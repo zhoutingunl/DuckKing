@@ -15,12 +15,13 @@ class Action(BaseModel):
     model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
     name: Literal["nod", "walk", "turn_left", "turn_right", "stop", "reset"]
     duration: float = Field(default=1.2, ge=0.2, le=3.0)
-    speed: float = Field(default=0.12, ge=0.02, le=0.2)
+    speed: float | None = Field(default=None, ge=0.02, le=0.4)
     request_id: str = Field(default_factory=lambda: str(uuid.uuid4()), min_length=1, max_length=100)
 
 
 class Backend(Protocol):
     kind: str
+    default_speed: float
 
     async def move(self, vx: float, vyaw: float) -> None: ...
     async def head(self, pitch: float) -> None: ...
@@ -34,6 +35,7 @@ class PreviewBackend:
     """Kinematic animation only. No contacts, balance model, or learned gait."""
 
     kind = "preview"
+    default_speed = 0.12
 
     def __init__(self):
         self.x = self.z = self.yaw = self.pitch = self.vx = self.vyaw = 0.0
@@ -149,7 +151,10 @@ class MotionController:
                         pitch = 0.18 * math.sin(elapsed / action.duration * math.tau * 2)
                         await self.backend.head(pitch)
                     else:
-                        vx = action.speed if action.name == "walk" else 0.0
+                        speed = (
+                            action.speed if action.speed is not None else self.backend.default_speed
+                        )
+                        vx = speed if action.name == "walk" else 0.0
                         yaw = {"turn_left": 0.6, "turn_right": -0.6}.get(action.name, 0.0)
                         await self.backend.move(vx, yaw)
                     await asyncio.sleep(0.05)
