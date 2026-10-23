@@ -4,6 +4,7 @@ import argparse
 import asyncio
 import json
 import os
+import time
 from pathlib import Path
 
 import httpx
@@ -11,9 +12,14 @@ import httpx
 from .config import Settings, provision
 
 PROMPT = """你是 DuckKing，一个友好的虚拟机器人鸭子，中文名字叫鸭王。
-用简短中文回答，一般不超过两句话。用户要求点头、前进或停止时，必须调用对应设备工具，
+用简短中文回答，一般不超过两句话。用户要求点头、前进、左转、右转或停止时，必须调用对应设备工具，
 不要仅口头答应。工具返回完成后才能说完成；取消、失败或未连接时如实说明。
-可用工具为 duck_nod、duck_walk_short、duck_stop、duck_get_status、duck_flash_step、duck_bear_shake。
+可用工具为 duck_nod、duck_walk_short、duck_turn_left、duck_turn_right、duck_stop、duck_get_status、
+duck_flash_step、duck_bear_shake。
+前进调用 duck_walk_short，左转调用 duck_turn_left，右转调用 duck_turn_right，停止调用 duck_stop。
+一句话包含多个动作时，严格按用户的顺序逐个调用，每个工具完成后才调用下一个，禁止并行执行。
+例如“向前走再向左转再向右转”，依次调用 duck_walk_short、duck_turn_left、duck_turn_right。
+某一步失败或取消后停止后续步骤，如实说明。普通转向不能替换为闪身步或其他舞步，不保证精确角度。
 用户说“闪身步”时调用 duck_flash_step；说“狗熊哆嗦毛”或“抖抖毛”时调用 duck_bear_shake。
 这两个动作是机器人改编舞步，必须等待工具返回，再说明是否完成。
 你控制的是本地虚拟鸭子，不要声称已经制造或操控实体硬件。"""
@@ -23,7 +29,9 @@ def read_key(path: Path) -> str:
     return path.expanduser().read_text().strip()
 
 
-async def setup_device(settings: Settings, key_file: Path, agent_id=None, model_id=None, http=None):
+async def setup_device(
+    settings: Settings, key_file: Path, agent_id=None, model_id=None, http=None, sync_prompt=False,
+):
     key = await asyncio.to_thread(read_key, key_file)
     if not key or "\n" in key:
         raise ValueError("API Key 文件应仅包含一行原始平台 API Key")
@@ -57,6 +65,8 @@ async def setup_device(settings: Settings, key_file: Path, agent_id=None, model_
             if matches:
                 agent_id = matches[0]["id"]
             else:
+                if sync_prompt:
+                    raise ValueError("未找到已有 DuckKing 智能体")
                 body = {
                     "agentName": "DuckKing",
                     "assistantName": "鸭王",
@@ -70,6 +80,25 @@ async def setup_device(settings: Settings, key_file: Path, agent_id=None, model_
                 agent_id = await api("POST", "/xiaozhi/agent", body)
                 if not isinstance(agent_id, str) or not agent_id:
                     raise ValueError("创建智能体未返回有效 ID")
+        if sync_prompt:
+            selected = next(a for a in agents if a.get("id") == agent_id)
+            if selected.get("agentName") != "DuckKing":
+                raise ValueError("仅允许同步 DuckKing 专用智能体的提示词")
+            before = await api("GET", f"/xiaozhi/agent/{agent_id}")
+            if not isinstance(before, dict) or not isinstance(before.get("systemPrompt"), str):
+                raise ValueError("无法读取原提示词，未进行更新")
+            if before["systemPrompt"] == PROMPT:
+                return {"status": "prompt_current"}
+            settings.data_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
+            backup = settings.data_dir / f"prompt-backup-{time.time_ns()}.txt"
+            fd = os.open(backup, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+            with os.fdopen(fd, "w", encoding="utf-8") as stream:
+                stream.write(before["systemPrompt"])
+            await api("PUT", f"/xiaozhi/agent/{agent_id}", {"systemPrompt": PROMPT})
+            after = await api("GET", f"/xiaozhi/agent/{agent_id}")
+            if not isinstance(after, dict) or after.get("systemPrompt") != PROMPT:
+                raise ValueError("提示词更新后校验失败，请检查平台配置")
+            return {"status": "prompt_updated"}
         config = await provision(settings, http)
         code = config.get("activation", {}).get("code")
         if code:
@@ -99,11 +128,16 @@ def main():
     parser.add_argument("--key-file", type=Path, default=Path("~/.secrets/lingxi"))
     parser.add_argument("--agent-id")
     parser.add_argument("--model-id")
+    parser.add_argument(
+        "--sync-prompt", action="store_true",
+        help="备份并同步已有 DuckKing 智能体的提示词，不创建或重新绑定设备",
+    )
     args = parser.parse_args()
     try:
         result = asyncio.run(
             setup_device(
-                Settings.load(), args.key_file, agent_id=args.agent_id, model_id=args.model_id
+                Settings.load(), args.key_file, agent_id=args.agent_id, model_id=args.model_id,
+                sync_prompt=args.sync_prompt,
             )
         )
         print(json.dumps(result, ensure_ascii=False))

@@ -44,3 +44,27 @@ def test_disk_failure_does_not_lose_in_memory_diagnostics_and_can_recover(tmp_pa
     journal.record("state", state="ready")
     assert journal.storage_ok
     assert journal.path.is_file()
+
+
+def test_stt_logging_redacts_known_secrets_and_identifiers_before_truncation(tmp_path):
+    journal = VoiceDiagnostics(tmp_path / "voice.jsonl")
+    text = (
+        '向前走再向左转再向右转\n"文本" '
+        'actual-secret 12:34:56:78:90:ab 12345678-1234-1234-1234-123456789abc '
+        'token=unknown-secret Bearer another-secret https://example.com/key?x=secret'
+    )
+    journal.record("stt", text=text, sensitive_values={"actual-secret"}, text_chars=len(text))
+    entry = journal.snapshot()["events"][0]
+    assert entry["text"].startswith('向前走再向左转再向右转\n"文本"')
+    assert entry["text_chars"] == len(text)
+    assert "secret" not in entry["text"] and "12:34" not in entry["text"]
+    assert "12345678" not in entry["text"] and "https" not in entry["text"]
+    assert len(journal.path.read_text().splitlines()) == 1
+    journal.record("stt", text="长" * 1998 + "actual-secret", sensitive_values={"actual-secret"})
+    assert len(journal.events[-1]["text"]) == 2000
+    assert "actual" not in journal.events[-1]["text"]
+    journal.record("stt", text=[])
+    assert journal.events[-1]["text"] == ""
+    journal.record("tts_sentence", text="回复不落盘")
+    assert "text" not in journal.events[-1]
+    assert [journal.next_turn(), journal.next_turn()] == [1, 2]

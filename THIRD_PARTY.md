@@ -13,6 +13,7 @@
 - [灵矽 OTA](https://linx.qiniu.com/docs/xrobot/platform/OTA)
 - [灵矽 WebSocket](https://linx.qiniu.com/docs/xrobot/platform/websocket)
 - [灵矽端侧 MCP](https://linx.qiniu.com/docs/xrobot/mcp/hardware-mcp)
+- [灵矽智能体 API](https://linx.qiniu.com/docs/xrobot/api/agent)（提示词读取、更新与回读校验）
 
 协议适配自行实现；不复制示例中的身份、token 或关闭 TLS 验证的设置。
 

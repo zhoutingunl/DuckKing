@@ -13,7 +13,7 @@ TOOLS = [
         "name": "duck_flash_step",
         "description": (
             "表演闪身步：预备、左闪、回闪、收势，约3秒的机器人改编动作。"
-            "用户说闪身步、闪一下时调用。"
+            "仅当用户明确说闪身步、闪一下时调用，不用于普通前进、左转或右转。"
         ),
         "inputSchema": {"type": "object", "properties": {}, "additionalProperties": False},
     },
@@ -42,6 +42,28 @@ TOOLS = [
         },
     },
     {
+        "name": "duck_turn_left",
+        "description": "让鸭子原地向左转，到时停止；不是闪身步，不保证精确转角。",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "duration": {"type": "number", "minimum": 0.2, "maximum": 3, "default": 1.2}
+            },
+            "additionalProperties": False,
+        },
+    },
+    {
+        "name": "duck_turn_right",
+        "description": "让鸭子原地向右转，到时停止；不是闪身步，不保证精确转角。",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "duration": {"type": "number", "minimum": 0.2, "maximum": 3, "default": 1.2}
+            },
+            "additionalProperties": False,
+        },
+    },
+    {
         "name": "duck_stop",
         "description": "立即取消当前动作并停止移动。",
         "inputSchema": {"type": "object", "properties": {}, "additionalProperties": False},
@@ -60,7 +82,7 @@ class DeviceMCP:
         self.session_key = session_key
         self.requests: OrderedDict[str, tuple[str, asyncio.Task]] = OrderedDict()
 
-    async def handle(self, request: dict) -> dict | None:
+    async def handle(self, request: dict, *, observe=None) -> dict | None:
         if "id" not in request:
             return None
         request_id = request["id"]
@@ -74,7 +96,7 @@ class DeviceMCP:
             if previous != fingerprint:
                 return response | {"error": {"code": -32600, "message": "Request ID reused"}}
             return await asyncio.shield(task)
-        task = asyncio.create_task(self._dispatch(request, response))
+        task = asyncio.create_task(self._dispatch(request, response, observe))
         self.requests[key] = (fingerprint, task)
         if len(self.requests) > 200:
             # Never drop an in-flight call; the voice transport also bounds concurrency.
@@ -83,7 +105,7 @@ class DeviceMCP:
                     self.requests.pop(old_key)
         return await asyncio.shield(task)
 
-    async def _dispatch(self, request, response):
+    async def _dispatch(self, request, response, observe=None):
         method = request.get("method")
         params = request.get("params") or {}
         if not isinstance(params, dict):
@@ -104,7 +126,9 @@ class DeviceMCP:
             name, arguments = params.get("name"), params.get("arguments", {})
             if not isinstance(arguments, dict):
                 raise ValueError("工具参数必须为对象")
-            allowed = {"duration"} if name == "duck_walk_short" else set()
+            allowed = {"duration"} if name in {
+                "duck_walk_short", "duck_turn_left", "duck_turn_right"
+            } else set()
             if set(arguments) - allowed:
                 raise ValueError("工具包含不支持的参数")
             if name == "duck_get_status":
@@ -114,6 +138,8 @@ class DeviceMCP:
                 kind = {
                     "duck_nod": "nod",
                     "duck_walk_short": "walk",
+                    "duck_turn_left": "turn_left",
+                    "duck_turn_right": "turn_right",
                     "duck_stop": "stop",
                     "duck_flash_step": "flash_step",
                     "duck_bear_shake": "bear_shake",
@@ -124,7 +150,16 @@ class DeviceMCP:
                     name=kind, request_id=f"{self.session_key}:{request['id']}", **arguments
                 )
                 await self.motion.submit(action)
-                result = await self.motion.wait(action.request_id)
+                if observe:
+                    observe("action_start", tool=name)
+                try:
+                    result = await self.motion.wait(action.request_id)
+                except asyncio.CancelledError:
+                    if observe:
+                        observe("action_end", tool=name, result="cancelled")
+                    raise
+                if observe:
+                    observe("action_end", tool=name, result=result["status"])
             failed = result.get("status") in {"failed", "cancelled"}
             return response | {
                 "result": {

@@ -1,4 +1,5 @@
 import { defineConfig } from 'vite';
+import { fileURLToPath } from 'node:url';
 
 const apiPort = Number(process.env.DUCKKING_API_PORT ?? '8765');
 if (!Number.isInteger(apiPort) || apiPort < 1 || apiPort > 65535) {
@@ -7,6 +8,14 @@ if (!Number.isInteger(apiPort) || apiPort < 1 || apiPort > 65535) {
 const target = `http://127.0.0.1:${apiPort}`;
 
 export default defineConfig({
+  build: {
+    rolldownOptions: {
+      input: {
+        main: fileURLToPath(new URL('./index.html', import.meta.url)),
+        statistics: fileURLToPath(new URL('./statistics.html', import.meta.url)),
+      },
+    },
+  },
   server: {
     host: '127.0.0.1',
     port: 5173,

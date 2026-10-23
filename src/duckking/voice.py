@@ -11,7 +11,7 @@ import httpx
 from websockets.asyncio.client import connect
 
 from .config import Settings, provision, secure_device_endpoint
-from .diagnostics import VoiceDiagnostics
+from .diagnostics import VoiceDiagnostics, redact_transcript
 from .mcp import DeviceMCP
 from .motion import Action, MotionController
 from .opus import OpusCodec
@@ -48,12 +48,14 @@ class VoiceSession:
         self.turn = self.uplink_frames = self.downlink_frames = 0
         self.last_activity = self.state_since = time.monotonic()
         self.logged_state = None
+        self.sensitive_values = set()
 
     def record(self, event, **fields):
         self.diagnostics.record(
             event, state=self.state, turn=self.turn, uplink_frames=self.uplink_frames,
             downlink_frames=self.downlink_frames,
             elapsed_ms=int(max(0, time.monotonic() - self.started) * 1000) if self.turn else 0,
+            backend=self.motion.backend.kind,
             **fields,
         )
 
@@ -112,6 +114,7 @@ class VoiceSession:
             raise ValueError("missing device token")
         address = secure_device_endpoint(address)
         identity = config["identity"]
+        self.sensitive_values = {token, identity["device_id"], identity["client_id"]}
         self.encoder = OpusCodec(16000)
         self.cloud = await connect(
             address,
@@ -150,6 +153,7 @@ class VoiceSession:
             raise ValueError("unsupported audio parameters")
         self.decoder = OpusCodec(self.sample_rate)
         self.session_id = hello.get("session_id", "")
+        self.sensitive_values.add(self.session_id)
         self.state = "ready"
         self.error = ""
         self.last_activity = time.monotonic()
@@ -170,7 +174,7 @@ class VoiceSession:
                 raise ValueError("请等待灵矽连接就绪或回答结束")
             self.started = time.monotonic()
             self.last_activity = self.started
-            self.turn += 1
+            self.turn = self.diagnostics.next_turn()
             self.uplink_frames = self.downlink_frames = 0
             self.state = "listening"
         elif self.state == "listening":
@@ -205,9 +209,20 @@ class VoiceSession:
     async def _tool(self, payload):
         params = payload.get("params")
         tool = params.get("name") if isinstance(params, dict) else None
+        turn, started = self.turn, self.started
+        call = self.diagnostics.sequence + 1
+
+        def observe(event, **fields):
+            # Capture the original round, including cancellation after reconnect/new speech.
+            self.diagnostics.record(
+                event, turn=turn, call=call, backend=self.motion.backend.kind,
+                elapsed_ms=int(max(0, time.monotonic() - started) * 1000) if turn else 0,
+                **fields,
+            )
+
         self.record("tool_start", method=payload.get("method"), tool=tool)
         try:
-            result = await self.mcp.handle(payload)
+            result = await self.mcp.handle(payload, observe=observe)
             if result is not None:
                 await self._json({"type": "mcp", "session_id": self.session_id, "payload": result})
             failed = result and ("error" in result or result.get("result", {}).get("isError"))
@@ -253,9 +268,16 @@ class VoiceSession:
                     task.add_done_callback(self.tasks.discard)
                 elif kind == "stt":
                     self.last_activity = time.monotonic()
-                    self.record("stt", text_chars=len(data.get("text", "")))
+                    text = data.get("text", "")
+                    if not isinstance(text, str):
+                        raise ValueError("invalid STT text")
+                    self.record(
+                        "stt", text_chars=len(text), text=text,
+                        sensitive_values=self.sensitive_values,
+                    )
                     await self.send(
-                        {"type": "transcript", "role": "user", "text": data.get("text", "")}
+                        {"type": "transcript", "role": "user",
+                         "text": redact_transcript(text, self.sensitive_values)}
                     )
                 elif kind == "tts":
                     if data.get("state") == "start":
@@ -266,7 +288,9 @@ class VoiceSession:
                         self.record("tts_start")
                     elif data.get("state") == "stop":
                         self.state = "ready"
-                        self.record("tts_stop")
+                        self.record(
+                            "tts_stop", result="aborted" if data.get("is_aborted") else "ok"
+                        )
                         await self.send(
                             {"type": "playback_end", "aborted": bool(data.get("is_aborted"))}
                         )

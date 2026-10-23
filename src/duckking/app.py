@@ -81,6 +81,19 @@ def create_app(
         except ValueError as exc:
             raise HTTPException(409, str(exc)) from exc
 
+    @app.get("/api/voice/statistics")
+    async def voice_statistics(request: Request, backend: str = "all"):
+        if not same_origin(request.headers.get("origin"), request.headers.get("host", "")):
+            raise HTTPException(403, "仅允许同源本地操作")
+        if backend not in {"all", "preview", "robotd"}:
+            raise HTTPException(422, "未知后端")
+        journal = app.state.voice_diagnostics
+        return JSONResponse(
+            {**journal.statistics.snapshot(None if backend == "all" else backend),
+             "storage_ok": journal.storage_ok, "current_backend": motion.backend.kind},
+            headers={"Cache-Control": "no-store"},
+        )
+
     @app.get("/api/actions/{request_id}")
     async def action_result(request_id: str):
         if request_id not in motion.records:

@@ -1,10 +1,14 @@
-"""Bounded metadata journal without transcripts, audio, cloud/device IDs, or credentials."""
+"""Private bounded journal with redacted STT; no audio, device IDs, or credentials."""
 
 import json
 import os
+import re
+import time
 from collections import deque
 from datetime import UTC, datetime
 from pathlib import Path
+
+from .statistics import VoiceStatistics
 
 STATES = {
     "disconnected", "connecting", "recovering", "awaiting_binding", "ready",
@@ -14,16 +18,18 @@ EVENTS = {
     "state", "listen_start", "listen_stop", "uplink_first_frame", "downlink_first_frame",
     "stt", "tts_start", "tts_stop", "tts_sentence", "tool_start", "tool_end",
     "timeout", "reset", "connection_error", "connection_closed", "command_error",
+    "action_start", "action_end",
 }
 ENUMS = {
     "state": STATES,
     "reason": {"recording_limit", "response_idle", "playback_idle", "turn_limit", "manual"},
     "tool": {
         "duck_nod", "duck_walk_short", "duck_stop", "duck_get_status",
-        "duck_flash_step", "duck_bear_shake",
+        "duck_flash_step", "duck_bear_shake", "duck_turn_left", "duck_turn_right",
     },
     "method": {"initialize", "tools/list", "tools/call", "notifications/initialized"},
-    "result": {"ok", "error", "ignored"},
+    "result": {"ok", "error", "ignored", "completed", "failed", "cancelled", "aborted"},
+    "backend": {"preview", "robotd"},
     "error_type": {
         "TimeoutError", "OSError", "ValueError", "RuntimeError", "TypeError",
         "JSONDecodeError", "InvalidStatus", "InvalidURI", "ConnectionClosedError",
@@ -31,7 +37,25 @@ ENUMS = {
         "ConnectError", "WebSocketDisconnect",
     },
 }
-COUNTERS = {"turn", "uplink_frames", "downlink_frames", "elapsed_ms", "text_chars"}
+COUNTERS = {"turn", "call", "uplink_frames", "downlink_frames", "elapsed_ms", "text_chars"}
+
+
+def redact_transcript(text, sensitive_values=()):
+    if not isinstance(text, str):
+        return ""
+    for value in sorted(set(sensitive_values), key=len, reverse=True):
+        if value:
+            text = text.replace(value, "[已隐藏]")
+    text = re.sub(r"https?://\S+|wss?://\S+", "[已隐藏链接]", text)
+    text = re.sub(r"(?i)\b(?:[0-9a-f]{2}:){5}[0-9a-f]{2}\b", "[已隐藏设备标识]", text)
+    text = re.sub(
+        r"(?i)\b[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}\b", "[已隐藏标识]", text
+    )
+    text = re.sub(
+        r"(?i)(?:bearer\s+|(?:api[_ -]?key|token|device[_ -]?id|client[_ -]?id|密钥)"
+        r"\s*[:=：]\s*)[^\s，。；]+", "[已隐藏凭据]", text,
+    )
+    return text[:2000]
 
 
 class VoiceDiagnostics:
@@ -41,8 +65,14 @@ class VoiceDiagnostics:
         self.sequence = 0
         self.max_bytes = max_bytes
         self.storage_ok = True
+        self.turn_sequence = 0
+        self.statistics = VoiceStatistics()
 
-    def record(self, event: str, **fields):
+    def next_turn(self):
+        self.turn_sequence += 1
+        return self.turn_sequence
+
+    def record(self, event: str, *, sensitive_values=(), **fields):
         self.sequence += 1
         entry = {
             "id": self.sequence,
@@ -54,7 +84,10 @@ class VoiceDiagnostics:
                 entry[key] = value
             elif key in COUNTERS and type(value) is int and 0 <= value <= 2**31 - 1:
                 entry[key] = value
+            elif key == "text" and event == "stt":
+                entry[key] = redact_transcript(value, sensitive_values)
         self.events.append(entry)
+        self.statistics.observe(entry, time.monotonic())
         if self.path is not None:
             self._write(entry)
 

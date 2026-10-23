@@ -96,7 +96,9 @@ async def test_stalled_turn_reconnects_once_stops_motion_and_never_replays_audio
             assert any(e.get("reason") == reason for e in events)
             assert session.diagnostic_status()["uplink_frames"] == 1
             log = (tmp_path / "voice.jsonl").read_text()
-            assert "private-" not in log
+            assert "private-token" not in log and "private-cloud-session" not in log
+            if mode == "activity":
+                assert "private-transcript" in log  # STT logging is explicitly enabled.
             await asyncio.sleep(0.12)
             assert len(connections) == 2 and session.state == "ready"
         finally:
