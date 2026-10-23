@@ -1,0 +1,80 @@
+import asyncio
+import json
+
+import pytest
+
+from duckking.mcp import DeviceMCP
+from duckking.motion import MotionController, PreviewBackend
+
+
+def request(method, params=None, ident=1):
+    return {"jsonrpc": "2.0", "id": ident, "method": method, "params": params or {}}
+
+
+async def test_discovery_protocol_errors_and_status():
+    motion = MotionController(PreviewBackend())
+    mcp = DeviceMCP(motion, "test")
+    assert await mcp.handle({"method": "notifications/initialized"}) is None
+    assert "error" in await mcp.handle({"jsonrpc": "bad", "id": [], "method": "tools/list"})
+    response = await mcp.handle(request("initialize"))
+    assert response["result"]["capabilities"] == {"tools": {}}
+    listing = await mcp.handle(request("tools/list", ident=2))
+    assert len(listing["result"]["tools"]) == 4
+    assert "error" in await mcp.handle(request("not-a-method", ident=3))
+    assert "error" in await mcp.handle(request("tools/call", [1], ident=4))
+    status = await mcp.handle(request("tools/call", {"name": "duck_get_status"}, ident=5))
+    assert "preview" in status["result"]["content"][0]["text"]
+    await mcp.close()
+
+
+async def test_duplicate_calls_are_shared_and_conflicts_do_not_repeat():
+    motion = MotionController(PreviewBackend())
+    mcp = DeviceMCP(motion, "test")
+    call = request("tools/call", {"name": "duck_walk_short", "arguments": {"duration": 0.2}})
+    results = await asyncio.gather(mcp.handle(call), mcp.handle(call))
+    assert results[0] == results[1]
+    assert len(motion.records) == 1
+    assert results[0]["result"]["isError"] is False
+    assert (await mcp.handle(request("tools/list")))["error"]["message"] == "Request ID reused"
+    await motion.close()
+
+
+async def test_stop_interrupts_an_inflight_mcp_action():
+    motion = MotionController(PreviewBackend())
+    mcp = DeviceMCP(motion, "test")
+    walk = asyncio.create_task(mcp.handle(request("tools/call", {"name": "duck_walk_short"})))
+    await asyncio.sleep(0.06)
+    stop = await mcp.handle(request("tools/call", {"name": "duck_stop"}, ident=2))
+    cancelled = await walk
+    assert stop["result"]["isError"] is False
+    assert cancelled["result"]["isError"] is True
+    assert json.loads(cancelled["result"]["content"][0]["text"])["status"] == "cancelled"
+    await motion.close()
+
+
+@pytest.mark.parametrize(
+    "params",
+    [
+        {"name": "shell"},
+        {"name": "duck_nod", "arguments": {"command": "bad"}},
+        {"name": "duck_nod", "arguments": []},
+        {"name": "duck_walk_short", "arguments": {"duration": 100}},
+    ],
+)
+async def test_invalid_tools_and_arguments_produce_tool_errors(params):
+    mcp = DeviceMCP(MotionController(PreviewBackend()), "test")
+    assert (await mcp.handle(request("tools/call", params)))["result"]["isError"] is True
+
+
+async def test_replay_cache_is_bounded_and_session_closes_pending_tasks():
+    motion = MotionController(PreviewBackend())
+    mcp = DeviceMCP(motion, "test")
+    for index in range(205):
+        await mcp.handle(request("tools/list", ident=index))
+    assert len(mcp.requests) == 200
+    call = asyncio.create_task(mcp.handle(request("tools/call", {"name": "duck_nod"}, ident=999)))
+    await asyncio.sleep(0.01)
+    await mcp.close()
+    with pytest.raises(asyncio.CancelledError):
+        await call
+    await motion.close()

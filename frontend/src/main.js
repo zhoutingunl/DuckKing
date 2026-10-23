@@ -1,5 +1,6 @@
 import './style.css';
 import { createDuckScene } from './duck.js';
+import { setupVoice } from './voice.js';
 
 const $ = (id) => document.getElementById(id);
 const names = {nod:'点头',walk:'前进',turn_left:'左转',turn_right:'右转',stop:'停止',reset:'回到起点'};
@@ -7,6 +8,12 @@ let scene;
 try { scene = createDuckScene($('viewport')); }
 catch { $('canvas-fallback').hidden = false; }
 let seen=0, completed=new Set(), reconnectDelay=500;
+let backendKind='preview',voiceState='disconnected';
+function scope(){
+  $('scope-note').textContent=(backendKind==='preview'?'动画预览为原创示意形象，不进行物理计算。':'正在连接官方 robotd；本页鸭子仅为示意，物理画面请查看 MuJoCo 窗口。')+
+    (['ready','listening','thinking','speaking'].includes(voiceState)?'灵矽语音已连接。':'灵矽语音尚未连接。');
+}
+window.addEventListener('duckking-voice-state',event=>{voiceState=event.detail;scope()});
 export function notify(message) { $('notice').textContent=message;$('notice').hidden=false; }
 export function appendLog(text, label='系统', error=false) {
   const log=$('activity-log');log.querySelector('.empty-log')?.remove();
@@ -34,6 +41,11 @@ function connect(){
   ws.onopen=()=>{reconnectDelay=500;$('connection-label').textContent='本地工作台已连接';$('connection-dot').classList.remove('offline')};
   ws.onmessage=event=>{
     const data=JSON.parse(event.data);if(data.type!=='state')return;
+    backendKind=data.backend.kind;scope();
+    $('backend-badge').textContent=backendKind==='preview'?'动画预览':'robotd 适配';
+    $('data-source').textContent=backendKind==='preview'?'本地预览':data.backend.connected?'官方 robotd':'未连接';
+    $('reset-position').disabled=backendKind!=='preview';
+    if(data.backend.error&&backendKind!=='preview')notify(data.backend.error);
     scene?.update(data.backend);
     $('current-action').textContent=names[data.action?.name]??'待机';
     $('duck-mood').innerHTML=`<i></i>${data.action?'正在'+(names[data.action.name]??'执行动作'):'正在等待你的指令'}`;
@@ -49,3 +61,4 @@ function connect(){
   };
   ws.onclose=()=>{$('connection-label').textContent='连接中断 · 正在重连';$('connection-dot').classList.add('offline');setTimeout(connect,reconnectDelay);reconnectDelay=Math.min(reconnectDelay*2,5000)};
 }connect();
+setupVoice({appendLog,notify});
