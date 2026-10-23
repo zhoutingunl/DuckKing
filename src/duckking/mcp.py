@@ -10,6 +10,22 @@ from .motion import Action, MotionController
 
 TOOLS = [
     {
+        "name": "duck_flash_step",
+        "description": (
+            "表演闪身步：预备、左闪、回闪、收势，约3秒的机器人改编动作。"
+            "用户说闪身步、闪一下时调用。"
+        ),
+        "inputSchema": {"type": "object", "properties": {}, "additionalProperties": False},
+    },
+    {
+        "name": "duck_bear_shake",
+        "description": (
+            "表演狗熊哆嗦毛：轻蹲、四拍摆身抖头、收势，约3秒的机器人改编动作。"
+            "用户说狗熊哆嗦毛、抖抖毛时调用。"
+        ),
+        "inputSchema": {"type": "object", "properties": {}, "additionalProperties": False},
+    },
+    {
         "name": "duck_nod",
         "description": "让鸭子点点头打招呼。",
         "inputSchema": {"type": "object", "properties": {}, "additionalProperties": False},
@@ -95,7 +111,13 @@ class DeviceMCP:
                 state = await self.motion.snapshot()
                 result = {"backend": state["backend"], "action": state["action"]}
             else:
-                kind = {"duck_nod": "nod", "duck_walk_short": "walk", "duck_stop": "stop"}.get(name)
+                kind = {
+                    "duck_nod": "nod",
+                    "duck_walk_short": "walk",
+                    "duck_stop": "stop",
+                    "duck_flash_step": "flash_step",
+                    "duck_bear_shake": "bear_shake",
+                }.get(name)
                 if not kind:
                     raise ValueError("未知工具")
                 action = Action(

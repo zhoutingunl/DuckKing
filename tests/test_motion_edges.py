@@ -25,7 +25,7 @@ async def test_new_action_replaces_old_one_and_reset_restores_pose():
     await controller.submit(Action(name="reset", request_id="reset"))
     await controller.wait("reset")
     state = await controller.snapshot()
-    assert state["backend"]["pose"] == {"x": 0, "z": 0, "yaw": 0, "pitch": 0}
+    assert all(value == 0 for value in state["backend"]["pose"].values())
     assert state["action"] is None
     await controller.close()
 

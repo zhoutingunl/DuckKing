@@ -8,23 +8,41 @@ from collections import OrderedDict, deque
 from contextlib import suppress
 from typing import Literal, Protocol
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
+
+from .choreography import CHOREOGRAPHIES, DEFAULT_DURATION, MIN_DURATION, sample
 
 
 class Action(BaseModel):
     model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
-    name: Literal["nod", "walk", "turn_left", "turn_right", "stop", "reset"]
+    name: Literal[
+        "nod", "walk", "turn_left", "turn_right", "stop", "reset", "flash_step", "bear_shake"
+    ]
     duration: float = Field(default=1.2, ge=0.2, le=3.0)
     speed: float | None = Field(default=None, ge=0.02, le=0.4)
     request_id: str = Field(default_factory=lambda: str(uuid.uuid4()), min_length=1, max_length=100)
+
+    @model_validator(mode="before")
+    @classmethod
+    def choreography_defaults(cls, data):
+        if isinstance(data, dict) and data.get("name") in CHOREOGRAPHIES and "duration" not in data:
+            return data | {"duration": DEFAULT_DURATION}
+        return data
+
+    @model_validator(mode="after")
+    def choreography_timing(self):
+        if self.name in CHOREOGRAPHIES and self.duration < MIN_DURATION:
+            raise ValueError("组合动作至少需要 2.4 秒，不能压缩成高速抖动")
+        return self
 
 
 class Backend(Protocol):
     kind: str
     default_speed: float
 
-    async def move(self, vx: float, vyaw: float) -> None: ...
-    async def head(self, pitch: float) -> None: ...
+    async def move(self, vx: float, vyaw: float, vy: float = 0.0) -> None: ...
+    async def head(self, pitch: float, yaw: float = 0.0, roll: float = 0.0) -> None: ...
+    async def body_pose(self, z: float, roll: float, pitch: float, active: bool) -> None: ...
     async def stop(self) -> None: ...
     async def reset(self) -> None: ...
     async def snapshot(self) -> dict: ...
@@ -39,6 +57,8 @@ class PreviewBackend:
 
     def __init__(self):
         self.x = self.z = self.yaw = self.pitch = self.vx = self.vyaw = 0.0
+        self.vy = self.head_yaw = self.head_roll = 0.0
+        self.body_z = self.body_roll = self.body_pitch = 0.0
         self.updated = time.monotonic()
 
     def _advance(self):
@@ -46,19 +66,24 @@ class PreviewBackend:
         dt = min(now - self.updated, 0.2)
         self.updated = now
         self.yaw += self.vyaw * dt
-        self.x += self.vx * math.sin(self.yaw) * dt
-        self.z += self.vx * math.cos(self.yaw) * dt
+        self.x += (self.vx * math.sin(self.yaw) + self.vy * math.cos(self.yaw)) * dt
+        self.z += (self.vx * math.cos(self.yaw) - self.vy * math.sin(self.yaw)) * dt
 
-    async def move(self, vx, vyaw):
+    async def move(self, vx, vyaw, vy=0.0):
         self._advance()
-        self.vx, self.vyaw = vx, vyaw
+        self.vx, self.vyaw, self.vy = vx, vyaw, vy
 
-    async def head(self, pitch):
-        self.pitch = pitch
+    async def head(self, pitch, yaw=0.0, roll=0.0):
+        self.pitch, self.head_yaw, self.head_roll = pitch, yaw, roll
+
+    async def body_pose(self, z, roll, pitch, active):
+        self.body_z, self.body_roll, self.body_pitch = (z, roll, pitch) if active else (0, 0, 0)
 
     async def stop(self):
         self._advance()
         self.vx = self.vyaw = self.pitch = 0.0
+        self.vy = self.head_yaw = self.head_roll = 0.0
+        self.body_z = self.body_roll = self.body_pitch = 0.0
 
     async def reset(self):
         await self.stop()
@@ -70,8 +95,18 @@ class PreviewBackend:
             "kind": self.kind,
             "connected": True,
             "physics": False,
-            "pose": {"x": self.x, "z": self.z, "yaw": self.yaw, "pitch": self.pitch},
-            "velocity": {"forward": self.vx, "yaw": self.vyaw},
+            "pose": {
+                "x": self.x,
+                "z": self.z,
+                "yaw": self.yaw,
+                "pitch": self.pitch,
+                "head_yaw": self.head_yaw,
+                "head_roll": self.head_roll,
+                "body_z": self.body_z,
+                "body_roll": self.body_roll,
+                "body_pitch": self.body_pitch,
+            },
+            "velocity": {"forward": self.vx, "lateral": self.vy, "yaw": self.vyaw},
         }
 
     async def close(self):
@@ -146,7 +181,21 @@ class MotionController:
             else:
                 started = time.monotonic()
                 while (elapsed := time.monotonic() - started) < action.duration:
-                    if action.name == "nod":
+                    if action.name in CHOREOGRAPHIES:
+                        frame = sample(action.name, elapsed, action.duration)
+                        if record.get("phase") != frame.phase:
+                            record["phase"] = frame.phase
+                            self.event(
+                                "phase",
+                                f"{CHOREOGRAPHIES[action.name]} · {frame.phase}",
+                                action_id=action.request_id,
+                            )
+                        await self.backend.body_pose(
+                            frame.body_z, frame.body_roll, frame.body_pitch, frame.body_active
+                        )
+                        await self.backend.head(frame.head_pitch, frame.head_yaw, frame.head_roll)
+                        await self.backend.move(frame.forward, frame.turn, frame.lateral)
+                    elif action.name == "nod":
                         # Smooth, bounded head trajectory, not a new learned motion policy.
                         pitch = 0.18 * math.sin(elapsed / action.duration * math.tau * 2)
                         await self.backend.head(pitch)
