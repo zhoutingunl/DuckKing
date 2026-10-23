@@ -46,6 +46,8 @@ flowchart LR
 
 ## 本地接口
 
+生产 demo 由 FastAPI 提供 `frontend/dist`；开发模式由 Vite 在 5173 提供源文件和热更新，转发 `/api`、`/ws`、`/voice` 到同一 FastAPI 后端。代理保留 Host / Origin，沿用同源校验，不引入替代动作或语音实现。安装与端口配置见 [本地开发指南](DEVELOPMENT.md)。
+
 | 接口 | 用途 |
 |---|---|
 | `GET /api/health` | 版本、后端类型与服务可达性 |

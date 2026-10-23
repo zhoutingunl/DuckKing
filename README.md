@@ -15,17 +15,17 @@
 ```bash
 git clone git@github.com:zhoutingunl/DuckKing.git
 cd DuckKing
-uv sync --python 3.12
-cd frontend
-npm ci
-npm run build
-cd ..
-uv run duckking
+scripts/setup_local.sh
+scripts/run_local.sh
 ```
 
 打开 <http://127.0.0.1:8765>。可直接使用点头、前进、左右转向、闪身步、狗熊哆嗦毛、停止和复位；Esc 可取消动作。
 
 默认运行原创动画预览，不进行物理计算。语音需另外连接灵矽，不会把本地按钮操作冒充为识别结果。
+
+初始化脚本检查 Node.js 版本、按锁文件安装 Python / 前端依赖并构建页面；可重复执行。默认使用 Python 3.12，由 uv 准备。启动脚本保持前台运行，Ctrl+C 退出；支持 `--port 8766` 等原有参数。缺少环境或构建时会明确提示初始化，不会启动空页面。
+
+继续开发时保持后端运行，在第二个终端执行 `cd frontend && npm run dev`，打开 <http://127.0.0.1:5173> 获得前端热更新。安装、端口配置、验证及排障见 [本地开发指南](docs/DEVELOPMENT.md)。
 
 ## 连接灵矽
 
@@ -78,6 +78,7 @@ uv run python scripts/check_coverage.py
 cd frontend
 npx playwright install chromium
 npm run test:e2e
+npm run test:e2e:dev
 npm run test:unit
 ```
 

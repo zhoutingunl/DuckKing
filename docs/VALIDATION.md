@@ -1,6 +1,6 @@
 # 验证记录
 
-验证日期：2026-10-23。环境：macOS arm64、Python 3.12、Node.js；GitHub CI 另在 Ubuntu / Python 3.12 / Node.js 22 执行。
+验证日期：2026-10-23。原有语音/仿真验证环境为 macOS arm64；本轮本地开发环境另在 macOS x86_64 验证，详情见下文。GitHub CI 在 Ubuntu / Python 3.12 / Node.js 22 执行。
 
 ## 自动化验证
 
@@ -11,12 +11,21 @@
 | 后端分支覆盖率 | 97.01% | 门槛 ≥85%，独立检查，未用总百分比替代 |
 | 前端音频单测 | 3 项通过 | 重采样、跨帧连续性、格式、截断与无效输入 |
 | 前端音频覆盖率 | 行 100%、分支 96.43% | 范围为 `audio-codec.js`，不冒充整个前端的覆盖率 |
-| Playwright 浏览器测试 | 6 项通过 | 包含两个组合动作的实际状态与阶段、取消、移动端和音频 |
+| Playwright 正式 demo | 7 项通过 | 包含组合动作、取消、移动端、音频和错误后的动作恢复 |
+| Playwright 开发模式 | 11 项通过 | 重复正式流程，增加真实代理、同源拒绝、时长限制、离线反馈 |
 | Ruff / Vite | 通过 | 代码检查与生产构建 |
 
 最新精确结果以当前 PR 的 `quality` 检查为准。CI 每次上传后端 HTML/XML/JSON 覆盖报告和浏览器 trace/screenshot/report；任何门槛失败都会阻止合入。
 
 本地协议测试使用假 OTA / WebSocket 服务及真实 libopus；官方适配单元测试使用本地 Unix socket 服务。它们验证客户端实现，不等于真实云端服务或实体硬件验收。
+
+## 本地开发环境增量验证
+
+2026-10-23 在 macOS x86_64、Python 3.12.12、Node.js 26.3.0、uv 0.10.6、Opus 1.6.1 上执行 `scripts/setup_local.sh`，按锁文件完成安装和生产构建。`scripts/run_local.sh` 的 8765 服务及 Vite 的 5173 代理均返回健康状态 `backend=preview`；浏览器实际加载三维画面，未启用 WebGL 降级提示，也没有页面 JavaScript 异常。
+
+本轮浏览器测试显式使用系统 Google Chrome 155.0.8059.85：正式模式 7/7、开发模式 11/11 通过。Chromium 下载遇到网络超时；可按 [开发指南](DEVELOPMENT.md) 用 `PLAYWRIGHT_CHROMIUM_EXECUTABLE` 指定现有 Chrome。后端 116/116、音频单测 3/3、Ruff、覆盖率门槛和构建均通过。
+
+真实开发代理验证了 HTTP 及两条 WebSocket 的外站 Origin 被拒绝；未连接云端时的语音命令得到本地协议错误；API 不可达时返回 502 并在页面显示检查服务/端口的提示。另验证了非 JSON 503 和 JSON 409 错误不阻止后续真实动作完成。本轮没有连接真实灵矽或启动官方 MuJoCo，不增加新的云端/物理验收结论。
 
 ## 官方物理仿真实测
 
