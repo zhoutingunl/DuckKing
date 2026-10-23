@@ -3,6 +3,7 @@
 import argparse
 import asyncio
 import json
+import logging
 import os
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -162,6 +163,7 @@ def create_app(
     @app.websocket("/scene-ws")
     async def scene_stream(ws: WebSocket):
         if not same_origin(ws.headers.get("origin"), ws.headers.get("host", "")):
+            logging.getLogger(__name__).warning("scene_ws_rejected: origin_mismatch")
             await ws.close(code=1008)
             return
         await ws.accept()
@@ -183,6 +185,7 @@ def create_app(
                     return
                 await asyncio.sleep(0.05)
         except TimeoutError:
+            logging.getLogger(__name__).warning("scene_ws_closed: acknowledgement_timeout")
             await ws.close(code=1001)
         except (WebSocketDisconnect, RuntimeError, OSError):
             pass

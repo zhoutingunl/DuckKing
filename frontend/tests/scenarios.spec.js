@@ -56,3 +56,25 @@ test('a restarted server clears stale scene controls and measurements',async({pa
   await expect(page.locator('#sim-status')).toHaveText('选择场景开始');
   await expect(page.locator('#ball-distance')).toHaveText('—');
 });
+
+test('a real origin rejection explains the local connection and recovers without Linx',async({page})=>{
+  // Keep HTTP working, but send the socket to a different loopback hostname:
+  // the actual backend must reject the mismatched Origin during its handshake.
+  await page.addInitScript(()=>{
+    window.sceneNativeWebSocket=window.WebSocket;
+    window.WebSocket=new Proxy(window.WebSocket,{construct(Target,args){
+      const url=new URL(args[0]);
+      if(url.pathname==='/scene-ws'){url.hostname='localhost';args[0]=url.href;}
+      return new Target(...args);
+    }});
+  });
+  await page.goto('/scenarios.html');
+  await expect(page.locator('#sim-status')).toHaveText('场景连接未建立 · 正在重试');
+  await expect(page.locator('#notice')).toContainText('无需先连接灵矽');
+  await expect(page.locator('#notice')).toContainText('Chrome 无痕窗口');
+  await expect(page.getByRole('button',{name:'单鸭定点踢球'})).toBeDisabled();
+  await expect(page.locator('#activity-log')).toContainText('握手未完成');
+  await page.evaluate(()=>{window.WebSocket=window.sceneNativeWebSocket;});
+  await expect(page.getByRole('button',{name:'单鸭定点踢球'})).toBeEnabled();
+  await expect(page.locator('#notice')).toBeHidden();
+});

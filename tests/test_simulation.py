@@ -230,13 +230,26 @@ def test_scene_actions_remain_bounded(body):
         Action(**body)
 
 
-def test_scene_state_stream_closes_unresponsive_client(monkeypatch):
+def test_scene_state_stream_closes_unresponsive_client(monkeypatch, caplog):
     monkeypatch.setattr("duckking.app.SCENE_STATE_ACK_TIMEOUT", 0.01)
     with TestClient(create_app()) as client, client.websocket_connect("/scene-ws") as ws:
         assert ws.receive_json()["type"] == "not_started"
         with pytest.raises(WebSocketDisconnect) as closed:
             ws.receive_json()
         assert closed.value.code == 1001
+    assert "scene_ws_closed: acknowledgement_timeout" in caplog.text
+
+
+@pytest.mark.parametrize("origin", ["http://127.0.0.1:18789", "https://private-token.example"])
+def test_scene_origin_rejection_is_not_reported_as_timeout(origin, caplog):
+    with TestClient(create_app()) as client:
+        with pytest.raises(WebSocketDisconnect) as closed:
+            with client.websocket_connect("/scene-ws", headers={"Origin": origin}):
+                pass
+        assert closed.value.code == 1008
+    assert "scene_ws_rejected: origin_mismatch" in caplog.text
+    assert "acknowledgement_timeout" not in caplog.text
+    assert origin not in caplog.text
 
 
 def test_scene_http_websocket_origin_model_and_missing_dependencies(monkeypatch):

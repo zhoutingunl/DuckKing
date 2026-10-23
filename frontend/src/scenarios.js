@@ -12,7 +12,7 @@ try{viewer=physicsView($('physics-viewport'));}catch{$('canvas-fallback').hidden
 function notify(text){$('notice').textContent=text;$('notice').hidden=false;}
 function appendLog(text,label='场景',error=false){const row=document.createElement('div');row.className=`log-line${error?' error':''}`;for(const [value,cls] of [[new Date().toLocaleTimeString('zh-CN',{hour12:false}),'log-time'],[label,'log-label'],[text,'']]){const span=document.createElement('span');span.textContent=value;span.className=cls;row.append(span);}$('activity-log').append(row);while($('activity-log').children.length>80)$('activity-log').firstChild.remove();$('activity-log').scrollTop=$('activity-log').scrollHeight;}
 const chorus=createChorus(text=>$('chorus-status').textContent=text);
-function buttons(){document.querySelectorAll('[data-sim-action]').forEach(b=>b.disabled=!online||!scene||changing);$('stop-scene').disabled=$('reset-scene').disabled=!online||!scene;document.querySelectorAll('[data-scene]').forEach(b=>{b.disabled=changing;b.setAttribute('aria-pressed',String(b.dataset.scene===scene));});}
+function buttons(){document.querySelectorAll('[data-sim-action]').forEach(b=>b.disabled=!online||!scene||changing);$('stop-scene').disabled=$('reset-scene').disabled=!online||!scene;document.querySelectorAll('[data-scene]').forEach(b=>{b.disabled=changing||!online;b.setAttribute('aria-pressed',String(b.dataset.scene===scene));});}
 async function post(url,body){const response=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body),signal:AbortSignal.timeout(45000)});const data=await response.json();if(!response.ok)throw new Error(typeof data.detail==='string'?data.detail:'场景指令未被接受');return data;}
 const requestId=()=>Array.from(crypto.getRandomValues(new Uint8Array(16)),v=>v.toString(16).padStart(2,'0')).join('');
 let requests=Promise.resolve();
@@ -54,13 +54,32 @@ function update(data){
   for(const event of data.events){if(event.id<=seen)continue;seen=event.id;const text=event.text.replace(/scene_ball|scene_duo|kick_left|kick_right|find_companion|duo_walk|collide|chorus|turn_left|turn_right|walk|stop|reset|nod/g,k=>names[k]??k).replace(/completed|failed|cancelled/g,k=>statuses[k]);appendLog(text,event.kind==='result'?'执行结果':'物理动作',event.status==='failed');if(event.kind==='result')$('action-result').textContent=text;}
   if(data.error)notify(data.error);
 }
-let socket;
+let socket,connectionNotice=null,retryDelay=1000;
 function notStarted(){
   scene=revision=latest=null;seen=0;viewer?.clear();chorus.stop();buttons();
   $('scene-placeholder').hidden=false;$('sim-status').textContent='选择场景开始';$('scene-title').textContent='等待启动';$('actions-heading').textContent='选择场景后开始';
   $('ball-controls').hidden=$('duo-controls').hidden=true;
   for(const id of ['ball-distance','ball-contact','duck-contact','sim-speed'])$(id).textContent='—';
 }
-function connect(){socket=new WebSocket(`${location.protocol==='https:'?'wss':'ws'}://${location.host}/scene-ws`);socket.onopen=()=>{online=true;buttons();};socket.onmessage=event=>{const data=JSON.parse(event.data);if(data.type==='state')update(data);else if(data.type==='not_started')notStarted();socket.send('next');};socket.onclose=()=>{online=false;buttons();chorus.stop();$('sim-status').textContent='场景连接中断 · 正在重连';setTimeout(connect,1000);};}
+function connect(){
+  const channel=new WebSocket(`${location.protocol==='https:'?'wss':'ws'}://${location.host}/scene-ws`);socket=channel;let received=false;
+  channel.onmessage=event=>{
+    if(socket!==channel)return;
+    const data=JSON.parse(event.data);received=true;online=true;retryDelay=1000;
+    if(connectionNotice&&$('notice').textContent===connectionNotice)$('notice').hidden=true;connectionNotice=null;
+    if(data.type==='state')update(data);else if(data.type==='not_started')notStarted();
+    channel.send('next');
+  };
+  channel.onclose=event=>{
+    if(socket!==channel)return;
+    online=false;buttons();chorus.stop();
+    $('sim-status').textContent=received?'场景连接中断 · 正在重连':'场景连接未建立 · 正在重试';
+    connectionNotice=received
+      ?'本地场景连接已断开，正在重连。此连接与灵矽独立；恢复后才能继续操作场景。'
+      :`本地场景实时连接未建立，无需先连接灵矽。请确认后端正在运行，并用 Chrome 无痕窗口直接打开 ${location.origin}/scenarios.html；检查浏览器扩展或代理是否改写 Origin 请求头。`;
+    notify(connectionNotice);appendLog(`场景${received?'连接中断':'握手未完成'}（关闭码 ${event.code}）`,'连接',true);
+    setTimeout(connect,retryDelay);retryDelay=Math.min(retryDelay*2,10000);
+  };
+}
 connect();buttons();setupVoice({appendLog,notify,endpoint:'/scene-voice'});
 window.addEventListener('pagehide',()=>{chorus.dispose();viewer?.dispose();});
