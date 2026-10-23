@@ -1,5 +1,9 @@
 # 演示媒体来源
 
+- `scene-ball.png`、`scene-duo.png`：物理实验室实际浏览器截图，显示来自 MuJoCo 的官方模型与姿态；模型来源为 Pollen Robotics，截图中的模型展示遵循下述 CC BY-NC-SA 4.0，不使用仓库 MIT 许可替代。
+- `physics-scenes.json`：`scripts/verify_scenarios.py` 在本机实际执行的接触、球位移和双鸭动作记录；没有真实云端调用。合唱条目仅验证控制编排，不证明扬声器输出。
+- `scene-voice-verification.json`：左右脚语音踢球的真实灵矽 STT / MCP / TTS 记录。输入为系统合成中文录音，动作来自 MuJoCo CPU + 官方 ONNX，不经过 robotd；不含设备身份或凭证。
+
 - `workbench.png`、`local-preview.mp4`：DuckKing 原创界面与程序化鸭子形象，由真实本地应用录制。没有灵矽云端对话。
 - `official-simulation.mp4`：读取运行中的官方 MuJoCo body 状态，并用官方 Microduck 场景渲染。机械模型、纹理及场景来源于 [Pollen Robotics microduck_rl](https://github.com/pollen-robotics/microduck_rl)，固定提交 `b02fdea4902c2b93b7d34a83a6f05da4ececb7d3`。
 - `official-simulation.json`：本次本地仿真实测记录，不含账号、token 或设备身份。

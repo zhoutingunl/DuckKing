@@ -1,6 +1,6 @@
 # DuckKing
 
-用灵矽语音控制虚拟 Micro Duck 的本地交互项目。支持直接运行的原创动画预览，以及已实测的官方 robotd / MuJoCo 适配。
+用灵矽语音控制虚拟 Micro Duck 的本地交互项目。提供原创动画预览、使用官方模型和策略的 MuJoCo 物理实验室，以及官方 robotd 适配。
 
 ![DuckKing 工作台](docs/media/workbench.png)
 
@@ -54,7 +54,27 @@ uv run duckking-setup --key-file ~/.secrets/lingxi
 
 **真实云端联调已完成。** 已使用系统合成中文语音验证灵矽 STT → MCP 工具调用 → 本地动作 → 真实 TTS，也验证了灵矽调用官方仿真前进。浏览器演示中的输入为合成语音，识别、工具调用和回复均来自真实灵矽服务；没有伪造回复。验收范围与记录见 [VALIDATION.md](docs/VALIDATION.md)。
 
-## 连接官方物理仿真
+## 本地物理实验室：踢球与双鸭
+
+主页点击「物理实验室」，或打开 <http://127.0.0.1:8765/scenarios.html>。开发模式也支持 <http://127.0.0.1:5173/scenarios.html>。
+
+```bash
+scripts/setup_scenarios.sh
+scripts/run_local.sh
+```
+
+此路径在本机 CPU 上运行 MuJoCo，加载固定版本的官方 MicroDuck MJCF 与 ONNX 策略，不需要 Rust、CUDA 或训练环境；它没有经过 robotd。原来的动画工作台和 robotd 连接方式仍是独立路径。缺少依赖或模型时页面明确报错，不回退为动画。
+
+- **单鸭定点踢球**：选择左脚或右脚，每次先将 70 mm / 15 g 的球摆到所选脚前，再执行官方 0.5 秒踢球策略，随后观察至约 2 秒仿真时间。返回所选脚的实际接触及球位移；未踢中会失败，不保证距离，也不具备自主找球能力。
+- **双鸭互动**：同一个 MuJoCo 模型、同一套物理推进。可分别控制鸭 A / B，或让两只鸭一起走、相向碰面。接触数是每个物理步的接触点累计，不等于碰撞次数。
+- **发现同伴**：使用仿真位置、1.2 m 距离、120° 视野与射线遮挡判断；不是摄像头识别或真实蓝牙发现。
+- **同步合唱**：两只鸭同步点头，浏览器用同一个音频时钟合成本地双声部短旋律。按钮触发时会启用声音；语音触发前先点「启用合唱声音」。不是灵矽 TTS，也没有实现官方 BLE 合唱协议。
+
+场景页连接灵矽后可说“用左脚踢球”“用右脚踢球”“切换到双鸭场景”“发现同伴”“一起走”“相向碰面”“合唱”。已有专用 DuckKing 智能体可运行 `uv run --frozen --no-sync duckking-setup --sync-prompt` 更新提示词。新工具仅在物理实验室的语音连接中提供；请先断开原工作台的语音连接。
+
+**已验证真实物理接触及真实灵矽调用左右脚踢球。** 合成中文录音经过真实 STT、MCP 和 TTS；记录见 [物理实测](docs/media/physics-scenes.json) 和 [语音实测](docs/media/scene-voice-verification.json)。停止、Esc 和场景切换会取消场景动作并清零两只鸭的运动意图；球仍可因惯性继续滚动，机器人仍运行站立策略。
+
+## 连接官方 robotd 物理仿真
 
 此路径需要 Rust/Cargo、pkg-config、uv、Python 3.12，首次会下载较大的上游依赖并编译 Rust。
 
@@ -78,6 +98,7 @@ uv run duckking --backend robotd --socket ~/.cache/duck-sim/duck-a.sock
 ## 测试与覆盖率
 
 ```bash
+scripts/setup_scenarios.sh
 uv run ruff check src tests
 uv run pytest --cov --cov-report=term-missing --cov-report=json --cov-report=html
 uv run python scripts/check_coverage.py

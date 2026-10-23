@@ -3,6 +3,8 @@
 import argparse
 import asyncio
 import json
+import logging
+import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -19,6 +21,7 @@ from .robotd import RobotdBackend
 from .voice import VoiceSession
 
 ROOT = Path(__file__).resolve().parents[2]
+SCENE_STATE_ACK_TIMEOUT = 30
 
 
 def same_origin(origin: str | None, host: str) -> bool:
@@ -36,10 +39,14 @@ def create_app(
         if app.state.voice:
             await app.state.voice.disconnect()
         await motion.close()
+        if app.state.scene_motion:
+            await app.state.scene_motion.close()
 
     app = FastAPI(title="DuckKing", lifespan=lifespan)
     app.state.motion = motion
     app.state.voice = None
+    app.state.scene_motion = None
+    scene_lock = asyncio.Lock()
     app.state.voice_diagnostics = VoiceDiagnostics(
         (settings or Settings.load()).data_dir / "voice.jsonl"
     )
@@ -85,12 +92,15 @@ def create_app(
     async def voice_statistics(request: Request, backend: str = "all"):
         if not same_origin(request.headers.get("origin"), request.headers.get("host", "")):
             raise HTTPException(403, "仅允许同源本地操作")
-        if backend not in {"all", "preview", "robotd"}:
+        if backend not in {"all", "preview", "robotd", "mujoco"}:
             raise HTTPException(422, "未知后端")
         journal = app.state.voice_diagnostics
         return JSONResponse(
-            {**journal.statistics.snapshot(None if backend == "all" else backend),
-             "storage_ok": journal.storage_ok, "current_backend": motion.backend.kind},
+            {
+                **journal.statistics.snapshot(None if backend == "all" else backend),
+                "storage_ok": journal.storage_ok,
+                "current_backend": motion.backend.kind,
+            },
             headers={"Cache-Control": "no-store"},
         )
 
@@ -99,6 +109,86 @@ def create_app(
         if request_id not in motion.records:
             raise HTTPException(404, "未知动作")
         return motion.records[request_id]
+
+    def scene_controller():
+        if app.state.scene_motion is None:
+            raise HTTPException(503, "请先启动物理场景")
+        return app.state.scene_motion
+
+    @app.post("/api/scenes/start", status_code=202)
+    async def start_scene(body: Action):
+        if body.name not in {"scene_ball", "scene_duo"} or body.target != "a":
+            raise HTTPException(422, "选择单鸭踢球或双鸭互动场景")
+        async with scene_lock:
+            if app.state.scene_motion is None:
+                try:
+                    from .simulation import MuJoCoBackend
+
+                    assets = Path(os.environ.get("DUCKKING_SIM_DIR", ROOT / "external"))
+                    backend = await asyncio.to_thread(MuJoCoBackend, assets)
+                    app.state.scene_motion = MotionController(backend)
+                except Exception as exc:
+                    raise HTTPException(
+                        503, "物理场景未就绪，请运行 scripts/setup_scenarios.sh 并重新启动服务"
+                    ) from exc
+            try:
+                return await scene_controller().submit(body)
+            except ValueError as exc:
+                raise HTTPException(409, str(exc)) from exc
+
+    @app.get("/api/scenes/model")
+    async def scene_model():
+        return JSONResponse(
+            scene_controller().backend.geometry(), headers={"Cache-Control": "no-store"}
+        )
+
+    @app.get("/api/scenes/state")
+    async def scene_state():
+        return await scene_controller().snapshot()
+
+    @app.post("/api/scenes/actions", status_code=202)
+    async def scene_action(body: Action):
+        try:
+            return await scene_controller().submit(body)
+        except ValueError as exc:
+            raise HTTPException(409, str(exc)) from exc
+
+    @app.get("/api/scenes/actions/{request_id}")
+    async def scene_result(request_id: str):
+        controller = scene_controller()
+        if request_id not in controller.records:
+            raise HTTPException(404, "未知场景动作")
+        return controller.records[request_id]
+
+    @app.websocket("/scene-ws")
+    async def scene_stream(ws: WebSocket):
+        if not same_origin(ws.headers.get("origin"), ws.headers.get("host", "")):
+            logging.getLogger(__name__).warning("scene_ws_rejected: origin_mismatch")
+            await ws.close(code=1008)
+            return
+        await ws.accept()
+        try:
+            while True:
+                controller = app.state.scene_motion
+                await ws.send_json(
+                    {"type": "state", **await controller.snapshot()}
+                    if controller
+                    else {"type": "not_started"}
+                )
+                # One outstanding snapshot: a slow renderer must receive current
+                # physics, not an ever-growing queue of obsolete frames.
+                message = await asyncio.wait_for(ws.receive(), timeout=SCENE_STATE_ACK_TIMEOUT)
+                if message["type"] == "websocket.disconnect":
+                    return
+                if message.get("text") != "next":
+                    await ws.close(code=1008)
+                    return
+                await asyncio.sleep(0.05)
+        except TimeoutError:
+            logging.getLogger(__name__).warning("scene_ws_closed: acknowledgement_timeout")
+            await ws.close(code=1001)
+        except (WebSocketDisconnect, RuntimeError, OSError):
+            pass
 
     @app.websocket("/ws")
     async def state_stream(ws: WebSocket):
@@ -114,6 +204,7 @@ def create_app(
             pass
 
     @app.websocket("/voice")
+    @app.websocket("/scene-voice")
     async def voice_stream(ws: WebSocket):
         if not same_origin(ws.headers.get("origin"), ws.headers.get("host", "")):
             await ws.close(code=1008)
@@ -130,8 +221,15 @@ def create_app(
             await ws.close(code=1008)
             return
         await ws.accept()
+        voice_motion = app.state.scene_motion if ws.url.path == "/scene-voice" else motion
+        if voice_motion is None:
+            await ws.send_json(
+                {"type": "voice_status", "state": "error", "error": "请先启动物理场景再连接灵矽"}
+            )
+            await ws.close(code=1008)
+            return
         session = VoiceSession(
-            ws.send_json, motion, settings or Settings.load(), app.state.voice_diagnostics
+            ws.send_json, voice_motion, settings or Settings.load(), app.state.voice_diagnostics
         )
         app.state.voice = session
         try:
