@@ -4,8 +4,11 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 export function physicsView(container) {
   const scene=new THREE.Scene();scene.background=new THREE.Color('#edf0e5');
   const renderer=new THREE.WebGLRenderer({antialias:true});renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+  const gl=renderer.getContext(),debug=gl.getExtension('WEBGL_debug_renderer_info');
+  let reduced=/swiftshader|llvmpipe|softpipe|software/i.test(debug?gl.getParameter(debug.UNMASKED_RENDERER_WEBGL):'');
+  container.dataset.renderQuality=reduced?'reduced':'full';
   renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1;
-  renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFShadowMap;
+  renderer.shadowMap.enabled=!reduced;renderer.shadowMap.type=THREE.PCFShadowMap;
   container.append(renderer.domElement);renderer.domElement.setAttribute('aria-label','官方 MicroDuck 模型，位置与关节姿态来自 MuJoCo');
   const camera=new THREE.PerspectiveCamera(38,1,.01,30);camera.position.set(.85,.62,.95);
   const controls=new OrbitControls(camera,renderer.domElement);controls.target.set(0,.13,0);controls.minDistance=.35;controls.maxDistance=6;controls.maxPolarAngle=Math.PI/2.02;controls.enableDamping=true;controls.update();controls.saveState();
@@ -14,7 +17,7 @@ export function physicsView(container) {
   const floor=new THREE.Mesh(new THREE.PlaneGeometry(20,20),new THREE.MeshStandardMaterial({color:'#edf0e5',roughness:1}));floor.rotation.x=-Math.PI/2;floor.receiveShadow=true;scene.add(floor);
   const grid=new THREE.GridHelper(8,80,0xcbd6bd,0xe0e6d7);grid.position.y=.0001;scene.add(grid);
   const world=new THREE.Group();world.rotation.x=-Math.PI/2;scene.add(world);
-  let objects=new Map(),labels=new Map(),textures=[],geometries=[],materials=[],frame,timer,revision=null,reduced=false,slowFrames=0;
+  let objects=new Map(),labels=new Map(),textures=[],geometries=[],materials=[],frame,timer,revision=null,slowFrames=0,lastFrame=performance.now();
   const matrix=new THREE.Matrix4();
   function clear(){world.clear();geometries.forEach(g=>g.dispose());materials.forEach(m=>m.dispose());textures.forEach(t=>t.dispose());geometries=[];materials=[];textures=[];objects.clear();labels.clear();}
   function load(model){
@@ -45,11 +48,11 @@ export function physicsView(container) {
       object.position.fromArray(geom.position);const r=geom.rotation;matrix.set(r[0],r[1],r[2],0,r[3],r[4],r[5],0,r[6],r[7],r[8],0,0,0,0,1);object.quaternion.setFromRotationMatrix(matrix);
     }
   }
-  function resize(){const {width,height}=container.getBoundingClientRect();if(width&&height){renderer.setPixelRatio(reduced?Math.min(1,800/width):Math.min(devicePixelRatio,2));renderer.setSize(width,height);camera.aspect=width/height;camera.updateProjectionMatrix();}}
+  function resize(){const {width,height}=container.getBoundingClientRect();if(width&&height){renderer.setPixelRatio(reduced?Math.min(1,640/width):Math.min(devicePixelRatio,2));renderer.setSize(width,height);camera.aspect=width/height;camera.updateProjectionMatrix();}}
   const observer=new ResizeObserver(resize);observer.observe(container);
   function animate(){
     const started=performance.now();controls.update();renderer.render(scene,camera);
-    slowFrames=performance.now()-started>70?slowFrames+1:0;
+    slowFrames=performance.now()-started>70||started-lastFrame>180?slowFrames+1:0;lastFrame=started;
     if(!reduced&&slowFrames>=3){reduced=true;renderer.shadowMap.enabled=false;floor.material.needsUpdate=true;materials.forEach(m=>m.needsUpdate=true);resize();container.dataset.renderQuality='reduced';}
     // Leave an idle interval after each draw so software GPUs cannot starve input,
     // voice audio or the stream of physical state. Physics remains at 200 Hz.

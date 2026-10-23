@@ -2,6 +2,7 @@
 
 import asyncio
 import json
+import time
 from pathlib import Path
 
 import numpy as np
@@ -229,6 +230,15 @@ def test_scene_actions_remain_bounded(body):
         Action(**body)
 
 
+def test_scene_state_stream_closes_unresponsive_client(monkeypatch):
+    monkeypatch.setattr("duckking.app.SCENE_STATE_ACK_TIMEOUT", 0.01)
+    with TestClient(create_app()) as client, client.websocket_connect("/scene-ws") as ws:
+        assert ws.receive_json()["type"] == "not_started"
+        with pytest.raises(WebSocketDisconnect) as closed:
+            ws.receive_json()
+        assert closed.value.code == 1001
+
+
 def test_scene_http_websocket_origin_model_and_missing_dependencies(monkeypatch):
     with TestClient(create_app()) as client:
         assert client.get("/api/scenes/state").status_code == 503
@@ -264,6 +274,16 @@ def test_scene_http_websocket_origin_model_and_missing_dependencies(monkeypatch)
         assert client.get("/api/scenes/actions/missing").status_code == 404
         with client.websocket_connect("/scene-ws") as ws:
             assert ws.receive_json()["backend"]["scene"] == "ball"
+            # Emulate a slow client. There must be no old ball frames queued
+            # ahead of the latest scene after it is ready for another snapshot.
+            time.sleep(0.15)
+            assert client.post("/api/scenes/start", json={"name": "scene_duo"}).status_code == 202
+            ws.send_text("next")
+            assert ws.receive_json()["backend"]["scene"] == "duo"
+            ws.send_bytes(b"invalid frame")
+            with pytest.raises(WebSocketDisconnect) as closed:
+                ws.receive_json()
+            assert closed.value.code == 1008
         assert (
             client.post("/api/scenes/actions", json={"name": "stop", "request_id": "s"}).status_code
             == 202

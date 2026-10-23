@@ -61,6 +61,6 @@ function notStarted(){
   $('ball-controls').hidden=$('duo-controls').hidden=true;
   for(const id of ['ball-distance','ball-contact','duck-contact','sim-speed'])$(id).textContent='—';
 }
-function connect(){socket=new WebSocket(`${location.protocol==='https:'?'wss':'ws'}://${location.host}/scene-ws`);socket.onopen=()=>{online=true;buttons();};socket.onmessage=event=>{const data=JSON.parse(event.data);if(data.type==='state')update(data);else if(data.type==='not_started')notStarted();};socket.onclose=()=>{online=false;buttons();chorus.stop();$('sim-status').textContent='场景连接中断 · 正在重连';setTimeout(connect,1000);};}
+function connect(){socket=new WebSocket(`${location.protocol==='https:'?'wss':'ws'}://${location.host}/scene-ws`);socket.onopen=()=>{online=true;buttons();};socket.onmessage=event=>{const data=JSON.parse(event.data);if(data.type==='state')update(data);else if(data.type==='not_started')notStarted();socket.send('next');};socket.onclose=()=>{online=false;buttons();chorus.stop();$('sim-status').textContent='场景连接中断 · 正在重连';setTimeout(connect,1000);};}
 connect();buttons();setupVoice({appendLog,notify,endpoint:'/scene-voice'});
 window.addEventListener('pagehide',()=>{chorus.dispose();viewer?.dispose();});

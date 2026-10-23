@@ -20,6 +20,7 @@ from .robotd import RobotdBackend
 from .voice import VoiceSession
 
 ROOT = Path(__file__).resolve().parents[2]
+SCENE_STATE_ACK_TIMEOUT = 30
 
 
 def same_origin(origin: str | None, host: str) -> bool:
@@ -172,7 +173,17 @@ def create_app(
                     if controller
                     else {"type": "not_started"}
                 )
+                # One outstanding snapshot: a slow renderer must receive current
+                # physics, not an ever-growing queue of obsolete frames.
+                message = await asyncio.wait_for(ws.receive(), timeout=SCENE_STATE_ACK_TIMEOUT)
+                if message["type"] == "websocket.disconnect":
+                    return
+                if message.get("text") != "next":
+                    await ws.close(code=1008)
+                    return
                 await asyncio.sleep(0.05)
+        except TimeoutError:
+            await ws.close(code=1001)
         except (WebSocketDisconnect, RuntimeError, OSError):
             pass
 
