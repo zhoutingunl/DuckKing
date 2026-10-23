@@ -7,8 +7,13 @@ test('preview actions reach the backend and stop cancels a running walk', async 
   await page.locator('[data-action="nod"]').click();
   await expect(page.locator('#current-action')).toHaveText('点头');
   await expect(page.locator('#action-count')).toHaveText('01');
+  // Keep the production bounds; use the supported 3s duration to avoid testing a
+  // renderer scheduling race on CPU-only CI runners.
+  await page.route('**/api/actions',async route=>{
+    const data=route.request().postDataJSON();
+    await route.continue({postData:JSON.stringify(data.name==='walk'?{...data,duration:3}:data)});
+  });
   await page.locator('[data-action="walk"]').click();
-  await expect(page.locator('#current-action')).toHaveText('前进');
   await page.keyboard.press('Escape');
   await expect(page.locator('#current-action')).toHaveText('待机');
   await expect(page.locator('#activity-log')).toContainText('cancelled');

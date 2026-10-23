@@ -1,6 +1,7 @@
 import asyncio
 import json
 import tempfile
+import time
 from pathlib import Path
 
 import pytest
@@ -160,3 +161,12 @@ async def test_failed_notification_discards_broken_writer(socket_dir):
     with pytest.raises(OSError):
         await backend._notify("robot.move", {})
     assert backend.writer is None
+
+
+@pytest.mark.parametrize("head", [None, [], [0, 0, 0, float("nan")]])
+async def test_nod_requires_a_known_finite_head_baseline(socket_dir, head):
+    backend = RobotdBackend(str(socket_dir / "unused"))
+    backend.received = time.monotonic()
+    backend.state = {"head": head}
+    with pytest.raises(ValueError):
+        await backend.head(0.1)

@@ -1,5 +1,6 @@
 import { defineConfig } from '@playwright/test';
 export default defineConfig({
+  workers: 1,
   testDir: './tests',
   testMatch: '**/*.spec.js',
   use: { baseURL: 'http://127.0.0.1:8765', viewport: {width:1440,height:1050}, trace:'retain-on-failure', screenshot:'only-on-failure',

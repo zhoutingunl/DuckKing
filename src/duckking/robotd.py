@@ -2,6 +2,7 @@
 
 import asyncio
 import json
+import math
 import time
 from contextlib import suppress
 from pathlib import Path
@@ -18,6 +19,7 @@ class RobotdBackend:
         self.state = None
         self.received = 0.0
         self.error = "尚未连接官方 robotd"
+        self.neutral_head = None
 
     async def _rpc(self, method, params=None):
         reader, writer = await asyncio.wait_for(asyncio.open_unix_connection(self.path), 2)
@@ -59,18 +61,33 @@ class RobotdBackend:
     async def head(self, pitch):
         if time.monotonic() - self.received > 1:
             raise OSError("robotd 状态过期，拒绝启动动作")
-        # The reference pose has neck/head pitch ~0.3491 rad; preserve that baseline.
+        # Preserve the daemon's current head intent rather than assuming a joint zero.
+        if self.neutral_head is None:
+            current = (self.state or {}).get("head")
+            if (
+                not isinstance(current, list)
+                or len(current) != 4
+                or not all(
+                    isinstance(value, (float, int)) and math.isfinite(value) for value in current
+                )
+            ):
+                raise ValueError("robotd 未提供有效头部状态")
+            self.neutral_head = current.copy()
+        neck, head, yaw, roll = self.neutral_head
         await self._notify(
             "robot.head",
-            {"neck_pitch": 0.3491, "head_pitch": 0.3491 + pitch, "head_yaw": 0.0, "head_roll": 0.0},
+            {"neck_pitch": neck, "head_pitch": head + pitch, "head_yaw": yaw, "head_roll": roll},
         )
 
     async def stop(self):
         await self._rpc("robot.stop")
-        await self._notify(
-            "robot.head",
-            {"neck_pitch": 0.3491, "head_pitch": 0.3491, "head_yaw": 0.0, "head_roll": 0.0},
-        )
+        if self.neutral_head is not None:
+            neck, head, yaw, roll = self.neutral_head
+            await self._notify(
+                "robot.head",
+                {"neck_pitch": neck, "head_pitch": head, "head_yaw": yaw, "head_roll": roll},
+            )
+            self.neutral_head = None
 
     async def reset(self):
         raise ValueError("官方仿真请使用 duck-sim 重置；本界面不执行机器人上电或断扭矩")
