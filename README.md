@@ -15,17 +15,17 @@
 ```bash
 git clone git@github.com:zhoutingunl/DuckKing.git
 cd DuckKing
-uv sync --python 3.12
-cd frontend
-npm ci
-npm run build
-cd ..
-uv run duckking
+scripts/setup_local.sh
+scripts/run_local.sh
 ```
 
 打开 <http://127.0.0.1:8765>。可直接使用点头、前进、左右转向、闪身步、狗熊哆嗦毛、停止和复位；Esc 可取消动作。
 
 默认运行原创动画预览，不进行物理计算。语音需另外连接灵矽，不会把本地按钮操作冒充为识别结果。
+
+初始化脚本检查 Node.js 版本、按锁文件安装 Python / 前端依赖并构建页面；可重复执行。默认使用 Python 3.12，由 uv 准备。启动脚本保持前台运行，Ctrl+C 退出；支持 `--port 8766` 等原有参数。缺少环境或构建时会明确提示初始化，不会启动空页面。
+
+继续开发时保持后端运行，在第二个终端执行 `cd frontend && npm run dev`，打开 <http://127.0.0.1:5173> 获得前端热更新。安装、端口配置、验证及排障见 [本地开发指南](docs/DEVELOPMENT.md)。
 
 ## 连接灵矽
 
@@ -44,7 +44,13 @@ uv run duckking-setup --key-file ~/.secrets/lingxi
 
 如果已有设备连接凭证，将 `.env.example` 中对应项填入 `~/.secrets/duckking.env`；设置文件权限为 `600`。设备 token 不等于平台管理 API Key。后端读取凭证，浏览器不接触 token；本地设备身份保存于 `~/.local/share/duckking/identity.json`。文件填好后重新打开页面连接。
 
-可用工具：`duck_nod`、`duck_walk_short`、`duck_stop`、`duck_get_status`、`duck_flash_step`、`duck_bear_shake`。可以说“来一段闪身步”或“来一段狗熊哆嗦毛”。新增工具需要断开旧语音会话后重连。断线后界面明确提示；首版不会自动恢复录音。
+可用工具：`duck_nod`、`duck_walk_short`、`duck_turn_left`、`duck_turn_right`、`duck_stop`、`duck_get_status`、`duck_flash_step`、`duck_bear_shake`。可以说“向前走再向左转再向右转”，提示词要求逐个等待动作完成；也可明确点名两个舞步。转向限时 0.2–3 秒，不保证精确角度。新增工具需要断开旧语音会话后重连。断线后界面明确提示；首版不会自动恢复录音。
+
+已有 DuckKing 智能体需要更新工具提示词时，显式执行 `uv run duckking-setup --sync-prompt`。此操作先在私有数据目录备份原提示词，只更新专用 DuckKing 智能体的 `systemPrompt` 并回读验证，不创建、重新绑定设备或修改模型设置。普通初始化命令仍不会覆盖已有提示词。
+
+语音卡片提供「重置语音」和「连接诊断」。等待回答 20 秒没有有效进展、播放下行 15 秒没有新数据，或整轮超过 60 秒时，会停止动作并关闭旧会话，自动尝试重连一次；不重发录音、不自动继续录音。失败后可手动重连。脱敏日志位于 `~/.local/share/duckking/voice.jsonl`，也可查看 <http://127.0.0.1:8765/api/voice/diagnostics>；详见 [语音诊断与恢复](docs/DEVELOPMENT.md#语音诊断与恢复)。
+
+主页「交互统计」在新标签页打开 <http://127.0.0.1:8765/statistics.html>（开发模式也支持 5173），保留原语音连接。查看识别原文、实际动作顺序、逐轮时间线、识别返回率、回复结束率、动作完成率、延迟 P50/P95 及连接恢复。每 5 秒更新，保留本次启动最近 500 轮，可按动画预览 / 官方 robotd 筛选。识别文本经过脱敏后写入本地日志；不保存录音。统计口径与边界见 [交互统计](docs/DEVELOPMENT.md#交互统计)。
 
 **真实云端联调已完成。** 已使用系统合成中文语音验证灵矽 STT → MCP 工具调用 → 本地动作 → 真实 TTS，也验证了灵矽调用官方仿真前进。浏览器演示中的输入为合成语音，识别、工具调用和回复均来自真实灵矽服务；没有伪造回复。验收范围与记录见 [VALIDATION.md](docs/VALIDATION.md)。
 
@@ -78,6 +84,7 @@ uv run python scripts/check_coverage.py
 cd frontend
 npx playwright install chromium
 npm run test:e2e
+npm run test:e2e:dev
 npm run test:unit
 ```
 

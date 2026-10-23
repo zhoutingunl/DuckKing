@@ -13,6 +13,7 @@ from fastapi.staticfiles import StaticFiles
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from .config import Settings
+from .diagnostics import VoiceDiagnostics
 from .motion import Action, MotionController, PreviewBackend
 from .robotd import RobotdBackend
 from .voice import VoiceSession
@@ -39,6 +40,9 @@ def create_app(
     app = FastAPI(title="DuckKing", lifespan=lifespan)
     app.state.motion = motion
     app.state.voice = None
+    app.state.voice_diagnostics = VoiceDiagnostics(
+        (settings or Settings.load()).data_dir / "voice.jsonl"
+    )
     app.add_middleware(
         TrustedHostMiddleware, allowed_hosts=["localhost", "127.0.0.1", "testserver"]
     )
@@ -59,12 +63,36 @@ def create_app(
     async def state():
         return await motion.snapshot()
 
+    @app.get("/api/voice/diagnostics")
+    async def voice_diagnostics(request: Request):
+        if not same_origin(request.headers.get("origin"), request.headers.get("host", "")):
+            raise HTTPException(403, "仅允许同源本地操作")
+        session = app.state.voice
+        status = session.diagnostic_status() if session else {"state": "disconnected"}
+        return JSONResponse(
+            {**status, **app.state.voice_diagnostics.snapshot()},
+            headers={"Cache-Control": "no-store"},
+        )
+
     @app.post("/api/actions", status_code=202)
     async def action(body: Action):
         try:
             return await motion.submit(body)
         except ValueError as exc:
             raise HTTPException(409, str(exc)) from exc
+
+    @app.get("/api/voice/statistics")
+    async def voice_statistics(request: Request, backend: str = "all"):
+        if not same_origin(request.headers.get("origin"), request.headers.get("host", "")):
+            raise HTTPException(403, "仅允许同源本地操作")
+        if backend not in {"all", "preview", "robotd"}:
+            raise HTTPException(422, "未知后端")
+        journal = app.state.voice_diagnostics
+        return JSONResponse(
+            {**journal.statistics.snapshot(None if backend == "all" else backend),
+             "storage_ok": journal.storage_ok, "current_backend": motion.backend.kind},
+            headers={"Cache-Control": "no-store"},
+        )
 
     @app.get("/api/actions/{request_id}")
     async def action_result(request_id: str):
@@ -102,7 +130,9 @@ def create_app(
             await ws.close(code=1008)
             return
         await ws.accept()
-        session = VoiceSession(ws.send_json, motion, settings or Settings.load())
+        session = VoiceSession(
+            ws.send_json, motion, settings or Settings.load(), app.state.voice_diagnostics
+        )
         app.state.voice = session
         try:
             await session.publish_status()
@@ -119,7 +149,7 @@ def create_app(
                         raise ValueError("语音指令必须为 JSON 对象")
                     command = data.get("type")
                     if command == "connect":
-                        await session.open()
+                        session.start_connect()
                     elif command == "listen_start":
                         await session.listen(True)
                     elif command == "listen_stop":
@@ -127,10 +157,17 @@ def create_app(
                     elif command == "disconnect":
                         await session.disconnect()
                         await session.publish_status()
+                    elif command == "reset":
+                        await session.reset(manual=True)
                     else:
                         raise ValueError("未知语音指令")
-                except (ValueError, OSError) as exc:
+                except ValueError as exc:
                     await ws.send_json({"type": "error", "message": str(exc)})
+                except (WebSocketDisconnect, RuntimeError):
+                    # A browser closing during status delivery is not a failed cloud command.
+                    raise
+                except Exception as exc:
+                    await session.command_failed(exc)
         except (WebSocketDisconnect, RuntimeError, OSError):
             pass
         finally:

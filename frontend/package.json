@@ -4,11 +4,13 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
+    "dev": "vite",
     "build": "vite build",
     "record:demo": "node scripts/record-demo.mjs",
     "record:live": "node scripts/record-live-voice.mjs",
     "test:unit": "node --test --experimental-test-coverage --test-coverage-include=src/audio-codec.js --test-coverage-lines=90 --test-coverage-branches=85 tests/audio-codec.test.js",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "test:e2e:dev": "DUCKKING_TEST_DEV=1 playwright test"
   },
   "dependencies": {"three": "0.186.1"},
   "devDependencies": {"vite": "8.3.5", "@playwright/test": "1.64.1"}

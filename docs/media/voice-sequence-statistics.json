@@ -1,0 +1,36 @@
+{
+  "tested_at": "2026-10-23T15:45:06.160009+00:00",
+  "input": "System-generated Chinese speech: 向前走再向左转再向右转",
+  "cloud": "Real Linx service",
+  "backend": "preview",
+  "recognized": "向前走，再向左转，再向右转。",
+  "status": "completed",
+  "audio_frames": 111,
+  "timings_ms_from_recording_start": {
+    "listen_stop": 3662,
+    "stt": 4160,
+    "action_start": 5120,
+    "first_audio": 12703,
+    "reply_end": 19379
+  },
+  "actions": [
+    {
+      "tool": "duck_walk_short",
+      "at_ms": 5120,
+      "result": "completed",
+      "duration_ms": 1220
+    },
+    {
+      "tool": "duck_turn_left",
+      "at_ms": 7620,
+      "result": "completed",
+      "duration_ms": 1215
+    },
+    {
+      "tool": "duck_turn_right",
+      "at_ms": 10125,
+      "result": "completed",
+      "duration_ms": 1212
+    }
+  ]
+}

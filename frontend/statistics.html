@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#f6f7f2" />
+    <title>DuckKing · 交互统计</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  </head>
+  <body class="statistics-page">
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="DuckKing 首页"><span class="brand-mark">dk<span>●</span></span>DuckKing</a>
+      <a class="repo-link" href="/">返回工作台</a>
+    </header>
+    <main>
+      <section class="intro">
+        <div><h1>一句话，花了多久？</h1><p class="subtitle">从听清指令到小鸭行动，逐轮查看真实交互。</p></div>
+        <div class="stats-controls"><label for="backend-filter">动作后端</label><select id="backend-filter"><option value="all">全部后端</option><option value="preview">动画预览</option><option value="robotd">官方 robotd 仿真</option></select><button id="refresh-stats" class="stats-button">刷新</button></div>
+      </section>
+      <div class="stats-meta"><span id="stats-scope">正在读取本地统计…</span><span id="stats-updated" role="status">每 5 秒更新</span></div>
+      <p id="stats-error" class="notice" role="alert" hidden></p>
+
+      <section class="round-focus" aria-labelledby="timeline-heading">
+        <div class="section-heading"><h2 id="timeline-heading">最近一轮</h2><span id="round-label" class="tag neutral">等待样本</span></div>
+        <p id="round-text" class="round-text">先回到工作台，连接灵矽并说一句话。</p>
+        <div id="round-timeline" class="round-timeline" aria-label="本轮事件时间线"></div>
+        <p class="stats-note">以本地服务收到“结束录音”为 0；动作受理表示控制器接受了指令，首段语音表示音频到达本地服务。</p>
+      </section>
+
+      <section class="quality-strip" aria-label="交互质量">
+        <div><span>识别返回率</span><strong id="recognition-rate">—</strong><small id="recognition-count">尚无已结束轮次</small></div>
+        <div><span>回复结束率</span><strong id="reply-rate">—</strong><small id="reply-count">尚无已结束轮次</small></div>
+        <div><span>动作完成率</span><strong id="action-rate">—</strong><small id="action-summary">尚无已结束动作</small></div>
+        <div><span>超时轮次</span><strong id="timeout-count">—</strong><small id="round-summary">等待统计</small></div>
+      </section>
+
+      <div class="stats-columns">
+        <section class="latency-panel" aria-labelledby="latency-heading">
+          <div class="section-heading"><h2 id="latency-heading">响应延迟</h2><span class="stats-note">P50 典型值 / P95 慢请求</span></div>
+          <div class="table-scroll"><table class="stats-table"><thead><tr><th scope="col">测量阶段</th><th scope="col">P50</th><th scope="col">P95</th><th scope="col">样本</th></tr></thead><tbody id="latency-rows"></tbody></table></div>
+          <p class="stats-note">百分位采用最近秩法。缺失阶段不补零；少量样本的 P95 不代表稳定性能。</p>
+        </section>
+        <section class="recovery-panel" aria-labelledby="recovery-heading">
+          <h2 id="recovery-heading">连接与恢复</h2>
+          <dl class="recovery-list"><div><dt>重连成功 / 尝试</dt><dd id="reconnect-count">—</dd></div><div><dt>连接异常</dt><dd id="connection-errors">—</dd></div><div><dt>手动重置</dt><dd id="reset-count">—</dd></div><div><dt>恢复耗时 P50</dt><dd id="recovery-latency">—</dd></div></dl>
+          <p class="stats-note">连接计数覆盖本次服务启动以来；恢复耗时保留最近 500 次成功重连。</p>
+          <p id="backend-note" class="backend-note"></p>
+        </section>
+      </div>
+
+      <section class="rounds-panel" aria-labelledby="rounds-heading">
+        <div class="section-heading"><h2 id="rounds-heading">逐轮记录</h2><span class="stats-note">点击轮次查看时间线</span></div>
+        <div class="table-scroll"><table class="stats-table round-table"><thead><tr><th scope="col">轮次 / 时间</th><th scope="col">识别文本</th><th scope="col">实际动作顺序</th><th scope="col">结果</th></tr></thead><tbody id="round-rows"></tbody></table></div>
+        <p id="stats-empty" class="stats-empty" hidden>当前筛选下还没有语音记录。统计从本次服务启动后开始采集，旧日志不会自动导入。</p>
+      </section>
+
+      <details class="metric-definitions"><summary>这些指标能说明什么？</summary><div>
+        <p>识别返回率 = 返回非空文字的已结束轮次 / 已结束且提交录音的轮次。回复结束率 = 收到云端正常回复结束事件的轮次 / 同一分母。进行中和录音未提交的轮次不进入这两个比率。</p>
+        <p>动作完成率只统计真正被控制器受理且已经结束的动作；重复 MCP 请求不重复计数。完成表示控制流程正常结束，不保证物理位移或转角达标。</p>
+        <p>识别准确率（CER / WER）、意图正确率、动作顺序符合率，需要与人工标注的原话和目标动作比较。这里展示识别文字与实际动作，供核对，不自动给出准确率。</p>
+        <p>延迟使用本地单调时钟。这里没有测量麦克风硬件、浏览器扬声器、画面呈现或 MuJoCo 物理反馈延迟；语音回复结束也不等于扬声器已经播完。结束录音之前返回的阶段只出现在时间线，不纳入非负延迟分布。</p>
+        <p>本页保留本次服务启动后最近 500 轮；重启后清空统计。识别文字经过已知凭据与常见设备标识脱敏，最多保留 2000 字符。原始录音不保存，脱敏事件另写入本地私有轮转日志。</p>
+      </div></details>
+    </main>
+    <script type="module" src="/src/statistics.js"></script>
+  </body>
+</html>

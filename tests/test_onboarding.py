@@ -4,7 +4,7 @@ import httpx
 import pytest
 
 from duckking.config import Settings
-from duckking.onboarding import main, setup_device
+from duckking.onboarding import PROMPT, main, setup_device
 
 
 def platform(tmp_path, agents=None, bound=False, failure=None, created="duck-agent"):
@@ -143,3 +143,56 @@ def test_cli_prints_only_result_and_sanitizes_errors(tmp_path, monkeypatch, caps
     with pytest.raises(SystemExit) as error:
         main()
     assert "a-private-key" not in str(error.value)
+
+
+@pytest.mark.parametrize("mode", ["updated", "current", "unreadable", "verify_failed"])
+async def test_prompt_sync_backs_up_and_updates_only_prompt_without_binding(tmp_path, mode):
+    key = tmp_path / "key"
+    key.write_text("test-key")
+    before = PROMPT if mode == "current" else "original dedicated DuckKing instructions"
+    state = {"systemPrompt": before, "llmModelId": "unchanged-model"}
+    calls = []
+
+    def respond(request):
+        calls.append((request.method, request.url.path))
+        if request.url.path == "/xiaozhi/agent/list":
+            data = [{"id": "duck", "agentName": "DuckKing"}]
+        else:
+            assert request.url.path == "/xiaozhi/agent/duck"
+            if request.method == "PUT":
+                assert json.loads(request.content) == {"systemPrompt": PROMPT}
+                if mode != "verify_failed":
+                    state.update(systemPrompt=PROMPT)
+            data = None if mode == "unreadable" else dict(state)
+        return httpx.Response(200, json={"code": 0, "data": data})
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(respond)) as http:
+        if mode in {"unreadable", "verify_failed"}:
+            with pytest.raises(ValueError):
+                await setup_device(Settings(data_dir=tmp_path), key, http=http, sync_prompt=True)
+        else:
+            result = await setup_device(
+                Settings(data_dir=tmp_path), key, http=http, sync_prompt=True
+            )
+            assert result == {"status": f"prompt_{mode}"}
+    backups = list(tmp_path.glob("prompt-backup-*.txt"))
+    assert len(backups) == (1 if mode in {"updated", "verify_failed"} else 0)
+    for backup in backups:
+        assert backup.read_text() == before
+        assert backup.stat().st_mode & 0o777 == 0o600
+    assert not any("/device/" in path or "/ota/" in path for _, path in calls)
+
+
+@pytest.mark.parametrize(
+    "agents,agent_id", [([], None), ([{"id": "a", "agentName": "Other"}], "a")]
+)
+async def test_prompt_sync_does_not_create_agents_or_modify_unrelated_agents(
+    tmp_path, agents, agent_id,
+):
+    key, calls, http = platform(tmp_path, agents=agents)
+    async with http:
+        with pytest.raises(ValueError):
+            await setup_device(
+                Settings(data_dir=tmp_path), key, agent_id=agent_id, http=http, sync_prompt=True
+            )
+    assert all(method == "GET" for method, _, _ in calls)
