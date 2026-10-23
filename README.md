@@ -46,6 +46,8 @@ uv run duckking-setup --key-file ~/.secrets/lingxi
 
 可用工具：`duck_nod`、`duck_walk_short`、`duck_stop`、`duck_get_status`、`duck_flash_step`、`duck_bear_shake`。可以说“来一段闪身步”或“来一段狗熊哆嗦毛”。新增工具需要断开旧语音会话后重连。断线后界面明确提示；首版不会自动恢复录音。
 
+语音卡片提供「重置语音」和「连接诊断」。等待回答 20 秒没有有效进展、播放下行 15 秒没有新数据，或整轮超过 60 秒时，会停止动作并关闭旧会话，自动尝试重连一次；不重发录音、不自动继续录音。失败后可手动重连。脱敏日志位于 `~/.local/share/duckking/voice.jsonl`，也可查看 <http://127.0.0.1:8765/api/voice/diagnostics>；详见 [语音诊断与恢复](docs/DEVELOPMENT.md#语音诊断与恢复)。
+
 **真实云端联调已完成。** 已使用系统合成中文语音验证灵矽 STT → MCP 工具调用 → 本地动作 → 真实 TTS，也验证了灵矽调用官方仿真前进。浏览器演示中的输入为合成语音，识别、工具调用和回复均来自真实灵矽服务；没有伪造回复。验收范围与记录见 [VALIDATION.md](docs/VALIDATION.md)。
 
 ## 连接官方物理仿真

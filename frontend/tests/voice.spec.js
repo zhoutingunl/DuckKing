@@ -70,3 +70,41 @@ test('a rejected local voice connection gives actionable feedback and can be ret
   await expect(page.locator('#voice-badge')).toHaveText('灵矽已连接');
   await expect(page.locator('#talk-button')).toBeEnabled();
 });
+
+test('stalled thinking can be reset and recovery never starts recording automatically',async({page,context})=>{
+  await context.grantPermissions(['microphone']);
+  const commands=[];
+  let serverSocket;
+  await page.routeWebSocket('**/voice',socket=>{
+    serverSocket=socket;
+    socket.onMessage(message=>{
+      if(typeof message!=='string')return;
+      const {type}=JSON.parse(message);commands.push(type);
+      const state=type==='connect'?'ready':type==='listen_start'?'listening':type==='listen_stop'?'thinking':type==='reset'?'recovering':type==='disconnect'?'disconnected':null;
+      if(type==='reset')socket.send(JSON.stringify({type:'playback_end',aborted:true}));
+      if(state)socket.send(JSON.stringify({type:'voice_status',state}));
+    });
+  });
+  await page.goto('/');
+  await page.locator('#connect-voice').click();
+  await expect(page.locator('#talk-button')).toBeEnabled();
+  await page.locator('#talk-button').dispatchEvent('pointerdown',{pointerId:1});
+  await expect(page.locator('#voice-badge')).toHaveText('正在聆听');
+  await page.locator('#talk-button').dispatchEvent('pointerup',{pointerId:1});
+  await expect(page.locator('#voice-badge')).toHaveText('正在思考');
+  await expect(page.locator('#voice-caption')).toContainText('20 秒');
+  await page.locator('#reset-voice').click();
+  await expect(page.locator('#voice-badge')).toHaveText('正在恢复连接');
+  await expect(page.locator('#talk-button')).toBeDisabled();
+  serverSocket.send(JSON.stringify({type:'voice_status',state:'ready'}));
+  await expect(page.locator('#talk-button')).toBeEnabled();
+  expect(commands.filter(type=>type==='listen_start')).toHaveLength(1);
+  await expect(page.locator('#activity-log')).toContainText('正在恢复连接');
+  await expect(page.getByRole('link',{name:'连接诊断'})).toHaveAttribute('href','/api/voice/diagnostics');
+  const diagnostic=await page.request.get('/api/voice/diagnostics');
+  expect(diagnostic.ok()).toBe(true);
+  expect((await diagnostic.json()).events).toBeInstanceOf(Array);
+  serverSocket.send(JSON.stringify({type:'voice_status',state:'recovering'}));
+  await page.locator('#connect-voice').click();
+  await expect(page.locator('#voice-badge')).toHaveText('未连接灵矽');
+});

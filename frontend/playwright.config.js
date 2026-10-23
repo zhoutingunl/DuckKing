@@ -18,7 +18,8 @@ export default defineConfig({
     launchOptions: {args:['--use-fake-ui-for-media-stream','--use-fake-device-for-media-stream'],
       ...(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE ? {executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE}:{})} },
   webServer: [
-    { command: `uv run --frozen duckking --port ${port}`, cwd: '..', url: `${apiURL}/api/health`, reuseExistingServer: false },
+    { command: `uv run --frozen duckking --port ${port}`, cwd: '..', url: `${apiURL}/api/health`, reuseExistingServer: false,
+      env:{DUCKKING_DATA_DIR:`.duckking/browser-tests/${port}`,DUCKKING_SECRETS_FILE:'.duckking/browser-tests/no-secrets.env',LINX_OTA_URL:'http://127.0.0.1:1/ota/',LINX_WS_URL:'',LINX_WS_TOKEN:'',LINX_DEVICE_ID:'',LINX_CLIENT_ID:''} },
     ...(dev?[{command:`npm run dev -- --port ${devPort}`,env:{DUCKKING_API_PORT:port},url:baseURL,reuseExistingServer:false}]:[]),
   ],
   reporter: [['list'],['html',{open:'never',outputFolder:`playwright-report/${dev?'development':'production'}`}]],

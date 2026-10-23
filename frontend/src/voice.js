@@ -4,15 +4,16 @@ export function setupVoice({appendLog,notify}){
   const $=id=>document.getElementById(id),talk=$('talk-button'),connect=$('connect-voice');
   let ws=null,state='disconnected',pressed=false,recording=null,playContext=null,nextTime=0,timeout=null,owner=true;
   const sources=new Set();
-  const labels={disconnected:'未连接灵矽',connecting:'正在连接',awaiting_binding:'等待设备绑定',ready:'灵矽已连接',listening:'正在聆听',thinking:'正在思考',speaking:'正在回答',error:'连接异常',busy:'语音已被占用'};
+  const labels={disconnected:'未连接灵矽',connecting:'正在连接',recovering:'正在恢复连接',awaiting_binding:'等待设备绑定',ready:'灵矽已连接',listening:'正在聆听',thinking:'正在思考',speaking:'正在回答',error:'连接异常',busy:'语音已被占用'};
   function update(){
     $('voice-badge').textContent=labels[state]??state;
     talk.disabled=state!=='ready'&&state!=='listening'||sources.size>0;
     talk.classList.toggle('recording',state==='listening');
-    connect.disabled=state==='connecting';
-    connect.textContent=['ready','listening','thinking','speaking'].includes(state)?'断开连接 ↗':state==='awaiting_binding'?'我已绑定，重新连接 ↗':'连接灵矽 ↗';
+    connect.disabled=false;
+    connect.textContent=['connecting','recovering','ready','listening','thinking','speaking'].includes(state)?'断开连接 ↗':state==='awaiting_binding'?'我已绑定，重新连接 ↗':'连接灵矽 ↗';
+    $('reset-voice').disabled=!['ready','listening','thinking','speaking','error'].includes(state);
     $('voice-connection-hint').textContent=state==='disconnected'?'使用灵矽智能体':'设备端语音连接';
-    $('voice-caption').textContent=state==='ready'?'按住按钮或空格说话，最长 15 秒。':state==='listening'?'正在录音，松开后发送。':state==='thinking'?'已发送，等待灵矽回答…':state==='speaking'?'正在播放灵矽返回的语音。':'连接后可进行真实语音对话。';
+    $('voice-caption').textContent=state==='ready'?'按住按钮或空格说话，最长 15 秒。':state==='listening'?'正在录音，松开后发送。':state==='thinking'?'等待灵矽回答，20 秒无响应会自动重连。':state==='recovering'?'上一轮已结束，正在重连。请连接成功后重新说话。':state==='speaking'?'正在播放灵矽返回的语音。':'连接后可进行真实语音对话。';
     window.dispatchEvent(new CustomEvent('duckking-voice-state',{detail:state}));
   }
   function send(data){if(ws?.readyState===WebSocket.OPEN)ws.send(typeof data==='object'&&!(data instanceof ArrayBuffer)?JSON.stringify(data):data)}
@@ -55,7 +56,8 @@ export function setupVoice({appendLog,notify}){
   connect.disabled=false;update();
   connect.addEventListener('click',async()=>{
     playContext??=new AudioContext();await playContext.resume();
-    if(['ready','listening','thinking','speaking'].includes(state)){
+    if(['connecting','recovering','ready','listening','thinking','speaking'].includes(state)){
+      if(ws?.readyState===WebSocket.CONNECTING){ws.close();return}
       await release(false);send({type:'disconnect'});clearPlayback();return;
     }
     if(ws?.readyState===WebSocket.CONNECTING)return;
@@ -68,6 +70,7 @@ export function setupVoice({appendLog,notify}){
       const data=JSON.parse(event.data);
       if(data.type==='voice_status'){
         receivedStatus=true;
+        if(state!==data.state)appendLog(labels[data.state]??'语音状态更新','语音状态',data.state==='error');
         state=data.state;if(state==='busy')owner=false;
         $('activation').hidden=!data.activation_code;
         $('activation').textContent=data.activation_code?`激活码：${data.activation_code}。请在灵矽控制台添加设备，再点击重新连接。`:'';
@@ -84,6 +87,11 @@ export function setupVoice({appendLog,notify}){
       if(owner&&!receivedStatus)notify('本地语音通道连接失败，请检查页面地址、代理或修改请求头的浏览器扩展。');
       update();
     };
+  });
+  $('reset-voice').addEventListener('click',async()=>{
+    await release(false);clearPlayback();
+    if(ws?.readyState===WebSocket.OPEN){send({type:'reset'})}
+    else{connect.click()}
   });
   talk.addEventListener('pointerdown',event=>{event.preventDefault();talk.setPointerCapture(event.pointerId);press()});
   talk.addEventListener('pointerup',()=>release());talk.addEventListener('pointercancel',()=>release());
