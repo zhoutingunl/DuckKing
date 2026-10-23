@@ -4,7 +4,7 @@ import uuid
 import httpx
 import pytest
 
-from duckking.config import Settings, provision, validate_endpoint
+from duckking.config import Settings, provision, secure_device_endpoint, validate_endpoint
 
 
 def test_identity_is_private_stable_and_distinct_from_credentials(tmp_path):
@@ -96,3 +96,15 @@ async def test_manual_device_credentials_and_ota_failures(tmp_path):
         ) as http:
             with pytest.raises(error):
                 await provision(Settings(data_dir=tmp_path), http)
+
+
+def test_live_gateway_legacy_ws_address_is_upgraded_without_changing_host():
+    assert (
+        secure_device_endpoint("ws://xrobo-io.qiniuapi.com/v1/ws/")
+        == "wss://xrobo-io.qiniuapi.com/v1/ws/"
+    )
+    assert secure_device_endpoint("ws://localhost:123/ws") == "ws://localhost:123/ws"
+    with pytest.raises(ValueError):
+        secure_device_endpoint("ws://user:pass@xrobo-io.qiniuapi.com/v1/ws/")
+    with pytest.raises(ValueError):
+        secure_device_endpoint("ws://untrusted.example/v1/ws/")

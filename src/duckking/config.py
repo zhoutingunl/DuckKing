@@ -75,12 +75,28 @@ def validate_endpoint(url: str, websocket=False):
         raise ValueError("无效的服务地址")
 
 
+def secure_device_endpoint(url: str) -> str:
+    parts = urlparse(url)
+    # The live OTA gateway currently returns ws:// for its official endpoint.
+    # That same documented host supports TLS; never send device tokens in plaintext.
+    if (
+        parts.scheme == "ws"
+        and parts.hostname == "xrobo-io.qiniuapi.com"
+        and parts.port in {None, 80}
+    ):
+        if parts.username or parts.password:
+            raise ValueError("无效的服务地址")
+        url = parts._replace(scheme="wss", netloc="xrobo-io.qiniuapi.com").geturl()
+    validate_endpoint(url, websocket=True)
+    return url
+
+
 async def provision(settings: Settings, http) -> dict:
     identity = settings.identity()
     if settings.ws_url and settings.ws_token:
-        validate_endpoint(settings.ws_url, websocket=True)
+        address = secure_device_endpoint(settings.ws_url)
         return {
-            "websocket": {"url": settings.ws_url, "token": settings.ws_token},
+            "websocket": {"url": address, "token": settings.ws_token},
             "identity": identity,
         }
     validate_endpoint(settings.ota_url)

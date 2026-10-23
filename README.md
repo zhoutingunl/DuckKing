@@ -1,6 +1,10 @@
 # DuckKing
 
-用灵矽语音控制虚拟 Micro Duck 的本地交互项目。竞赛初版开发中。
+用灵矽语音控制虚拟 Micro Duck 的本地交互项目。支持直接运行的原创动画预览，以及已实测的官方 robotd / MuJoCo 适配。
+
+![DuckKing 工作台](docs/media/workbench.png)
+
+[真实灵矽语音演示](docs/media/live-linx-voice.mp4) · [本地演示](docs/media/local-preview.mp4) · [官方物理仿真演示](docs/media/official-simulation.mp4) · [架构与模块规格](docs/ARCHITECTURE.md) · [验证记录](docs/VALIDATION.md) · [演示复现](docs/DEMO.md)
 
 ## 本地运行
 
@@ -25,13 +29,22 @@ uv run duckking
 
 安装原生 Opus 库：macOS 使用 `brew install opus`；Ubuntu 使用 `sudo apt-get install libopus0`。
 
+如果已有平台 API Key，将原始 Key 单独放在 `~/.secrets/lingxi`，可显式运行一次初始化：
+
+```bash
+chmod 600 ~/.secrets/lingxi
+uv run duckking-setup --key-file ~/.secrets/lingxi
+```
+
+该命令创建或复用名为 DuckKing 的智能体，并通过 OTA 激活码绑定本地设备；不会改写其他智能体或迁移已有设备的聊天历史。已有特定智能体时可传 `--agent-id`。平台初始化不会在打开页面时自动执行。
+
 打开工作台点击「连接灵矽」，首次连接会显示设备激活码。在灵矽控制台将此设备绑定到支持工具调用的智能体，再点击重新连接。连接就绪后按住按钮或空格说话，松开后等待回答。首版为半双工，每次录音最多 15 秒。
 
 如果已有设备连接凭证，将 `.env.example` 中对应项填入 `~/.secrets/duckking.env`；设置文件权限为 `600`。设备 token 不等于平台管理 API Key。后端读取凭证，浏览器不接触 token；本地设备身份保存于 `~/.local/share/duckking/identity.json`。文件填好后重新打开页面连接。
 
 可用工具：`duck_nod`、`duck_walk_short`、`duck_stop`、`duck_get_status`。断线后界面明确提示，通过「连接灵矽」重新建立会话；首版不会自动恢复录音。
 
-**真实账号尚在申请，因此未验证真实云端绑定、识别或 TTS。** 已完成本地协议服务测试、真实 libopus 编解码与浏览器模拟麦克风测试；这些测试不代表真实灵矽服务验收。
+**真实云端联调已完成。** 已使用系统合成中文语音验证灵矽 STT → MCP 工具调用 → 本地动作 → 真实 TTS，也验证了灵矽调用官方仿真前进。浏览器演示中的输入为合成语音，识别、工具调用和回复均来自真实灵矽服务；没有伪造回复。验收范围与记录见 [VALIDATION.md](docs/VALIDATION.md)。
 
 ## 连接官方物理仿真
 

@@ -1,0 +1,22 @@
+{
+  "tested_at": "2026-10-23T11:29:45.717Z",
+  "input": "System-generated Chinese speech supplied through browser microphone capture",
+  "cloud": "Real Linx service",
+  "audio_note": "Audio track reconstructed from the actual input WAV and received PCM; approximate capture timestamps",
+  "transcripts": [
+    {
+      "role": "user",
+      "text": "请你点点头。"
+    },
+    {
+      "role": "assistant",
+      "text": "好的，我已经点头啦！"
+    },
+    {
+      "role": "assistant",
+      "text": "嘎嘎~"
+    }
+  ],
+  "sample_rate": 16000,
+  "audio_bytes": 115200
+}

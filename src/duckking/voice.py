@@ -10,7 +10,7 @@ from contextlib import suppress
 import httpx
 from websockets.asyncio.client import connect
 
-from .config import Settings, provision, validate_endpoint
+from .config import Settings, provision, secure_device_endpoint
 from .mcp import DeviceMCP
 from .motion import Action, MotionController
 from .opus import OpusCodec
@@ -57,7 +57,7 @@ class VoiceSession:
             address, token = config["websocket"]["url"], config["websocket"]["token"]
             if not token:
                 raise ValueError("missing device token")
-            validate_endpoint(address, websocket=True)
+            address = secure_device_endpoint(address)
             identity = config["identity"]
             self.encoder = OpusCodec(16000)
             self.cloud = await connect(

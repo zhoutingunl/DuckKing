@@ -1,0 +1,44 @@
+{
+  "tested_at": "2026-10-23 19:24:10 +0800",
+  "input": "macOS Tingting synthetic speech: 请你点点头。",
+  "cloud": "live Linx service, not a mock",
+  "transcripts": [
+    {
+      "type": "transcript",
+      "role": "user",
+      "text": "请你点点头"
+    },
+    {
+      "type": "transcript",
+      "role": "assistant",
+      "text": "好的，我已经点头啦！"
+    },
+    {
+      "type": "transcript",
+      "role": "assistant",
+      "text": "嘎嘎~"
+    }
+  ],
+  "actions": [
+    {
+      "id": "f97d8291aa5c:3",
+      "name": "nod",
+      "input": {
+        "name": "nod",
+        "duration": 1.2,
+        "speed": null
+      },
+      "status": "completed",
+      "started_at": 1792754643.407357,
+      "finished_at": 1792754644.6326551
+    }
+  ],
+  "audio_bytes": 122880,
+  "sample_rate": 16000,
+  "mcp_methods": [
+    "initialize",
+    "tools/list",
+    "tools/call"
+  ],
+  "backend": "preview"
+}

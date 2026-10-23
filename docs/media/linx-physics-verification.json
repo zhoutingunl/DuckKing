@@ -1,0 +1,44 @@
+{
+  "tested_at": "2026-10-23 19:26:37 +0800",
+  "input": "macOS Tingting synthetic speech: 请你向前走一点。",
+  "cloud": "live Linx service, not a mock",
+  "transcripts": [
+    {
+      "type": "transcript",
+      "role": "user",
+      "text": "请你向前走一点"
+    },
+    {
+      "type": "transcript",
+      "role": "assistant",
+      "text": "好的，我已经向前走了一小段，"
+    },
+    {
+      "type": "transcript",
+      "role": "assistant",
+      "text": "完成啦！"
+    }
+  ],
+  "actions": [
+    {
+      "id": "ea1a7de616c4:3",
+      "name": "walk",
+      "input": {
+        "name": "walk",
+        "duration": 1.2,
+        "speed": null
+      },
+      "status": "completed",
+      "started_at": 1792754789.6964118,
+      "finished_at": 1792754790.9231749
+    }
+  ],
+  "audio_bytes": 147840,
+  "sample_rate": 16000,
+  "mcp_methods": [
+    "initialize",
+    "tools/list",
+    "tools/call"
+  ],
+  "backend": "official robotd + MuJoCo"
+}
