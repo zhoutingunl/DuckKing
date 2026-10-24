@@ -79,3 +79,42 @@ test('a real origin rejection explains the local connection and recovers without
   await expect(page.getByRole('button',{name:'单鸭定点踢球'})).toBeEnabled();
   await expect(page.locator('#notice')).toBeHidden();
 });
+
+test('scene recovery clears stale failures without hiding an unrelated voice error',async({page})=>{
+  // Protocol fixtures reproduce failed discovery followed by success. These are
+  // display/lifecycle checks, not evidence of a physical discovery or cloud call.
+  const state={type:'state',action:null,error:null,events:[],backend:{scene:'duo',revision:'notice-fixture',
+    ball:null,grasp:null,discovered:[],contacts:{ducks:0},real_time_factor:1,error:null,chorus:null,ducks:[],geoms:[]}};
+  let channel;
+  await page.route('**/api/scenes/model?*',route=>route.fulfill({json:{revision:'notice-fixture',meshes:{},geoms:[]}}));
+  await page.routeWebSocket('**/scene-ws',socket=>{channel=socket;socket.send(JSON.stringify(state))});
+  await page.routeWebSocket('**/scene-voice',socket=>socket.onMessage(message=>{
+    if(typeof message==='string'&&JSON.parse(message).type==='connect'){
+      socket.send(JSON.stringify({type:'voice_status',state:'busy',error:'协议测试：本房间语音正在使用'}));socket.close();
+    }
+  }));
+  const send=()=>channel.send(JSON.stringify(state));
+  await page.goto('/scenarios.html?room=1');await expect(page.locator('#scene-placeholder')).toBeHidden();
+  state.error='视野内没有发现同伴';
+  state.events=[{id:1,kind:'result',text:'find_companion · failed',status:'failed'}];send();
+  await expect(page.locator('#notice')).toHaveText(state.error);
+  state.error=null;state.backend.discovered=[{observer:'a',peer:'b',distance_m:.17}];
+  state.events.push({id:2,kind:'result',text:'find_companion · completed',status:'completed'});send();
+  await expect(page.locator('#peer-status')).toContainText('鸭 A 发现鸭 B，相距 0.17 m');
+  await expect(page.locator('#action-result')).toHaveText('发现同伴 · 完成');
+  await expect(page.locator('#notice')).toBeHidden();
+  await expect(page.locator('#activity-log')).toContainText('发现同伴 · 未完成');
+  state.backend.error='协议测试：物理推进异常';send();
+  await expect(page.locator('#notice')).toHaveText(state.backend.error);
+  state.backend.error=null;send();await expect(page.locator('#notice')).toBeHidden();
+  state.error='视野内没有发现同伴';send();await expect(page.locator('#notice')).toBeVisible();
+  await page.locator('#connect-voice').click();
+  await expect(page.locator('#notice')).toHaveText('协议测试：本房间语音正在使用');
+  state.error=null;send();
+  await expect(page.locator('#notice')).toHaveText('协议测试：本房间语音正在使用');
+  await expect(page.locator('#notice')).toBeVisible();
+  state.error='视野内没有发现同伴';send();await expect(page.locator('#notice')).toHaveText(state.error);
+  channel.send(JSON.stringify({type:'not_started'}));
+  await expect(page.locator('#stop-scene')).toBeDisabled();
+  await expect(page.locator('#notice')).toBeHidden();
+});
