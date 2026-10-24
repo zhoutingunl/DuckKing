@@ -30,6 +30,8 @@ ENUMS = {
     "tool": {
         "duck_nod", "duck_walk_short", "duck_stop", "duck_get_status",
         "duck_flash_step", "duck_bear_shake", "duck_turn_left", "duck_turn_right",
+        "duck_set_scene", "duck_kick", "duck_find_companion", "duck_duo_walk",
+        "duck_collide", "duck_chorus", "duck_pick_up", "duck_carry", "duck_put_down",
     },
     "method": {"initialize", "tools/list", "tools/call", "notifications/initialized"},
     "result": {"ok", "error", "ignored", "completed", "failed", "cancelled", "aborted"},

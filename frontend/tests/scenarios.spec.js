@@ -12,9 +12,10 @@ test('real MuJoCo left/right contacts, duo discovery/collision, chorus and stop'
   await expect(page.locator('#action-result')).toContainText('左脚踢球 · 完成',{timeout:15000});
   await expect(page.locator('#ball-contact')).toHaveText('左脚');
   expect(parseFloat(await page.locator('#ball-distance').textContent())).toBeGreaterThan(.02);
+  const requestsBeforeReset=modelRequests;
   await page.getByRole('button',{name:'重置场景',exact:true}).click();
   await expect(page.locator('#action-result')).toContainText('重置场景 · 完成');
-  expect(modelRequests).toBe(1);
+  expect(modelRequests).toBe(requestsBeforeReset);
   await page.getByRole('button',{name:'右脚踢球',exact:true}).click();
   await expect(page.locator('#action-result')).toContainText('右脚踢球 · 完成',{timeout:15000});
   await expect(page.locator('#ball-contact')).toHaveText('右脚');

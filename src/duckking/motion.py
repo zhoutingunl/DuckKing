@@ -15,6 +15,10 @@ from .choreography import CHOREOGRAPHIES, DEFAULT_DURATION, MIN_DURATION, sample
 SCENE_ACTIONS = {
     "scene_ball",
     "scene_duo",
+    "scene_carry",
+    "pick_up",
+    "carry",
+    "put_down",
     "kick_left",
     "kick_right",
     "find_companion",
@@ -37,6 +41,10 @@ class Action(BaseModel):
         "bear_shake",
         "scene_ball",
         "scene_duo",
+        "scene_carry",
+        "pick_up",
+        "carry",
+        "put_down",
         "kick_left",
         "kick_right",
         "find_companion",
@@ -44,7 +52,7 @@ class Action(BaseModel):
         "collide",
         "chorus",
     ]
-    duration: float = Field(default=1.2, ge=0.2, le=3.0)
+    duration: float = Field(default=1.2, ge=0.2, le=4.5)
     speed: float | None = Field(default=None, ge=0.02, le=0.4)
     target: Literal["a", "b", "both"] = "a"
     request_id: str = Field(default_factory=lambda: str(uuid.uuid4()), min_length=1, max_length=100)
@@ -61,6 +69,10 @@ class Action(BaseModel):
             "find_companion": 0.6,
             "scene_ball": 0.2,
             "scene_duo": 0.2,
+            "scene_carry": 0.2,
+            "pick_up": 2.2,
+            "carry": 3,
+            "put_down": 4.5,
         }
         if isinstance(data, dict) and data.get("name") in fixed and "duration" not in data:
             return data | {"duration": fixed[data["name"]]}
@@ -70,6 +82,8 @@ class Action(BaseModel):
 
     @model_validator(mode="after")
     def choreography_timing(self):
+        if self.name != "put_down" and self.duration > 3:
+            raise ValueError("此动作最长为 3 秒")
         if self.name in SCENE_ACTIONS and self.speed is not None:
             raise ValueError("场景动作使用固定策略速度，不接受 speed 参数")
         fixed = {
@@ -79,6 +93,10 @@ class Action(BaseModel):
             "find_companion": 0.6,
             "scene_ball": 0.2,
             "scene_duo": 0.2,
+            "scene_carry": 0.2,
+            "pick_up": 2.2,
+            "carry": 3,
+            "put_down": 4.5,
         }
         if self.name in fixed and self.duration != fixed[self.name]:
             raise ValueError("此场景动作使用固定时长")

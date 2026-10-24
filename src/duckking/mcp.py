@@ -78,10 +78,12 @@ TOOLS = [
 SCENE_TOOLS = [
     {
         "name": "duck_set_scene",
-        "description": "切换官方 MuJoCo 物理场景并复位。ball 单鸭踢球，duo 双鸭互动。",
+        "description": (
+            "切换官方 MuJoCo 物理场景并复位。ball 单鸭踢球，duo 双鸭互动，carry 实验性嘴部搬运。"
+        ),
         "inputSchema": {
             "type": "object",
-            "properties": {"scene": {"type": "string", "enum": ["ball", "duo"]}},
+            "properties": {"scene": {"type": "string", "enum": ["ball", "duo", "carry"]}},
             "required": ["scene"],
             "additionalProperties": False,
         },
@@ -106,6 +108,19 @@ SCENE_TOOLS = [
             "inputSchema": {"type": "object", "properties": {}, "additionalProperties": False},
         }
         for name, description in [
+            (
+                "duck_pick_up",
+                "嘴部搬运场景：用嘴夹起取物架上的轻质小棒，验证上下嘴接触和离架；"
+                "失败不能声称拿到了。需先选择 carry 场景。",
+            ),
+            (
+                "duck_carry",
+                "已夹起物品后，夹持行走到接物台上方，最多3秒。返回真实位移和夹持结果；一次搬运后应放下。",
+            ),
+            (
+                "duck_put_down",
+                "成功搬运后，张嘴、低头、退开，将物品放到接物台；必须验证脱离嘴部并落稳，约4.5秒。",
+            ),
             (
                 "duck_find_companion",
                 "双鸭场景中根据仿真位置、120度视野、1.2米距离和遮挡发现同伴；不是摄像头识别或真实蓝牙发现。",
@@ -210,8 +225,8 @@ class DeviceMCP:
                 }.get(name)
                 if self.motion.backend.kind == "mujoco":
                     if name == "duck_set_scene":
-                        if arguments.get("scene") not in {"ball", "duo"}:
-                            raise ValueError("场景必须为 ball 或 duo")
+                        if arguments.get("scene") not in {"ball", "duo", "carry"}:
+                            raise ValueError("场景必须为 ball、duo 或 carry")
                         kind, arguments = "scene_" + arguments["scene"], {}
                     elif name == "duck_kick":
                         if arguments.get("foot") not in {"left", "right"}:
@@ -223,6 +238,9 @@ class DeviceMCP:
                             "duck_duo_walk": "duo_walk",
                             "duck_collide": "collide",
                             "duck_chorus": "chorus",
+                            "duck_pick_up": "pick_up",
+                            "duck_carry": "carry",
+                            "duck_put_down": "put_down",
                         }.get(name, kind)
                 if not kind:
                     raise ValueError("未知工具")

@@ -5,7 +5,6 @@ Observation layout, home pose and 50 Hz inference follow microduck_rl/infer_poli
 """
 
 import asyncio
-import base64
 import math
 import time
 import uuid
@@ -16,6 +15,27 @@ import mujoco
 import numpy as np
 import onnxruntime as ort
 
+from .grasp import BeakGrasp
+from .grasp_model import build_grasp_model
+from .model_assets import geometry
+
+POLICY_JOINTS = (
+    "left_hip_yaw",
+    "left_hip_roll",
+    "left_hip_pitch",
+    "left_knee",
+    "left_ankle",
+    "neck_pitch",
+    "head_pitch",
+    "head_yaw",
+    "head_roll",
+    "right_hip_yaw",
+    "right_hip_roll",
+    "right_hip_pitch",
+    "right_knee",
+    "right_ankle",
+)
+
 HOME = np.array(
     [0, -0.0873, -0.4579, -0.0049, 0.453, 0.3491, 0.3491, 0, 0, 0, 0.0873, 0.4579, 0.0049, -0.453],
     dtype=np.float32,
@@ -24,9 +44,7 @@ HOME = np.array(
 
 class Driver:
     def __init__(self, model, prefix, sessions):
-        self.ids = np.array(
-            [i for i in range(model.nu) if model.actuator(i).name.startswith(prefix)]
-        )
+        self.ids = np.array([model.actuator(prefix + name).id for name in POLICY_JOINTS])
         if len(self.ids) != 14:
             raise ValueError("官方模型应包含 14 个策略关节")
         self.q = model.jnt_qposadr[model.actuator_trnid[self.ids, 0]]
@@ -87,7 +105,7 @@ class MuJoCoBackend:
                 "kick_right": "ball_kick_right.onnx",
             }.items()
         }
-        self.models = {"ball": self._build("ball"), "duo": self._build("duo")}
+        self.models = {scene: self._build(scene) for scene in ("ball", "duo", "carry")}
         # Geometry belongs to the compiled model, not to a reset of its dynamic state.
         self.revisions = {scene: uuid.uuid4().hex for scene in self.models}
         self.visual_cache = {}
@@ -98,6 +116,8 @@ class MuJoCoBackend:
         self.load("ball")
 
     def _build(self, scene):
+        if scene == "carry":
+            return build_grasp_model(self.robot_dir)
         if scene == "ball":
             model = mujoco.MjModel.from_xml_path(str(self.robot_dir / "scene_ball.xml"))
         else:
@@ -118,19 +138,19 @@ class MuJoCoBackend:
         self.data = mujoco.MjData(self.model)
         self.revision = self.revisions[scene]
         self.drivers = [
-            Driver(self.model, p, self.sessions)
-            for p in ([""] if scene == "ball" else ["a_", "b_"])
+            Driver(self.model, p, self.sessions) for p in ([""] if scene != "duo" else ["a_", "b_"])
         ]
         for i, driver in enumerate(self.drivers):
             self.data.qpos[driver.root : driver.root + 7] = (
                 [0, 0, 0.125, 1, 0, 0, 0]
-                if scene == "ball"
+                if scene != "duo"
                 else [-0.25, 0, 0.125, 1, 0, 0, 0]
                 if i == 0
                 else [0.25, 0, 0.125, 0, 0, 0, 1]
             )
             self.data.qpos[driver.q] = HOME
             self.data.ctrl[driver.ids] = HOME
+        self.grasp = BeakGrasp(self) if scene == "carry" else None
         self.selected = "a"
         self.chorus = None
         self.error = None
@@ -151,7 +171,7 @@ class MuJoCoBackend:
             )
         mujoco.mj_forward(self.model, self.data)
         # Explicit initial settling, not a simulated successful action.
-        for _ in range(60):
+        for _ in range(200 if scene == "carry" else 60):
             self.tick()
         self.wall_start = time.monotonic()
         self.sim_start = float(self.data.time)
@@ -161,7 +181,12 @@ class MuJoCoBackend:
             driver.step(self.model, self.data)
         ball = self.model.geom("ball_geom").id if self.scene == "ball" else -1
         for _ in range(4):
+            previous_time = self.data.time
             mujoco.mj_step(self.model, self.data)
+            if self.data.time <= previous_time or not np.isfinite(self.data.qpos).all():
+                raise ValueError("MuJoCo 数值失稳，停止场景；请显式重置")
+            if self.grasp:
+                self.grasp.update()
             for contact in self.data.contact:
                 one, two = int(contact.geom1), int(contact.geom2)
                 if ball in (one, two) and ball >= 0:
@@ -203,10 +228,27 @@ class MuJoCoBackend:
 
     async def prepare(self, action):
         self.start()
-        if self.error and action.name not in {"reset", "scene_ball", "scene_duo", "stop"}:
+        if self.error and action.name not in {
+            "reset",
+            "scene_ball",
+            "scene_duo",
+            "scene_carry",
+            "stop",
+        }:
             raise ValueError(self.error)
         if action.target != "a" and self.scene != "duo":
             raise ValueError("当前场景只有鸭 A")
+        if self.grasp and action.name not in {
+            "pick_up",
+            "carry",
+            "put_down",
+            "stop",
+            "reset",
+            "scene_ball",
+            "scene_duo",
+            "scene_carry",
+        }:
+            raise ValueError("夹取场景请使用夹起、搬运、放下；其他动作会破坏夹持")
         self.selected = action.target
 
     async def move(self, vx, vyaw, vy=0):
@@ -225,8 +267,14 @@ class MuJoCoBackend:
             driver.command[9:12] = [z, roll, pitch] if active else [0, 0, 0]
 
     async def stop(self):
+        if self.grasp:
+            self.grasp.stop()
         for driver in self.drivers:
-            driver.command[:] = 0
+            if self.grasp and self.grasp.held:
+                driver.command[:3] = 0
+                driver.command[7:] = 0
+            else:
+                driver.command[:] = 0
             driver.policy = "walk"
             driver.until = 0
         self.chorus = None
@@ -324,6 +372,10 @@ class MuJoCoBackend:
             self.load(action.name.removeprefix("scene_"))
             self.start()
             return {"scene": self.scene, "verified": True}
+        if action.name in {"pick_up", "carry", "put_down"}:
+            if not self.grasp:
+                raise ValueError("请先切换到嘴部搬运场景")
+            return await self.grasp.perform(action.name)
         if action.name.startswith("kick_"):
             if self.scene != "ball" or action.target != "a":
                 raise ValueError("请先切换到单鸭踢球场景，选择鸭 A")
@@ -399,37 +451,7 @@ class MuJoCoBackend:
     def geometry(self):
         if self.scene in self.visual_cache:
             return {"revision": self.revision, **self.visual_cache[self.scene]}
-        meshes = {}
-        geoms = []
-        for i in self.geom_ids:
-            mid = int(self.model.geom_dataid[i])
-            if int(self.model.geom_type[i]) == 7 and mid not in meshes:
-                va, vn = self.model.mesh_vertadr[mid], self.model.mesh_vertnum[mid]
-                fa, fn = self.model.mesh_faceadr[mid], self.model.mesh_facenum[mid]
-                meshes[mid] = {
-                    "vertices": base64.b64encode(
-                        self.model.mesh_vert[va : va + vn].astype("<f4").tobytes()
-                    ).decode("ascii"),
-                    "faces": base64.b64encode(
-                        self.model.mesh_face[fa : fa + fn].astype("<u4").tobytes()
-                    ).decode("ascii"),
-                }
-            material = int(self.model.geom_matid[i])
-            rgba = self.model.mat_rgba[material] if material >= 0 else self.model.geom_rgba[i]
-            geoms.append(
-                {
-                    "id": i,
-                    "type": int(self.model.geom_type[i]),
-                    "mesh": mid,
-                    "size": self.model.geom_size[i].tolist(),
-                    "rgba": rgba.tolist(),
-                }
-            )
-        self.visual_cache[self.scene] = {
-            "meshes": meshes,
-            "geoms": geoms,
-            "attribution": "Pollen Robotics · CC BY-NC-SA 4.0 models",
-        }
+        self.visual_cache[self.scene] = geometry(self.model, self.geom_ids)
         return {"revision": self.revision, **self.visual_cache[self.scene]}
 
     async def snapshot(self):
@@ -461,6 +483,7 @@ class MuJoCoBackend:
                 for i, d in enumerate(self.drivers)
             ],
             "ball": self.ball_state(),
+            "grasp": self.grasp.snapshot() if self.grasp else None,
             "contacts": dict(self.contacts),
             "discovered": self.discovered,
             "chorus": chorus,

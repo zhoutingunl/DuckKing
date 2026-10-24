@@ -1,104 +1,84 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
+import { appURL } from './urls.js';
 
+// Official geometry, with deliberately scripted animation. No physics or policy inference here.
 export function createDuckScene(container) {
-  const scene = new THREE.Scene();
-  scene.background = new THREE.Color('#edf0e5');
-  scene.fog = new THREE.Fog('#edf0e5', 9, 20);
-  const camera = new THREE.PerspectiveCamera(34, 1, .1, 50);
-  camera.position.set(3.3, 2.6, 4.9);
-  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
-  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-  renderer.shadowMap.enabled = true;
-  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-  renderer.outputColorSpace = THREE.SRGBColorSpace;
-  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  const scene = new THREE.Scene(); scene.background = new THREE.Color('#edf0e5');
+  const camera = new THREE.PerspectiveCamera(34, 1, .02, 50); camera.position.set(2.5, 1.9, 3.7);
+  const renderer = new THREE.WebGLRenderer({ antialias: true });
+  const gl=renderer.getContext(), debug=gl.getExtension('WEBGL_debug_renderer_info');
+  let reduced=/swiftshader|llvmpipe|softpipe|software/i.test(debug?gl.getParameter(debug.UNMASKED_RENDERER_WEBGL):'');
+  renderer.outputColorSpace=THREE.SRGBColorSpace; renderer.toneMapping=THREE.ACESFilmicToneMapping;
+  renderer.shadowMap.enabled=!reduced; renderer.shadowMap.type=THREE.PCFShadowMap;
   container.appendChild(renderer.domElement);
-  renderer.domElement.setAttribute('aria-label', '原创机器人鸭子动画示意，非物理仿真');
-  const controls = new OrbitControls(camera, renderer.domElement);
-  controls.target.set(0, .9, 0);
-  controls.minDistance = 3; controls.maxDistance = 8;
-  controls.maxPolarAngle = Math.PI / 2.04;
-  controls.enableDamping = true; controls.enablePan = false;
-  controls.update(); controls.saveState();
-  scene.add(new THREE.HemisphereLight(0xffffff, 0x78845c, 2.6));
-  const sun = new THREE.DirectionalLight(0xfff9e8, 4);
-  sun.position.set(-3, 6, 4); sun.castShadow = true;
-  sun.shadow.mapSize.set(2048, 2048);
-  sun.shadow.camera.left = -4; sun.shadow.camera.right = 4;
-  sun.shadow.camera.top = 4; sun.shadow.camera.bottom = -4;
-  sun.shadow.bias = -.0005; sun.shadow.normalBias = .025;
-  scene.add(sun);
-  const fill = new THREE.DirectionalLight(0xe7f2ff, 1.6); fill.position.set(3, 2, -2); scene.add(fill);
-  const mat = (color, roughness = .65, metalness = 0) => new THREE.MeshStandardMaterial({ color, roughness, metalness });
-  const shell = mat('#f7f5e9'), edge = mat('#e0e2d6'), dark = mat('#313a34'), black = mat('#17201d', .3), orange = mat('#ed9751'), gold = mat('#ccdb76', .4);
-  function mesh(geometry, material, parent, x=0, y=0, z=0) {
-    const obj = new THREE.Mesh(geometry, material); obj.position.set(x,y,z);
-    obj.castShadow = true; obj.receiveShadow = true; parent.add(obj); return obj;
+  renderer.domElement.setAttribute('aria-label', '官方 MicroDuck 外观，脚本动画预览，非物理仿真');
+  const status=document.createElement('div'); status.className='model-status'; status.setAttribute('role','status'); container.append(status);
+  const controls=new OrbitControls(camera,renderer.domElement); controls.target.set(0,.65,0);
+  controls.minDistance=1.4;controls.maxDistance=8;controls.maxPolarAngle=Math.PI/2.04;
+  controls.enableDamping=true;controls.enablePan=false;controls.update();controls.saveState();
+  scene.add(new THREE.HemisphereLight(0xffffff,0x78845c,2.6));
+  const sun=new THREE.DirectionalLight(0xfff9e8,3);sun.position.set(-3,6,4);sun.castShadow=true;
+  sun.shadow.mapSize.set(1024,1024);sun.shadow.camera.left=-3;sun.shadow.camera.right=3;sun.shadow.camera.top=3;sun.shadow.camera.bottom=-3;sun.shadow.normalBias=.002;scene.add(sun);
+  const floor=new THREE.Mesh(new THREE.PlaneGeometry(100,100),new THREE.MeshStandardMaterial({color:'#edf0e5'}));floor.rotation.x=-Math.PI/2;floor.receiveShadow=true;scene.add(floor);
+  const grid=new THREE.GridHelper(12,48,0xd9dfce,0xe0e5d7);grid.position.y=.001;scene.add(grid);
+  const duck=new THREE.Group();duck.scale.setScalar(5);scene.add(duck);
+  const basis=new THREE.Group();basis.rotation.x=-Math.PI/2;duck.add(basis);
+  const joints=new Map(), geometries=[], materials=[];
+  let state={}, frame,timer,disposed=false,slowFrames=0,lastFrame=performance.now(),root;
+  const abort=new AbortController();
+  const quaternion=(target,[w,x,y,z])=>target.set(x,y,z,w);
+  async function load(){
+    status.textContent='正在加载官方 MicroDuck 外观…';status.hidden=false;container.dataset.model='loading';
+    try {
+      const response=await fetch(appURL('/api/models/microduck'),{signal:AbortSignal.any([abort.signal,AbortSignal.timeout(60000)])});
+      if(!response.ok)throw new Error('官方模型加载失败，请确认已安装场景资源');
+      const model=await response.json();if(disposed)return;
+      const nodes=new Map([[0,basis]]),meshes=new Map();
+      for(const body of model.bodies){
+        const base=new THREE.Group();base.position.fromArray(body.position);quaternion(base.quaternion,body.quaternion);nodes.get(body.parent).add(base);
+        let node=base;
+        for(const joint of body.joints){
+          const pivot=new THREE.Group();pivot.position.fromArray(joint.position);node.add(pivot);
+          const child=new THREE.Group();child.position.fromArray(joint.position).multiplyScalar(-1);pivot.add(child);node=child;
+          joints.set(joint.name,{pivot,axis:new THREE.Vector3(...joint.axis),home:joint.home});
+        }
+        nodes.set(body.id,node);if(body.name==='trunk_base')root=base;
+      }
+      const decode=v=>Uint8Array.from(atob(v),c=>c.charCodeAt(0)).buffer;
+      for(const [id,value] of Object.entries(model.meshes)){
+        const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(new Float32Array(decode(value.vertices)),3));g.setIndex(new THREE.BufferAttribute(new Uint32Array(decode(value.faces)),1));g.computeVertexNormals();meshes.set(Number(id),g);geometries.push(g);
+      }
+      for(const geom of model.geoms){
+        const geometry=meshes.get(geom.mesh);if(!geometry)continue;
+        const material=new THREE.MeshStandardMaterial({color:new THREE.Color(...geom.rgba.slice(0,3)),roughness:.66,metalness:.08});materials.push(material);
+        const mesh=new THREE.Mesh(geometry,material);mesh.position.fromArray(geom.position);quaternion(mesh.quaternion,geom.quaternion);mesh.castShadow=mesh.receiveShadow=true;nodes.get(geom.body).add(mesh);
+      }
+      container.dataset.model='official';status.hidden=true;
+    }catch(error){
+      if(disposed)return;container.dataset.model='failed';status.textContent=`${error.message}。`;
+      const retry=document.createElement('button');retry.className='text-button';retry.textContent='重新加载模型';retry.onclick=load;status.append(retry);
+    }
   }
-  const box = (w,h,d,r=.08) => new RoundedBoxGeometry(w,h,d,4,r);
-  const floor = mesh(new THREE.PlaneGeometry(100,100), mat('#edf0e5'), scene);
-  floor.rotation.x = -Math.PI/2; floor.castShadow = false;
-  const grid = new THREE.GridHelper(12,24,0xd9dfce,0xe0e5d7); grid.position.y=.002; grid.material.transparent=true;grid.material.opacity=.65;scene.add(grid);
-  const platform = mesh(new THREE.CylinderGeometry(1.6,1.62,.045,96),mat('#e2e8d4'),scene,0,.024,0);
-  const rim = mesh(new THREE.TorusGeometry(1.58,.008,8,96),mat('#c5d2af'),scene,0,.052,0); rim.rotation.x=Math.PI/2;
-  const duck = new THREE.Group(); scene.add(duck);
-  const body = new THREE.Group(); body.position.y=.83; duck.add(body);
-  mesh(box(.77,.65,.7,.21),shell,body);
-  mesh(box(.66,.055,.59,.025),edge,body,0,-.24,0);
-  const chest = mesh(box(.32,.16,.025,.035),dark,body,0,.02,.35);
-  mesh(new THREE.SphereGeometry(.028,20,12),gold,chest,-.09,0,.025);
-  mesh(box(.11,.018,.012,.005),edge,chest,.04,0,.025);
-  const neck = mesh(new THREE.CylinderGeometry(.12,.15,.22,32),dark,body,0,.43,0);
-  const head = new THREE.Group(); head.position.set(0,.62,.065); body.add(head);
-  mesh(box(.93,.61,.73,.2),shell,head);
-  mesh(box(.85,.035,.64,.015),edge,head,0,-.12,0);
-  mesh(box(.67,.26,.045,.1),black,head,0,.03,.362);
-  for(const x of [-.19,.19]) {
-    mesh(new THREE.CapsuleGeometry(.042,.025,6,16),mat('#e7efcf'),head,x,.04,.397);
-    const bolt = mesh(new THREE.CylinderGeometry(.025,.025,.018,20),dark,head,Math.sign(x)*.467,-.12,0);
-    bolt.rotation.z=Math.PI/2;
-  }
-  mesh(box(.48,.13,.34,.06),orange,head,0,-.18,.43);
-  mesh(box(.42,.018,.26,.009),mat('#9b6544'),head,0,-.195,.48);
-  mesh(box(.17,.08,.14,.025),gold,head,0,.345,-.01);
-  for(const x of [-.09,0,.09]) mesh(new THREE.ConeGeometry(.035,.12,4),gold,head,x,.42,-.01);
-  const feet = [];
-  for(const sign of [-1,1]) {
-    const wing = mesh(box(.12,.33,.37,.06),edge,body,sign*.44,-.02,0); wing.rotation.z=sign*-.13;
-    const joint=mesh(new THREE.CylinderGeometry(.105,.105,.14,32),dark,duck,sign*.25,.54,0);joint.rotation.z=Math.PI/2;
-    const leg=new THREE.Group();leg.position.set(sign*.25,.52,0);duck.add(leg);
-    mesh(box(.13,.33,.14,.03),shell,leg,0,-.17,0);
-    const knee=mesh(new THREE.CylinderGeometry(.075,.075,.15,24),dark,leg,0,-.31,0);knee.rotation.z=Math.PI/2;
-    mesh(box(.29,.11,.48,.04),orange,leg,0,-.42,.12);
-    for(const dx of [-.065,.065]) mesh(box(.012,.007,.17,.003),mat('#ce7e42'),leg,dx,-.36,.23);
-    feet.push(leg);
-  }
-  const tail=mesh(new THREE.ConeGeometry(.14,.33,4),edge,body,0,-.02,-.44);tail.rotation.x=-Math.PI/2;
-  let state={pose:{x:0,z:0,yaw:0,pitch:0},velocity:{forward:0,yaw:0}}, frame;
-  const clock = new THREE.Clock();
-  const observer = new ResizeObserver(() => {
-    const {width,height}=container.getBoundingClientRect(); if(!width||!height)return;
-    renderer.setSize(width,height);camera.aspect=width/height;camera.updateProjectionMatrix();
-  });observer.observe(container);
+  load();
+  function setJoint(name,delta){const j=joints.get(name);if(j)j.pivot.quaternion.setFromAxisAngle(j.axis,j.home+delta);}
+  function resize(){const {width,height}=container.getBoundingClientRect();if(!width||!height)return;renderer.setPixelRatio(reduced?Math.min(1,640/width):Math.min(devicePixelRatio,2));renderer.setSize(width,height);camera.aspect=width/height;camera.updateProjectionMatrix();}
+  const observer=new ResizeObserver(resize);observer.observe(container);
+  const clock=new THREE.Clock();
   function animate(){
-    frame=requestAnimationFrame(animate);
-    const t=clock.getElapsedTime(), p=state.pose??{}, moving=Math.abs(state.velocity?.forward??0)+Math.abs(state.velocity?.lateral??0)+Math.abs(state.velocity?.yaw??0)>.001;
-    duck.position.x=THREE.MathUtils.lerp(duck.position.x,(p.x??0)*3,.16);
-    duck.position.z=THREE.MathUtils.lerp(duck.position.z,(p.z??0)*3,.16);
-    duck.rotation.y=THREE.MathUtils.lerp(duck.rotation.y,p.yaw??0,.2);
-    head.rotation.x=-(p.pitch??0);
-    head.rotation.y=p.head_yaw??0;
-    head.rotation.z=-(p.head_roll??0);
-    const gait=moving?Math.sin(t*11)*.19:0;
-    feet[0].rotation.x=gait;feet[1].rotation.x=-gait;
-    const sideGait=gait*Math.min(1,Math.abs(state.velocity?.lateral??0)/.28)*.65;
-    feet[0].rotation.z=sideGait;feet[1].rotation.z=-sideGait;
-    body.position.y=.83+(p.body_z??0)*5+(moving?Math.abs(Math.sin(t*11))*.025:Math.sin(t*2)*.006);
-    body.rotation.z=-(p.body_roll??0);
-    body.rotation.x=-(p.body_pitch??0);
+    const started=performance.now(),t=clock.getElapsedTime(),p=state.pose??{};
+    const moving=Math.abs(state.velocity?.forward??0)+Math.abs(state.velocity?.lateral??0)+Math.abs(state.velocity?.yaw??0)>.001;
+    duck.position.set((p.x??0)*5,0,(p.z??0)*5);duck.rotation.y=-Math.PI/2+(p.yaw??0);
+    for(const name of joints.keys())setJoint(name,0);
+    setJoint('head_pitch',p.pitch??0);setJoint('head_yaw',p.head_yaw??0);setJoint('head_roll',p.head_roll??0);
+    const gait=moving?Math.sin(t*11)*.16:0;
+    setJoint('left_hip_pitch',gait);setJoint('right_hip_pitch',gait);
+    setJoint('left_knee',-Math.max(0,gait)*1.2);setJoint('right_knee',Math.max(0,-gait)*1.2);
+    if(root){root.position.z=.12+(p.body_z??0)+(moving?Math.abs(Math.sin(t*11))*.002:0);root.rotation.set(p.body_roll??0,p.body_pitch??0,0);}
     controls.update();renderer.render(scene,camera);
+    slowFrames=performance.now()-started>70||started-lastFrame>180?slowFrames+1:0;lastFrame=started;
+    if(!reduced&&slowFrames>=3){reduced=true;renderer.shadowMap.enabled=false;materials.forEach(m=>m.needsUpdate=true);resize();}
+    timer=setTimeout(()=>{frame=requestAnimationFrame(animate);},reduced?100:33);
   }animate();
-  return {update(next){state=next},resetCamera(){controls.reset()},dispose(){cancelAnimationFrame(frame);observer.disconnect();renderer.dispose();controls.dispose()}};
+  return {update(next){state=next},resetCamera(){controls.reset()},dispose(){disposed=true;abort.abort();clearTimeout(timer);cancelAnimationFrame(frame);observer.disconnect();geometries.forEach(g=>g.dispose());materials.forEach(m=>m.dispose());renderer.dispose();controls.dispose();status.remove();}};
 }

@@ -73,6 +73,11 @@ async def verify(base, commit):
                 assert url.startswith(base), "An asset escaped the deployment prefix"
                 (await client.get(url)).raise_for_status()
         (await client.get(urljoin(base, "capture-worklet.js"))).raise_for_status()
+        model = await client.get(urljoin(base, "api/models/microduck"), timeout=60)
+        model.raise_for_status()
+        assert model.json()["source"] == "official_microduck_visuals"
+        assert model.json()["physics"] is False
+        assert model.json()["meshes"], "Missing official visual meshes"
         capabilities = await client.get(urljoin(base, '_gateway/capabilities'))
         transport = 'websocket'
         if capabilities.status_code != 404:
