@@ -35,7 +35,7 @@ $('reset-scene').addEventListener('click',()=>action('reset'));$('stop-scene').a
 window.addEventListener('keydown',e=>{if(e.key==='Escape'&&scene)action('stop');});
 async function loadModel(state){
   if(loadingModel||revision===state.revision)return;loadingModel=true;
-  try{const response=await fetch(appURL('/api/scenes/model'),{cache:'no-store',signal:AbortSignal.timeout(15000)});if(!response.ok)throw new Error('模型加载失败');const model=await response.json();if(latest?.revision!==model.revision)return;viewer?.load(model);revision=model.revision;if(latest?.revision===revision)viewer?.update(latest);$('scene-placeholder').hidden=true;}
+  try{const response=await fetch(appURL('/api/scenes/model'),{cache:'no-store',signal:AbortSignal.timeout(60000)});if(!response.ok)throw new Error('模型加载失败');const model=await response.json();if(latest?.revision!==model.revision)return;viewer?.load(model);revision=model.revision;if(latest?.revision===revision)viewer?.update(latest);$('scene-placeholder').hidden=true;}
   catch(e){notify(e.message);}finally{loadingModel=false;}
 }
 function update(data){
