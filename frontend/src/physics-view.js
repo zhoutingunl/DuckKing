@@ -28,6 +28,7 @@ export function physicsView(container) {
     }
     for(const geom of model.geoms){
       let geometry=geom.type===7?meshes.get(geom.mesh):null;
+      if(geom.type===6){geometry=new THREE.BoxGeometry(...geom.size.map(v=>v*2));geometries.push(geometry);}
       if(geom.type===2){geometry=new THREE.SphereGeometry(geom.size[0],32,20);geometries.push(geometry);}
       if(!geometry)continue;
       const material=new THREE.MeshStandardMaterial({color:new THREE.Color(...geom.rgba.slice(0,3)),roughness:.66,metalness:.08});materials.push(material);

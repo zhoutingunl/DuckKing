@@ -205,8 +205,8 @@ def create_app(
 
     @app.post("/api/scenes/start", status_code=202)
     async def start_scene(body: Action, room: str = "1"):
-        if body.name not in {"scene_ball", "scene_duo"} or body.target != "a":
-            raise HTTPException(422, "选择单鸭踢球或双鸭互动场景")
+        if body.name not in {"scene_ball", "scene_duo", "scene_carry"} or body.target != "a":
+            raise HTTPException(422, "选择踢球、双鸭互动或嘴部搬运场景")
         selected = get_room(room)
         async with selected.scene_lock:
             if selected.scene_motion is None:
@@ -224,6 +224,19 @@ def create_app(
                 return await scene_controller(room).submit(body)
             except ValueError as exc:
                 raise HTTPException(409, str(exc)) from exc
+
+    @app.get("/api/models/microduck")
+    async def preview_model():
+        try:
+            from .model_assets import official_preview
+
+            assets = Path(os.environ.get("DUCKKING_SIM_DIR", ROOT / "external"))
+            model = await asyncio.to_thread(official_preview, assets)
+        except Exception as exc:
+            raise HTTPException(
+                503, "官方外观模型未就绪，请运行 scripts/setup_scenarios.sh 并重启服务"
+            ) from exc
+        return JSONResponse(model, headers={"Cache-Control": "public, max-age=3600"})
 
     @app.get("/api/scenes/model")
     async def scene_model(room: str = "1"):

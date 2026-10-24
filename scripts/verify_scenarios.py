@@ -29,6 +29,10 @@ async def verify(output: Path):
             "find_companion",
             "collide",
             "chorus",
+            "scene_carry",
+            "pick_up",
+            "carry",
+            "put_down",
         ]:
             action = Action(name=name)
             await motion.submit(action)
@@ -45,6 +49,13 @@ async def verify(output: Path):
             "model_commit": "b02fdea4902c2b93b7d34a83a6f05da4ececb7d3",
             "policy_commit": "665ae4eb20bfe13bca1ef4ea6d4bb6b4a096e448",
             "ball": {"radius_m": 0.035, "mass_kg": 0.015, "placement": "before each selected foot"},
+            "grasp": {
+                "model": "experimental_beak_contact_v1",
+                "object_mass_kg": 0.004,
+                "object_size_m": [0.020, 0.130, 0.008],
+                "attachment": "contact_and_friction_only",
+                "hardware_calibrated": False,
+            },
             "control_hz": 50,
             "physics_timestep_s": 0.005,
             "chorus": "Local synthesized score; this script verifies control, not speaker output",

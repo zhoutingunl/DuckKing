@@ -2,7 +2,7 @@
 
 ## 交付范围
 
-DuckKing 是本地运行的语音与动作工作台。原创动画预览可直接运行；官方物理仿真通过独立的 robotd/MuJoCo 进程接入。已完成真实灵矽设备绑定、语音识别、MCP 动作调用与语音回复联调，测试输入为系统合成中文语音。
+DuckKing 是本地运行的语音与动作工作台。动画预览使用官方外观和本项目的脚本；物理实验室使用进程内 MuJoCo CPU / ONNX，另有独立的 robotd/MuJoCo 适配路径。已完成真实灵矽设备绑定、语音识别、MCP 动作调用与语音回复联调，测试输入为系统合成中文语音。
 
 它不等于实体硬件复刻，是否满足原竞赛题的实物要求仍需主办方认可。
 
@@ -17,7 +17,7 @@ flowchart LR
     Voice --> MCP[DeviceMCP]
     Buttons[动作按钮 / Esc] --> Motion[MotionController]
     MCP --> Motion
-    Motion --> Preview[原创动画状态]
+    Motion --> Preview[脚本动画状态]
     Motion --> Adapter[RobotdBackend]
     Adapter <-->|Unix socket / NDJSON| Robot[官方 robotd]
     Robot <--> Physics[官方 MuJoCo body]
@@ -25,7 +25,7 @@ flowchart LR
     Adapter -->|遥测和连接状态| UI
 ```
 
-物理计算在官方 MuJoCo body 中完成，官方 robotd 运行已有策略。浏览器原创模型不是官方 CAD 模型；在 robotd 模式下也只作为示意，不冒充官方物理画面。
+robotd 路径的物理计算在官方 MuJoCo body 中完成，官方 robotd 运行已有策略。首页网格来自官方模型，但姿态动画仍是运动学示意；真实实时接触画面在独立物理实验室中呈现。
 
 ## 模块规格
 
@@ -44,7 +44,7 @@ flowchart LR
 | 交互统计 | `statistics.py`、`frontend/src/statistics.js` | 脱敏事件 → 最近 500 轮、百分位、统计页 | 单调时钟、进程内唯一轮次；缺失不补零、不同后端可筛选；不推断物理或扬声器延迟 |
 | 端侧 MCP | `mcp.py` | JSON-RPC → 工具结果 | 初始化 / 工具发现 / 白名单调用；结果关联原请求 ID |
 | 浏览器音频 | `frontend/src/voice.js`、`audio-output.js`、`audio-codec.js` | 麦克风 / 语音事件 | 录音权限、流式重采样、分帧、播放队列与释放麦克风 |
-| 三维界面 | `frontend/src/duck.js`、`main.js` | 后端状态 → 画面 / 记录 | 程序化原创形象；连接与能力范围清楚标注 |
+| 三维界面 | `frontend/src/duck.js`、`main.js` | 后端状态 → 画面 / 记录 | 官方外观 + 脚本关节动画；不计算物理，加载失败显式报错 |
 
 ## 本地接口
 
@@ -53,6 +53,7 @@ flowchart LR
 | 接口 | 用途 |
 |---|---|
 | `GET /api/health` | 版本、后端类型与服务可达性 |
+| `GET /api/models/microduck` | 缓存的官方视觉网格、局部关节轴和默认姿态；不启动物理循环或 ONNX 推理 |
 | `GET /api/state` | 当前动作、后端状态、近期事件 |
 | `GET /api/voice/diagnostics` | 语音阶段、停留时间、音频帧数和脱敏诊断事件 |
 | `GET /api/voice/statistics?backend=all` | 本进程最近 500 轮统计；可筛选 `preview` / `robotd`；同源检查、禁止缓存 |
@@ -123,17 +124,17 @@ ai_gateway 可独立添加固定 loopback 路由；现有前置代理不透传 U
 
 `GET /api/deployments` 仅返回发布字段白名单与最近 100 条流水；当前进程启动时固定读取版本元数据，原子切换磁盘链接不会给旧进程贴上新版本。`staged` 代表独立后端本机自检通过，`success` 需要入口验收后确认。发布失败与回滚结果分别记录；密钥、设备身份和原始配置不出现在该 API 中。
 
-`simulation.py` 在 Python 进程中运行 MuJoCo CPU 与官方 ONNX 推理，`kind=mujoco`、`physics=true`、`runtime=mujoco_cpu_onnx`；它不是 robotd 适配器，也不复用原创预览的姿态动画。原工作台控制器与场景控制器相互独立。
+`simulation.py` 在 Python 进程中运行 MuJoCo CPU 与官方 ONNX 推理，`kind=mujoco`、`physics=true`、`runtime=mujoco_cpu_onnx`；它不是 robotd 适配器，也不复用首页预览的姿态动画。原工作台控制器与场景控制器相互独立。
 
 `POST /api/scenes/start` 显式惰性加载模型；模型文件和策略位于 `external/`，不进入 Python 包，本地开发显式下载，Linux 发布包携带固定版本及来源信息。球场使用官方 `scene_ball.xml`，双鸭场景用 `MjSpec.attach` 将两个官方 `robot_allcollisions.xml` 放到同一个模型中。控制频率 50 Hz，每次推进 4 个 5 ms 物理步，双鸭共用一次 `mj_step`。策略采用官方 61 维观测、14 维关节输出、默认姿态与 0.5 秒踢球时长；沿用 MJCF 的位置执行器参数，没有接入训练时的动态 BAM 电机模型。
 
-`/api/scenes/actions` 与原工作台共用有界、可取消、按请求 ID 去重的 `MotionController`。场景动作结束前会验证所选脚接触和位移，或者双鸭接触；失败不会返回完成。正常动作的 `target` 可为 a/b/both；停止与场景切换总是清零两只鸭的运动、头部和身体意图。标准动作最长 3 秒；物理场景等待按仿真时间计时，另有「目标时长 + 3 秒」墙钟超时。清零命令不冻结物理世界。
+`/api/scenes/actions` 与原工作台共用有界、可取消、按请求 ID 去重的 `MotionController`。场景动作结束前会验证所选脚接触和位移，或者双鸭接触；失败不会返回完成。正常动作的 `target` 可为 a/b/both；停止与场景切换取消当前动作。球场和双鸭清零运动、头部和身体意图；搬运停止会保持已夹住物品所需的嘴部与头部目标。标准动作最长 3 秒，实验性放下为固定 4.5 秒；物理场景等待按仿真时间计时，另有「目标时长 + 3 秒」墙钟超时。清零命令不冻结物理世界。
 
 `GET /api/scenes/model` 提供编译后的官方网格和外观，顶点 float32、索引 uint32 以小端 base64 传输，按场景缓存。`/scene-ws` 只发送实际 `geom_xpos/geom_xmat`、接触计数、球位移、双鸭姿态和合唱节拍。浏览器处理后发送文本 `next` 请求最新快照，频率上限 20 Hz；每个连接只保留一帧待确认数据，30 秒没有确认就关闭并由页面重连，避免慢客户端积压旧物理状态。非法确认帧以 1008 关闭。模型响应与状态流使用 revision 配对，避免切换时套用旧模型；revision 属于编译模型，同场景重置复用几何，重启进程重新生成。
 
 Three.js 渲染官方几何，不会用预设踢球动画替换实际关节结果。每次绘制后留出至少 33 ms 空闲时间；检测到 SwiftShader / llvmpipe 等软件渲染器或连续慢帧时关闭阴影，将画布宽度限制为 640 像素，并延长绘制间隔至 100 ms。这样可以为输入、语音和状态处理留出时间，不改变物理步进和接触判定。
 
-`/scene-voice` 复用真实 `VoiceSession`，连接场景控制器，按同源规则保护。同一房间内和 `/voice` 共用一个语音名额；两个房间分别使用独立的设备身份、控制器与物理世界。新增 MCP 工具仅对 MuJoCo 控制器公布：`duck_set_scene`、`duck_kick`（必填 left/right）、`duck_find_companion`、`duck_duo_walk`、`duck_collide`、`duck_chorus`。状态工具剔除渲染网格，避免将大量图形数据送入模型上下文。统计按 `mujoco` 单独筛选。
+`/scene-voice` 复用真实 `VoiceSession`，连接场景控制器，按同源规则保护。同一房间内和 `/voice` 共用一个语音名额；两个房间分别使用独立的设备身份、控制器与物理世界。新增 MCP 工具仅对 MuJoCo 控制器公布：`duck_set_scene`、`duck_kick`（必填 left/right）、`duck_find_companion`、`duck_duo_walk`、`duck_collide`、`duck_chorus`、`duck_pick_up`、`duck_carry`、`duck_put_down`。状态工具剔除渲染网格，避免将大量图形数据送入模型上下文。统计按 `mujoco` 单独筛选。
 
 发现同伴使用仿真真值：距离 ≤1.2 m、相对朝向 ±60°、`mj_ray` 检查遮挡。合唱为应用自己的 3 秒双声部旋律，两只鸭收到相同点头节拍，浏览器两个声部共享 AudioContext；声音依赖用户启用，工具成功表示控制编排完成，不承诺扬声器播放或跨设备同步。不是官方 BLE/duckether 合唱实现。
 
@@ -152,3 +153,15 @@ Three.js 渲染官方几何，不会用预设踢球动画替换实际关节结�
 本项目不把 AI 辅助开发记作额外参赛成员，也不把第三方步态策略或官方仿真器记作原创成果。
 
 两房间分配、接口选择和打断录音缓冲的规则见 [开发指南](DEVELOPMENT.md#打断回复并说新命令)。设备接入与 abort 格式依据 [灵矽官方 WebSocket 协议](https://linx.qiniu.com/docs/xrobot/platform/websocket)；没有假定同一设备支持多连接。
+
+## 嘴部夹取与首页官方外观
+
+`model_assets.py` 从固定官方 MJCF 导出 70 个视觉 geom、复用的 STL 网格和 14 个关节的局部轴 / 枢轴 / 默认角度。`GET /api/models/microduck` 只编译模型，不做物理推进；浏览器用 Three.js 关节树播放既有预览状态。没有翅膀或手部关节。API 与首页均标识 `physics=false`；依赖缺失返回 503，页面可显式重试。该外观接口不依赖房间物理场景，首次加载不会启动场景或云端语音。
+
+`grasp_model.py` 构造 `carry` 场景：原 14 个 ONNX 策略执行器按名称选择，观测仍为 61 维，输出仍为 14 维；新增第 15 个 mouth 执行器独立控制。嘴部角度范围 −5° 至 30°，力矩限制 ±0.025 N·m；上下接触垫的尺寸不同，以允许张嘴时物品脱离下垫。质量 / 惯量拆分和接触垫是实验性近似。小棒为 20×130×8 mm、4 g 的自由刚体；只在场景加载/重置时采用初始状态，动作过程中不写它的位姿，不加焊接、吸附或外力搬运。物品碰撞使用显式嘴垫、地面和支架，不能据此证明完整头部 CAD 的所有接触都准确。
+
+`grasp.py` 每个 5 ms 物理步汇总 `mj_contactForce` 的真实法向力。夹起需要上下垫均超过 0.01 N、持续至少 0.2 秒、物品最低角点高于原支架 8 mm 且没有支架接触。搬运需要物品水平位移 >10 cm、躯干位移 >8 cm、保持夹持且到达接物台范围。夹持丢失超过 0.12 秒、相对嘴部滑移 >18 mm 或跌倒会明确失败，并停止移动。步态期间头部意图清零，遵循原策略的站立/行走输入约定。
+
+放下先张嘴，再低头让物品落到接物台；确认接物台接触后才退开。完成要求上下嘴垫接触力合计 <0.001 N、接物台接触力 >0.005 N，且物品线速度 <0.02 m/s、角速度 <0.1 rad/s，持续至少 0.2 秒。工具固定仿真时长为夹起 2.2 秒、搬运 3 秒、放下 4.5 秒，整段动作另设「时长 + 3 秒」墙钟截止。停止不会宣布成功；已建立的夹持继续保留，动作中断后可显式重置。MuJoCo 数值异常导致时钟倒退/重置也会报错，不静默重置为成功。
+
+该流程仅验证固定取物架到固定接物台的轻载搬运。没有物体视觉定位、任意物品规划、地面拾取、新策略训练或真机验收。页面给出夹持阶段、接触力、最高离架高度和实际搬运位移；它们与云端语音统计分别记录。
