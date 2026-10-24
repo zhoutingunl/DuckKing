@@ -4,6 +4,7 @@ import argparse
 import asyncio
 import json
 import re
+import struct
 from contextlib import asynccontextmanager
 from urllib.parse import urljoin, urlsplit
 
@@ -73,11 +74,21 @@ async def verify(base, commit):
                 assert url.startswith(base), "An asset escaped the deployment prefix"
                 (await client.get(url)).raise_for_status()
         (await client.get(urljoin(base, "capture-worklet.js"))).raise_for_status()
-        model = await client.get(urljoin(base, "api/models/microduck"), timeout=60)
+        manifest = await client.get(urljoin(base, "api/models/microduck/manifest"), timeout=60)
+        manifest.raise_for_status()
+        info = manifest.json()
+        assert re.fullmatch(r"[a-f0-9]{64}", info["version"])
+        model = await client.get(
+            urljoin(base, f"api/models/microduck/assets/{info['version']}.dkm.gz"), timeout=60
+        )
         model.raise_for_status()
-        assert model.json()["source"] == "official_microduck_visuals"
-        assert model.json()["physics"] is False
-        assert model.json()["meshes"], "Missing official visual meshes"
+        assert model.headers["content-encoding"] == "gzip"
+        assert model.content[:4] == b"DKM1" and len(model.content) == info["decoded_bytes"]
+        size = struct.unpack_from("<I", model.content, 4)[0]
+        metadata = json.loads(model.content[8:8 + size])
+        assert metadata["source"] == "official_microduck_visuals"
+        assert metadata["physics"] is False
+        assert metadata["meshes"], "Missing official visual meshes"
         capabilities = await client.get(urljoin(base, '_gateway/capabilities'))
         transport = 'websocket'
         if capabilities.status_code != 404:
