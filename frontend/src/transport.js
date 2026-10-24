@@ -1,4 +1,4 @@
-import { appURL } from './urls.js';
+import { appURL, currentRoom } from './urls.js';
 
 const MAX_FRAME=256*1024,MAX_QUEUE=1024*1024,MAX_BATCH=32;
 const encode=bytes=>{let text='';for(let i=0;i<bytes.length;i+=8192)text+=String.fromCharCode(...bytes.subarray(i,i+8192));return btoa(text)};
@@ -114,4 +114,8 @@ export class DuckSocket extends EventTarget {
   }
 }
 
-export const createSocket=endpoint=>new DuckSocket(endpoint);
+export const createSocket=endpoint=>{
+  const socket=new DuckSocket(endpoint);
+  socket.addEventListener('open',()=>socket.send(JSON.stringify({type:'join_room',room:currentRoom??'1'})),{once:true});
+  return socket;
+};

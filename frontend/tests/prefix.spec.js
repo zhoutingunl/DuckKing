@@ -55,13 +55,13 @@ test(`${secure?'HTTPS':'HTTP'} prefix serves pages, physical state, actions and 
   const requests=[];page.on('request',request=>requests.push(request.url()));
   const sockets=[];page.on('websocket',socket=>sockets.push(socket.url()));
   try{
-    await page.goto(prefix);
+    await page.goto(prefix+'?room=1');
     expect(await page.evaluate(()=>window.isSecureContext)).toBe(true);
     await expect(page.locator('#connection-label')).toHaveText('本地工作台已连接');
     await page.locator('[data-action="nod"]').click();
     await expect(page.locator('#activity-log')).toContainText('点头 · completed');
-    await expect(page.getByRole('link',{name:'物理实验室'})).toHaveJSProperty('href',prefix+'scenarios.html');
-    await page.goto(prefix+'scenarios.html');await page.getByRole('button',{name:'单鸭定点踢球'}).click();
+    await expect(page.getByRole('link',{name:'物理实验室'})).toHaveJSProperty('href',prefix+'scenarios.html?room=1');
+    await page.goto(prefix+'scenarios.html?room=1');await page.getByRole('button',{name:'单鸭定点踢球'}).click();
     await expect(page.locator('#scene-placeholder')).toBeHidden({timeout:30000});
     await expect(page.locator('#sim-status')).toHaveText('MuJoCo 物理运行中');
     await context.grantPermissions(['microphone'],{origin});
@@ -82,7 +82,7 @@ test(`${secure?'HTTPS':'HTTP'} prefix serves pages, physical state, actions and 
     expect(requests.filter(url=>url.startsWith(origin)).every(url=>url.startsWith(prefix))).toBe(true);
     expect(sockets.length).toBeGreaterThanOrEqual(2);
     expect(sockets.every(url=>url.startsWith(prefix.replace(/^http/,'ws')))).toBe(true);
-    for(const path of ['ws','api/actions','scene-ws','api/scenes/start','api/scenes/model','capture-worklet.js','api/deployments'])expect(forwarded).toContain('/duckking/'+path);
+    for(const path of ['ws','api/actions','scene-ws','api/scenes/start','api/scenes/model','capture-worklet.js','api/deployments'])expect(forwarded.map(url=>url.split('?')[0])).toContain('/duckking/'+path);
   }finally{
     await page.close();for(const socket of connections)socket.destroy();await new Promise(resolve=>proxy.close(resolve));
     if(certificateDirectory)rmSync(certificateDirectory,{recursive:true,force:true});

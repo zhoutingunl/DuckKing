@@ -77,6 +77,7 @@ async def verify(base, commit):
             assert transport in {'https-poll', 'websocket'}
         for endpoint in ["ws", "scene-ws", "voice", "scene-voice"]:
             async with connection(client, base, endpoint, transport) as socket:
+                await socket.send(json.dumps({"type": "join_room", "room": "1"}))
                 message = json.loads(await asyncio.wait_for(socket.recv(), timeout=15))
                 assert message["type"] in {"state", "not_started", "voice_status"}
                 if endpoint == "scene-ws":

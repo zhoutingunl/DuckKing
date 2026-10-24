@@ -6,8 +6,10 @@ import json
 import logging
 import os
 import re
+import time
 from contextlib import asynccontextmanager, suppress
 from pathlib import Path
+from types import SimpleNamespace
 
 import anyio
 import uvicorn
@@ -42,11 +44,12 @@ def create_app(
     @asynccontextmanager
     async def lifespan(app):
         yield
-        if app.state.voice:
-            await app.state.voice.disconnect()
-        await motion.close()
-        if app.state.scene_motion:
-            await app.state.scene_motion.close()
+        for room in app.state.rooms.values():
+            if room.voice:
+                await room.voice.disconnect()
+            await room.motion.close()
+            if room.scene_motion:
+                await room.scene_motion.close()
 
     app = FastAPI(title="DuckKing", lifespan=lifespan)
     app.state.motion = motion
@@ -61,10 +64,67 @@ def create_app(
             )
         ),
     )
-    scene_lock = asyncio.Lock()
+    app.state.settings = settings or Settings.load()
+    app.state.scene_lock = asyncio.Lock()
+    app.state.viewers = 0
+    app.state.reserved_until = 0.0
     app.state.voice_diagnostics = VoiceDiagnostics(
         (settings or Settings.load()).data_dir / "voice.jsonl"
     )
+    second_settings = app.state.settings.for_room("2")
+    app.state.rooms = {"1": app.state}
+    if motion.backend.kind == "preview":
+        app.state.rooms["2"] = SimpleNamespace(
+            motion=MotionController(PreviewBackend()), voice=None, scene_motion=None,
+            settings=second_settings, scene_lock=asyncio.Lock(), viewers=0, reserved_until=0.0,
+            voice_diagnostics=VoiceDiagnostics(second_settings.data_dir / "voice.jsonl"),
+        )
+
+    def get_room(number="1"):
+        if number not in app.state.rooms:
+            raise HTTPException(404, "房间不存在或当前 robotd 后端不支持独立第二房间")
+        return app.state.rooms[number]
+
+    async def socket_room(ws):
+        # Selection is a protocol frame so existing HTTPS bridges need no changes.
+        # Explicit query selection also supports local protocol clients.
+        if not same_origin(ws.headers.get("origin"), ws.headers.get("host", "")):
+            if ws.url.path.endswith("/scene-ws"):
+                logging.getLogger(__name__).warning("scene_ws_rejected: origin_mismatch")
+            await ws.close(code=1008)
+            return None
+        await ws.accept()
+        try:
+            number = ws.query_params.get("room")
+            if number is None:
+                data = await asyncio.wait_for(ws.receive_json(), 5)
+                if not isinstance(data, dict) or data.get("type") != "join_room":
+                    raise ValueError("room required")
+                number = data.get("room")
+            if number not in app.state.rooms:
+                raise ValueError("invalid room")
+            return get_room(number)
+        except (ValueError, TypeError, TimeoutError, WebSocketDisconnect):
+            with suppress(RuntimeError, OSError):
+                await ws.close(code=1008)
+            return None
+
+    @app.get("/api/rooms")
+    async def rooms():
+        return {"rooms": [{"id": number, "viewers": room.viewers,
+                           "voice_busy": room.voice is not None}
+                          for number, room in app.state.rooms.items()]}
+
+    @app.post("/api/rooms/claim")
+    async def claim_room():
+        # A short reservation prevents simultaneous page loads choosing one room.
+        # Rooms are public demo spaces, not authenticated private accounts.
+        for number, room in app.state.rooms.items():
+            if not room.viewers and room.voice is None and room.reserved_until <= time.monotonic():
+                room.reserved_until = time.monotonic() + 10
+                return {"room": number}
+        raise HTTPException(409, "两个房间均在使用，请选择房间查看；语音需要等待该房间释放")
+
     app.add_middleware(
         TrustedHostMiddleware,
         allowed_hosts=allowed_hosts or ["localhost", "127.0.0.1", "testserver"],
@@ -92,109 +152,113 @@ def create_app(
         return JSONResponse(app.state.deployment.snapshot(), headers={"Cache-Control": "no-store"})
 
     @app.get("/api/state")
-    async def state():
-        return await motion.snapshot()
+    async def state(room: str = "1"):
+        return await get_room(room).motion.snapshot()
 
     @app.get("/api/voice/diagnostics")
-    async def voice_diagnostics(request: Request):
+    async def voice_diagnostics(request: Request, room: str = "1"):
         if not same_origin(request.headers.get("origin"), request.headers.get("host", "")):
             raise HTTPException(403, "仅允许同源本地操作")
-        session = app.state.voice
+        selected = get_room(room)
+        session = selected.voice
         status = session.diagnostic_status() if session else {"state": "disconnected"}
         return JSONResponse(
-            {**status, **app.state.voice_diagnostics.snapshot()},
+            {**status, **selected.voice_diagnostics.snapshot()},
             headers={"Cache-Control": "no-store"},
         )
 
     @app.post("/api/actions", status_code=202)
-    async def action(body: Action):
+    async def action(body: Action, room: str = "1"):
         try:
-            return await motion.submit(body)
+            return await get_room(room).motion.submit(body)
         except ValueError as exc:
             raise HTTPException(409, str(exc)) from exc
 
     @app.get("/api/voice/statistics")
-    async def voice_statistics(request: Request, backend: str = "all"):
+    async def voice_statistics(request: Request, backend: str = "all", room: str = "1"):
         if not same_origin(request.headers.get("origin"), request.headers.get("host", "")):
             raise HTTPException(403, "仅允许同源本地操作")
         if backend not in {"all", "preview", "robotd", "mujoco"}:
             raise HTTPException(422, "未知后端")
-        journal = app.state.voice_diagnostics
+        journal = get_room(room).voice_diagnostics
         return JSONResponse(
             {
                 **journal.statistics.snapshot(None if backend == "all" else backend),
                 "storage_ok": journal.storage_ok,
-                "current_backend": motion.backend.kind,
+                "current_backend": get_room(room).motion.backend.kind,
             },
             headers={"Cache-Control": "no-store"},
         )
 
     @app.get("/api/actions/{request_id}")
-    async def action_result(request_id: str):
+    async def action_result(request_id: str, room: str = "1"):
+        motion = get_room(room).motion
         if request_id not in motion.records:
             raise HTTPException(404, "未知动作")
         return motion.records[request_id]
 
-    def scene_controller():
-        if app.state.scene_motion is None:
+    def scene_controller(room="1"):
+        selected = get_room(room)
+        if selected.scene_motion is None:
             raise HTTPException(503, "请先启动物理场景")
-        return app.state.scene_motion
+        return selected.scene_motion
 
     @app.post("/api/scenes/start", status_code=202)
-    async def start_scene(body: Action):
+    async def start_scene(body: Action, room: str = "1"):
         if body.name not in {"scene_ball", "scene_duo"} or body.target != "a":
             raise HTTPException(422, "选择单鸭踢球或双鸭互动场景")
-        async with scene_lock:
-            if app.state.scene_motion is None:
+        selected = get_room(room)
+        async with selected.scene_lock:
+            if selected.scene_motion is None:
                 try:
                     from .simulation import MuJoCoBackend
 
                     assets = Path(os.environ.get("DUCKKING_SIM_DIR", ROOT / "external"))
                     backend = await asyncio.to_thread(MuJoCoBackend, assets)
-                    app.state.scene_motion = MotionController(backend)
+                    selected.scene_motion = MotionController(backend)
                 except Exception as exc:
                     raise HTTPException(
                         503, "物理场景未就绪，请运行 scripts/setup_scenarios.sh 并重新启动服务"
                     ) from exc
             try:
-                return await scene_controller().submit(body)
+                return await scene_controller(room).submit(body)
             except ValueError as exc:
                 raise HTTPException(409, str(exc)) from exc
 
     @app.get("/api/scenes/model")
-    async def scene_model():
+    async def scene_model(room: str = "1"):
         return JSONResponse(
-            scene_controller().backend.geometry(), headers={"Cache-Control": "no-store"}
+            scene_controller(room).backend.geometry(), headers={"Cache-Control": "no-store"}
         )
 
     @app.get("/api/scenes/state")
-    async def scene_state():
-        return await scene_controller().snapshot()
+    async def scene_state(room: str = "1"):
+        return await scene_controller(room).snapshot()
 
     @app.post("/api/scenes/actions", status_code=202)
-    async def scene_action(body: Action):
+    async def scene_action(body: Action, room: str = "1"):
         try:
-            return await scene_controller().submit(body)
+            return await scene_controller(room).submit(body)
         except ValueError as exc:
             raise HTTPException(409, str(exc)) from exc
 
     @app.get("/api/scenes/actions/{request_id}")
-    async def scene_result(request_id: str):
-        controller = scene_controller()
+    async def scene_result(request_id: str, room: str = "1"):
+        controller = scene_controller(room)
         if request_id not in controller.records:
             raise HTTPException(404, "未知场景动作")
         return controller.records[request_id]
 
     @app.websocket("/scene-ws")
     async def scene_stream(ws: WebSocket):
-        if not same_origin(ws.headers.get("origin"), ws.headers.get("host", "")):
-            logging.getLogger(__name__).warning("scene_ws_rejected: origin_mismatch")
-            await ws.close(code=1008)
+        room = await socket_room(ws)
+        if room is None:
             return
-        await ws.accept()
+        room.viewers += 1
+        room.reserved_until = 0
         try:
             while True:
-                controller = app.state.scene_motion
+                controller = room.scene_motion
                 await ws.send_json(
                     {"type": "state", **await controller.snapshot()}
                     if controller
@@ -214,40 +278,43 @@ def create_app(
             await ws.close(code=1001)
         except (WebSocketDisconnect, RuntimeError, OSError):
             pass
+        finally:
+            room.viewers -= 1
 
     @app.websocket("/ws")
     async def state_stream(ws: WebSocket):
-        if not same_origin(ws.headers.get("origin"), ws.headers.get("host", "")):
-            await ws.close(code=1008)
+        room = await socket_room(ws)
+        if room is None:
             return
-        await ws.accept()
+        room.viewers += 1
+        room.reserved_until = 0
         try:
             while True:
-                await ws.send_text(json.dumps({"type": "state", **await motion.snapshot()}))
+                await ws.send_text(json.dumps({"type": "state", **await room.motion.snapshot()}))
                 await asyncio.sleep(0.05)
         except (WebSocketDisconnect, RuntimeError, OSError):
             pass
+        finally:
+            room.viewers -= 1
 
     @app.websocket("/voice")
     @app.websocket("/scene-voice")
     async def voice_stream(ws: WebSocket):
-        if not same_origin(ws.headers.get("origin"), ws.headers.get("host", "")):
-            await ws.close(code=1008)
+        room = await socket_room(ws)
+        if room is None:
             return
-        if app.state.voice is not None:
-            await ws.accept()
+        if room.voice is not None:
             await ws.send_json(
                 {
                     "type": "voice_status",
                     "state": "busy",
-                    "error": "另一个页面正在使用语音，请先在该页面断开",
+                    "error": "本房间的语音正在使用，请选择另一个房间或在原页面断开",
                 }
             )
             await ws.close(code=1008)
             return
-        voice_motion = app.state.scene_motion if ws.url.path == "/scene-voice" else motion
+        voice_motion = room.scene_motion if ws.url.path.endswith("/scene-voice") else room.motion
         if voice_motion is None:
-            await ws.accept()
             await ws.send_json(
                 {"type": "voice_status", "state": "error", "error": "请先启动物理场景再连接灵矽"}
             )
@@ -265,16 +332,14 @@ def create_app(
                 initial_status = False
 
         session = VoiceSession(
-            send_voice, voice_motion, settings or Settings.load(), app.state.voice_diagnostics
+            send_voice, voice_motion, room.settings, room.voice_diagnostics
         )
-        # Reserve before the first await: concurrent handshakes must not both own
-        # the same device. Cleanup retains this reservation until cloud tasks stop.
-        app.state.voice = session
+        # Reserve without yielding after room selection. Each room has its own device.
+        room.voice = session
         receiver = None
         terminal = asyncio.create_task(finished.wait())
         manual_disconnect = False
         try:
-            await ws.accept()
             await session.publish_status()
             while True:
                 receiver = asyncio.create_task(ws.receive())
@@ -309,6 +374,8 @@ def create_app(
                         break
                     elif command == "ping":
                         await ws.send_json({"type": "pong"})
+                    elif command == "interrupt":
+                        session.start_interrupt()
                     elif command == "reset":
                         await session.reset(manual=True)
                     else:
@@ -333,8 +400,8 @@ def create_app(
                 try:
                     await session.disconnect()
                 finally:
-                    if app.state.voice is session:
-                        app.state.voice = None
+                    if room.voice is session:
+                        room.voice = None
                     with suppress(WebSocketDisconnect, RuntimeError, OSError):
                         if manual_disconnect:
                             session.activation_code = session.error = ""
