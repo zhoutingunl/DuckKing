@@ -22,7 +22,9 @@ EVENTS = {
 }
 ENUMS = {
     "state": STATES,
-    "reason": {"recording_limit", "response_idle", "playback_idle", "turn_limit", "manual"},
+    "reason": {
+        "recording_limit", "response_idle", "playback_idle", "turn_limit", "manual", "browser_idle",
+    },
     "tool": {
         "duck_nod", "duck_walk_short", "duck_stop", "duck_get_status",
         "duck_flash_step", "duck_bear_shake", "duck_turn_left", "duck_turn_right",

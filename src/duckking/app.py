@@ -6,9 +6,10 @@ import json
 import logging
 import os
 import re
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 from pathlib import Path
 
+import anyio
 import uvicorn
 from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import JSONResponse
@@ -24,6 +25,7 @@ from .voice import VoiceSession
 
 ROOT = Path(__file__).resolve().parents[2]
 SCENE_STATE_ACK_TIMEOUT = 30
+VOICE_BROWSER_IDLE_TIMEOUT = 45
 
 
 def same_origin(origin: str | None, host: str) -> bool:
@@ -243,22 +245,49 @@ def create_app(
             )
             await ws.close(code=1008)
             return
-        await ws.accept()
         voice_motion = app.state.scene_motion if ws.url.path == "/scene-voice" else motion
         if voice_motion is None:
+            await ws.accept()
             await ws.send_json(
                 {"type": "voice_status", "state": "error", "error": "请先启动物理场景再连接灵矽"}
             )
             await ws.close(code=1008)
             return
+        finished = asyncio.Event()
+        initial_status = True
+
+        async def send_voice(message):
+            nonlocal initial_status
+            await ws.send_json(message)
+            if message.get("type") == "voice_status":
+                if not initial_status and message.get("state") in {"error", "disconnected"}:
+                    finished.set()
+                initial_status = False
+
         session = VoiceSession(
-            ws.send_json, voice_motion, settings or Settings.load(), app.state.voice_diagnostics
+            send_voice, voice_motion, settings or Settings.load(), app.state.voice_diagnostics
         )
+        # Reserve before the first await: concurrent handshakes must not both own
+        # the same device. Cleanup retains this reservation until cloud tasks stop.
         app.state.voice = session
+        receiver = None
+        terminal = asyncio.create_task(finished.wait())
+        manual_disconnect = False
         try:
+            await ws.accept()
             await session.publish_status()
             while True:
-                message = await ws.receive()
+                receiver = asyncio.create_task(ws.receive())
+                done, _ = await asyncio.wait(
+                    {receiver, terminal}, timeout=VOICE_BROWSER_IDLE_TIMEOUT,
+                    return_when=asyncio.FIRST_COMPLETED,
+                )
+                if not done:
+                    session.record("timeout", reason="browser_idle")
+                    break
+                if terminal in done:
+                    break
+                message = receiver.result()
                 if message["type"] == "websocket.disconnect":
                     break
                 try:
@@ -276,8 +305,10 @@ def create_app(
                     elif command == "listen_stop":
                         await session.listen(False)
                     elif command == "disconnect":
-                        await session.disconnect()
-                        await session.publish_status()
+                        manual_disconnect = True
+                        break
+                    elif command == "ping":
+                        await ws.send_json({"type": "pong"})
                     elif command == "reset":
                         await session.reset(manual=True)
                     else:
@@ -292,8 +323,23 @@ def create_app(
         except (WebSocketDisconnect, RuntimeError, OSError):
             pass
         finally:
-            await session.disconnect()
-            app.state.voice = None
+            # ASGI cancellation must not interrupt cleanup and leave the device
+            # reserved. Cloud shutdown itself retains its existing IO timeout.
+            with anyio.CancelScope(shield=True):
+                pending = [task for task in (receiver, terminal) if task is not None]
+                for task in pending:
+                    task.cancel()
+                await asyncio.gather(*pending, return_exceptions=True)
+                try:
+                    await session.disconnect()
+                finally:
+                    if app.state.voice is session:
+                        app.state.voice = None
+                    with suppress(WebSocketDisconnect, RuntimeError, OSError):
+                        if manual_disconnect:
+                            session.activation_code = session.error = ""
+                            await session.publish_status()
+                        await ws.close(code=1000)
 
     static = ROOT / "frontend" / "dist"
     if static.is_dir():
