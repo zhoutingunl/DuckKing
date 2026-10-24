@@ -1,4 +1,5 @@
 import { PCMFramer, decodePCM } from './audio-codec.js';
+import { appURL, socketURL } from './urls.js';
 
 export function setupVoice({appendLog,notify,endpoint='/voice'}){
   const $=id=>document.getElementById(id),talk=$('talk-button'),connect=$('connect-voice');
@@ -42,7 +43,7 @@ export function setupVoice({appendLog,notify,endpoint='/voice'}){
       stream=await navigator.mediaDevices.getUserMedia({audio:{channelCount:1,echoCancellation:true,noiseSuppression:true}});
       if(!pressed){stream.getTracks().forEach(track=>track.stop());return}
       context=new AudioContext({sampleRate:16000});await context.resume();
-      await context.audioWorklet.addModule('/capture-worklet.js');
+      await context.audioWorklet.addModule(appURL('capture-worklet.js'));
       const source=context.createMediaStreamSource(stream),node=new AudioWorkletNode(context,'duck-capture');
       const framer=new PCMFramer(context.sampleRate);
       recording={stream,node,source,context,framer};
@@ -64,7 +65,7 @@ export function setupVoice({appendLog,notify,endpoint='/voice'}){
     state='connecting';update();
     if(ws?.readyState===WebSocket.OPEN){send({type:'connect'});return}
     let receivedStatus=false;
-    owner=true;ws=new WebSocket(`${location.protocol==='https:'?'wss':'ws'}://${location.host}${endpoint}`);
+    owner=true;ws=new WebSocket(socketURL(endpoint));
     ws.onopen=()=>send({type:'connect'});
     ws.onmessage=async(event)=>{
       const data=JSON.parse(event.data);

@@ -100,7 +100,7 @@ test('stalled thinking can be reset and recovery never starts recording automati
   await expect(page.locator('#talk-button')).toBeEnabled();
   expect(commands.filter(type=>type==='listen_start')).toHaveLength(1);
   await expect(page.locator('#activity-log')).toContainText('正在恢复连接');
-  await expect(page.getByRole('link',{name:'连接诊断'})).toHaveAttribute('href','/api/voice/diagnostics');
+  await expect(page.getByRole('link',{name:'连接诊断'})).toHaveJSProperty('href',new URL('/api/voice/diagnostics',page.url()).href);
   const diagnostic=await page.request.get('/api/voice/diagnostics');
   expect(diagnostic.ok()).toBe(true);
   expect((await diagnostic.json()).events).toBeInstanceOf(Array);

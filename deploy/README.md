@@ -1,0 +1,46 @@
+# YZH737 独立部署
+
+DuckKing 与 ai_gateway 使用不同目录、虚拟环境、用户、端口和 systemd 服务。安装脚本不修改 ai_gateway、18345/18346 端口、其部署记录或前置 Nginx。两者仅计划共享 `ztmonitor.qbox.net` 的 HTTPS 入口。
+
+- 代码与虚拟环境：`/opt/duckking/releases/<version>`，`current` 原子切换。
+- 官方模型：每个版本包的 `external/`，从固定上游 Git commit 导出，策略校验 SHA-256。
+- 私有状态与部署流水：`/var/lib/duckking`，不在静态目录中。
+- 可选语音配置：`/etc/duckking/voice.env`，root:duckking / 0640，禁止提交密钥或设备身份。
+- 运行进程：`duckking.service`，非 root 用户，CPUQuota=150%、MemoryMax=2G、TasksMax=128。
+- 初始监听：`127.0.0.1:8765`。默认只完成本机暂存部署，不会自动开放网络入口。
+
+## 版本与发布包
+
+先在功能分支完成验证和 PR，提交并推送代码，再对该 commit 创建新的 `deploy-yzh737-<UTC时间>` tag。不得移动 `v0`，也不得覆盖已有 tag 或发布包。
+
+```sh
+uv run --frozen --no-sync python scripts/build_release.py --ref <已提交commit> --version <tag>
+```
+
+构建脚本通过 `git archive` 获取已提交源码，在临时目录 `npm ci && npm run build`，打包跟踪文件、重新构建的前端和 `release.json`。官方模型另外从固定上游 Git commit 导出，包含原始许可，策略文件逐个验证 SHA-256；因此服务器无需访问 GitLab 或 Hugging Face。不包含本地 `.env`、设备身份、日志、工作区未提交内容、node_modules 或模型仓库 `.git`。输出 tar.gz 与 SHA-256 文件，作为 GitHub Release 附件供 YZH737 下载。
+
+目标机先核对 SHA-256，再从已验证的包中取出安装脚本：
+
+```sh
+bash scripts/install_release.sh <archive> <sha256> <tag> <完整commit>
+```
+
+安装使用 YZH737 已有的 `/usr/local/bin/python3.12` 和 `/root/.local/bin/uv`，只创建 DuckKing 自己的 venv，不修改系统 Python 包。安装期间会执行真实 MuJoCo 左右脚、双鸭接触检查，然后验证运行版本、页面资源、状态/语音本地握手和有界停止动作。失败时保留失败记录；已切换版本则恢复旧链接与服务配置，并核对旧版本健康响应。首次安装失败会停止并禁用新服务。
+
+## HTTPS 接入是单独一步
+
+需要确认前置 Nginx 所在主机、YZH737 私网地址及入口访问控制。将 `nginx-duckking.conf.example` 中的两个 location 加到现有 HTTPS server 中，继承已有证书和访问限制；原 ai_gateway location 保留。对外路径为 `/duckking/`，代理去掉该前缀，保留 Host / Origin，并显式传递 WebSocket Upgrade / Connection。先检查 Nginx 配置，再平滑 reload。
+
+不同服务器之间不能连接 YZH737 的 loopback。确认路由与访问范围后，再单独配置 DuckKing 的私网监听；不要改 ai_gateway 的监听或把其端口换成其他代理。未确认这一步前，`staged` 记录只表示独立后端就绪，不能当作公网发布成功。
+
+```sh
+python scripts/release_smoke.py --url https://ztmonitor.qbox.net/duckking/ --commit <完整commit>
+```
+
+还需在 HTTPS 页面实测浏览器安全上下文、麦克风授权、上行音频，以及真实灵矽 STT/MCP/TTS。后端 Linux 物理自检和本地语音握手不能替代云端语音验收；服务器使用独立设备身份，不复制本机设备身份并同时连接。全部验收后才能追加 `status=success`、`selftest=passed` 的记录。部署记录入口在 DuckKing 自己的 `/duckking/deploys.html`。
+
+前置 Nginx 的 WebSocket 配置参考 [Nginx 官方文档](https://nginx.org/en/docs/http/websocket.html)，浏览器麦克风的安全上下文要求参考 [MDN getUserMedia](https://developer.mozilla.org/en-US/docs/Web/API/MediaDevices/getUserMedia)。
+
+## 发布冻结
+
+遵守仓库 `AGENTS.md`：2026-10-25 23:59 Asia/Shanghai 后，未经明确解除冻结的新指令，不得修改远程仓库。
