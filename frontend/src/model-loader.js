@@ -4,12 +4,12 @@ export const MODEL_CACHE='duckking-official-model-v1';
 const sharedURL=path=>{const url=appURL(path);url.searchParams.delete('room');return url};
 const invalid=()=>new Error('官方模型数据无效，请重新加载');
 
-export function unpackVisualModel(buffer){
+export function unpackVisualModel(buffer,{physics=false}={}){
   if(buffer.byteLength<8||new TextDecoder().decode(new Uint8Array(buffer,0,4))!=='DKM1')throw invalid();
   const size=new DataView(buffer).getUint32(4,true),start=8+Math.ceil(size/4)*4;
   if(size>1024*1024||start>buffer.byteLength)throw invalid();
   const model=JSON.parse(new TextDecoder().decode(new Uint8Array(buffer,8,size)));
-  if(model.source!=='official_microduck_visuals'||model.physics!==false||!Array.isArray(model.bodies)||!Array.isArray(model.geoms)||!model.meshes||!Object.keys(model.meshes).length)throw invalid();
+  if(model.source!==(physics?'official_microduck_physics':'official_microduck_visuals')||model.physics!==physics||(!physics&&!Array.isArray(model.bodies))||!Array.isArray(model.geoms)||!model.meshes||!Object.keys(model.meshes).length)throw invalid();
   function array(info,vertex){
     const {offset,count,bytes}=info??{};
     if(!Number.isSafeInteger(offset)||offset<0||offset%4||!Number.isSafeInteger(count)||count<=0||count%3||

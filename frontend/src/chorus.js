@@ -1,8 +1,8 @@
 // Two original synthetic voices share one browser audio clock. No cloud TTS.
-export function createChorus(onStatus) {
+export function createChorus(onStatus,{getContext}={}) {
   let context=null,id=null,lastSeen=0;
   const nodes=new Set();
-  async function enable(){context??=new AudioContext();await context.resume();onStatus('合唱声音已启用 · 本地双声部');}
+  async function enable(){context??=getContext?getContext():new AudioContext();await context.resume();onStatus('合唱声音已启用 · 本地双声部');}
   function stop(){const active=Boolean(id||nodes.size);for(const node of nodes){try{node.stop();}catch{/* already ended */}}nodes.clear();id=null;if(active)onStatus('合唱声音已停止 · 本地双声部');}
   function update(chorus){
     if(!chorus){stop();return;}lastSeen=performance.now();
@@ -22,5 +22,5 @@ export function createChorus(onStatus) {
     onStatus('本地双声部正在合唱 · 同一个音频时钟');
   }
   const timer=setInterval(()=>{if(nodes.size&&performance.now()-lastSeen>750){stop();onStatus('场景状态中断，合唱声音已停止');}},250);
-  return {enable,update,stop,dispose(){clearInterval(timer);stop();context?.close();}};
+  return {enable,update,stop,dispose(){clearInterval(timer);stop();if(!getContext)context?.close();}};
 }
