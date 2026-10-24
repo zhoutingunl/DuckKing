@@ -1,21 +1,31 @@
-import { PCMFramer, decodePCM } from './audio-codec.js';
+import { PCMFramer } from './audio-codec.js';
 import { appURL } from './urls.js';
 import { createSocket } from './transport.js';
+import { VoiceAudio } from './audio-output.js';
 
 export function setupVoice({appendLog,notify,endpoint='/voice'}){
   const $=id=>document.getElementById(id),talk=$('talk-button'),connect=$('connect-voice');
-  let ws=null,state='disconnected',pressed=false,recording=null,playContext=null,nextTime=0,timeout=null,heartbeat=null,closingTimer=null,voiceNotice=null;
+  let ws=null,state='disconnected',pressed=false,recording=null,timeout=null,heartbeat=null,closingTimer=null,voiceNotice=null;
   function voiceError(text){voiceNotice=text;notify(text)}
-  let generation=0,minGeneration=0,playbackEpoch=0;
-  const sources=new Set();
+  let generation=0,minGeneration=0,captureId=0,audioReportTimer=null;
+  const output=new VoiceAudio(snapshot=>{
+    $('audio-status').textContent=snapshot.output_state!=='running'
+      ? (snapshot.received_frames?'已收到回复音频，播放尚未就绪。请点“启用 / 测试声音”。':'点“启用 / 测试声音”可检查手机声音。')
+      : snapshot.dropped_frames?'部分回复因播放受限已丢弃；请测试声音后重新说话。'
+      : '声音通道已就绪；若仍听不到，请检查媒体音量、静音开关和蓝牙输出。';
+    $('audio-diagnostics').textContent=`播放状态：${snapshot.output_state}\n收到 / 提交播放 / 播放结束：${snapshot.received_frames} / ${snapshot.scheduled_frames} / ${snapshot.ended_frames} 帧\n待播：${snapshot.queued_ms} ms；丢弃：${snapshot.dropped_frames} 帧\n音频峰值：${snapshot.signal_peak_milli} / 1000\n浏览器播放状态不等于手机扬声器实际出声。`;
+    if(!audioReportTimer)audioReportTimer=setTimeout(()=>{audioReportTimer=null;send({type:'playback_status',...output.snapshot()})},1000);
+    update();
+  });
   const labels={disconnected:'未连接灵矽',disconnecting:'正在断开连接',connecting:'正在连接',recovering:'正在恢复连接',interrupting:'正在切换新指令',awaiting_binding:'等待设备绑定',ready:'灵矽已连接',listening:'正在聆听',thinking:'正在思考',speaking:'正在回答',error:'连接异常',busy:'本房间语音正在使用'};
   function update(){
     $('voice-badge').textContent=labels[state]??state;
-    const canInterrupt=['thinking','speaking'].includes(state)||sources.size>0;
+    const canInterrupt=['thinking','speaking'].includes(state)||output.busy;
     talk.disabled=!['ready','listening','thinking','speaking'].includes(state)&&!pressed;
     talk.querySelector('span:not(.key-hint)').textContent=canInterrupt?'打断并说话':'按住说话';
     talk.setAttribute('aria-label',canInterrupt?'打断并说话':'按住说话');
     talk.classList.toggle('recording',state==='listening');
+    $('enable-sound').disabled=pressed;
     connect.disabled=state==='disconnecting';
     connect.textContent=state==='disconnecting'?'正在释放语音…':['connecting','recovering','interrupting','ready','listening','thinking','speaking'].includes(state)?'断开连接 ↗':state==='awaiting_binding'?'我已绑定，重新连接 ↗':state==='busy'?'本房间释放后重试 ↗':'连接灵矽 ↗';
     $('reset-voice').disabled=!['ready','listening','thinking','speaking','error'].includes(state);
@@ -27,52 +37,53 @@ export function setupVoice({appendLog,notify,endpoint='/voice'}){
     window.dispatchEvent(new CustomEvent('duckking-voice-state',{detail:state}));
   }
   function send(data){if(ws?.readyState===WebSocket.OPEN)ws.send(typeof data==='object'&&!(data instanceof ArrayBuffer)?JSON.stringify(data):data)}
-  async function playback(data){
-    const epoch=playbackEpoch;
-    playContext??=new AudioContext();await playContext.resume();
-    if(epoch!==playbackEpoch)return;
-    const pcm=decodePCM(data.pcm),buffer=playContext.createBuffer(1,pcm.length,data.sample_rate);buffer.copyToChannel(pcm,0);
-    const source=playContext.createBufferSource();source.buffer=buffer;source.connect(playContext.destination);
-    nextTime=Math.max(playContext.currentTime,nextTime);source.start(nextTime);nextTime+=buffer.duration;
-    sources.add(source);source.onended=()=>{sources.delete(source);update()};update();
-  }
-  function clearPlayback(){playbackEpoch++;for(const source of sources){source.onended=null;source.stop()}sources.clear();nextTime=0;update()}
+  function playback(data){output.enqueue(data)}
+  function clearPlayback(){output.clear()}
   async function release(sendStop=true){
-    pressed=false;clearTimeout(timeout);
+    pressed=false;captureId++;clearTimeout(timeout);
     if(recording){
-      const {stream,node,source,context,framer}=recording;recording=null;
+      const {stream,node,source,framer}=recording;recording=null;
       node.port.onmessage=null;source.disconnect();node.disconnect();
       stream.getTracks().forEach(track=>track.stop());
       if(sendStop){framer.flush().forEach(frame=>send(frame));send({type:'listen_stop'})}
-      await context.close();
     }
+    output.setCapture(false);
+    if(output.ctx)void output.resume({gesture:true});
+    update();
   }
   async function press(){
     if(talk.disabled||pressed)return;pressed=true;
-    const channel=ws;
-    if(['thinking','speaking'].includes(state)||sources.size){
-      minGeneration=generation+1;state='interrupting';clearPlayback();send({type:'interrupt'});
+    const channel=ws,attempt=++captureId;
+    if(['thinking','speaking'].includes(state)||output.busy){
+      minGeneration=generation+1;state='interrupting';send({type:'interrupt'});
     }
+    clearPlayback();
     let stream,context;
     try{
+      output.setCapture(true);void output.resume({gesture:true});
       stream=await navigator.mediaDevices.getUserMedia({audio:{channelCount:1,echoCancellation:true,noiseSuppression:true}});
-      if(!pressed||ws!==channel){stream.getTracks().forEach(track=>track.stop());return}
-      context=new AudioContext({sampleRate:16000});await context.resume();
-      await context.audioWorklet.addModule(appURL('capture-worklet.js'));
+      if(!pressed||ws!==channel||attempt!==captureId){stream.getTracks().forEach(track=>track.stop());return}
+      context=output.context();if(!await output.resume())throw new Error('音频通道未就绪，请先点启用 / 测试声音');
+      await output.captureWorklet(appURL('capture-worklet.js'));
+      if(!pressed||ws!==channel||attempt!==captureId){stream.getTracks().forEach(track=>track.stop());return}
       const source=context.createMediaStreamSource(stream),node=new AudioWorkletNode(context,'duck-capture');
       const framer=new PCMFramer(context.sampleRate);
       recording={stream,node,source,context,framer};
-      if(!pressed||ws!==channel){await release(false);return}
       send({type:'listen_start'});
       node.port.onmessage=event=>{if(pressed)framer.push(event.data).forEach(frame=>send(frame))};
       source.connect(node);node.connect(context.destination);
       timeout=setTimeout(()=>release(),15000);
-    }catch(error){await release(false);stream?.getTracks().forEach(track=>track.stop());if(context&&context.state!=='closed')await context.close();notify(`无法开始录音：${error.message}`)}
+    }catch(error){if(attempt===captureId)await release(false);stream?.getTracks().forEach(track=>track.stop());notify(`无法开始录音：${error.message}`)}
   }
+  $('enable-sound').addEventListener('click',async()=>{
+    if(pressed)return;
+    const ok=await output.testTone();
+    appendLog(ok?'已提交本地测试提示音；若听不到，请检查手机媒体音量、静音开关和蓝牙输出。':'浏览器仍未允许声音播放，请留在前台再点一次。','声音测试',!ok);
+  });
   connect.disabled=false;update();
   connect.addEventListener('click',async()=>{
     if(state==='disconnecting')return;
-    playContext??=new AudioContext();await playContext.resume();
+    void output.resume({gesture:true});
     if(['connecting','recovering','interrupting','ready','listening','thinking','speaking'].includes(state)){
       if(ws?.readyState===WebSocket.CONNECTING){ws.close();return}
       state='disconnecting';update();
@@ -92,7 +103,7 @@ export function setupVoice({appendLog,notify,endpoint='/voice'}){
     const channel=createSocket(endpoint);ws=channel;
     channel.onopen=()=>{
       if(ws!==channel)return;
-      send({type:'connect'});
+      send({type:'connect'});send({type:'playback_status',...output.snapshot()});
       heartbeat=setInterval(()=>{if(ws===channel&&channel.readyState===WebSocket.OPEN)send({type:'ping'})},10000);
     };
     channel.onmessage=async(event)=>{
@@ -134,5 +145,8 @@ export function setupVoice({appendLog,notify,endpoint='/voice'}){
   window.addEventListener('blur',()=>release());
   window.addEventListener('keydown',event=>{if(event.code==='Space'&&!event.repeat&&!['INPUT','TEXTAREA'].includes(document.activeElement.tagName)){event.preventDefault();press()}});
   window.addEventListener('keyup',event=>{if(event.code==='Space'){event.preventDefault();release()}});
-  window.addEventListener('pagehide',()=>{clearInterval(heartbeat);clearTimeout(closingTimer);release(false);ws?.close();clearPlayback()});
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden&&output.ctx)void output.resume()});
+  // A history-cache restore reuses a document whose microphone and audio were closed.
+  window.addEventListener('pageshow',event=>{if(event.persisted)window.location.reload()});
+  window.addEventListener('pagehide',()=>{clearInterval(heartbeat);clearTimeout(closingTimer);release(false);ws?.close();output.close();clearTimeout(audioReportTimer)});
 }

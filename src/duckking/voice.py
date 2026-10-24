@@ -45,6 +45,7 @@ class VoiceSession:
         self.audio_format = "opus"
         self.sample_rate = 16000
         self.diagnostics = diagnostics or VoiceDiagnostics()
+        self.diagnostics.playback = None
         self.turn = self.uplink_frames = self.downlink_frames = 0
         self.last_activity = self.state_since = time.monotonic()
         self.logged_state = None

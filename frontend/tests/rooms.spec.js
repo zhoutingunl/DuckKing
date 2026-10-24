@@ -64,8 +64,8 @@ test('interrupt mutes queued speech, ignores stale generations, and captures new
     const original=AudioContext.prototype.createBufferSource;
     AudioContext.prototype.createBufferSource=function(...args){
       const source=original.apply(this,args),stop=source.stop.bind(source),start=source.start.bind(source);
-      source.start=(...args)=>{window.audioAudit.active++;return start(...args)};
-      source.stop=(...args)=>{window.audioAudit.stopped++;window.audioAudit.active--;return stop(...args)};
+      source.start=(...args)=>{if(source.buffer.length>1)window.audioAudit.active++;return start(...args)};
+      source.stop=(...args)=>{if(source.buffer.length>1){window.audioAudit.stopped++;window.audioAudit.active--}return stop(...args)};
       return source;
     };
   });
