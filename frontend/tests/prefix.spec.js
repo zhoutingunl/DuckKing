@@ -12,7 +12,12 @@ test('one build serves pages, physical state, actions and microphone worklet und
     const upstream=http.request(options(req),response=>{res.writeHead(response.statusCode,response.headers);response.pipe(res);});
     upstream.on('error',()=>{res.writeHead(502);res.end();});req.pipe(upstream);
   });
-  proxy.on('connection',socket=>{connections.add(socket);socket.on('close',()=>connections.delete(socket));});
+  proxy.on('connection',socket=>{
+    connections.add(socket);socket.on('close',()=>connections.delete(socket));
+    // Chromium may reset a socket when leaving a page with live streams.
+    // Handle that transport close; page assertions still verify active connections.
+    socket.on('error',()=>socket.destroy());
+  });
   proxy.on('upgrade',(req,socket,head)=>{
     if(!req.url.startsWith('/duckking/')){socket.destroy();return;}
     forwarded.push(req.url);
