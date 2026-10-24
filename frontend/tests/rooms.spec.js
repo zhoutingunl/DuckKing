@@ -2,19 +2,30 @@ import {test,expect} from '@playwright/test';
 
 test('two unassigned pages choose distinct rooms and actions and stats stay scoped',async({page,context})=>{
   const other=await context.newPage();
+  const frames=[[],[]];
+  for(const [i,tab] of [page,other].entries())tab.on('websocket',ws=>{
+    if(!new URL(ws.url()).pathname.endsWith('/ws'))return;
+    ws.on('framereceived',event=>{if(typeof event.payload==='string')frames[i].push(JSON.parse(event.payload))});
+  });
   try{
     await Promise.all([page.goto('/'),other.goto('/')]);
     await expect(page.locator('#connection-label')).toContainText('已连接');
     await expect(other.locator('#connection-label')).toContainText('已连接');
     const first=new URL(page.url()).searchParams.get('room'),second=new URL(other.url()).searchParams.get('room');
     expect(new Set([first,second]).size).toBe(2);
-    await page.locator('[data-action="walk"]').click();
-    await other.locator('[data-action="turn_left"]').click();
-    await expect(page.locator('#current-action')).toHaveText('前进');
-    await expect(other.locator('#current-action')).toHaveText('左转');
+    const accepted=[page,other].map(tab=>tab.waitForResponse(r=>new URL(r.url()).pathname==='/api/actions'));
+    await Promise.all([page.locator('[data-action="walk"]').click(),other.locator('[data-action="turn_left"]').click()]);
+    const [one,two]=await Promise.all(accepted.map(async p=>(await (await p).json()).id));
+    // Verify durable outcomes: slow software rendering can miss the entire
+    // bounded action, so a transient "running" label is not a reliable oracle.
+    for(const [room,id] of [[first,one],[second,two]])await expect.poll(async()=>
+      (await (await page.request.get(`/api/actions/${id}?room=${room}`)).json()).status).toBe('completed');
+    const seen=(index,id)=>frames[index].some(f=>f.events?.some(e=>e.action_id===id));
+    await expect.poll(()=>seen(0,one)&&seen(1,two)).toBe(true);
+    expect(seen(0,two)||seen(1,one)).toBe(false);
+    expect((await page.request.get(`/api/actions/${one}?room=${second}`)).status()).toBe(404);
     await page.locator('[data-action="stop"]').click();
     await expect(page.locator('#current-action')).toHaveText('待机');
-    await expect(other.locator('#activity-log')).not.toContainText('前进');
     expect(new URL(await other.getByRole('link',{name:'交互统计'}).getAttribute('href')).searchParams.get('room')).toBe(second);
     await page.locator('#connect-voice').click();
     await other.locator('#connect-voice').click();
