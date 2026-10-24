@@ -4,18 +4,20 @@ import { createSocket } from './transport.js';
 
 export function setupVoice({appendLog,notify,endpoint='/voice'}){
   const $=id=>document.getElementById(id),talk=$('talk-button'),connect=$('connect-voice');
-  let ws=null,state='disconnected',pressed=false,recording=null,playContext=null,nextTime=0,timeout=null,owner=true;
+  let ws=null,state='disconnected',pressed=false,recording=null,playContext=null,nextTime=0,timeout=null,heartbeat=null,closingTimer=null;
   const sources=new Set();
-  const labels={disconnected:'未连接灵矽',connecting:'正在连接',recovering:'正在恢复连接',awaiting_binding:'等待设备绑定',ready:'灵矽已连接',listening:'正在聆听',thinking:'正在思考',speaking:'正在回答',error:'连接异常',busy:'语音已被占用'};
+  const labels={disconnected:'未连接灵矽',disconnecting:'正在断开连接',connecting:'正在连接',recovering:'正在恢复连接',awaiting_binding:'等待设备绑定',ready:'灵矽已连接',listening:'正在聆听',thinking:'正在思考',speaking:'正在回答',error:'连接异常',busy:'其他页面正在使用语音'};
   function update(){
     $('voice-badge').textContent=labels[state]??state;
     talk.disabled=state!=='ready'&&state!=='listening'||sources.size>0;
     talk.classList.toggle('recording',state==='listening');
-    connect.disabled=false;
-    connect.textContent=['connecting','recovering','ready','listening','thinking','speaking'].includes(state)?'断开连接 ↗':state==='awaiting_binding'?'我已绑定，重新连接 ↗':'连接灵矽 ↗';
+    connect.disabled=state==='disconnecting';
+    connect.textContent=state==='disconnecting'?'正在释放语音…':['connecting','recovering','ready','listening','thinking','speaking'].includes(state)?'断开连接 ↗':state==='awaiting_binding'?'我已绑定，重新连接 ↗':state==='busy'?'其他页面断开后重试 ↗':'连接灵矽 ↗';
     $('reset-voice').disabled=!['ready','listening','thinking','speaking','error'].includes(state);
     $('voice-connection-hint').textContent=state==='disconnected'?'使用灵矽智能体':'设备端语音连接';
     $('voice-caption').textContent=state==='ready'?'按住按钮或空格说话，最长 15 秒。':state==='listening'?'正在录音，松开后发送。':state==='thinking'?'等待灵矽回答，20 秒无响应会自动重连。':state==='recovering'?'上一轮已结束，正在重连。请连接成功后重新说话。':state==='speaking'?'正在播放灵矽返回的语音。':'连接后可进行真实语音对话。';
+    if(state==='busy')$('voice-caption').textContent='同一台服务器的灵矽设备一次只供一个页面使用。请在 Mac 或其他页面点击“断开连接”，也可关闭该页，再在这里重试。';
+    if(state==='disconnecting')$('voice-caption').textContent='正在关闭语音会话并释放占用，完成后可切换到其他设备。';
     window.dispatchEvent(new CustomEvent('duckking-voice-state',{detail:state}));
   }
   function send(data){if(ws?.readyState===WebSocket.OPEN)ws.send(typeof data==='object'&&!(data instanceof ArrayBuffer)?JSON.stringify(data):data)}
@@ -57,18 +59,29 @@ export function setupVoice({appendLog,notify,endpoint='/voice'}){
   }
   connect.disabled=false;update();
   connect.addEventListener('click',async()=>{
+    if(state==='disconnecting')return;
     playContext??=new AudioContext();await playContext.resume();
     if(['connecting','recovering','ready','listening','thinking','speaking'].includes(state)){
       if(ws?.readyState===WebSocket.CONNECTING){ws.close();return}
-      await release(false);send({type:'disconnect'});clearPlayback();return;
+      state='disconnecting';update();
+      const closing=ws;
+      await release(false);if(ws!==closing)return;
+      send({type:'disconnect'});clearPlayback();
+      closingTimer=setTimeout(()=>closing?.close(),7000);return;
     }
     if(ws?.readyState===WebSocket.CONNECTING)return;
     state='connecting';update();
     if(ws?.readyState===WebSocket.OPEN){send({type:'connect'});return}
     let receivedStatus=false;
-    owner=true;ws=createSocket(endpoint);
-    ws.onopen=()=>send({type:'connect'});
-    ws.onmessage=async(event)=>{
+    let owner=true;
+    const channel=createSocket(endpoint);ws=channel;
+    channel.onopen=()=>{
+      if(ws!==channel)return;
+      send({type:'connect'});
+      heartbeat=setInterval(()=>{if(ws===channel&&channel.readyState===WebSocket.OPEN)send({type:'ping'})},10000);
+    };
+    channel.onmessage=async(event)=>{
+      if(ws!==channel)return;
       const data=JSON.parse(event.data);
       if(data.type==='voice_status'){
         receivedStatus=true;
@@ -84,8 +97,11 @@ export function setupVoice({appendLog,notify,endpoint='/voice'}){
       else if(data.type==='playback_end'&&data.aborted){clearPlayback()}
       else if(data.type==='error'){notify(data.message);await release(false)}
     };
-    ws.onclose=async()=>{
-      await release(false);clearPlayback();state=owner?(receivedStatus?'disconnected':'error'):'busy';
+    channel.onclose=async()=>{
+      if(ws!==channel)return;
+      ws=null;clearInterval(heartbeat);clearTimeout(closingTimer);
+      await release(false);if(ws!==null)return;clearPlayback();
+      state=owner?(['error','awaiting_binding'].includes(state)?state:receivedStatus?'disconnected':'error'):'busy';
       if(owner&&!receivedStatus)notify('本地语音通道连接失败，请检查页面地址、代理或修改请求头的浏览器扩展。');
       update();
     };
@@ -100,5 +116,5 @@ export function setupVoice({appendLog,notify,endpoint='/voice'}){
   window.addEventListener('blur',()=>release());
   window.addEventListener('keydown',event=>{if(event.code==='Space'&&!event.repeat&&!['INPUT','TEXTAREA'].includes(document.activeElement.tagName)){event.preventDefault();press()}});
   window.addEventListener('keyup',event=>{if(event.code==='Space'){event.preventDefault();release()}});
-  window.addEventListener('pagehide',()=>{release(false);ws?.close();clearPlayback()});
+  window.addEventListener('pagehide',()=>{clearInterval(heartbeat);clearTimeout(closingTimer);release(false);ws?.close();clearPlayback()});
 }
