@@ -1,6 +1,8 @@
 import './style.css';
 import { createDuckScene } from './duck.js';
 import { setupVoice } from './voice.js';
+import { appURL } from './urls.js';
+import { createSocket } from './transport.js';
 
 const $ = (id) => document.getElementById(id);
 const names = {nod:'点头',walk:'前进',turn_left:'左转',turn_right:'右转',stop:'停止',reset:'回到起点',flash_step:'闪身步',bear_shake:'狗熊哆嗦毛'};
@@ -26,7 +28,7 @@ export function appendLog(text, label='系统', error=false) {
   while(log.children.length>80)log.firstChild.remove();log.scrollTop=log.scrollHeight;
 }
 export async function post(url,body={}) {
-  const response=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  const response=await fetch(appURL(url),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
   let value;
   try{value=await response.json()}
   catch{throw new Error(response.ok?'本地服务返回了无效响应。':`本地后端请求失败（HTTP ${response.status}），请检查服务与端口。`)}
@@ -45,7 +47,7 @@ $('reset-camera').addEventListener('click',()=>scene?.resetCamera());
 $('clear-log').addEventListener('click',()=>{$('activity-log').replaceChildren();});
 window.addEventListener('keydown',e=>{if(e.key==='Escape')action('stop');});
 function connect(){
-  const ws=new WebSocket(`${location.protocol==='https:'?'wss':'ws'}://${location.host}/ws`);
+  const ws=createSocket('ws');
   ws.onopen=()=>{reconnectDelay=500;$('connection-label').textContent='本地工作台已连接';$('connection-dot').classList.remove('offline')};
   ws.onmessage=event=>{
     const data=JSON.parse(event.data);if(data.type!=='state')return;

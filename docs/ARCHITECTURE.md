@@ -113,9 +113,15 @@ flowchart LR
 
 ## 共享物理场景
 
+Linux 部署使用独立的 `duckking.service`，按要求以 root 运行，发布目录为 `/root/zt_dir/hackathon_base/DuckKing`，不嵌入 ai_gateway。应用支持显式公网 Host 白名单与反向代理 `root_path`；前端资源、链接、API、音频 worklet 和 WebSocket 均按页面目录解析，同一构建可以挂在 `/duckking/`。Host / Origin 原样保留，跨来源请求仍然拒绝。部署方案见 [deploy/README.md](../deploy/README.md)。
+
+ai_gateway 可独立添加固定 loopback 路由；现有前置代理不透传 Upgrade 时，浏览器使用网关声明的 HTTPS 通道，网关转为真实后端 WebSocket。文本与二进制帧按序传输，失败关闭、不重放录音，不改变预览、物理仿真或真实云端的能力边界。DuckKing release 切换不需要修改或重启网关。
+
+`GET /api/deployments` 仅返回发布字段白名单与最近 100 条流水；当前进程启动时固定读取版本元数据，原子切换磁盘链接不会给旧进程贴上新版本。`staged` 代表独立后端本机自检通过，`success` 需要入口验收后确认。发布失败与回滚结果分别记录；密钥、设备身份和原始配置不出现在该 API 中。
+
 `simulation.py` 在 Python 进程中运行 MuJoCo CPU 与官方 ONNX 推理，`kind=mujoco`、`physics=true`、`runtime=mujoco_cpu_onnx`；它不是 robotd 适配器，也不复用原创预览的姿态动画。原工作台控制器与场景控制器相互独立。
 
-`POST /api/scenes/start` 显式惰性加载模型；模型文件和策略在外部目录，不打包进应用。球场使用官方 `scene_ball.xml`，双鸭场景用 `MjSpec.attach` 将两个官方 `robot_allcollisions.xml` 放到同一个模型中。控制频率 50 Hz，每次推进 4 个 5 ms 物理步，双鸭共用一次 `mj_step`。策略采用官方 61 维观测、14 维关节输出、默认姿态与 0.5 秒踢球时长；沿用 MJCF 的位置执行器参数，没有接入训练时的动态 BAM 电机模型。
+`POST /api/scenes/start` 显式惰性加载模型；模型文件和策略位于 `external/`，不进入 Python 包，本地开发显式下载，Linux 发布包携带固定版本及来源信息。球场使用官方 `scene_ball.xml`，双鸭场景用 `MjSpec.attach` 将两个官方 `robot_allcollisions.xml` 放到同一个模型中。控制频率 50 Hz，每次推进 4 个 5 ms 物理步，双鸭共用一次 `mj_step`。策略采用官方 61 维观测、14 维关节输出、默认姿态与 0.5 秒踢球时长；沿用 MJCF 的位置执行器参数，没有接入训练时的动态 BAM 电机模型。
 
 `/api/scenes/actions` 与原工作台共用有界、可取消、按请求 ID 去重的 `MotionController`。场景动作结束前会验证所选脚接触和位移，或者双鸭接触；失败不会返回完成。正常动作的 `target` 可为 a/b/both；停止与场景切换总是清零两只鸭的运动、头部和身体意图。标准动作最长 3 秒；物理场景等待按仿真时间计时，另有「目标时长 + 3 秒」墙钟超时。清零命令不冻结物理世界。
 

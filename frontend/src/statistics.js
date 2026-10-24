@@ -1,5 +1,6 @@
 import './style.css';
 import './statistics.css';
+import { appURL } from './urls.js';
 
 const $ = id => document.getElementById(id);
 const tools = {duck_walk_short:'前进',duck_turn_left:'左转',duck_turn_right:'右转',duck_nod:'点头',duck_stop:'停止',duck_flash_step:'闪身步',duck_bear_shake:'狗熊哆嗦毛'};
@@ -117,7 +118,7 @@ async function refresh() {
   const backend = $('backend-filter').value;
   $('refresh-stats').disabled = true;
   try {
-    const response = await fetch(`/api/voice/statistics?backend=${backend}`,{cache:'no-store',signal:AbortSignal.timeout(8000)});
+    const response = await fetch(appURL(`/api/voice/statistics?backend=${backend}`),{cache:'no-store',signal:AbortSignal.timeout(8000)});
     if (!response.ok) throw new Error('statistics unavailable');
     const next = await response.json();
     if ($('backend-filter').value !== backend) return;

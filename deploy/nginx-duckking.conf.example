@@ -1,0 +1,22 @@
+# Add these two locations to the EXISTING ztmonitor.qbox.net HTTPS server block.
+# Keep its certificate, access controls and all existing ai_gateway routes.
+# Replace YZH737_PRIVATE_IP after verifying the frontend proxy's network route.
+# DuckKing starts on loopback; its private bind address must be configured separately.
+location = /duckking {
+    return 308 /duckking/;
+}
+
+location ^~ /duckking/ {
+    proxy_pass http://YZH737_PRIVATE_IP:8765/;
+    proxy_http_version 1.1;
+    proxy_set_header Host $http_host;
+    proxy_set_header Origin $http_origin;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection "upgrade";
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_read_timeout 120s;
+    proxy_send_timeout 120s;
+    proxy_buffering off;
+    client_max_body_size 1m;
+}

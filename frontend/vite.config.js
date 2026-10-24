@@ -8,12 +8,14 @@ if (!Number.isInteger(apiPort) || apiPort < 1 || apiPort > 65535) {
 const target = `http://127.0.0.1:${apiPort}`;
 
 export default defineConfig({
+  base: './',
   build: {
     rolldownOptions: {
       input: {
         main: fileURLToPath(new URL('./index.html', import.meta.url)),
         statistics: fileURLToPath(new URL('./statistics.html', import.meta.url)),
         scenarios: fileURLToPath(new URL('./scenarios.html', import.meta.url)),
+        deploys: fileURLToPath(new URL('./deploys.html', import.meta.url)),
       },
     },
   },

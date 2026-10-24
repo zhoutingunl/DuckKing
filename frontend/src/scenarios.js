@@ -3,6 +3,8 @@ import './scenarios.css';
 import { physicsView } from './physics-view.js';
 import { createChorus } from './chorus.js';
 import { setupVoice } from './voice.js';
+import { appURL } from './urls.js';
+import { createSocket } from './transport.js';
 
 const $=id=>document.getElementById(id);
 const names={scene_ball:'单鸭踢球',scene_duo:'双鸭互动',kick_left:'左脚踢球',kick_right:'右脚踢球',find_companion:'发现同伴',duo_walk:'双鸭一起走',collide:'相向碰面',chorus:'同步合唱',walk:'前进',turn_left:'左转',turn_right:'右转',stop:'停止',reset:'重置场景',nod:'点头'};
@@ -13,7 +15,7 @@ function notify(text){$('notice').textContent=text;$('notice').hidden=false;}
 function appendLog(text,label='场景',error=false){const row=document.createElement('div');row.className=`log-line${error?' error':''}`;for(const [value,cls] of [[new Date().toLocaleTimeString('zh-CN',{hour12:false}),'log-time'],[label,'log-label'],[text,'']]){const span=document.createElement('span');span.textContent=value;span.className=cls;row.append(span);}$('activity-log').append(row);while($('activity-log').children.length>80)$('activity-log').firstChild.remove();$('activity-log').scrollTop=$('activity-log').scrollHeight;}
 const chorus=createChorus(text=>$('chorus-status').textContent=text);
 function buttons(){document.querySelectorAll('[data-sim-action]').forEach(b=>b.disabled=!online||!scene||changing);$('stop-scene').disabled=$('reset-scene').disabled=!online||!scene;document.querySelectorAll('[data-scene]').forEach(b=>{b.disabled=changing||!online;b.setAttribute('aria-pressed',String(b.dataset.scene===scene));});}
-async function post(url,body){const response=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body),signal:AbortSignal.timeout(45000)});const data=await response.json();if(!response.ok)throw new Error(typeof data.detail==='string'?data.detail:'场景指令未被接受');return data;}
+async function post(url,body){const response=await fetch(appURL(url),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body),signal:AbortSignal.timeout(45000)});const data=await response.json();if(!response.ok)throw new Error(typeof data.detail==='string'?data.detail:'场景指令未被接受');return data;}
 const requestId=()=>Array.from(crypto.getRandomValues(new Uint8Array(16)),v=>v.toString(16).padStart(2,'0')).join('');
 let requests=Promise.resolve();
 function action(name){
@@ -33,7 +35,7 @@ $('reset-scene').addEventListener('click',()=>action('reset'));$('stop-scene').a
 window.addEventListener('keydown',e=>{if(e.key==='Escape'&&scene)action('stop');});
 async function loadModel(state){
   if(loadingModel||revision===state.revision)return;loadingModel=true;
-  try{const response=await fetch('/api/scenes/model',{cache:'no-store',signal:AbortSignal.timeout(15000)});if(!response.ok)throw new Error('模型加载失败');const model=await response.json();if(latest?.revision!==model.revision)return;viewer?.load(model);revision=model.revision;if(latest?.revision===revision)viewer?.update(latest);$('scene-placeholder').hidden=true;}
+  try{const response=await fetch(appURL('/api/scenes/model'),{cache:'no-store',signal:AbortSignal.timeout(60000)});if(!response.ok)throw new Error('模型加载失败');const model=await response.json();if(latest?.revision!==model.revision)return;viewer?.load(model);revision=model.revision;if(latest?.revision===revision)viewer?.update(latest);$('scene-placeholder').hidden=true;}
   catch(e){notify(e.message);}finally{loadingModel=false;}
 }
 function update(data){
@@ -62,7 +64,7 @@ function notStarted(){
   for(const id of ['ball-distance','ball-contact','duck-contact','sim-speed'])$(id).textContent='—';
 }
 function connect(){
-  const channel=new WebSocket(`${location.protocol==='https:'?'wss':'ws'}://${location.host}/scene-ws`);socket=channel;let received=false;
+  const channel=createSocket('scene-ws');socket=channel;let received=false;
   channel.onmessage=event=>{
     if(socket!==channel)return;
     const data=JSON.parse(event.data);received=true;online=true;retryDelay=1000;
@@ -76,7 +78,7 @@ function connect(){
     $('sim-status').textContent=received?'场景连接中断 · 正在重连':'场景连接未建立 · 正在重试';
     connectionNotice=received
       ?'本地场景连接已断开，正在重连。此连接与灵矽独立；恢复后才能继续操作场景。'
-      :`本地场景实时连接未建立，无需先连接灵矽。请确认后端正在运行，并用 Chrome 无痕窗口直接打开 ${location.origin}/scenarios.html；检查浏览器扩展或代理是否改写 Origin 请求头。`;
+      :`场景实时连接未建立，无需先连接灵矽。请确认后端正在运行，并用 Chrome 无痕窗口直接打开 ${appURL('scenarios.html')}；检查浏览器扩展或代理是否改写 Origin 请求头。`;
     notify(connectionNotice);appendLog(`场景${received?'连接中断':'握手未完成'}（关闭码 ${event.code}）`,'连接',true);
     setTimeout(connect,retryDelay);retryDelay=Math.min(retryDelay*2,10000);
   };

@@ -29,6 +29,8 @@ scripts/run_local.sh
 
 ## 连接灵矽
 
+如需在 Linux 上复用现有 HTTPS 域名，参见 [YZH737 独立部署](deploy/README.md)。同一份前端支持 `/` 与 `/duckking/`，包含麦克风 worklet、API、语音通道和部署记录页面。ai_gateway 首次接入固定路由后，DuckKing 升级只重启自身服务；入口不支持 Upgrade 时可经 HTTPS 转发真实后端 WebSocket。安装默认只验证 loopback 独立服务；公网入口与真实云端语音需另行验收，暂存状态不会显示为完整验收成功。
+
 安装原生 Opus 库：macOS 使用 `brew install opus`；Ubuntu 使用 `sudo apt-get install libopus0`。
 
 如果已有平台 API Key，将原始 Key 单独放在 `~/.secrets/lingxi`，可显式运行一次初始化：

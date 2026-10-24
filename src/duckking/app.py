@@ -5,6 +5,7 @@ import asyncio
 import json
 import logging
 import os
+import re
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -15,6 +16,7 @@ from fastapi.staticfiles import StaticFiles
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from .config import Settings
+from .deployment import DeploymentStatus
 from .diagnostics import VoiceDiagnostics
 from .motion import Action, MotionController, PreviewBackend
 from .robotd import RobotdBackend
@@ -29,7 +31,9 @@ def same_origin(origin: str | None, host: str) -> bool:
 
 
 def create_app(
-    controller: MotionController | None = None, settings: Settings | None = None
+    controller: MotionController | None = None,
+    settings: Settings | None = None,
+    allowed_hosts: list[str] | None = None,
 ) -> FastAPI:
     motion = controller or MotionController(PreviewBackend())
 
@@ -46,12 +50,22 @@ def create_app(
     app.state.motion = motion
     app.state.voice = None
     app.state.scene_motion = None
+    app.state.deployment = DeploymentStatus(
+        Path(os.getenv("DUCKKING_RELEASE_FILE", ROOT / "release.json")),
+        Path(
+            os.getenv(
+                "DUCKKING_DEPLOY_HISTORY",
+                (settings or Settings.load()).data_dir / "deployments.jsonl",
+            )
+        ),
+    )
     scene_lock = asyncio.Lock()
     app.state.voice_diagnostics = VoiceDiagnostics(
         (settings or Settings.load()).data_dir / "voice.jsonl"
     )
     app.add_middleware(
-        TrustedHostMiddleware, allowed_hosts=["localhost", "127.0.0.1", "testserver"]
+        TrustedHostMiddleware,
+        allowed_hosts=allowed_hosts or ["localhost", "127.0.0.1", "testserver"],
     )
 
     @app.middleware("http")
@@ -64,7 +78,16 @@ def create_app(
 
     @app.get("/api/health")
     async def health():
-        return {"ok": True, "version": "0.1.0", "backend": motion.backend.kind}
+        return {
+            "ok": True,
+            "version": "0.1.0",
+            "backend": motion.backend.kind,
+            "release": app.state.deployment.release or None,
+        }
+
+    @app.get("/api/deployments")
+    async def deployments():
+        return JSONResponse(app.state.deployment.snapshot(), headers={"Cache-Control": "no-store"})
 
     @app.get("/api/state")
     async def state():
@@ -287,11 +310,27 @@ def create_app(
 def main():
     parser = argparse.ArgumentParser(description="DuckKing local workbench")
     parser.add_argument("--port", type=int, default=8765)
+    parser.add_argument("--host", default="127.0.0.1")
+    parser.add_argument(
+        "--allowed-host",
+        action="append",
+        default=[],
+        help="Additional exact public hostname; no wildcard or port",
+    )
+    parser.add_argument("--root-path", default="", help="External proxy prefix, e.g. /duckking")
     parser.add_argument("--backend", choices=["preview", "robotd"], default="preview")
     parser.add_argument("--socket", default="~/.cache/duck-sim/duck-a.sock")
     args = parser.parse_args()
+    if any(not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9.-]*", host) for host in args.allowed_host):
+        parser.error("--allowed-host requires an exact hostname without scheme, wildcard or port")
+    if args.root_path and not re.fullmatch(r"(?:/[A-Za-z0-9_-]+)+", args.root_path):
+        parser.error("--root-path requires a path such as /duckking, without a trailing slash")
     backend = PreviewBackend() if args.backend == "preview" else RobotdBackend(args.socket)
-    uvicorn.run(create_app(MotionController(backend)), host="127.0.0.1", port=args.port)
+    options = {"host": args.host, "port": args.port}
+    if args.root_path:
+        options["root_path"] = args.root_path
+    hosts = ["localhost", "127.0.0.1", "testserver", *args.allowed_host]
+    uvicorn.run(create_app(MotionController(backend), allowed_hosts=hosts), **options)
 
 
 if __name__ == "__main__":

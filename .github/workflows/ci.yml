@@ -30,7 +30,8 @@ jobs:
       - run: uv sync --frozen --extra simulation
       - run: uv run --frozen --no-sync python scripts/fetch_scene_assets.py
       - run: sudo apt-get update && sudo apt-get install -y libopus0
-      - run: uv run ruff check src tests
+      - run: uv run ruff check src tests scripts/build_release.py scripts/release_smoke.py
+      - run: bash -n scripts/install_release.sh
       - run: uv run pytest --cov --cov-report=term-missing --cov-report=json --cov-report=html --cov-report=xml
       - run: uv run python scripts/check_coverage.py
       - run: npm ci && npm run build
