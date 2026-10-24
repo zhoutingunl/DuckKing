@@ -23,7 +23,7 @@ export const DEMOS=[
  {id:'chorale',title:'四声部谢幕',hook:'从两条旋律，到四层和声。听见成员的加入。',scene:'duo',source:'方案 1 · 幕三',duration:'约 35 秒',
   steps:[line('chorale-intro','这次不是两只鸭唱同一个音。低音和高音先开场，中音和次中音依次加入。','旁白'),{kind:'music'},line('chorale-end','有人加入，其他成员不换声部。有人离开，留住他的席位。这就是合唱团的默契。')]},
 ];
-export const ACTION_NAMES={nod:'点头',walk:'前进',turn_left:'左转',turn_right:'右转',flash_step:'闪身步',bear_shake:'抖毛',kick_left:'左脚踢球',kick_right:'右脚踢球',pick_up:'夹起',carry:'搬运',put_down:'放下',find_companion:'发现同伴',collide:'相向碰面',chorus:'双声部合唱',stop:'停止'};
+export const ACTION_NAMES={scene_ball:'准备球场',scene_carry:'准备搬运场景',scene_duo:'准备双鸭场景',nod:'点头',walk:'前进',turn_left:'左转',turn_right:'右转',flash_step:'闪身步',bear_shake:'抖毛',kick_left:'左脚踢球',kick_right:'右脚踢球',pick_up:'夹起',carry:'搬运',put_down:'放下',find_companion:'发现同伴',collide:'相向碰面',chorus:'双声部合唱',stop:'停止'};
 export const AUDIO_LINES=DEMOS.flatMap(d=>d.steps.flatMap(s=>[
  ...(s.id?[{id:s.id,text:s.text,role:s.role??'预录指令'}]:[]),
  ...(s.replacement?[{id:s.replacement,text:s.replacementText,role:'预录指令'}]:[]),

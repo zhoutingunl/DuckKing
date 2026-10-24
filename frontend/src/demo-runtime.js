@@ -32,6 +32,15 @@ export function pcmWave(buffer){
   if(!valid||!pcm?.length||pcm.length>15*16000)throw new Error('预录指令必须为 15 秒以内的 16kHz 单声道 PCM');
   return pcm;
 }
+export function matchesCloudActions(records,expected,scene){
+  if(records.some(r=>r.status!=='completed'))return false;
+  const names=records.filter(r=>r.name!=='stop').map(r=>r.name);
+  // Linx may explicitly prepare the already selected scene before its first
+  // requested movement. Keep this in the evidence; never accept a mid-command
+  // reset, a different scene, or an extra physical movement.
+  if(['ball','carry','duo'].includes(scene)&&names[0]===`scene_${scene}`)names.shift();
+  return JSON.stringify(names)===JSON.stringify(expected);
+}
 export class DemoVoice {
   constructor(room,output,onEvent){this.room=room;this.output=output;this.onEvent=onEvent;this.state='disconnected';this.generation=0;this.minimum=0;this.ended=0;this.received=0;this.error=null;this.closed=false;}
   send(value){if(this.socket?.readyState!==1)throw new Error('语音连接已关闭');this.socket.send(value instanceof ArrayBuffer?value:JSON.stringify(value))}

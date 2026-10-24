@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {DEMOS,AUDIO_LINES} from '../src/demo-catalog.js';
-import {pcmWave,pause,DemoVoice} from '../src/demo-runtime.js';
+import {pcmWave,pause,DemoVoice,matchesCloudActions} from '../src/demo-runtime.js';
 import {ChoraleRoster,openingScore} from '../src/chorale-demo.js';
 
 test('all ten scripts have real bounded PCM audio, with no microphone requirement',()=>{
@@ -20,6 +20,20 @@ test('cancel stops a waiting timeline and prevents subsequent steps',async()=>{
   const pending=pause(200,controller.signal).then(()=>{progressed=true});controller.abort();
   await assert.rejects(pending,{name:'AbortError'});assert.equal(progressed,false);
   await assert.rejects(pause(1,controller.signal),{name:'AbortError'});
+});
+test('cloud may prepare the current scene before its required actions, but cannot replace or reset them',()=>{
+  const completed=(...names)=>names.map(name=>({name,status:'completed'}));
+  assert.equal(matchesCloudActions(completed('scene_ball','kick_left'),['kick_left'],'ball'),true);
+  assert.equal(matchesCloudActions(completed('kick_left'),['kick_left'],'ball'),true);
+  assert.equal(matchesCloudActions(completed('scene_ball'),[],'ball'),true);
+  assert.equal(matchesCloudActions(completed('stop','scene_ball','nod'),['nod'],'ball'),true);
+  assert.equal(matchesCloudActions(completed('stop','scene_carry','pick_up','carry','put_down'),['pick_up','carry','put_down'],'carry'),true);
+  for(const names of [['scene_duo','kick_left'],['scene_ball'],['scene_ball','kick_right'],['kick_left','scene_ball'],['scene_ball','scene_ball','kick_left'],['kick_left','nod']]){
+    assert.equal(matchesCloudActions(completed(...names),['kick_left'],'ball'),false,names.join(','));
+  }
+  assert.equal(matchesCloudActions(completed('pick_up','scene_carry','carry','put_down'),['pick_up','carry','put_down'],'carry'),false);
+  assert.equal(matchesCloudActions([{name:'scene_ball',status:'failed'},...completed('kick_left')],['kick_left'],'ball'),false);
+  assert.equal(matchesCloudActions([{name:'kick_left',status:'cancelled'}],['kick_left'],'ball'),false);
 });
 test('recorded commands use 1920 byte frames, pad the tail, and abort bounds uplink',async()=>{
   const voice=new DemoVoice('1',{},()=>{});voice.state='ready';const frames=[];

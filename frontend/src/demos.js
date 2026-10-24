@@ -1,7 +1,7 @@
 import './style.css';
 import './demos.css';
 import { DEMOS, ACTION_NAMES } from './demo-catalog.js';
-import { DemoRun, DemoVoice, api, action, until, pause, pcmWave, stopped } from './demo-runtime.js';
+import { DemoRun, DemoVoice, api, action, until, pause, pcmWave, stopped, matchesCloudActions } from './demo-runtime.js';
 import { VoiceAudio } from './audio-output.js';
 import { physicsView } from './physics-view.js';
 import { unpackVisualModel } from './model-loader.js';
@@ -100,18 +100,17 @@ async function voiceFor(run,room){
     if(data.type==='voice_status')status('灵矽 · '+({connecting:'正在连接',ready:'已就绪',listening:'收取预录指令',thinking:'正在思考',speaking:'正在回答',interrupting:'切换新指令'}[data.state]??data.state));
   });run.voices.push(voice);await voice.connect(run.signal);run.voiceMap.set(room,voice);return voice;
 }
-async function cloudResults(run,room,before,expected){
+async function cloudResults(run,room,before,expected,scene){
   const state=await api('api/scenes/state',room,{signal:run.signal});
   const ids=state.events.filter(e=>e.id>before&&e.kind==='result').map(e=>e.action_id);
   const records=[];for(const id of ids){const r=await api('api/scenes/actions/'+id,room,{signal:run.signal});records.push(r);run.results.push({...r,room});entry(`灵矽动作 · ${ACTION_NAMES[r.name]??r.name} · ${r.status==='completed'?'完成':r.status}`,r.status);}
   if(records.some(r=>r.status!=='completed'))throw new Error('灵矽调用的动作未全部完成，演示已停止');
-  const actual=records.filter(r=>r.name!=='stop').map(r=>r.name);
-  if(JSON.stringify(actual)!==JSON.stringify(expected))throw new Error(`本轮实际动作未符合剧本（期望 ${expected.map(n=>ACTION_NAMES[n]).join('、')}）；已保留真实结果，不补造动作`);
+  if(state.backend.scene!==scene||!matchesCloudActions(records,expected,scene))throw new Error(`本轮实际动作未符合剧本（期望 ${expected.map(n=>ACTION_NAMES[n]).join('、')}）；已保留真实结果，不补造动作`);
 }
 async function command(run,room,step){
   if(run.live){
     const voice=await voiceFor(run,room),state=await api('api/scenes/state',room,{signal:run.signal}),before=state.events.at(-1)?.id??0;
-    const pcm=await speak(step.id,step.text,'预录指令 → 灵矽',run,{wait:false});await voice.turn(pcm,run.signal);await cloudResults(run,room,before,step.actions);
+    const pcm=await speak(step.id,step.text,'预录指令 → 灵矽',run,{wait:false});await voice.turn(pcm,run.signal);await cloudResults(run,room,before,step.actions,state.backend.scene);
   }else{
     await speak(step.id,step.text,'预录指令 · 本地剧本',run);
     for(const name of step.actions)await perform(run,room,name);
@@ -119,7 +118,7 @@ async function command(run,room,step){
 }
 async function interrupt(run,step){
   const room=currentRoom,next=step.next??'nod';let old;
-  const baseline=(await api('api/scenes/state',room,{signal:run.signal})).events.at(-1)?.id??0;
+  const initial=await api('api/scenes/state',room,{signal:run.signal}),baseline=initial.events.at(-1)?.id??0;
   if(run.live){
     const voice=await voiceFor(run,room);const pcm=await speak(step.id,step.text,'预录旧指令 → 灵矽',run,{wait:false});await voice.input(pcm,run.signal);
     const deadline=performance.now()+60000;
@@ -137,7 +136,8 @@ async function interrupt(run,step){
   const after=await api('api/scenes/state',room,{signal:run.signal});
   const actions=after.events.filter(e=>e.id>baseline&&e.kind==='action');
   const records=await Promise.all(actions.map(e=>api('api/scenes/actions/'+e.action_id,room,{signal:run.signal})));
-  if(records.some(r=>r.id!==old.id&&!['stop',next].includes(r.name)))throw new Error('检测到旧剧本剩余动作，打断验收未通过');
+  const oldIndex=records.findIndex(r=>r.id===old.id);
+  if(oldIndex<0||!matchesCloudActions(records.slice(0,oldIndex),[],initial.backend.scene)||!matchesCloudActions(records.slice(oldIndex+1),[next],initial.backend.scene))throw new Error('检测到旧剧本剩余动作，打断验收未通过');
 }
 async function runStep(run,step){
   run.signal.throwIfAborted();
