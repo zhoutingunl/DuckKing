@@ -45,7 +45,11 @@ async def connection(client, base, endpoint, transport):
         try:
             yield channel
         finally:
-            (await client.delete(channel.url)).raise_for_status()
+            response = await client.delete(channel.url)
+            # A terminal status (e.g. scene voice before loading a scene) may
+            # already have drained and removed the gateway channel on GET.
+            if response.status_code != 410:
+                response.raise_for_status()
     else:
         url = urlsplit(urljoin(base, endpoint))
         scheme = 'wss' if url.scheme == 'https' else 'ws'
