@@ -113,7 +113,7 @@ flowchart LR
 
 ## 共享物理场景
 
-Linux 部署使用独立的非 root `duckking.service`，不嵌入 ai_gateway。应用支持显式公网 Host 白名单与反向代理 `root_path`；前端资源、链接、API、音频 worklet 和 WebSocket 均按页面目录解析，同一构建可以挂在 `/duckking/`。Host / Origin 原样保留，跨来源请求仍然拒绝。部署方案见 [deploy/README.md](../deploy/README.md)。
+Linux 部署使用独立的 `duckking.service`，按要求以 root 运行，发布目录为 `/root/zt_dir/hackathon_base/DuckKing`，不嵌入 ai_gateway。应用支持显式公网 Host 白名单与反向代理 `root_path`；前端资源、链接、API、音频 worklet 和 WebSocket 均按页面目录解析，同一构建可以挂在 `/duckking/`。Host / Origin 原样保留，跨来源请求仍然拒绝。部署方案见 [deploy/README.md](../deploy/README.md)。
 
 `GET /api/deployments` 仅返回发布字段白名单与最近 100 条流水；当前进程启动时固定读取版本元数据，原子切换磁盘链接不会给旧进程贴上新版本。`staged` 代表独立后端本机自检通过，`success` 需要入口验收后确认。发布失败与回滚结果分别记录；密钥、设备身份和原始配置不出现在该 API 中。
 

@@ -6,7 +6,7 @@ umask 022
 [[ $# -eq 4 ]] || { echo "Usage: $0 archive sha256 version commit" >&2; exit 1; }
 archive=$1 checksum=$2 version=$3 commit=$4
 [[ $checksum =~ ^[0-9a-f]{64}$ && $commit =~ ^[0-9a-f]{40}$ && $version =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$ ]] || exit 2
-base=/opt/duckking
+base=/root/zt_dir/hackathon_base/DuckKing
 release=$base/releases/$version
 python=/usr/local/bin/python3.12
 uv_binary=${DUCKKING_UV:-/root/.local/bin/uv}
@@ -16,9 +16,8 @@ exec 9>"$base/deploy.lock"
 flock -n 9 || { echo "Another DuckKing release is running" >&2; exit 1; }
 [[ ! -e $release ]] || { echo "Immutable release already exists" >&2; exit 1; }
 printf '%s  %s\n' "$checksum" "$archive" | sha256sum --check --status
-# systemd owns the transient UID and moves StateDirectory below /var/lib/private.
-# Do not edit the target's protected passwd/group databases.
-install -d -m 700 /var/lib/duckking /var/lib/duckking/verification /etc/duckking
+# The requested service identity is root; no system account changes are needed.
+install -d -o root -g root -m 700 /var/lib/duckking /var/lib/duckking/verification /etc/duckking
 previous=$(readlink -f "$base/current" || true)
 switched=0
 unit_changed=0
@@ -46,8 +45,8 @@ PY
 }
 
 failed() {
-  status=$?
-  trap - ERR
+  status=${1:-$?}
+  trap - ERR HUP INT TERM
   rollback=unchanged
   if [[ $unit_changed == 1 && -f $unit_backup ]]; then
     cp "$unit_backup" /etc/systemd/system/duckking.service
@@ -81,6 +80,9 @@ PY
   exit "$status"
 }
 trap failed ERR
+trap 'failed 129' HUP
+trap 'failed 130' INT
+trap 'failed 143' TERM
 
 mkdir "$release"
 "$python" - "$archive" "$release" "$version" "$commit" <<'PY'
@@ -126,5 +128,5 @@ done
 [[ $ready == 1 ]]
 "$release/.venv/bin/python" "$release/scripts/release_smoke.py" --url http://127.0.0.1:8765/ --commit "$commit"
 record staged backend_passed not_needed
-trap - ERR
+trap - ERR HUP INT TERM
 echo "DuckKing staged on loopback. HTTPS routing and real cloud voice still require verification."

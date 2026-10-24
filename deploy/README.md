@@ -1,12 +1,12 @@
 # YZH737 独立部署
 
-DuckKing 与 ai_gateway 使用不同目录、虚拟环境、用户、端口和 systemd 服务。安装脚本不修改 ai_gateway、18345/18346 端口、其部署记录或前置 Nginx。两者仅计划共享 `ztmonitor.qbox.net` 的 HTTPS 入口。
+DuckKing 与 ai_gateway 使用不同目录、虚拟环境、端口和 systemd 服务，按指定使用 root 运行。安装脚本不修改 ai_gateway、18345/18346 端口、其部署记录或前置 Nginx。两者仅计划共享 `ztmonitor.qbox.net` 的 HTTPS 入口。
 
-- 代码与虚拟环境：`/opt/duckking/releases/<version>`，`current` 原子切换。
+- 代码与虚拟环境：`/root/zt_dir/hackathon_base/DuckKing/releases/<version>`，同目录下 `current` 原子切换。
 - 官方模型：每个版本包的 `external/`，从固定上游 Git commit 导出，策略校验 SHA-256。
 - 私有状态与部署流水：`/var/lib/duckking`，不在静态目录中。
 - 可选语音配置：`/var/lib/duckking/voice.env`，0600，所有者跟随状态目录；禁止提交密钥或设备身份。
-- 运行进程：`duckking.service`，systemd `DynamicUser` 非 root 临时用户，CPUQuota=150%、MemoryMax=2G、TasksMax=128。无需修改系统账户文件。
+- 运行进程：`duckking.service`，root 用户，CPUQuota=150%、MemoryMax=2G、TasksMax=128。无需修改系统账户文件。
 - 初始监听：`127.0.0.1:8765`。默认只完成本机暂存部署，不会自动开放网络入口。
 
 ## 版本与发布包
@@ -25,7 +25,9 @@ uv run --frozen --no-sync python scripts/build_release.py --ref <已提交commit
 bash scripts/install_release.sh <archive> <sha256> <tag> <完整commit>
 ```
 
-安装使用 YZH737 已有的 `/usr/local/bin/python3.12` 和 `/root/.local/bin/uv`，只创建 DuckKing 自己的 venv，不修改系统 Python 包。YZH737 的系统账户文件设有 immutable 属性；使用 systemd 245 支持的 DynamicUser，不解除这些保护。systemd 通过 StateDirectory 管理 `/var/lib/duckking`（实际位于 `/var/lib/private/duckking`）及所有者；临时 UID 可能变化，不应手工固定 UID。机制参见 [systemd.exec 官方文档](https://www.freedesktop.org/software/systemd/man/latest/systemd.exec.html#DynamicUser=)。
+安装使用 YZH737 已有的 `/usr/local/bin/python3.12` 和 `/root/.local/bin/uv`，只创建 DuckKing 自己的 venv，不修改系统 Python 包。系统账户文件的 immutable 属性保持不变。systemd 通过 StateDirectory 管理 root 所有的 `/var/lib/duckking`，源代码与虚拟环境在服务中只读。
+
+依赖首次下载可能超过 SSH 会话等待时限。远程执行时将安装作为独立后台任务启动，保存日志及退出状态，再通过短 SSH 会话查询；不要把 SSH 超时当作成功。若需要重试一个从未启动成功的版本，先确认安装进程已退出及部署锁已释放，将失败目录归档后，再用同一已校验发布包安装；不修改发布包、commit 或 tag。
 
 安装期间会执行真实 MuJoCo 左右脚、双鸭接触检查，然后验证运行版本、页面资源、状态/语音本地握手和有界停止动作。源码包验证后的安装失败会保留失败记录；已切换版本则恢复旧链接与服务配置，并核对旧版本健康响应。首次安装失败会停止并禁用新服务。
 
