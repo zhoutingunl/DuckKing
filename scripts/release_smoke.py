@@ -4,10 +4,54 @@ import argparse
 import asyncio
 import json
 import re
+from contextlib import asynccontextmanager
 from urllib.parse import urljoin, urlsplit
 
 import httpx
 import websockets
+
+
+class HTTPSChannel:
+    def __init__(self, client, url):
+        self.client, self.url = client, url
+        self.sequence, self.pending = 0, []
+
+    async def recv(self):
+        while not self.pending:
+            response = await self.client.get(self.url)
+            response.raise_for_status()
+            packet = response.json()
+            self.pending.extend(packet['frames'])
+            assert self.pending or not packet['closed'], 'Channel closed'
+        frame = self.pending.pop(0)
+        assert not frame['binary'], 'Expected a JSON status'
+        return frame['data']
+
+    async def send(self, data):
+        response = await self.client.post(self.url, json={
+            'sequence': self.sequence, 'frames': [{'binary': False, 'data': data}]})
+        response.raise_for_status()
+        self.sequence += 1
+        assert response.json()['sequence'] == self.sequence
+
+
+@asynccontextmanager
+async def connection(client, base, endpoint, transport):
+    if transport == 'https-poll':
+        response = await client.post(
+            urljoin(base, '_gateway/channels'), json={'endpoint': endpoint})
+        response.raise_for_status()
+        channel = HTTPSChannel(client, urljoin(base, '_gateway/channels/' + response.json()['id']))
+        try:
+            yield channel
+        finally:
+            (await client.delete(channel.url)).raise_for_status()
+    else:
+        url = urlsplit(urljoin(base, endpoint))
+        scheme = 'wss' if url.scheme == 'https' else 'ws'
+        async with websockets.connect(url._replace(scheme=scheme).geturl(),
+                origin=f'{url.scheme}://{url.netloc}', open_timeout=15) as socket:
+            yield socket
 
 
 async def verify(base, commit):
@@ -25,14 +69,14 @@ async def verify(base, commit):
                 assert url.startswith(base), "An asset escaped the deployment prefix"
                 (await client.get(url)).raise_for_status()
         (await client.get(urljoin(base, "capture-worklet.js"))).raise_for_status()
-        for endpoint in ["ws", "scene-ws", "voice"]:
-            url = urlsplit(urljoin(base, endpoint))
-            scheme = "wss" if url.scheme == "https" else "ws"
-            async with websockets.connect(
-                url._replace(scheme=scheme).geturl(),
-                origin=f"{url.scheme}://{url.netloc}",
-                open_timeout=15,
-            ) as socket:
+        capabilities = await client.get(urljoin(base, '_gateway/capabilities'))
+        transport = 'websocket'
+        if capabilities.status_code != 404:
+            capabilities.raise_for_status()
+            transport = capabilities.json()['transport']
+            assert transport in {'https-poll', 'websocket'}
+        for endpoint in ["ws", "scene-ws", "voice", "scene-voice"]:
+            async with connection(client, base, endpoint, transport) as socket:
                 message = json.loads(await asyncio.wait_for(socket.recv(), timeout=15))
                 assert message["type"] in {"state", "not_started", "voice_status"}
                 if endpoint == "scene-ws":
@@ -46,7 +90,7 @@ async def verify(base, commit):
             await asyncio.sleep(0.1)
         assert result["status"] == "completed"
     print(
-        "Release, prefixed assets, state/voice handshakes and bounded stop verified; "
+        f"Release, prefixed assets, {transport} state/voice handshakes and bounded stop verified; "
         "cloud voice not tested."
     )
 

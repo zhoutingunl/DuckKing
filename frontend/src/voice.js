@@ -1,5 +1,6 @@
 import { PCMFramer, decodePCM } from './audio-codec.js';
-import { appURL, socketURL } from './urls.js';
+import { appURL } from './urls.js';
+import { createSocket } from './transport.js';
 
 export function setupVoice({appendLog,notify,endpoint='/voice'}){
   const $=id=>document.getElementById(id),talk=$('talk-button'),connect=$('connect-voice');
@@ -65,7 +66,7 @@ export function setupVoice({appendLog,notify,endpoint='/voice'}){
     state='connecting';update();
     if(ws?.readyState===WebSocket.OPEN){send({type:'connect'});return}
     let receivedStatus=false;
-    owner=true;ws=new WebSocket(socketURL(endpoint));
+    owner=true;ws=createSocket(endpoint);
     ws.onopen=()=>send({type:'connect'});
     ws.onmessage=async(event)=>{
       const data=JSON.parse(event.data);

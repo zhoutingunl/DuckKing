@@ -3,7 +3,8 @@ import './scenarios.css';
 import { physicsView } from './physics-view.js';
 import { createChorus } from './chorus.js';
 import { setupVoice } from './voice.js';
-import { appURL, socketURL } from './urls.js';
+import { appURL } from './urls.js';
+import { createSocket } from './transport.js';
 
 const $=id=>document.getElementById(id);
 const names={scene_ball:'单鸭踢球',scene_duo:'双鸭互动',kick_left:'左脚踢球',kick_right:'右脚踢球',find_companion:'发现同伴',duo_walk:'双鸭一起走',collide:'相向碰面',chorus:'同步合唱',walk:'前进',turn_left:'左转',turn_right:'右转',stop:'停止',reset:'重置场景',nod:'点头'};
@@ -63,7 +64,7 @@ function notStarted(){
   for(const id of ['ball-distance','ball-contact','duck-contact','sim-speed'])$(id).textContent='—';
 }
 function connect(){
-  const channel=new WebSocket(socketURL('scene-ws'));socket=channel;let received=false;
+  const channel=createSocket('scene-ws');socket=channel;let received=false;
   channel.onmessage=event=>{
     if(socket!==channel)return;
     const data=JSON.parse(event.data);received=true;online=true;retryDelay=1000;

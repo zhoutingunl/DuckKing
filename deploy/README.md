@@ -1,6 +1,6 @@
 # YZH737 独立部署
 
-DuckKing 与 ai_gateway 使用不同目录、虚拟环境、端口和 systemd 服务，按指定使用 root 运行。安装脚本不修改 ai_gateway、18345/18346 端口、其部署记录或前置 Nginx。两者仅计划共享 `ztmonitor.qbox.net` 的 HTTPS 入口。
+DuckKing 与 ai_gateway 使用不同目录、虚拟环境、端口和 systemd 服务，按指定使用 root 运行。DuckKing 安装脚本不修改 ai_gateway、18345/18346 端口或前置 Nginx。用户已授权在 ai_gateway 首次发布固定 `/duckking/` 转发路由，以共享 `ztmonitor.qbox.net` 的 HTTPS 入口；后续 DuckKing 升级无需重启 ai_gateway。
 
 - 代码与虚拟环境：`/root/zt_dir/hackathon_base/DuckKing/releases/<version>`，同目录下 `current` 原子切换。
 - 官方模型：每个版本包的 `external/`，从固定上游 Git commit 导出，策略校验 SHA-256。
@@ -31,7 +31,13 @@ bash scripts/install_release.sh <archive> <sha256> <tag> <完整commit>
 
 安装期间会执行真实 MuJoCo 左右脚、双鸭接触检查，然后验证运行版本、页面资源、状态/语音本地握手和有界停止动作。源码包验证后的安装失败会保留失败记录；已切换版本则恢复旧链接与服务配置，并核对旧版本健康响应。首次安装失败会停止并禁用新服务。
 
-## HTTPS 接入是单独一步
+## HTTPS 接入
+
+当前使用 ai_gateway 应用路由：`/duckking/` 的 API 与资源固定转发到 `127.0.0.1:8765`，不依赖 DuckKing release 目录。域名前置代理实测移除了 Upgrade，浏览器根据 `_gateway/capabilities` 使用 HTTPS 长轮询转发到同一个真实后端 WebSocket。PCM 保持原始字节，队列、帧大小与空闲时间有上限，发送顺序校验且不自动重试语音。服务升级后状态流重连，用户重新连接语音。
+
+ai_gateway 的 yzh737 档案设置 `duckking_upstream=http://127.0.0.1:8765`、`duckking_public_host=ztmonitor.qbox.net`、`duckking_transport=https-poll`。首次网关发布使用其 GitLab main 正式部署流程；DuckKing 自身继续使用本仓库 GitHub Release。无需额外开放 DuckKing 私网或公网端口。
+
+如将来能修改前置 Nginx，也可使用原生 WebSocket 方案：
 
 需要确认前置 Nginx 所在主机、YZH737 私网地址及入口访问控制。将 `nginx-duckking.conf.example` 中的两个 location 加到现有 HTTPS server 中，继承已有证书和访问限制；原 ai_gateway location 保留。对外路径为 `/duckking/`，代理去掉该前缀，保留 Host / Origin，并显式传递 WebSocket Upgrade / Connection。先检查 Nginx 配置，再平滑 reload。
 

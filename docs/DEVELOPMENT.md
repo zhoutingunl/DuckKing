@@ -1,5 +1,13 @@
 # 本地环境与继续开发
 
+## YZH737 HTTPS 入口
+
+`https://ztmonitor.qbox.net/duckking/` 通过 ai_gateway 转发至独立的 DuckKing loopback 服务。网关只需首次发布新增路由，后续 DuckKing 发布沿用 8765 端口，重启 `duckking.service` 即可，无需重启 ai_gateway。
+
+当前域名前置代理移除了 WebSocket Upgrade。前端读取 `_gateway/capabilities`，在该入口使用 HTTPS 长轮询通道；网关内部依然连接真实 DuckKing WebSocket，PCM 逐帧 base64 传输，命令按序发送，不重试已发送的录音或动作。本地与支持 Upgrade 的入口继续使用原生 WebSocket。通道失败按原有状态恢复逻辑处理，不切换为伪造云端响应。HTTP 通道增加一次请求调度开销，交互统计中的后端耗时不包含完整浏览器网络往返。
+
+发布验证脚本 `scripts/release_smoke.py --url https://ztmonitor.qbox.net/duckking/ --commit <commit>` 自动识别传输方式，检查页面资源、真实状态与语音通道握手、有限停止动作；不会连接灵矽云端。服务重启后状态流可重连，语音由用户重新点击连接，未完成录音不重放。服务器独立设备绑定与真实云端语音验收仍需单独完成。
+
 ## 安装和运行 demo
 
 需要 `uv`、Node.js 22.12+ 和 npm。仓库的 `.python-version` 固定默认 Python 为 3.12，uv 可以下载该解释器，不必更换系统 Python。
