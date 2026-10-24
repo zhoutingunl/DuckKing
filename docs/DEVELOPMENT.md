@@ -28,13 +28,16 @@ scripts/run_local.sh
 等价的手动安装命令为：
 
 ```bash
-uv sync --frozen --python 3.12
+uv sync --frozen --python 3.12 --extra simulation
+uv run --frozen python scripts/fetch_scene_assets.py
 cd frontend
 npm ci
 npm run build
 cd ..
 uv run --frozen duckking
 ```
+
+首页官方外观和物理实验室均需要上述固定模型资源。资源缺失时页面明确提示安装失败，不会退回旧卡通形象。
 
 ## 前端热更新
 

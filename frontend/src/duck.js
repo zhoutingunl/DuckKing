@@ -25,7 +25,8 @@ export function createDuckScene(container) {
   const duck=new THREE.Group();duck.scale.setScalar(5);scene.add(duck);
   const basis=new THREE.Group();basis.rotation.x=-Math.PI/2;duck.add(basis);
   const joints=new Map(), geometries=[], materials=[];
-  let state={}, frame,timer,disposed=false,slowFrames=0,lastFrame=performance.now(),root;
+  let state={}, frame,timer,disposed=false,slowFrames=0,lastFrame=performance.now(),root,needsRender=true,poseKey='';
+  controls.addEventListener('change',()=>{needsRender=true});
   const abort=new AbortController();
   const quaternion=(target,[w,x,y,z])=>target.set(x,y,z,w);
   async function load(){
@@ -54,7 +55,7 @@ export function createDuckScene(container) {
         const material=new THREE.MeshStandardMaterial({color:new THREE.Color(...geom.rgba.slice(0,3)),roughness:.66,metalness:.08});materials.push(material);
         const mesh=new THREE.Mesh(geometry,material);mesh.position.fromArray(geom.position);quaternion(mesh.quaternion,geom.quaternion);mesh.castShadow=mesh.receiveShadow=true;nodes.get(geom.body).add(mesh);
       }
-      container.dataset.model='official';status.hidden=true;
+      container.dataset.model='official';status.hidden=true;needsRender=true;
     }catch(error){
       if(disposed)return;container.dataset.model='failed';status.textContent=`${error.message}。`;
       const retry=document.createElement('button');retry.className='text-button';retry.textContent='重新加载模型';retry.onclick=load;status.append(retry);
@@ -62,7 +63,7 @@ export function createDuckScene(container) {
   }
   load();
   function setJoint(name,delta){const j=joints.get(name);if(j)j.pivot.quaternion.setFromAxisAngle(j.axis,j.home+delta);}
-  function resize(){const {width,height}=container.getBoundingClientRect();if(!width||!height)return;renderer.setPixelRatio(reduced?Math.min(1,640/width):Math.min(devicePixelRatio,2));renderer.setSize(width,height);camera.aspect=width/height;camera.updateProjectionMatrix();}
+  function resize(){const {width,height}=container.getBoundingClientRect();if(!width||!height)return;renderer.setPixelRatio(reduced?Math.min(1,640/width):Math.min(devicePixelRatio,2));renderer.setSize(width,height);camera.aspect=width/height;camera.updateProjectionMatrix();needsRender=true;}
   const observer=new ResizeObserver(resize);observer.observe(container);
   const clock=new THREE.Clock();
   function animate(){
@@ -75,10 +76,12 @@ export function createDuckScene(container) {
     setJoint('left_hip_pitch',gait);setJoint('right_hip_pitch',gait);
     setJoint('left_knee',-Math.max(0,gait)*1.2);setJoint('right_knee',Math.max(0,-gait)*1.2);
     if(root){root.position.z=.12+(p.body_z??0)+(moving?Math.abs(Math.sin(t*11))*.002:0);root.rotation.set(p.body_roll??0,p.body_pitch??0,0);}
-    controls.update();renderer.render(scene,camera);
+    // A stationary official mesh does not change between snapshots. Avoid
+    // monopolizing a software GPU while voice and other rooms need the CPU.
+    controls.update();if(needsRender||moving){needsRender=false;renderer.render(scene,camera);}
     slowFrames=performance.now()-started>70||started-lastFrame>180?slowFrames+1:0;lastFrame=started;
     if(!reduced&&slowFrames>=3){reduced=true;renderer.shadowMap.enabled=false;materials.forEach(m=>m.needsUpdate=true);resize();}
     timer=setTimeout(()=>{frame=requestAnimationFrame(animate);},reduced?100:33);
   }animate();
-  return {update(next){state=next},resetCamera(){controls.reset()},dispose(){disposed=true;abort.abort();clearTimeout(timer);cancelAnimationFrame(frame);observer.disconnect();geometries.forEach(g=>g.dispose());materials.forEach(m=>m.dispose());renderer.dispose();controls.dispose();status.remove();}};
+  return {update(next){state=next;const key=JSON.stringify([next.pose,next.velocity]);if(key!==poseKey){poseKey=key;needsRender=true}},resetCamera(){controls.reset()},dispose(){disposed=true;abort.abort();clearTimeout(timer);cancelAnimationFrame(frame);observer.disconnect();geometries.forEach(g=>g.dispose());materials.forEach(m=>m.dispose());renderer.dispose();controls.dispose();status.remove();}};
 }
