@@ -37,17 +37,18 @@ server.serve_forever()
       gateway.once('exit',()=>{clearTimeout(timer);reject(new Error('Gateway exited: '+errors))});
     });
     const sockets=[];page.on('websocket',socket=>sockets.push(socket.url()));
-    await page.goto(prefix);await expect(page.locator('#connection-label')).toHaveText('本地工作台已连接');
+    await page.goto(prefix+'?room=1');await expect(page.locator('#connection-label')).toHaveText('本地工作台已连接');
     await page.locator('[data-action="nod"]').click();await expect(page.locator('#activity-log')).toContainText('点头 · completed');
     // A second browser's local channel reserves the real backend device. Verify
     // release through HTTPS while its page/channel context remains alive.
     const held=await page.request.post(prefix+'_gateway/channels',{data:{endpoint:'voice'}});
     expect(held.status()).toBe(201);
     const heldURL=prefix+'_gateway/channels/'+(await held.json()).id;
+    await page.request.post(heldURL,{data:{sequence:0,frames:[{binary:false,data:JSON.stringify({type:"join_room",room:"1"})}]}});
     await page.request.get(heldURL);
     await page.locator('#connect-voice').click();
-    await expect(page.locator('#voice-badge')).toHaveText('其他页面正在使用语音');
-    await page.request.post(heldURL,{data:{sequence:0,frames:[{binary:false,data:JSON.stringify({type:'disconnect'})}]}});
+    await expect(page.locator('#voice-badge')).toHaveText('本房间语音正在使用');
+    await page.request.post(heldURL,{data:{sequence:1,frames:[{binary:false,data:JSON.stringify({type:'disconnect'})}]}});
     await expect.poll(async()=>{
       const r=await page.request.get(heldURL);
       return r.status()===410||(r.ok()&&(await r.json()).closed);
@@ -55,7 +56,7 @@ server.serve_forever()
     await page.locator('#connect-voice').click();
     await expect(page.locator('#voice-badge')).toHaveText('连接异常');
     await expect(page.locator('#notice')).toContainText('连接未成功');
-    await page.goto(prefix+'scenarios.html');await page.getByRole('button',{name:'单鸭定点踢球'}).click();
+    await page.goto(prefix+'scenarios.html?room=1');await page.getByRole('button',{name:'单鸭定点踢球'}).click();
     await expect(page.locator('#sim-status')).toHaveText('MuJoCo 物理运行中',{timeout:30000});
     await expect(page.locator('#scene-placeholder')).toBeHidden();
     // Only cloud voice uses a labelled protocol fixture. HTTP, model loading,

@@ -11,11 +11,12 @@ from pathlib import Path
 from .statistics import VoiceStatistics
 
 STATES = {
-    "disconnected", "connecting", "recovering", "awaiting_binding", "ready",
+    "disconnected", "connecting", "recovering", "interrupting", "awaiting_binding", "ready",
     "listening", "thinking", "speaking", "error",
 }
 EVENTS = {
-    "state", "listen_start", "listen_stop", "uplink_first_frame", "downlink_first_frame",
+    "interrupt", "state", "listen_start", "listen_stop",
+    "uplink_first_frame", "downlink_first_frame",
     "stt", "tts_start", "tts_stop", "tts_sentence", "tool_start", "tool_end",
     "timeout", "reset", "connection_error", "connection_closed", "command_error",
     "action_start", "action_end",

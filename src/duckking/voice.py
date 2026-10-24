@@ -49,6 +49,8 @@ class VoiceSession:
         self.last_activity = self.state_since = time.monotonic()
         self.logged_state = None
         self.sensitive_values = set()
+        self.generation = 0
+        self.pending_input = None
 
     def record(self, event, **fields):
         self.diagnostics.record(
@@ -68,7 +70,8 @@ class VoiceSession:
         }
 
     def status(self):
-        return {"state": self.state, "activation_code": self.activation_code, "error": self.error}
+        return {"state": self.state, "activation_code": self.activation_code,
+                "error": self.error, "generation": self.generation}
 
     def _record_state(self):
         if self.logged_state != self.state:
@@ -100,7 +103,7 @@ class VoiceSession:
             self.error = f"连接未成功，请检查绑定、额度与网络（{type(exc).__name__}）"
             await self.publish_status()
 
-    async def _open_transport(self):
+    async def _open_transport(self, *, publish_ready=True):
         async with httpx.AsyncClient(timeout=15) as http:
             config = await provision(self.settings, http)
         activation = config.get("activation", {}).get("code")
@@ -157,8 +160,9 @@ class VoiceSession:
         self.state = "ready"
         self.error = ""
         self.last_activity = time.monotonic()
-        await self.publish_status()
-        self.reader = asyncio.create_task(self._receive())
+        if publish_ready:
+            await self.publish_status()
+        self.reader = asyncio.create_task(self._receive(self.generation))
         self.watchdog = asyncio.create_task(self._watch())
 
     async def _json(self, data: dict):
@@ -168,7 +172,13 @@ class VoiceSession:
             self.cloud.send(json.dumps(data, ensure_ascii=False)), IO_TIMEOUT
         )
 
-    async def listen(self, start: bool):
+    async def listen(self, start: bool, *, from_interrupt=False):
+        if self.pending_input is not None and not from_interrupt:
+            if start and not self.pending_input["started"]:
+                self.pending_input["started"] = time.monotonic()
+            elif not start:
+                self.pending_input["stopped"] = True
+            return
         if start:
             if self.state != "ready":
                 raise ValueError("请等待灵矽连接就绪或回答结束")
@@ -194,6 +204,18 @@ class VoiceSession:
         await self.publish_status()
 
     async def audio(self, pcm: bytes):
+        if self.pending_input is not None:
+            pending = self.pending_input
+            if not pending["started"] or pending["stopped"]:
+                return
+            if len(pcm) != 1920:
+                raise ValueError("音频帧必须是 16kHz / 60ms / PCM16 单声道")
+            if (len(pending["frames"]) >= 250
+                    or time.monotonic() - pending["started"] >= RECORDING_LIMIT):
+                pending["stopped"] = True
+            else:
+                pending["frames"].append(pcm)
+            return
         if self.state != "listening":
             return
         if time.monotonic() - self.started > RECORDING_LIMIT:
@@ -206,7 +228,9 @@ class VoiceSession:
         if self.uplink_frames == 1:
             self.record("uplink_first_frame")
 
-    async def _tool(self, payload):
+    async def _tool(self, payload, generation=None):
+        if generation is not None and generation != self.generation:
+            return
         params = payload.get("params")
         tool = params.get("name") if isinstance(params, dict) else None
         turn, started = self.turn, self.started
@@ -235,9 +259,13 @@ class VoiceSession:
             # The session's receive loop reports connection failures, not a fabricated tool result.
             return
 
-    async def _receive(self):
+    async def _receive(self, generation=None):
+        if generation is None:
+            generation = self.generation
         try:
             async for message in self.cloud:
+                if generation != self.generation:
+                    return
                 if isinstance(message, bytes):
                     self.last_activity = time.monotonic()
                     pcm = self.decoder.decode(message) if self.audio_format == "opus" else message
@@ -249,6 +277,7 @@ class VoiceSession:
                     await self.send(
                         {
                             "type": "audio",
+                            "generation": self.generation,
                             "sample_rate": self.sample_rate,
                             "pcm": base64.b64encode(pcm).decode(),
                         }
@@ -263,7 +292,7 @@ class VoiceSession:
                         raise ValueError("invalid MCP payload")
                     if len(self.tasks) >= 32:
                         raise ValueError("too many concurrent tool calls")
-                    task = asyncio.create_task(self._tool(payload))
+                    task = asyncio.create_task(self._tool(payload, generation))
                     self.tasks.add(task)
                     task.add_done_callback(self.tasks.discard)
                 elif kind == "stt":
@@ -276,7 +305,7 @@ class VoiceSession:
                         sensitive_values=self.sensitive_values,
                     )
                     await self.send(
-                        {"type": "transcript", "role": "user",
+                        {"type": "transcript", "role": "user", "generation": self.generation,
                          "text": redact_transcript(text, self.sensitive_values)}
                     )
                 elif kind == "tts":
@@ -292,7 +321,8 @@ class VoiceSession:
                             "tts_stop", result="aborted" if data.get("is_aborted") else "ok"
                         )
                         await self.send(
-                            {"type": "playback_end", "aborted": bool(data.get("is_aborted"))}
+                            {"type": "playback_end", "aborted": bool(data.get("is_aborted")),
+                             "generation": self.generation}
                         )
                     elif data.get("state") == "sentence_start":
                         self.last_activity = time.monotonic()
@@ -300,6 +330,7 @@ class VoiceSession:
                         await self.send(
                             {
                                 "type": "transcript",
+                                "generation": self.generation,
                                 "role": "assistant",
                                 "text": data.get("text", ""),
                             }
@@ -315,7 +346,8 @@ class VoiceSession:
         await self.disconnect()
         self.state, self.error = final_state, error
         with suppress(OSError, RuntimeError):
-            await self.send({"type": "playback_end", "aborted": True})
+            await self.send({"type": "playback_end", "aborted": True,
+                             "generation": self.generation})
             await self.publish_status()
 
     async def _watch(self):
@@ -343,11 +375,76 @@ class VoiceSession:
         except Exception as exc:
             await self.command_failed(exc)
 
+    def start_interrupt(self):
+        if self.pending_input is not None:
+            return
+        if self.state not in {"ready", "thinking", "speaking"}:
+            raise ValueError("当前不能打断，请等待连接就绪")
+        self.record("interrupt", reason="manual")
+        self.generation += 1
+        self.pending_input = {"frames": [], "started": 0.0, "stopped": False}
+        self.state = "interrupting"
+        self.connector = asyncio.create_task(self._interrupt())
+
+    async def _interrupt(self):
+        try:
+            await self.send({"type": "playback_end", "aborted": True,
+                             "generation": self.generation})
+            await self.publish_status()
+            # Close the old generation: the cloud's audio/tool frames carry no
+            # turn ID, so abort alone cannot reliably distinguish late replies.
+            if self.reader:
+                self.reader.cancel()
+                await asyncio.gather(self.reader, return_exceptions=True)
+                self.reader = None
+            await self._cancel_tools()
+            if self.cloud:
+                await self._stop_motion()
+                with suppress(OSError, TimeoutError):
+                    await asyncio.wait_for(self._json({
+                        "type": "abort", "session_id": self.session_id,
+                        "reason": "wake_word_detected",
+                    }), 1)
+            await self.disconnect(discard_input=False)
+            self.mcp = DeviceMCP(self.motion, uuid.uuid4().hex[:12])
+            self.state = "interrupting"
+            async with asyncio.timeout(CONNECT_TIMEOUT):
+                await self._open_transport(publish_ready=False)
+                pending = self.pending_input
+                if self.state != "ready":
+                    # Activation is explicit; never retain audio awaiting binding.
+                    self.pending_input = None
+                    return
+                if not pending["started"]:
+                    self.pending_input = None
+                    await self.publish_status()
+                    return
+                await self.listen(True, from_interrupt=True)
+                self.started = pending["started"]
+                # Keep accepting in-order input while buffered frames are sent.
+                self.pending_input = pending
+                sent = 0
+                while sent < len(pending["frames"]):
+                    pcm = pending["frames"][sent]
+                    await asyncio.wait_for(self.cloud.send(self.encoder.encode(pcm)), IO_TIMEOUT)
+                    self.uplink_frames += 1
+                    if self.uplink_frames == 1:
+                        self.record("uplink_first_frame")
+                    sent += 1
+                self.pending_input = None
+                if pending["stopped"]:
+                    await self.listen(False)
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:
+            await self.command_failed(exc)
+
     async def reset(self, *, manual=False):
         if manual:
             self.record("reset", reason="manual")
         await self.disconnect()
-        await self.send({"type": "playback_end", "aborted": True})
+        await self.send({"type": "playback_end", "aborted": True,
+                             "generation": self.generation})
         self.start_connect(recovering=True)
 
     async def command_failed(self, error):
@@ -355,14 +452,25 @@ class VoiceSession:
         await self.disconnect()
         self.state = "error"
         self.error = "语音指令发送失败，已停止本轮，请重新连接。"
-        await self.send({"type": "playback_end", "aborted": True})
+        await self.send({"type": "playback_end", "aborted": True,
+                             "generation": self.generation})
         await self.publish_status()
 
     async def _stop_motion(self):
         record = await self.motion.submit(Action(name="stop"))
         await self.motion.wait(record["id"])
 
-    async def disconnect(self):
+    async def _cancel_tools(self):
+        tasks = list(self.tasks)
+        for task in tasks:
+            task.cancel()
+        await asyncio.gather(*tasks, return_exceptions=True)
+        self.tasks.clear()
+        await self.mcp.close()
+
+    async def disconnect(self, *, discard_input=True):
+        if discard_input:
+            self.pending_input = None
         for name in ("connector", "watchdog", "reader"):
             task = getattr(self, name)
             if task is asyncio.current_task():
@@ -372,12 +480,7 @@ class VoiceSession:
                 task.cancel()
                 with suppress(asyncio.CancelledError):
                     await task
-        tasks = list(self.tasks)
-        for task in tasks:
-            task.cancel()
-        await asyncio.gather(*tasks, return_exceptions=True)
-        self.tasks.clear()
-        await self.mcp.close()
+        await self._cancel_tools()
         if self.cloud:
             await self._stop_motion()
             with suppress(OSError, TimeoutError):

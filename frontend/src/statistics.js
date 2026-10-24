@@ -2,6 +2,9 @@ import './style.css';
 import './statistics.css';
 import { appURL } from './urls.js';
 
+import { setupRoom } from './room.js';
+await setupRoom({claim:false});
+
 const $ = id => document.getElementById(id);
 const tools = {duck_walk_short:'前进',duck_turn_left:'左转',duck_turn_right:'右转',duck_nod:'点头',duck_stop:'停止',duck_flash_step:'闪身步',duck_bear_shake:'狗熊哆嗦毛'};
 Object.assign(tools,{duck_set_scene:'切换场景',duck_kick:'踢球',duck_find_companion:'发现同伴',duck_duo_walk:'双鸭一起走',duck_collide:'相向碰面',duck_chorus:'同步合唱'});
