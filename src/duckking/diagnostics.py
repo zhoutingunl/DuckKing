@@ -15,13 +15,14 @@ STATES = {
     "listening", "thinking", "speaking", "error",
 }
 EVENTS = {
-    "interrupt", "state", "listen_start", "listen_stop",
+    "browser_audio", "interrupt", "state", "listen_start", "listen_stop",
     "uplink_first_frame", "downlink_first_frame",
     "stt", "tts_start", "tts_stop", "tts_sentence", "tool_start", "tool_end",
     "timeout", "reset", "connection_error", "connection_closed", "command_error",
     "action_start", "action_end",
 }
 ENUMS = {
+    "output_state": {"uninitialized", "running", "suspended", "interrupted", "closed"},
     "state": STATES,
     "reason": {
         "recording_limit", "response_idle", "playback_idle", "turn_limit", "manual", "browser_idle",
@@ -40,7 +41,12 @@ ENUMS = {
         "ConnectError", "WebSocketDisconnect",
     },
 }
+PLAYBACK_COUNTERS = {
+    "received_frames", "scheduled_frames", "ended_frames", "dropped_frames",
+    "queued_ms", "signal_peak_milli", "output_sample_rate",
+}
 COUNTERS = {"turn", "call", "uplink_frames", "downlink_frames", "elapsed_ms", "text_chars"}
+COUNTERS |= PLAYBACK_COUNTERS
 
 
 def redact_transcript(text, sensitive_values=()):
@@ -70,6 +76,24 @@ class VoiceDiagnostics:
         self.storage_ok = True
         self.turn_sequence = 0
         self.statistics = VoiceStatistics()
+        self.playback = None
+        self.playback_logged_at = 0.0
+
+    def update_playback(self, data):
+        state = data.get("output_state")
+        if not isinstance(state, str) or state not in ENUMS["output_state"]:
+            raise ValueError("无效的浏览器声音状态")
+        snapshot = {"output_state": data["output_state"]}
+        for key in PLAYBACK_COUNTERS:
+            value = data.get(key)
+            if type(value) is int and 0 <= value <= 2**31 - 1:
+                snapshot[key] = value
+        changed = not self.playback or self.playback["output_state"] != snapshot["output_state"]
+        self.playback = snapshot
+        now = time.monotonic()
+        if changed or now - self.playback_logged_at >= 1:
+            self.record("browser_audio", **snapshot)
+            self.playback_logged_at = now
 
     def next_turn(self):
         self.turn_sequence += 1
@@ -111,4 +135,5 @@ class VoiceDiagnostics:
             self.storage_ok = False
 
     def snapshot(self):
-        return {"events": list(self.events), "storage_ok": self.storage_ok}
+        return {"events": list(self.events), "storage_ok": self.storage_ok,
+                "browser_audio": self.playback}
