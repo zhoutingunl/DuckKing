@@ -6,7 +6,7 @@
 
 - [Pollen Robotics Microduck](https://github.com/pollen-robotics/microduck)，候选固定提交 `942e58e3aa6dbb28e7037203fff11866122c7567`。
 - [Microduck RL](https://github.com/pollen-robotics/microduck_rl)，候选固定提交 `b02fdea4902c2b93b7d34a83a6f05da4ececb7d3`。
-- 官方模型、机械文件和策略不包含在本仓库中。由用户在外部目录获取，适用其上游许可；部分模型含非商业限制。本仓库 MIT 许可不会覆盖这些资源。
+- 官方模型、机械文件和策略不进入本仓库的 Git 跟踪文件或 Python 包。本地开发通过脚本在外部目录获取；Linux 发布附件携带固定上游版本、来源清单及模型仓库原始许可，便于目标服务器离线加载。资源适用其上游许可；部分模型含非商业限制。本仓库 MIT 许可不会覆盖这些资源。
 
 ## 物理实验室的模型与策略
 

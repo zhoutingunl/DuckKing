@@ -7,12 +7,15 @@ Wants=network-online.target
 Type=simple
 User=duckking
 Group=duckking
+DynamicUser=true
+StateDirectory=duckking
+StateDirectoryMode=0700
 WorkingDirectory=/opt/duckking/current
 Environment=DUCKKING_BIND_HOST=127.0.0.1
 Environment=DUCKKING_DATA_DIR=/var/lib/duckking
 Environment=DUCKKING_RELEASE_FILE=/opt/duckking/current/release.json
 Environment=DUCKKING_DEPLOY_HISTORY=/var/lib/duckking/deployments.jsonl
-Environment=DUCKKING_SECRETS_FILE=/etc/duckking/voice.env
+Environment=DUCKKING_SECRETS_FILE=/var/lib/duckking/voice.env
 Environment=OPENBLAS_NUM_THREADS=1
 Environment=OMP_NUM_THREADS=1
 EnvironmentFile=-/etc/duckking/runtime.env
@@ -25,7 +28,6 @@ NoNewPrivileges=true
 PrivateTmp=true
 ProtectHome=true
 ProtectSystem=strict
-ReadWritePaths=/var/lib/duckking
 CPUQuota=150%
 MemoryMax=2G
 TasksMax=128

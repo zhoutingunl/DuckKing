@@ -16,9 +16,9 @@ exec 9>"$base/deploy.lock"
 flock -n 9 || { echo "Another DuckKing release is running" >&2; exit 1; }
 [[ ! -e $release ]] || { echo "Immutable release already exists" >&2; exit 1; }
 printf '%s  %s\n' "$checksum" "$archive" | sha256sum --check --status
-getent passwd duckking >/dev/null || useradd --system --home-dir /var/lib/duckking --shell /usr/sbin/nologin duckking
-install -d -o duckking -g duckking -m 700 /var/lib/duckking /var/lib/duckking/verification
-install -d -o root -g duckking -m 750 /etc/duckking
+# systemd owns the transient UID and moves StateDirectory below /var/lib/private.
+# Do not edit the target's protected passwd/group databases.
+install -d -m 700 /var/lib/duckking /var/lib/duckking/verification /etc/duckking
 previous=$(readlink -f "$base/current" || true)
 switched=0
 unit_changed=0
@@ -41,7 +41,7 @@ if metadata.is_file():
     with Path('/var/lib/duckking/deployments.jsonl').open('a') as stream:
         stream.write(json.dumps(row,ensure_ascii=False)+'\n')
 PY
-  chown duckking:duckking /var/lib/duckking/deployments.jsonl
+  chown --reference=/var/lib/duckking /var/lib/duckking/deployments.jsonl
   chmod 600 /var/lib/duckking/deployments.jsonl
 }
 
@@ -105,11 +105,10 @@ for name,expected in upstream['CHECKSUMS'].items():
     assert hashlib.sha256((release/'external/policies'/name).read_bytes()).hexdigest()==expected
 PY
 nice -n 10 "$release/.venv/bin/python" "$release/scripts/verify_scenarios.py" --output "/var/lib/duckking/verification/physics-$version.json"
-chown duckking:duckking "/var/lib/duckking/verification/physics-$version.json"
+chown --reference=/var/lib/duckking "/var/lib/duckking/verification/physics-$version.json"
 if [[ ! -e /etc/duckking/runtime.env ]]; then
   printf 'DUCKKING_BIND_HOST=127.0.0.1\n' > /etc/duckking/runtime.env
-  chmod 640 /etc/duckking/runtime.env
-  chown root:duckking /etc/duckking/runtime.env
+  chmod 600 /etc/duckking/runtime.env
 fi
 install -m 644 "$release/deploy/duckking.service" /etc/systemd/system/duckking.service
 unit_changed=1
