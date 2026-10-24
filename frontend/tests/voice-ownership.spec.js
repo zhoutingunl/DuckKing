@@ -1,5 +1,21 @@
 import {test,expect} from '@playwright/test';
 
+test('retry clears only the voice notice left by the previous occupied session',async({page})=>{
+  let attempts=0;
+  await page.routeWebSocket('**/voice',socket=>socket.onMessage(message=>{
+    if(typeof message!=='string'||JSON.parse(message).type!=='connect')return;
+    if(++attempts===1){
+      socket.send(JSON.stringify({type:'voice_status',state:'busy',error:'协议测试：另一个页面正在使用语音'}));socket.close();
+    }else socket.send(JSON.stringify({type:'voice_status',state:'ready'}));
+  }));
+  await page.goto('/');await page.locator('#connect-voice').click();
+  await expect(page.locator('#voice-badge')).toHaveText('其他页面正在使用语音');
+  await expect(page.locator('#notice')).toContainText('另一个页面');
+  await page.locator('#connect-voice').click();
+  await expect(page.locator('#voice-badge')).toHaveText('灵矽已连接');
+  await expect(page.locator('#notice')).toBeHidden();
+});
+
 test('a mobile page retries after the other browser releases the real server owner',async({page,browser,baseURL})=>{
   // Hold only the local device channel; this test never connects to Linx.
   await page.goto('/');

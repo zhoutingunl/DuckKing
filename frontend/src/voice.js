@@ -4,7 +4,8 @@ import { createSocket } from './transport.js';
 
 export function setupVoice({appendLog,notify,endpoint='/voice'}){
   const $=id=>document.getElementById(id),talk=$('talk-button'),connect=$('connect-voice');
-  let ws=null,state='disconnected',pressed=false,recording=null,playContext=null,nextTime=0,timeout=null,heartbeat=null,closingTimer=null;
+  let ws=null,state='disconnected',pressed=false,recording=null,playContext=null,nextTime=0,timeout=null,heartbeat=null,closingTimer=null,voiceNotice=null;
+  function voiceError(text){voiceNotice=text;notify(text)}
   const sources=new Set();
   const labels={disconnected:'未连接灵矽',disconnecting:'正在断开连接',connecting:'正在连接',recovering:'正在恢复连接',awaiting_binding:'等待设备绑定',ready:'灵矽已连接',listening:'正在聆听',thinking:'正在思考',speaking:'正在回答',error:'连接异常',busy:'其他页面正在使用语音'};
   function update(){
@@ -70,6 +71,8 @@ export function setupVoice({appendLog,notify,endpoint='/voice'}){
       closingTimer=setTimeout(()=>closing?.close(),7000);return;
     }
     if(ws?.readyState===WebSocket.CONNECTING)return;
+    if(voiceNotice&&$('notice').textContent===voiceNotice)$('notice').hidden=true;
+    voiceNotice=null;
     state='connecting';update();
     if(ws?.readyState===WebSocket.OPEN){send({type:'connect'});return}
     let receivedStatus=false;
@@ -89,7 +92,7 @@ export function setupVoice({appendLog,notify,endpoint='/voice'}){
         state=data.state;if(state==='busy')owner=false;
         $('activation').hidden=!data.activation_code;
         $('activation').textContent=data.activation_code?`激活码：${data.activation_code}。请在灵矽控制台添加设备，再点击重新连接。`:'';
-        if(data.error)notify(data.error);
+        if(data.error)voiceError(data.error);
         if(!['listening','ready'].includes(state)&&recording)await release(false);
         update();
       }else if(data.type==='transcript'){appendLog(data.text,data.role==='user'?'你说':'灵矽')}
@@ -102,7 +105,7 @@ export function setupVoice({appendLog,notify,endpoint='/voice'}){
       ws=null;clearInterval(heartbeat);clearTimeout(closingTimer);
       await release(false);if(ws!==null)return;clearPlayback();
       state=owner?(['error','awaiting_binding'].includes(state)?state:receivedStatus?'disconnected':'error'):'busy';
-      if(owner&&!receivedStatus)notify('本地语音通道连接失败，请检查页面地址、代理或修改请求头的浏览器扩展。');
+      if(owner&&!receivedStatus)voiceError('本地语音通道连接失败，请检查页面地址、代理或修改请求头的浏览器扩展。');
       update();
     };
   });
