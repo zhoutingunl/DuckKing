@@ -159,3 +159,23 @@ async def test_interrupt_without_microphone_returns_ready_without_auto_recording
         finally:
             await session.disconnect()
             await session.motion.close()
+
+
+async def test_old_reader_or_queued_tool_cannot_enter_a_new_generation(tmp_path):
+    class ObsoleteCloud:
+        async def __aiter__(self):
+            yield json.dumps({'type': 'tts', 'state': 'start'})
+            yield bytes(640)
+
+    session, messages = session_for(tmp_path, 1)
+    session.cloud = ObsoleteCloud()
+    session.state = 'interrupting'
+    session.generation = 1
+    await session._receive(generation=0)
+    await session._tool({'jsonrpc': '2.0', 'id': 99, 'method': 'tools/call',
+                         'params': {'name': 'duck_walk_short'}}, generation=0)
+    assert not messages and not session.motion.records
+    assert session.state == 'interrupting'
+    session.cloud = None
+    await session.disconnect()
+    await session.motion.close()

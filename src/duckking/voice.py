@@ -162,7 +162,7 @@ class VoiceSession:
         self.last_activity = time.monotonic()
         if publish_ready:
             await self.publish_status()
-        self.reader = asyncio.create_task(self._receive())
+        self.reader = asyncio.create_task(self._receive(self.generation))
         self.watchdog = asyncio.create_task(self._watch())
 
     async def _json(self, data: dict):
@@ -228,7 +228,9 @@ class VoiceSession:
         if self.uplink_frames == 1:
             self.record("uplink_first_frame")
 
-    async def _tool(self, payload):
+    async def _tool(self, payload, generation=None):
+        if generation is not None and generation != self.generation:
+            return
         params = payload.get("params")
         tool = params.get("name") if isinstance(params, dict) else None
         turn, started = self.turn, self.started
@@ -257,9 +259,13 @@ class VoiceSession:
             # The session's receive loop reports connection failures, not a fabricated tool result.
             return
 
-    async def _receive(self):
+    async def _receive(self, generation=None):
+        if generation is None:
+            generation = self.generation
         try:
             async for message in self.cloud:
+                if generation != self.generation:
+                    return
                 if isinstance(message, bytes):
                     self.last_activity = time.monotonic()
                     pcm = self.decoder.decode(message) if self.audio_format == "opus" else message
@@ -286,7 +292,7 @@ class VoiceSession:
                         raise ValueError("invalid MCP payload")
                     if len(self.tasks) >= 32:
                         raise ValueError("too many concurrent tool calls")
-                    task = asyncio.create_task(self._tool(payload))
+                    task = asyncio.create_task(self._tool(payload, generation))
                     self.tasks.add(task)
                     task.add_done_callback(self.tasks.discard)
                 elif kind == "stt":
