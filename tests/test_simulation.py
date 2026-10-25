@@ -232,7 +232,7 @@ def test_scene_actions_remain_bounded(body):
 
 def test_scene_state_stream_closes_unresponsive_client(monkeypatch, caplog):
     monkeypatch.setattr("duckking.app.SCENE_STATE_ACK_TIMEOUT", 0.01)
-    with TestClient(create_app()) as client, client.websocket_connect("/scene-ws") as ws:
+    with TestClient(create_app()) as client, client.websocket_connect("/scene-ws?room=1") as ws:
         assert ws.receive_json()["type"] == "not_started"
         with pytest.raises(WebSocketDisconnect) as closed:
             ws.receive_json()
@@ -244,7 +244,7 @@ def test_scene_state_stream_closes_unresponsive_client(monkeypatch, caplog):
 def test_scene_origin_rejection_is_not_reported_as_timeout(origin, caplog):
     with TestClient(create_app()) as client:
         with pytest.raises(WebSocketDisconnect) as closed:
-            with client.websocket_connect("/scene-ws", headers={"Origin": origin}):
+            with client.websocket_connect("/scene-ws?room=1", headers={"Origin": origin}):
                 pass
         assert closed.value.code == 1008
     assert "scene_ws_rejected: origin_mismatch" in caplog.text
@@ -255,12 +255,12 @@ def test_scene_origin_rejection_is_not_reported_as_timeout(origin, caplog):
 def test_scene_http_websocket_origin_model_and_missing_dependencies(monkeypatch):
     with TestClient(create_app()) as client:
         assert client.get("/api/scenes/state").status_code == 503
-        with client.websocket_connect("/scene-ws") as ws:
+        with client.websocket_connect("/scene-ws?room=1") as ws:
             assert ws.receive_json()["type"] == "not_started"
-        with client.websocket_connect("/scene-voice") as ws:
+        with client.websocket_connect("/scene-voice?room=1") as ws:
             assert ws.receive_json()["error"] == "请先启动物理场景再连接灵矽"
         with pytest.raises(WebSocketDisconnect):
-            with client.websocket_connect("/scene-ws", headers={"Origin": "https://bad.example"}):
+            with client.websocket_connect("/scene-ws?room=1", headers={"Origin": "https://bad.example"}):
                 pass
         assert client.post("/api/scenes/start", json={"name": "walk"}).status_code == 422
         assert (
@@ -285,7 +285,7 @@ def test_scene_http_websocket_origin_model_and_missing_dependencies(monkeypatch)
         assert client.get("/api/scenes/state").json()["backend"]["physics"] is True
         assert client.get("/api/scenes/actions/load").status_code == 200
         assert client.get("/api/scenes/actions/missing").status_code == 404
-        with client.websocket_connect("/scene-ws") as ws:
+        with client.websocket_connect("/scene-ws?room=1") as ws:
             assert ws.receive_json()["backend"]["scene"] == "ball"
             # Emulate a slow client. There must be no old ball frames queued
             # ahead of the latest scene after it is ready for another snapshot.

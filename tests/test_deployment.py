@@ -67,11 +67,11 @@ def test_public_host_is_explicit_and_foreign_origins_remain_rejected():
         )
         with pytest.raises(WebSocketDisconnect):
             with client.websocket_connect(
-                "wss://ztmonitor.qbox.net/scene-ws", headers={"Origin": "https://untrusted.example"}
+                "wss://ztmonitor.qbox.net/scene-ws?room=1", headers={"Origin": "https://untrusted.example"}
             ):
                 pass
         with client.websocket_connect(
-            "wss://ztmonitor.qbox.net/scene-ws", headers={"Origin": "https://ztmonitor.qbox.net"}
+            "wss://ztmonitor.qbox.net/scene-ws?room=1", headers={"Origin": "https://ztmonitor.qbox.net"}
         ) as ws:
             assert ws.receive_json()["type"] == "not_started"
 

@@ -6,6 +6,9 @@ import { setupVoice } from './voice.js';
 import { appURL } from './urls.js';
 import { createSocket } from './transport.js';
 
+import { setupRoom } from './room.js';
+await setupRoom();
+
 const $=id=>document.getElementById(id);
 const names={scene_ball:'单鸭踢球',scene_duo:'双鸭互动',kick_left:'左脚踢球',kick_right:'右脚踢球',find_companion:'发现同伴',duo_walk:'双鸭一起走',collide:'相向碰面',chorus:'同步合唱',walk:'前进',turn_left:'左转',turn_right:'右转',stop:'停止',reset:'重置场景',nod:'点头'};
 const statuses={completed:'完成',failed:'未完成',cancelled:'已取消',running:'进行中'};

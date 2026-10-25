@@ -22,10 +22,10 @@ test('development proxy rejects foreign origins on both WebSockets', async ({ re
 });
 
 test('voice proxy reaches the local protocol without connecting to the cloud', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/?room=1');
   const events = await page.evaluate(() => new Promise((resolve, reject) => {
     const events = [];
-    const ws = new WebSocket(`ws://${location.host}/voice`);
+    const ws = new WebSocket(`ws://${location.host}/voice?room=1`);
     const timeout = setTimeout(() => { ws.close(); reject(new Error('Voice proxy timed out')); }, 5000);
     ws.onerror = () => { clearTimeout(timeout); reject(new Error('Voice proxy failed')); };
     ws.onmessage = event => {
@@ -51,7 +51,7 @@ test('unavailable API returns a proxy error and actionable feedback', async ({ r
     const response = await request.get(new URL('/api/health', server.resolvedUrls.local[0]).href);
     expect(response.status()).toBe(502);
     expect(await response.text()).not.toContain('"backend":"preview"');
-    await page.goto(server.resolvedUrls.local[0]);
+    await page.goto(server.resolvedUrls.local[0]+'?room=1');
     await page.locator('[data-action="nod"]').click();
     await expect(page.locator('#notice')).toHaveText('本地后端请求失败（HTTP 502），请检查服务与端口。');
   } finally {

@@ -31,7 +31,7 @@ flowchart LR
 
 | 模块 | 文件 | 输入 / 输出 | 责任边界 |
 |---|---|---|---|
-| 本地应用 | `src/duckking/app.py` | HTTP API、状态 WS、语音 WS | 默认只绑定 loopback；同源校验；一个页面独占语音 |
+| 本地应用 | `src/duckking/app.py` | HTTP API、状态 WS、语音 WS | 默认只绑定 loopback；同源校验；两个独立房间，每房间一个页面拥有语音 |
 | 动作调度 | `motion.py` | Action → 执行记录 / 状态 | 限时、取消、去重、失败反馈；不直接控制舵机 |
 | 组合动作 | `choreography.py` | 动作名 / 时间 → 高层意图帧 | 闪身步与狗熊哆嗦毛；有界、连续的阶段编排 |
 | 预览后端 | `motion.py:PreviewBackend` | 速度 / 头部意图 → 动画状态 | 运动学示意，不计算接触、平衡与真实步态 |
@@ -39,7 +39,7 @@ flowchart LR
 | 设备配置 | `config.py` | 私有配置、OTA → 设备连接参数 | 设备身份持久化；凭证留在后端；公网连接要求 TLS |
 | 显式初始化 | `onboarding.py` | 平台 API Key 文件 → 智能体/设备绑定 | 仅在运行 setup 命令时创建或复用 DuckKing，不迁移已有设备历史 |
 | 音频编解码 | `opus.py` | PCM16 ↔ Opus | 原生 libopus；16 kHz 上行；按服务器协商解码下行 |
-| 灵矽会话 | `voice.py` | 浏览器音频 ↔ 云端事件 | 激活、握手、半双工、音频、工具转发、断线清理 |
+| 灵矽会话 | `voice.py` | 浏览器音频 ↔ 云端事件 | 激活、握手、按键打断、音频、工具转发、断线清理 |
 | 语音诊断 | `diagnostics.py` | 阶段 / 计数 / STT → 有界日志 | 字段白名单、STT 脱敏与长度限制、内存最近 200 条、私有轮转文件；不保存录音或设备标识 |
 | 交互统计 | `statistics.py`、`frontend/src/statistics.js` | 脱敏事件 → 最近 500 轮、百分位、统计页 | 单调时钟、进程内唯一轮次；缺失不补零、不同后端可筛选；不推断物理或扬声器延迟 |
 | 端侧 MCP | `mcp.py` | JSON-RPC → 工具结果 | 初始化 / 工具发现 / 白名单调用；结果关联原请求 ID |
@@ -88,7 +88,7 @@ flowchart LR
 
 按键说话时，浏览器采集单声道音频，转换为 16 kHz、PCM16、60 ms 一帧。后端编码 Opus 后上传。服务端下行可能使用不同采样率，后端按握手参数解码，再让浏览器按正确采样率播放。
 
-每次录音最多 15 秒。播放时不继续录音；非打断的 TTS 结束会等待已有音频播放完成。断线后停止相关动作、释放音频资源并提示用户重新连接。首版不做唤醒词、全双工或自动恢复录音。
+每次录音最多 15 秒。播放时可按住按钮打断，清除播放队列后录制新命令；非打断的 TTS 结束会等待已有音频播放完成。断线后停止相关动作、释放音频资源并提示用户重新连接。首版不做唤醒词、全双工或自动恢复录音。
 
 后端独立监控录音时限，即使浏览器不再发音频也会在 15 秒结束录音。思考阶段 20 秒没有 STT / MCP / TTS / 音频等有效进展，或回答阶段 15 秒没有新进展时，关闭旧云端会话并重连一次；包括录音在内的整轮另有 60 秒上限。重连前取消工具任务、停止动作、关闭编解码器并通知浏览器清空播放队列。旧录音不重发，恢复到 ready 后需重新按键说话；重连失败会进入 error，不无限重试。
 
@@ -129,13 +129,13 @@ ai_gateway 可独立添加固定 loopback 路由；现有前置代理不透传 U
 
 Three.js 渲染官方几何，不会用预设踢球动画替换实际关节结果。每次绘制后留出至少 33 ms 空闲时间；检测到 SwiftShader / llvmpipe 等软件渲染器或连续慢帧时关闭阴影，将画布宽度限制为 640 像素，并延长绘制间隔至 100 ms。这样可以为输入、语音和状态处理留出时间，不改变物理步进和接触判定。
 
-`/scene-voice` 复用真实 `VoiceSession`，连接场景控制器，按同源规则保护。和 `/voice` 共用单一语音所有权，不能同时连接同一设备。新增 MCP 工具仅对 MuJoCo 控制器公布：`duck_set_scene`、`duck_kick`（必填 left/right）、`duck_find_companion`、`duck_duo_walk`、`duck_collide`、`duck_chorus`。状态工具剔除渲染网格，避免将大量图形数据送入模型上下文。统计按 `mujoco` 单独筛选。
+`/scene-voice` 复用真实 `VoiceSession`，连接场景控制器，按同源规则保护。同一房间内和 `/voice` 共用一个语音名额；两个房间分别使用独立的设备身份、控制器与物理世界。新增 MCP 工具仅对 MuJoCo 控制器公布：`duck_set_scene`、`duck_kick`（必填 left/right）、`duck_find_companion`、`duck_duo_walk`、`duck_collide`、`duck_chorus`。状态工具剔除渲染网格，避免将大量图形数据送入模型上下文。统计按 `mujoco` 单独筛选。
 
 发现同伴使用仿真真值：距离 ≤1.2 m、相对朝向 ±60°、`mj_ray` 检查遮挡。合唱为应用自己的 3 秒双声部旋律，两只鸭收到相同点头节拍，浏览器两个声部共享 AudioContext；声音依赖用户启用，工具成功表示控制编排完成，不承诺扬声器播放或跨设备同步。不是官方 BLE/duckether 合唱实现。
 
 ## 身份与配置
 
-默认私有配置路径是 `~/.secrets/duckking.env`，设备身份位于 `~/.local/share/duckking/identity.json`。设备 ID 使用主机网卡标识派生的稳定伪 MAC，Client ID 使用 UUIDv4；身份文件以 `0600` 权限创建。
+默认私有配置路径是 `~/.secrets/duckking.env`，设备身份位于 `~/.local/share/duckking/identity.json`。已有身份保持不变；新设备 ID 使用随机生成并持久化的本地管理 MAC 格式标识，Client ID 使用 UUIDv4，避免同机两个房间身份碰撞；身份文件以 `0600` 权限创建。房间 2 使用数据目录下 `rooms/2/identity.json`，通过 `duckking-setup --room 2` 独立绑定。
 
 没有手工设备凭证时，走 OTA 激活与控制台绑定。浏览器只接收激活码与必要状态，不接收设备 token；网络错误只输出错误类型，避免将含凭证的 URL 或请求头写入界面。
 
@@ -146,3 +146,5 @@ Three.js 渲染官方几何，不会用预设踢球动画替换实际关节结�
 实际参与者见 [TEAM.md](TEAM.md)，贡献边界见 [CONTRIBUTION_SCOPE.md](CONTRIBUTION_SCOPE.md)，测试与已知限制见 [VALIDATION.md](VALIDATION.md)。
 
 本项目不把 AI 辅助开发记作额外参赛成员，也不把第三方步态策略或官方仿真器记作原创成果。
+
+两房间分配、接口选择和打断录音缓冲的规则见 [开发指南](DEVELOPMENT.md#打断回复并说新命令)。设备接入与 abort 格式依据 [灵矽官方 WebSocket 协议](https://linx.qiniu.com/docs/xrobot/platform/websocket)；没有假定同一设备支持多连接。

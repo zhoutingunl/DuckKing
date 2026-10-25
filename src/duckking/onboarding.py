@@ -134,6 +134,7 @@ async def setup_device(
 def main():
     parser = argparse.ArgumentParser(description="Create/select DuckKing and bind this device")
     parser.add_argument("--key-file", type=Path, default=Path("~/.secrets/lingxi"))
+    parser.add_argument("--room", choices=["1", "2"], default="1")
     parser.add_argument("--agent-id")
     parser.add_argument("--model-id")
     parser.add_argument(
@@ -144,7 +145,8 @@ def main():
     try:
         result = asyncio.run(
             setup_device(
-                Settings.load(), args.key_file, agent_id=args.agent_id, model_id=args.model_id,
+                Settings.load().for_room(args.room), args.key_file,
+                agent_id=args.agent_id, model_id=args.model_id,
                 sync_prompt=args.sync_prompt,
             )
         )

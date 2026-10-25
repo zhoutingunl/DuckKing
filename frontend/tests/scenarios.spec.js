@@ -3,8 +3,8 @@ import { test, expect } from '@playwright/test';
 test('real MuJoCo left/right contacts, duo discovery/collision, chorus and stop',async({page})=>{
   test.setTimeout(90000);
   const errors=[];page.on('pageerror',e=>errors.push(e.message));
-  let modelRequests=0;page.on('request',r=>{if(r.url().endsWith('/api/scenes/model'))modelRequests++;});
-  await page.goto('/scenarios.html');
+  let modelRequests=0;page.on('request',r=>{if(new URL(r.url()).pathname.endsWith('/api/scenes/model'))modelRequests++;});
+  await page.goto('/scenarios.html?room=1');
   await page.getByRole('button',{name:'单鸭定点踢球'}).click();
   await expect(page.locator('#sim-status')).toHaveText('MuJoCo 物理运行中',{timeout:45000});
   await expect(page.locator('#scene-placeholder')).toBeHidden({timeout:20000});
@@ -37,9 +37,9 @@ test('real MuJoCo left/right contacts, duo discovery/collision, chorus and stop'
 });
 
 test('physics startup failure is explicit and does not show a preview as success',async({page})=>{
-  await page.route('**/api/scenes/start',route=>route.fulfill({status:503,json:{detail:'物理场景未就绪，请运行 scripts/setup_scenarios.sh'}}));
+  await page.route('**/api/scenes/start?*',route=>route.fulfill({status:503,json:{detail:'物理场景未就绪，请运行 scripts/setup_scenarios.sh'}}));
   await page.routeWebSocket('**/scene-ws',socket=>socket.send(JSON.stringify({type:'not_started'})));
-  await page.goto('/scenarios.html');await page.getByRole('button',{name:'单鸭定点踢球'}).click();
+  await page.goto('/scenarios.html?room=1');await page.getByRole('button',{name:'单鸭定点踢球'}).click();
   await expect(page.locator('#notice')).toContainText('setup_scenarios.sh');
   await expect(page.locator('#sim-status')).toHaveText('物理场景启动失败');
   await expect(page.locator('#stop-scene')).toBeDisabled();
@@ -50,7 +50,7 @@ test('a restarted server clears stale scene controls and measurements',async({pa
   const state=await (await request.get('/api/scenes/state')).json();
   let channel;
   await page.routeWebSocket('**/scene-ws',socket=>{channel=socket;socket.send(JSON.stringify({type:'state',...state}));});
-  await page.goto('/scenarios.html');await expect(page.locator('#stop-scene')).toBeEnabled();
+  await page.goto('/scenarios.html?room=1');await expect(page.locator('#stop-scene')).toBeEnabled();
   channel.send(JSON.stringify({type:'not_started'}));
   await expect(page.locator('#stop-scene')).toBeDisabled();
   await expect(page.locator('#sim-status')).toHaveText('选择场景开始');
@@ -68,7 +68,7 @@ test('a real origin rejection explains the local connection and recovers without
       return new Target(...args);
     }});
   });
-  await page.goto('/scenarios.html');
+  await page.goto('/scenarios.html?room=1');
   await expect(page.locator('#sim-status')).toHaveText('场景连接未建立 · 正在重试');
   await expect(page.locator('#notice')).toContainText('无需先连接灵矽');
   await expect(page.locator('#notice')).toContainText('Chrome 无痕窗口');

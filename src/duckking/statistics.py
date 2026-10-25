@@ -87,7 +87,7 @@ class VoiceStatistics:
             row.update(status="timeout", reason=entry.get("reason"))
         elif event in {"connection_error", "command_error"}:
             row["status"] = "error"
-        elif event == "reset" or (event == "state" and state == "disconnected"):
+        elif event in {"reset", "interrupt"} or (event == "state" and state == "disconnected"):
             row["status"] = "interrupted"
 
     def snapshot(self, backend=None):
