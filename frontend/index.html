@@ -37,6 +37,9 @@
             <button id="talk-button" class="talk-button" disabled aria-label="按住说话"><svg viewBox="0 0 24 24" width="25" height="25" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="8" y="2" width="8" height="13" rx="4"/><path d="M5 10v2a7 7 0 0 0 14 0v-2M12 19v3M8 22h8"/></svg><span>按住说话</span><span class="key-hint">SPACE</span></button>
             <div class="voice-caption" id="voice-caption">当前可以先用下方按钮探索动作。</div>
             <div class="voice-setup"><button id="connect-voice" class="text-button" disabled>连接灵矽 <span>↗</span></button><span id="voice-connection-hint">接入模块准备中</span></div>
+            <div class="voice-setup"><button id="enable-sound" class="text-button">启用 / 测试声音 ♪</button></div>
+            <p id="audio-status" class="voice-caption" role="status">可先播放本地提示音，检查手机声音。</p>
+            <details class="audio-details"><summary>声音诊断</summary><pre id="audio-diagnostics">尚未初始化声音</pre></details>
             <div class="voice-setup"><button id="reset-voice" class="text-button" disabled>重置语音 ↻</button><a class="text-button" href="./api/voice/diagnostics" target="_blank" rel="noopener">连接诊断 ↗</a></div>
             <div id="activation" class="activation" hidden></div>
           </section>

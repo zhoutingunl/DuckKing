@@ -129,3 +129,29 @@ def test_prefixed_scene_voice_uses_selected_room_scene_controller(tmp_path):
             assert ws.receive_json()['state'] == 'disconnected'
             assert app.state.rooms['2'].voice.motion is scene
             assert app.state.voice is None
+
+
+def test_browser_audio_reports_stay_in_owner_room_and_survive_disconnect(tmp_path):
+    with TestClient(create_app(settings=Settings(data_dir=tmp_path))) as client:
+        with join(client, '1', 'voice') as ws:
+            assert ws.receive_json()['state'] == 'disconnected'
+            ws.send_json({'type': 'playback_status', 'output_state': []})
+            assert ws.receive_json()['type'] == 'error'
+            ws.send_json({'type': 'playback_status', 'output_state': 'interrupted',
+                          'received_frames': 42, 'token': 'private-secret'})
+            ws.send_json({'type': 'ping'})
+            assert ws.receive_json() == {'type': 'pong'}
+            first = client.get('/api/voice/diagnostics?room=1').json()
+            assert first['browser_audio']['received_frames'] == 42
+            assert client.get('/api/voice/diagnostics?room=2').json()['browser_audio'] is None
+            with join(client, '1', 'voice') as duplicate:
+                assert duplicate.receive_json()['state'] == 'busy'
+            assert 'private-secret' not in str(first)
+            ws.send_json({'type': 'disconnect'})
+            assert ws.receive_json()['state'] == 'disconnected'
+        assert client.get('/api/voice/diagnostics?room=1').json()['browser_audio'] == {
+            'output_state': 'interrupted', 'received_frames': 42,
+        }
+        with join(client, '1', 'voice') as next_browser:
+            assert next_browser.receive_json()['state'] == 'disconnected'
+            assert client.get('/api/voice/diagnostics?room=1').json()['browser_audio'] is None

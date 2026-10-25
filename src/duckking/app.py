@@ -374,6 +374,8 @@ def create_app(
                         break
                     elif command == "ping":
                         await ws.send_json({"type": "pong"})
+                    elif command == "playback_status":
+                        room.voice_diagnostics.update_playback(data)
                     elif command == "interrupt":
                         session.start_interrupt()
                     elif command == "reset":
