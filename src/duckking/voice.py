@@ -540,6 +540,11 @@ class VoiceSession:
 
     async def _stop_motion(self):
         studio = self.motion.studio
+        # A spoken queue edit must not stop the singer it is meant to follow.
+        # Explicit stop/disconnect still cancels the conductor immediately.
+        if (studio and self.pending_input is not None and studio.active == "conductor"
+                and studio.task and not studio.task.done()):
+            return
         # Interrupting spoken acknowledgement should not erase a quiet reminder.
         # Explicit disconnect/stop still cancels it; a new timer command can extend it.
         preserve = (studio and self.pending_input is not None

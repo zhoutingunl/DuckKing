@@ -232,3 +232,25 @@ async def test_busy_announcement_waits_and_cancellation_prevents_late_speech(
     session.state = 'speaking'
     await session.announce('等待已超时')
     assert len(frames) == 1 and messages[-1]['spoken'] is False
+
+
+async def test_speech_interruption_preserves_solo_but_explicit_stop_cancels(studio, tmp_path):
+    await studio.select('conductor')
+    playing = asyncio.Event()
+    async def concert():
+        playing.set()
+        await asyncio.Event().wait()
+    task = await studio.start('conductor', concert)
+    await playing.wait()
+    async def send(data):
+        pass
+    session = VoiceSession(send, studio.motion, Settings(data_dir=tmp_path))
+    before = len(studio.motion.records)
+    session.pending_input = {'frames': []}
+    await session._stop_motion()
+    assert not task.done() and len(studio.motion.records) == before
+    session.pending_input = None
+    await session._stop_motion()
+    assert task.done() and studio.state['status'] == 'cancelled'
+    stopped = list(studio.motion.records.values())[before:]
+    assert stopped and all(r["name"] == "stop" and r["status"] == "completed" for r in stopped)
