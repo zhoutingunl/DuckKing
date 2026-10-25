@@ -207,3 +207,11 @@ HTTP API 用 `room=1|2` 查询参数选择房间（省略时兼容房间 1）。
 运行 `scripts/setup_local_asr.sh` 安装固定版本 sherpa-onnx 和校验过的 SenseVoiceSmall INT8 权重。在一个终端运行 `uv run --frozen --no-sync duckking-asr`，另一个运行 `DUCKKING_LOCAL_ASR=1 scripts/run_local.sh`，页面选择“本地优先”。worker 仅监听 127.0.0.1:8768；模型只需首次下载，日常识别不联网。未匹配的指令仍需已配置的灵矽设备和网络。
 
 `uv run --extra local-asr python scripts/verify_local_asr.py` 对披露来源的合成录音做真实推理验证。可说“向前走再向左转再向右转”“后退两秒然后点头”。“不要前进”“前进然后去火星”整句交云端。复杂物理动作先在对应实验场景中启用语音，例如动作练习场中的“前滚翻”。本地确认是提示音和文字，聊天回复由灵矽提供。
+
+## CI 并行分组
+
+本地完整回归命令保持不变。定位慢项可在 `frontend` 中执行 `npx playwright test --grep @journey`（完整十二幕），或 `npx playwright test --grep-invert @journey`（其余检查）；设置 `DUCKKING_TEST_DEV=1` 切到开发模式。`node scripts/verify-ci-groups.mjs` 仅枚举两种模式的测试，确认两组并集等于全量且没有交集。
+
+GitHub Actions 的四组浏览器检查在四台独立 runner 上运行，避免在同一个物理世界增加 workers 导致冲突。后端与前端单元检查同时启动，`quality` 汇总检查拒绝失败、取消或跳过的依赖。`backend-coverage` artifact 保存后端报告及绑定提交的摘要，其余四个 artifact 分别保留对应浏览器 HTML、截图和 trace。固定模型会缓存，但每次仍运行现有摘要／版本校验。
+
+串行基准 CI 40192976186 中，后端约 5.2 分钟，生产／开发浏览器约 13.6／13.8 分钟，其中十二幕单次约 5.5–5.7 分钟。并行后的实际耗时以最新 CI 各 job 时间为准，不把估算作为已达成结果。
