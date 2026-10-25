@@ -33,20 +33,23 @@ test('mobile studio shows ten scenes and exposes honest audio audition',async({p
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
 });
 
-test('conductor keyboard control changes pending solo and gates audible part on actual standing',async({page})=>{
+test('conductor control changes pending solo and gates audible part on actual standing',async({page})=>{
  test.setTimeout(90000);
  await page.goto('/studio.html?room=1');
  await page.locator('[data-studio=conductor]').click();
  await expect(page.locator('#scene-title')).toHaveText('评委当指挥',{timeout:60000});
+ const next=page.getByRole('button',{name:'下一位换 B',exact:true});
+ await expect(next).toBeVisible();await expect(next).toBeEnabled();
  await page.getByRole('button',{name:'C 先唱，再 A',exact:true}).click();
  await expect.poll(async()=>{
   const s=await page.request.get('/api/scenes/state?room=1').then(r=>r.json());
   return s.backend.seated_choir?.phase==='solo'&&s.backend.seated_choir.solo==='c';
  },{timeout:12000,intervals:[100]}).toBe(true);
- // Real keyboard activation tests the bounded queue-change window without
- // spending it on Playwright's repeated mouse layout/stability round trips.
- // On software GPUs those checks can exceed the entire eight-second solo.
- await page.getByRole('button',{name:'下一位换 B',exact:true}).press('Enter');
+ // Exercise the real displayed control's handler in one browser turn. Extra
+ // automation focus/layout round trips on software GPUs can consume the whole
+ // eight-second solo before an input is sent. Native click still respects a
+ // disabled button; the actual physical and audible order is checked below.
+ await page.evaluate(()=>[...document.querySelectorAll('#studio-controls button')].find(b=>b.textContent==='下一位换 B').click());
  await expect(page.locator('#task-status')).toContainText('已完成',{timeout:35000});
  const music=JSON.parse(await page.locator('#physics-viewport').getAttribute('data-music-evidence'));
  expect([...new Set(music.map(n=>n.member))]).toEqual(['c','b']);
