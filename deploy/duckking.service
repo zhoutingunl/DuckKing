@@ -11,6 +11,7 @@ StateDirectory=duckking
 StateDirectoryMode=0700
 WorkingDirectory=/root/zt_dir/hackathon_base/DuckKing/current
 Environment=DUCKKING_BIND_HOST=127.0.0.1
+Environment=DUCKKING_LOCAL_ASR=1
 Environment=DUCKKING_DATA_DIR=/var/lib/duckking
 Environment=DUCKKING_RELEASE_FILE=/root/zt_dir/hackathon_base/DuckKing/current/release.json
 Environment=DUCKKING_DEPLOY_HISTORY=/var/lib/duckking/deployments.jsonl

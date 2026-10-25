@@ -21,6 +21,7 @@ class Settings:
     ws_token: str = field(default="", repr=False)
     device_id: str = ""
     client_id: str = ""
+    local_asr: bool = False
 
     @classmethod
     def load(cls):
@@ -35,6 +36,7 @@ class Settings:
             ws_token=values.get("LINX_WS_TOKEN", ""),
             device_id=values.get("LINX_DEVICE_ID", ""),
             client_id=values.get("LINX_CLIENT_ID", ""),
+            local_asr=values.get("DUCKKING_LOCAL_ASR", "0") == "1",
         )
 
     def for_room(self, room: str):

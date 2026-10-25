@@ -29,6 +29,12 @@ scripts/run_local.sh
 
 继续开发时保持后端运行，在第二个终端执行 `cd frontend && npm run dev`，打开 <http://127.0.0.1:5173> 获得前端热更新。安装、端口配置、验证及排障见 [本地开发指南](docs/DEVELOPMENT.md)。
 
+## 服务器离线识别（可选）
+
+首页和物理实验室可切换“本地优先 / 全部交给灵矽”。本地优先使用服务器的 sherpa-onnx + SenseVoiceSmall INT8，手机无需安装模型；“向前走再向左转再向右转”等整句动作命中后直接执行，未匹配、问句或识别超时把原始录音一次性交给真实灵矽。本地确认是提示音和文字，统计页区分本地命中、回退原因与各路径延迟。
+
+本机安装及启动见 `scripts/setup_local_asr.sh` 与 [开发指南](docs/DEVELOPMENT.md#可选服务器离线语音)。仍可能有识别错误；当前采用整句白名单，不声称通用语义理解或手机场景准确率。
+
 ## 连接灵矽
 
 如需在 Linux 上复用现有 HTTPS 域名，参见 [YZH737 独立部署](deploy/README.md)。同一份前端支持 `/` 与 `/duckking/`，包含麦克风 worklet、API、语音通道和部署记录页面。ai_gateway 首次接入固定路由后，DuckKing 升级只重启自身服务；入口不支持 Upgrade 时可经 HTTPS 转发真实后端 WebSocket。安装默认只验证 loopback 独立服务；公网入口与真实云端语音需另行验收，暂存状态不会显示为完整验收成功。

@@ -49,7 +49,14 @@ async def verify(output: Path):
             result = {k: record[k] for k in ("name", "status", "outcome", "error") if k in record}
             results.append(result)
             if record["status"] != "completed":
-                raise RuntimeError(f"Physics check failed: {name}")
+                output.parent.mkdir(parents=True, exist_ok=True)
+                await asyncio.to_thread(output.write_text, json.dumps({
+                    "recorded_at": datetime.now(UTC).isoformat(),
+                    "passed": False, "results": results,
+                }, ensure_ascii=False, indent=2) + "\n")
+                raise RuntimeError(
+                    f"Physics check failed: {json.dumps(result, ensure_ascii=False)}"
+                )
         evidence = {
             "recorded_at": datetime.now(UTC).isoformat(),
             "runtime": "MuJoCo CPU + official ONNX, not robotd",

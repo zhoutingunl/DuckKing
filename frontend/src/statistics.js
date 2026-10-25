@@ -10,6 +10,8 @@ const tools = {duck_walk_short:'前进',duck_turn_left:'左转',duck_turn_right:
 Object.assign(tools,{duck_set_scene:'切换场景',duck_kick:'踢球',duck_find_companion:'发现同伴',duck_duo_walk:'双鸭一起走',duck_collide:'相向碰面',duck_chorus:'同步合唱'});
 const statuses = {listening:'录音中',waiting:'等待回复',completed:'已结束',timeout:'超时',interrupted:'已中断',error:'异常'};
 const actionStatuses = {running:'进行中',completed:'完成',cancelled:'取消',failed:'失败'};
+const routeNames={local:'本地执行',cloud:'灵矽云端',cloud_fallback:'转交灵矽',pending:'等待识别',no_speech:'未识别到语音'};
+const routeReasons={matched:'完整匹配',unmatched:'整句未匹配',unsupported_context:'场景不支持',plan_limit:'超出动作范围',empty_or_long:'文本不足或过长',asr_timeout:'识别超时',asr_unavailable:'识别不可用',no_speech:'无清晰语音'};
 const backendName = kind => ({robotd:'官方 robotd 仿真',mujoco:'MuJoCo 物理实验室',preview:'动画预览'})[kind] ?? kind;
 const duration = ms => ms == null ? '—' : Math.abs(ms) < 1000 ? `${ms} ms` : `${(ms / 1000).toFixed(2)} s`;
 const rate = (value,total) => total ? `${(100 * value / total).toFixed(1)}%` : '—';
@@ -37,7 +39,7 @@ function showRound() {
     }
     return;
   }
-  $('round-label').textContent = `第 ${row.turn} 轮 · ${backendName(row.backend)} · ${statuses[row.status]}`;
+  $('round-label').textContent = `第 ${row.turn} 轮 · ${routeNames[row.route??'cloud']} · ${backendName(row.backend)} · ${statuses[row.status]}`;
   $('round-text').textContent = row.text || '尚未收到非空识别文本';
   const stop = row.timings.listen_stop;
   const points = [
@@ -46,6 +48,7 @@ function showRound() {
     ...row.actions.map(a => ({label:`${tools[a.tool] ?? a.tool}受理`,at:a.at_ms,phase:'action',note:actionStatuses[a.result]})),
     {label:'首段语音',at:row.timings.first_audio,phase:'audio'},
     {label:'回复结束',at:row.timings.reply_end,phase:'audio'},
+    {label:'本地执行结束',at:row.timings.local_end,phase:'action'},
   ].sort((a,b) => (a.at ?? Infinity) - (b.at ?? Infinity));
   for (const point of points) {
     const step = element('div',null,'timeline-step');
@@ -61,8 +64,18 @@ function render() {
   $('stats-scope').textContent = `本次服务启动于 ${new Date(data.started_at).toLocaleString('zh-CN')}；当前筛选 ${c.rounds} 轮，最多保留最近 ${data.capacity} 轮`;
   $('recognition-rate').textContent = rate(c.recognized,c.closed);
   $('recognition-count').textContent = `${c.recognized} / ${c.closed} 个已结束提交轮次`;
-  $('reply-rate').textContent = rate(c.replied,c.closed);
-  $('reply-count').textContent = `${c.replied} / ${c.closed} 个已结束提交轮次`;
+  $('reply-rate').textContent = rate(c.replied,c.cloud_closed??c.closed);
+  $('reply-count').textContent = `${c.replied} / ${c.cloud_closed??c.closed} 个云端已结束轮次`;
+  const routing=data.routing??{local:0,fallback:0,decided:0,reasons:{}};
+  $('local-hit-rate').textContent=rate(routing.local,routing.decided);
+  $('local-hit-count').textContent=`${routing.local} / ${routing.decided} 个已判定本地优先轮次`;
+  $('fallback-count').textContent=routing.fallback;
+  $('fallback-reasons').textContent=Object.entries(routing.reasons).filter(([k])=>k!=='matched').map(([k,n])=>`${routeReasons[k]??k} ${n}`).join(' · ')||'尚无转交或未识别记录';
+  $('local-asr-time').textContent=duration(data.latencies.local_asr?.p50_ms);
+  $('route-latency').replaceChildren();
+  for(const [key,values] of Object.entries(routing.action_latency??{})){
+    const tr=element('tr');for(const text of [routeNames[key],duration(values.p50_ms),duration(values.p95_ms),values.count])tr.append(element('td',text));$('route-latency').append(tr);
+  }
   $('action-rate').textContent = rate(c.completed_actions,c.finished_actions);
   $('action-summary').textContent = `${c.completed_actions} / ${c.finished_actions} 个已结束动作`;
   $('timeout-count').textContent = c.timeouts;
@@ -92,7 +105,7 @@ function render() {
     button.setAttribute('aria-pressed',String(row.turn === selected));
     button.addEventListener('click',() => {selected = row.turn; showRound(); markSelected();});
     tr.dataset.turn = row.turn;
-    identity.append(button,element('span',new Date(row.time).toLocaleTimeString('zh-CN'),'round-time'),element('span',backendName(row.backend),'round-backend'));
+    identity.append(button,element('span',new Date(row.time).toLocaleTimeString('zh-CN'),'round-time'),element('span',`${backendName(row.backend)} · ${routeNames[row.route??'cloud']}`,'round-backend'));
     const actions = element('td');
     for (const action of row.actions) {
       const good = ['running','completed'].includes(action.result);
