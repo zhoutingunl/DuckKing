@@ -33,7 +33,7 @@ test('mobile studio shows ten scenes and exposes honest audio audition',async({p
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
 });
 
-test('conductor changes pending solo and gates audible part on actual standing',async({page})=>{
+test('conductor keyboard control changes pending solo and gates audible part on actual standing',async({page})=>{
  test.setTimeout(90000);
  await page.goto('/studio.html?room=1');
  await page.locator('[data-studio=conductor]').click();
@@ -43,7 +43,10 @@ test('conductor changes pending solo and gates audible part on actual standing',
   const s=await page.request.get('/api/scenes/state?room=1').then(r=>r.json());
   return s.backend.seated_choir?.phase==='solo'&&s.backend.seated_choir.solo==='c';
  },{timeout:12000,intervals:[100]}).toBe(true);
- await page.getByRole('button',{name:'下一位换 B',exact:true}).click();
+ // Real keyboard activation tests the bounded queue-change window without
+ // spending it on Playwright's repeated mouse layout/stability round trips.
+ // On software GPUs those checks can exceed the entire eight-second solo.
+ await page.getByRole('button',{name:'下一位换 B',exact:true}).press('Enter');
  await expect(page.locator('#task-status')).toContainText('已完成',{timeout:35000});
  const music=JSON.parse(await page.locator('#physics-viewport').getAttribute('data-music-evidence'));
  expect([...new Set(music.map(n=>n.member))]).toEqual(['c','b']);
