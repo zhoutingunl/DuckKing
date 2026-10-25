@@ -15,7 +15,8 @@ from duckking.voice_profiles import public_profiles, store_profiles
 def configure(tmp_path):
     store_profiles(tmp_path / 'voice-profiles.json', {
         'voices': {'duck-raspy': {'id': 'private-voice-fixture', 'label': '鸭嗓'}},
-        'agents': {'coach': {'id': 'private-agent-fixture', 'label': '严教练'}}})
+        'agents': {'coach': {'id': 'private-agent-fixture', 'label': '严教练'},
+                   'studio': {'id': 'private-studio-fixture', 'label': '工坊'}}})
 
 
 def test_public_profiles_and_rooms_exclude_private_ids(tmp_path):
@@ -23,6 +24,7 @@ def test_public_profiles_and_rooms_exclude_private_ids(tmp_path):
     settings = Settings(data_dir=tmp_path)
     result = public_profiles(settings.for_room('3'))
     assert result['voices'][0]['key'] == 'duck-raspy'
+    assert [a['key'] for a in result['personas']] == ['coach']
     assert 'private-' not in json.dumps(result)
     with TestClient(create_app(settings=settings)) as client:
         response = client.get('/api/voice/profiles')
@@ -30,13 +32,20 @@ def test_public_profiles_and_rooms_exclude_private_ids(tmp_path):
         assert 'private-' not in response.text
 
 
-async def test_profile_is_sent_on_listen_and_agent_only_in_handshake(tmp_path):
+@pytest.mark.parametrize('persona,scene,agent', [
+    ('coach', None, 'private-agent-fixture'),
+    ('default', 'game', 'private-studio-fixture'),
+    ('default', None, None),
+])
+async def test_profile_is_sent_on_listen_and_agent_only_in_handshake(
+    tmp_path, persona, scene, agent,
+):
     configure(tmp_path)
     messages, frames = [], []
     got_frame = asyncio.Event()
     release = asyncio.Event()
     async def cloud(ws):
-        assert ws.request.headers['X-Agent-ID'] == 'private-agent-fixture'
+        assert ws.request.headers.get('X-Agent-ID') == agent
         assert 'Voice-Id' not in ws.request.headers
         await ws.recv()
         await ws.send(json.dumps({'type': 'hello', 'transport': 'websocket',
@@ -51,7 +60,11 @@ async def test_profile_is_sent_on_listen_and_agent_only_in_handshake(tmp_path):
         port = server.sockets[0].getsockname()[1]
         voice = VoiceSession(send, MotionController(PreviewBackend()), Settings(
             data_dir=tmp_path, ws_url=f'ws://127.0.0.1:{port}', ws_token='fixture-token'))
-        voice.set_persona({'persona': 'coach'})
+        if scene:
+            from duckking.studio import Studio
+            voice.motion.studio = Studio(voice.motion, tmp_path)
+            await voice.motion.studio.select(scene)
+        voice.set_persona({'persona': persona})
         await voice.set_style({'profile': 'duck-raspy', 'pitch': 1.04})
         try:
             await voice.open()

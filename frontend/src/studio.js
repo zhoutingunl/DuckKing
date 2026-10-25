@@ -76,7 +76,7 @@ function connect(){
  socket.onmessage=event=>{
   const data=JSON.parse(event.data);connected=true;controls();
   if(data.type==='state'){
-   latest=data;viewer?.update(data.backend);choir.update(data.backend.seated_choir);renderStudio(data.studio);
+   latest=data;viewer?.update(data.backend);choir.update(data.backend.seated_choir);$('physics-viewport').dataset.musicEvidence=JSON.stringify(choir.scheduled);renderStudio(data.studio);
    $('sim-status').textContent=data.backend.error?'物理场景异常':'MuJoCo 物理运行中';
    for(const event of data.events??[]){if(event.id<=seen)continue;seen=event.id;appendLog(event.text,'实际动作',event.status==='failed')}
    if(data.backend.error)notify(data.backend.error);

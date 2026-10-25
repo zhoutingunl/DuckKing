@@ -49,7 +49,7 @@ def public_profiles(settings):
     return {"voices": [{"key": key, "label": item.get("label", key)}
                        for key, item in config["voices"].items()],
             "personas": [{"key": key, "label": item.get("label", key)}
-                         for key, item in config["agents"].items()]}
+                         for key, item in config["agents"].items() if key in {"coach", "buddy"}]}
 
 
 def store_profiles(path: Path, config):

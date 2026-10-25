@@ -238,3 +238,45 @@ async def test_real_coach_observation_and_kick_never_secretly_reposition(tmp_pat
         assert backend.ball_prepared is None
     finally:
         await motion.close()
+
+
+async def test_rejected_confirmation_keeps_draft(studio):
+    await studio.select('recipe')
+    studio.heard('教一个下班暗号')
+    await studio.invoke('duck_recipe', {'operation': 'draft', 'name': '下班',
+        'plan': {'title': '下班', 'steps': [{'action': 'nod'}]}})
+    studio.heard('不要保存')
+    with pytest.raises(ValueError, match='确认'):
+        await studio.invoke('duck_recipe', {'operation': 'confirm', 'name': '下班'})
+    assert studio.helpers.draft is not None
+    assert not studio.helpers.recipes
+
+
+async def test_voice_interrupt_preserves_waiting_timer_but_disconnect_cancels(studio, tmp_path):
+    import time
+
+    from duckking.config import Settings
+    from duckking.voice import VoiceSession
+
+    await studio.select('focus')
+    started = asyncio.Event()
+    async def waiting():
+        studio.helpers.deadline = time.monotonic() + 20
+        started.set()
+        try:
+            await asyncio.Event().wait()
+        finally:
+            studio.helpers.deadline = None
+    await studio.start('focus', waiting)
+    await started.wait()
+    async def send(data):
+        pass
+    session = VoiceSession(send, studio.motion, Settings(data_dir=tmp_path))
+    session.pending_input = {'frames': [], 'started': 0.0, 'stopped': False}
+    await session._stop_motion()
+    assert studio.task and not studio.task.done()
+    assert studio.helpers.deadline is not None
+    session.pending_input = None
+    await session._stop_motion()
+    assert studio.helpers.deadline is None
+    assert studio.state['status'] == 'cancelled'

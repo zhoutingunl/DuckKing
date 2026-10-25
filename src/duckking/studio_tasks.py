@@ -1,6 +1,7 @@
 """Persistent bounded recipes, editable rules, and small conversational state."""
 
 import asyncio
+import copy
 import json
 import os
 import re
@@ -80,7 +81,7 @@ class StudioTasks:
         self.timer_event = asyncio.Event()
 
     def snapshot(self):
-        return {"recipes": self.recipes or {}, "draft": self.draft,
+        return {"recipes": copy.deepcopy(self.recipes or {}), "draft": copy.deepcopy(self.draft),
                 "game": {"prefix": self.prefix, **self.score},
                 "discussion": {"facts": list(self.facts), "question": self.question},
                 "focus_remaining_s": max(0, round(self.deadline - time.monotonic(), 1))
@@ -95,7 +96,7 @@ class StudioTasks:
         self.draft = None
 
     def guard(self, name):
-        if self.studio.active == "game" and self.prefix and name not in {
+        if self.studio.active == "game" and name not in {
             "duck_game", "duck_get_status", "duck_stop", "duck_task",
         }:
             raise ValueError("鸭王说游戏中必须通过规则工具检查本轮原话，不能绕过口令执行")
@@ -116,7 +117,12 @@ class StudioTasks:
         if command.operation == "confirm":
             if not self.draft or command.name != self.draft["name"]:
                 raise ValueError("没有对应的待确认草稿")
-            if not manual and s.turn <= self.draft["turn"]:
+            confirmation = normalized(s.transcript)
+            positive = ("确认", "保存", "好的", "可以", "就这样", "没问题")
+            negative = ("不要", "取消", "别", "不保存", "不确认")
+            explicit = (any(word in confirmation for word in positive)
+                        and not any(word in confirmation for word in negative))
+            if not manual and (s.turn <= self.draft["turn"] or not explicit):
                 raise ValueError("需要用户下一轮明确确认，不能在提出配方的同一轮自动确认")
             self.recipes[command.name] = {k: self.draft[k] for k in ("plan", "version")}
             await asyncio.to_thread(save_recipes, s.data_dir / "recipes.json", self.recipes)
@@ -184,7 +190,8 @@ class StudioTasks:
             await s.move("stop")
             self.deadline = None
         elif command.operation == "extend":
-            if self.deadline is None or not s.task or s.task.done():
+            if (self.deadline is None or self.deadline <= time.monotonic()
+                    or not s.task or s.task.done()):
                 raise ValueError("当前没有正在等待的提醒")
             if self.deadline - time.monotonic() + command.seconds > 3600:
                 raise ValueError("提醒最多延后到一小时内")

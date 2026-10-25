@@ -171,7 +171,7 @@ class Studio:
 
     async def external(self, action):
         async with self.lock:
-            if (self.active == "game" and self.helpers.prefix and action is not None
+            if (self.active == "game" and action is not None
                     and action.name not in {"stop", "reset"}
                     and not action.name.startswith("scene_")):
                 raise ValueError("游戏中请通过口令规则工具执行动作")
@@ -197,6 +197,7 @@ class Studio:
             self.state = {"version": generation, "kind": kind, "status": "running",
                           "started_at": time.time(), "results": []}
             self.task = asyncio.create_task(self._run(run, generation))
+            self.task.studio_result = self.state
             return self.task
 
     async def _run(self, run, generation):
@@ -216,7 +217,17 @@ class Studio:
                 self.state.update(status="failed", message="停止未得到确认")
             self.state["finished_at"] = time.time()
             self.motion.event("studio", self.state.get("message", "任务结束"))
-        return self.snapshot()
+        return {**self.snapshot(), "operation_failed": self.state["status"] != "completed"}
+
+    async def wait(self, task):
+        try:
+            return await asyncio.shield(task)
+        except asyncio.CancelledError:
+            if not task.cancelled():
+                raise
+            state = copy.deepcopy(task.studio_result)
+            state["status"] = "cancelled"
+            return {"task": state, "operation_failed": True}
 
     async def routine(self, plan):
         self.state["title"] = plan.title
@@ -285,7 +296,7 @@ class Studio:
                 result = (await handler(command, manual=manual) if name == "duck_recipe"
                           else await handler(command))
             if isinstance(result, asyncio.Task):
-                return await asyncio.shield(result) if wait else self.snapshot()
+                return await self.wait(result) if wait else self.snapshot()
             return {**self.snapshot(), **result}
         if name == "duck_coach":
             command = Coach.model_validate(arguments)
@@ -301,7 +312,7 @@ class Studio:
                 self.state["results"].append(result)
                 return result["outcome"]
             task = await self.start("coach", coach)
-            return await asyncio.shield(task) if wait else self.snapshot()
+            return await self.wait(task) if wait else self.snapshot()
         if name == "duck_conduct":
             command = Conduct.model_validate(arguments)
             if self.active != "conductor":
@@ -347,14 +358,7 @@ class Studio:
             task = await self.start("director", lambda: self.routine(plan))
         else:
             raise ValueError("未知互动工具")
-        if wait:
-            try:
-                return await asyncio.shield(task)
-            except asyncio.CancelledError:
-                if task.cancelled():
-                    return self.snapshot()
-                raise
-        return self.snapshot()
+        return await self.wait(task) if wait else self.snapshot()
 
     async def close(self):
         async with self.lock:

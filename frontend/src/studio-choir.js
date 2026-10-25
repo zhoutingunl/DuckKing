@@ -2,7 +2,7 @@ import {odeToJoyScore} from './table-scores.js';
 
 // A short phrase begins only after the selected physical singer is confirmed standing.
 export class StudioChoir {
- constructor(){this.ctx=null;this.nodes=new Set();this.key=null;this.played=new Set();this.watch=null}
+ constructor(){this.ctx=null;this.nodes=new Set();this.key=null;this.played=new Set();this.watch=null;this.scheduled=[]}
  async enable(){this.ctx??=new AudioContext();await this.ctx.resume();return this.ctx.state==='running'}
  stop(){for(const node of this.nodes){try{node.stop()}catch{}}this.nodes.clear();clearTimeout(this.watch);this.played.clear();this.key=null}
  update(state){
@@ -24,6 +24,7 @@ export class StudioChoir {
    osc.connect(gain);gain.connect(pan);pan.connect(ctx.destination);
    const at=ctx.currentTime+Math.max(0,from-state.elapsed);
    gain.gain.setValueAtTime(0,at);gain.gain.linearRampToValueAtTime(.18,at+.02);gain.gain.linearRampToValueAtTime(0,at+duration);
+   this.scheduled.push({performance:state.performance_id,member:state.solo,note:n.midi,elapsed:state.elapsed});this.scheduled=this.scheduled.slice(-80);
    osc.start(at);osc.stop(at+duration);this.nodes.add(osc);osc.onended=()=>{this.nodes.delete(osc);osc.disconnect();gain.disconnect();pan.disconnect()};
   }
  }

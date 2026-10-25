@@ -30,3 +30,21 @@ test('mobile studio shows ten scenes and exposes honest audio audition',async({p
  await expect(page.locator('#voice-lab')).toContainText('不是克隆后的实时回复');
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
 });
+
+test('conductor changes pending solo and gates audible part on actual standing',async({page})=>{
+ test.setTimeout(90000);
+ await page.goto('/studio.html?room=1');
+ await page.locator('[data-studio=conductor]').click();
+ await expect(page.locator('#scene-title')).toHaveText('评委当指挥',{timeout:60000});
+ await page.getByRole('button',{name:'C 先唱，再 A',exact:true}).click();
+ await expect.poll(async()=>{
+  const s=await page.request.get('/api/scenes/state?room=1').then(r=>r.json());
+  return s.backend.seated_choir?.phase==='solo'&&s.backend.seated_choir.solo==='c';
+ },{timeout:12000,intervals:[100]}).toBe(true);
+ await page.getByRole('button',{name:'下一位换 B',exact:true}).click();
+ await expect(page.locator('#task-status')).toContainText('已完成',{timeout:22000});
+ const music=JSON.parse(await page.locator('#physics-viewport').getAttribute('data-music-evidence'));
+ expect([...new Set(music.map(n=>n.member))]).toEqual(['c','b']);
+ const physical=await page.request.get('/api/scenes/state?room=1').then(r=>r.json());
+ expect(physical.backend.seated_choir.completed_solos).toEqual(['c','b']);
+});

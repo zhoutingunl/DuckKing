@@ -169,8 +169,12 @@ class VoiceSession:
         identity = config["identity"]
         self.sensitive_values = {token, identity["device_id"], identity["client_id"]}
         config_profiles = profiles(self.settings)
-        self.agent_id = (config_profiles["agents"].get(self.persona, {}).get("id")
-                         if self.persona != "default" else None)
+        agent_key = self.persona
+        if (agent_key == "default" and self.motion.studio and self.motion.studio.active
+                and "studio" in config_profiles["agents"]):
+            agent_key = "studio"
+        self.agent_id = (config_profiles["agents"].get(agent_key, {}).get("id")
+                         if agent_key != "default" else None)
         if self.persona != "default" and not self.agent_id:
             raise ValueError("所选角色尚未配置")
         if self.agent_id:
@@ -523,7 +527,12 @@ class VoiceSession:
         await self.publish_status()
 
     async def _stop_motion(self):
-        record = await self.motion.submit(Action(name="stop"))
+        studio = self.motion.studio
+        # Interrupting spoken acknowledgement should not erase a quiet reminder.
+        # Explicit disconnect/stop still cancels it; a new timer command can extend it.
+        preserve = (studio and self.pending_input is not None
+                    and studio.active == "focus" and studio.helpers.deadline is not None)
+        record = await self.motion.submit(Action(name="stop"), owner=studio if preserve else None)
         await self.motion.wait(record["id"])
 
     async def _cancel_tools(self):

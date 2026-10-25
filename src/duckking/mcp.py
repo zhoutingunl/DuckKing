@@ -261,6 +261,8 @@ class DeviceMCP:
             if self.motion.backend.kind == "mujoco":
                 tools = TOOLS + SCENE_TOOLS
             if self.motion.studio:
+                if self.motion.studio.active not in {None, "voice", "persona"}:
+                    tools = [t for t in tools if t["name"] in {"duck_stop", "duck_get_status"}]
                 tools = tools + self.motion.studio.tools()
                 if self.motion.studio.active and self.voice:
                     tools = tools + self.voice.profile_tools()
@@ -280,13 +282,19 @@ class DeviceMCP:
             studio = self.motion.studio
             if studio:
                 studio.helpers.guard(name)
+                if studio.active and name == "duck_set_scene":
+                    raise ValueError("互动舞台已准备好，请使用当前节目工具；换幕请在页面选择")
                 if studio.active == "coach" and name == "duck_kick":
                     raise ValueError("教练场景请用 duck_coach，观察、摆球和踢球必须分开")
+                if (studio.active not in {None, "voice", "persona"}
+                        and name not in {"duck_stop", "duck_get_status"}
+                        and name not in {t["name"] for t in studio.tools()}):
+                    raise ValueError("请使用当前节目提供的工具，不能绕过任务约束")
             if studio and name in {t["name"] for t in studio.tools()}:
                 result = await studio.invoke(name, arguments)
                 return response | {"result": {"content": [{"type": "text", "text": json.dumps(
                     result, ensure_ascii=False)}],
-                    "isError": result.get("task", {}).get("status") in {"failed", "cancelled"}}}
+                    "isError": result.get("operation_failed", False)}}
             allowed = (
                 {"duration"}
                 if name in {"duck_walk_short", "duck_turn_left", "duck_turn_right"}
