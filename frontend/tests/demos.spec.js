@@ -106,6 +106,7 @@ for(const song of ['ode','tigers'])test(`stopping synthesized ${song} stops all 
  await expect(page.locator('#caption-role')).toContainText('本地合成');
  if(song==='tigers')await expect(page.locator('.table-seat[data-duck=d]')).toContainText('等待入唱');
  await page.locator('#stop-demo').click();await expect.poll(()=>page.evaluate(()=>window.scorePlaying)).toBe(0);
+ await expect(page.locator('#table-song')).toBeEnabled(); // Network stop finishes after local audio stops.
  const state=await (await page.request.get('/api/scenes/state?room=1')).json();expect(state.backend.tabletop.running).toBe(false);
  await expect(page.locator('#theatre-result')).toHaveCount(0);
 });
