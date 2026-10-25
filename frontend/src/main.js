@@ -16,12 +16,16 @@ try { scene = createDuckScene($('viewport'),{onLoad:timing=>appendLog(
   '模型加载',timing.result!=='ready')}); }
 catch { $('canvas-fallback').hidden = false; }
 let seen=0, completed=new Set(), reconnectDelay=500;
-let backendKind='preview',voiceState='disconnected';
+let backendKind='preview',voiceState='disconnected',voiceMode='cloud',voiceRoute='cloud';
 function scope(){
   $('scope-note').textContent=(backendKind==='preview'?'使用官方 MicroDuck 外观的动画预览，不进行物理计算。':'正在连接官方 robotd；本页为官方外观动画示意，物理画面请查看 MuJoCo 窗口。')+
-    (['ready','listening','thinking','speaking'].includes(voiceState)?'灵矽语音已连接。':'灵矽语音尚未连接。');
+    (voiceMode==='local_first'?(voiceRoute==='cloud_fallback'?'当前指令已选择灵矽处理。':['ready','listening','thinking'].includes(voiceState)?'本地优先语音已启用，未匹配时转交灵矽。':'本地优先语音尚未启用。'):['ready','listening','thinking','speaking'].includes(voiceState)?'灵矽语音已连接。':'灵矽语音尚未连接。');
 }
-window.addEventListener('duckking-voice-state',event=>{voiceState=event.detail;scope()});
+window.addEventListener('duckking-voice-state',event=>{
+  if(typeof event.detail==='string')voiceState=event.detail;
+  else{voiceState=event.detail.state;voiceMode=event.detail.mode;voiceRoute=event.detail.route}
+  scope();
+});
 export function notify(message) { $('notice').textContent=message;$('notice').hidden=false; }
 export function appendLog(text, label='系统', error=false) {
   const log=$('activity-log');log.querySelector('.empty-log')?.remove();

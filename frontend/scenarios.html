@@ -20,7 +20,7 @@
 <button id="stop-scene" class="stop-button" disabled>■ 停止全部动作 <span class="key-hint">ESC</span></button><p id="action-result" class="scene-detail" role="status">尚未执行动作</p></section>
 <section class="voice-card">
             <div class="section-heading"><h2>和小鸭聊聊</h2><span id="voice-badge" class="tag neutral">未连接灵矽</span></div>
-            <p class="muted">连接灵矽后，按住说话，松开等待回答。</p>
+            <p id="voice-intro" class="muted">连接灵矽后，按住说话，松开等待回答。</p>
             <button id="talk-button" class="talk-button" disabled aria-label="按住说话"><svg viewBox="0 0 24 24" width="25" height="25" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="8" y="2" width="8" height="13" rx="4"/><path d="M5 10v2a7 7 0 0 0 14 0v-2M12 19v3M8 22h8"/></svg><span>按住说话</span><span class="key-hint">SPACE</span></button>
             <div class="voice-caption" id="voice-caption">当前可以先用下方按钮探索动作。</div>
             <div class="voice-mode-row"><label for="voice-mode">识别方式</label><select id="voice-mode" disabled><option value="local_first">本地优先</option><option value="cloud" selected>灵矽云端</option></select></div>

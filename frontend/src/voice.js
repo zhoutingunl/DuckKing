@@ -26,6 +26,7 @@ export function setupVoice({appendLog,notify,endpoint='/voice'}){
   const labels={disconnected:'未连接灵矽',disconnecting:'正在断开连接',connecting:'正在连接',recovering:'正在恢复连接',interrupting:'正在切换新指令',awaiting_binding:'等待设备绑定',ready:'灵矽已连接',listening:'正在聆听',thinking:'正在思考',speaking:'正在回答',error:'连接异常',busy:'本房间语音正在使用'};
   function update(){
     $('voice-badge').textContent=stateLabel();
+    $('voice-intro').textContent=mode==='local_first'?'启用语音后，按住说话；常用动作本地执行，未匹配时交给灵矽。':'连接灵矽后，按住说话，松开等待回答。';
     if(modeSelect)modeSelect.disabled=!modesReady||!['disconnected','error','busy','awaiting_binding'].includes(state);
     const canInterrupt=['thinking','speaking'].includes(state)||output.busy;
     talk.disabled=!['ready','listening','thinking','speaking'].includes(state)&&!pressed;
@@ -45,7 +46,7 @@ export function setupVoice({appendLog,notify,endpoint='/voice'}){
     if(state==='busy')$('voice-caption').textContent='每个房间一次只供一个页面使用语音。可在顶部选择另一个房间，或在本房间的原页面断开后重试。';
     if(state==='interrupting')$('voice-caption').textContent=pressed?'旧回复已停止，正在接收新命令；松开后发送。':'旧回复已停止，正在建立新一轮语音。';
     if(state==='disconnecting')$('voice-caption').textContent='正在关闭语音会话并释放占用，完成后可切换到其他设备。';
-    window.dispatchEvent(new CustomEvent('duckking-voice-state',{detail:state}));
+    window.dispatchEvent(new CustomEvent('duckking-voice-state',{detail:{state,mode,route}}));
   }
   modeSelect?.addEventListener('change',()=>{
     mode=modeSelect.value;route=mode==='cloud'?'cloud':'local_ready';
