@@ -26,7 +26,9 @@ from .model_metrics import ModelLoadMetrics
 from .motion import Action, MotionController, PreviewBackend
 from .robotd import RobotdBackend
 from .rooms import RoomRegistry
+from .studio import CATALOG, Studio
 from .voice import VoiceSession
+from .voice_profiles import public_profiles
 
 ROOT = Path(__file__).resolve().parents[2]
 SCENE_STATE_ACK_TIMEOUT = 30
@@ -228,6 +230,8 @@ def create_app(
                         assets = Path(os.environ.get("DUCKKING_SIM_DIR", ROOT / "external"))
                         backend = await asyncio.to_thread(MuJoCoBackend, assets)
                         selected.scene_motion = MotionController(backend)
+                        selected.scene_motion.studio = Studio(
+                            selected.scene_motion, selected.settings.data_dir)
                     except Exception as exc:
                         raise HTTPException(
                             503, "物理场景未就绪，请运行 scripts/setup_scenarios.sh 并重新启动服务"
@@ -236,6 +240,37 @@ def create_app(
                 return await scene_controller(room).submit(body)
             except ValueError as exc:
                 raise HTTPException(409, str(exc)) from exc
+
+    @app.get("/api/studio")
+    async def studio_status(room: str = "1"):
+        return scene_controller(room).studio.snapshot()
+
+    @app.post("/api/studio/select")
+    async def studio_select(body: dict, room: str = "1"):
+        selected = get_room(room)
+        if selected.voice is not None:
+            raise HTTPException(409, "请先断开语音再切换节目")
+        scene = body.get("scene")
+        if not isinstance(scene, str) or scene not in CATALOG:
+            raise HTTPException(422, "未知互动节目")
+        controller = scene_controller(room)
+        if controller.backend.scene != CATALOG[scene][1]:
+            raise HTTPException(409, "请先准备对应的物理舞台")
+        return await controller.studio.select(scene)
+
+    @app.post("/api/studio/action")
+    async def studio_action(body: dict, room: str = "1"):
+        try:
+            studio = scene_controller(room).studio
+            if "rehearsal_text" in body:
+                text = body["rehearsal_text"]
+                if not isinstance(text, str) or len(text) > 1000:
+                    raise ValueError("排练文本长度超限")
+                studio.heard(text)
+            return await studio.invoke(
+                body.get("name"), body.get("arguments", {}), wait=False, manual=True)
+        except (ValueError, TypeError) as exc:
+            raise HTTPException(422, str(exc)) from exc
 
     @app.post("/api/scenes/close", status_code=204)
     async def close_scene(room: str = "1", if_unused: bool = False):
@@ -409,6 +444,10 @@ def create_app(
             room.viewers -= 1
             room.last_used = time.monotonic()
 
+    @app.get("/api/voice/profiles")
+    async def voice_profiles(room: str = "1"):
+        return public_profiles(get_room(room).settings)
+
     @app.get("/api/voice/modes")
     async def voice_modes():
         configured = app.state.settings.local_asr
@@ -485,6 +524,9 @@ def create_app(
                         mode = data.get("mode", "cloud")
                         if mode not in {"cloud", "local_first"}:
                             raise ValueError("未知语音模式")
+                        if (mode == "local_first" and voice_motion.studio
+                                and voice_motion.studio.active):
+                            raise ValueError("现场互动节目使用灵矽理解，请选择灵矽模式")
                         if mode == "local_first" and not isinstance(session, HybridVoiceSession):
                             if not room.settings.local_asr:
                                 raise ValueError("服务器尚未启用本地识别")
@@ -497,6 +539,10 @@ def create_app(
                         if mode == "cloud" and isinstance(session, HybridVoiceSession):
                             raise ValueError("请先断开语音，再切换模式")
                         session.start_connect()
+                    elif command == "voice_style":
+                        await session.set_style(data.get("settings", {}))
+                    elif command == "persona":
+                        session.set_persona(data.get("settings", {}))
                     elif command == "listen_start":
                         await session.listen(True)
                     elif command == "listen_stop":

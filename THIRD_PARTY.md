@@ -49,3 +49,7 @@
 - [SenseVoiceSmall](https://huggingface.co/FunAudioLLM/SenseVoiceSmall)，FunAudioLLM / Alibaba Group。使用 sherpa-onnx 官方文档推荐的 `sherpa-onnx-sense-voice-zh-en-ja-ko-yue-int8-2024-07-17` 转换，固定发布包 SHA-256 和文件摘要见 `scripts/fetch_asr_assets.py`。不是 2025 年粤语微调版，不重新训练模型。
 - 模型沿用 [FunASR Model Open Source License Agreement](https://github.com/modelscope/FunASR/blob/fbbfe01800a8c4c9103cb2150fb1a5d06cc64758/MODEL_LICENSE)，许可原文随 `docs/licenses/SenseVoice-MODEL_LICENSE.txt` 保存，发布权重旁也携带许可与来源。模型不适用 DuckKing 自身的 MIT 许可。
 - `tests/audio/` 为 macOS Tingting 系统合成语音，经 ffmpeg 转为 PCM16，文本与生成方式在同目录 README 中说明。不是用户录音、手机准确率数据或真人声音克隆。
+
+## 工坊声音试听素材
+
+`frontend/public/voice-samples/*.wav` 由本机 macOS Eddy 中文合成语音离线生成，再进行鼻音频段均衡与轻量软限幅等处理。它们不是 Pollen 官方 voice bank，不是克隆结果，也不是自然鸭叫录音。处理参数和来源见同目录 manifest.json；脚本为 scripts/build_duck_voice_samples.py。

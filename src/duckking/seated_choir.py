@@ -28,6 +28,8 @@ class SeatedChoir:
         self.elapsed = 0.0
         self.running = self.music_started = False
         self.solo = None
+        self.live = False
+        self.performance_id = 0
         self.stood = [None] * 4
         self.returned = [None] * 4
         self.completed_solos = []
@@ -64,6 +66,8 @@ class SeatedChoir:
     def snapshot(self):
         return {
             "phase": self.phase,
+            "live": self.live,
+            "performance_id": self.performance_id,
             "error": self.error,
             "elapsed": self.elapsed,
             "duration": SEATED_SECONDS,
@@ -79,6 +83,59 @@ class SeatedChoir:
             "table_contacts": self.table_contacts.copy(),
             "source": "scripted_solos_official_sitstand_real_contacts",
         }
+
+    async def single(self, member):
+        """A named live solo, never a timer masquerading as a confirmed stand."""
+        b = self.backend
+        index = "abcd".index(member)
+        if any(measure_posture(b, d)["observed"] != "sit" for d in b.drivers):
+            raise ValueError("请先让四位歌手坐稳，再开始独唱")
+        self.live = self.running = True
+        self.music_started = False
+        self.error = None
+        self.performance_id += 1
+        self.solo = index
+        self.elapsed = 0
+        self.phase = "rising"
+        try:
+            standing = await change_posture(b, [b.drivers[index]], "stand")
+            if not standing["verified"]:
+                raise ValueError("独唱者未站稳")
+            self.stood[index] = standing
+            self.phase = "solo"
+            self.music_started = True
+            start = time.monotonic()
+            while time.monotonic() - start < 4:
+                b.ensure_running()
+                self.elapsed = time.monotonic() - start
+                if any(self.floor_contacts) or max(self.max_drift) > .12:
+                    raise ValueError("歌手离开安全站位，独唱停止")
+                for i, driver in enumerate(b.drivers):
+                    expected = "stand" if i == index else "sit"
+                    if measure_posture(b, driver)["observed"] != expected:
+                        raise ValueError("歌手姿态未保持，独唱停止")
+                    driver.command[4] = .08 * math.sin(self.elapsed * math.tau * 2)
+                await asyncio.sleep(.02)
+            self.music_started = False
+            self.phase = "sitting"
+            seated = await change_posture(b, [b.drivers[index]], "sit")
+            if not seated["verified"]:
+                raise ValueError("独唱结束，但歌手尚未坐稳")
+            self.returned[index] = seated
+            self.completed_solos.append(member)
+            self.completed_solos = self.completed_solos[-16:]
+            self.phase = "completed"
+            return {"verified": True, "member": member, "standing": standing,
+                    "seated": seated, "message": "已站稳独唱并坐回"}
+        except Exception as exc:
+            self.phase, self.error = "failed", str(exc)
+            raise
+        finally:
+            self.running = self.music_started = False
+            if self.phase not in {"completed", "failed"}:
+                self.phase = "stopped"
+            for driver in b.drivers:
+                request_posture(driver, driver.rest_posture)
 
     async def perform(self):
         if self.phase != "ready":

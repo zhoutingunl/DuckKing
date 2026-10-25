@@ -3,7 +3,7 @@ import { appURL } from './urls.js';
 import { createSocket } from './transport.js';
 import { VoiceAudio } from './audio-output.js';
 
-export function setupVoice({appendLog,notify,endpoint='/voice'}){
+export function setupVoice({appendLog,notify,endpoint='/voice',cloudOnly=false}){
   const $=id=>document.getElementById(id),talk=$('talk-button'),connect=$('connect-voice'),connectLabel=$('connect-label');
   let ws=null,state='disconnected',pressed=false,recording=null,timeout=null,heartbeat=null,closingTimer=null,voiceNotice=null;
   function voiceError(text){voiceNotice=text;notify(text)}
@@ -54,14 +54,14 @@ export function setupVoice({appendLog,notify,endpoint='/voice'}){
     window.dispatchEvent(new CustomEvent('duckking-voice-state',{detail:{state,mode,route}}));
   }
   modeSelect?.addEventListener('change',()=>{
-    mode=modeSelect.value;route=mode==='cloud'?'cloud':'local_ready';
+    mode=cloudOnly?'cloud':modeSelect.value;route=mode==='cloud'?'cloud':'local_ready';
     try{sessionStorage.setItem('duckking.voice-mode',mode)}catch{}
     $('voice-route').textContent=mode==='cloud'?'灵矽负责识别和回复。':'整句动作匹配后本地执行；本地反馈为提示音和文字。';update();
   });
   if(modeSelect)fetch(appURL('api/voice/modes')).then(r=>{if(!r.ok)throw Error();return r.json()}).then(cap=>{
-    modeSelect.querySelector('[value=local_first]').disabled=!cap.local_first;
+    modeSelect.querySelector('[value=local_first]').disabled=cloudOnly||!cap.local_first;
     let saved;try{saved=sessionStorage.getItem('duckking.voice-mode')}catch{}
-    if(state==='disconnected')mode=cap.local_first&&(saved==='local_first'||(!saved&&cap.available))?'local_first':'cloud';
+    if(state==='disconnected')mode=!cloudOnly&&cap.local_first&&(saved==='local_first'||(!saved&&cap.available))?'local_first':'cloud';
     modeSelect.value=mode;modesReady=true;
     if(state==='disconnected')modeSelect.dispatchEvent(new Event('change'));else update();
     if(cap.local_first&&!cap.available)$('voice-route').textContent='本地识别暂未就绪；本地优先模式会明确转交灵矽。';
@@ -152,7 +152,9 @@ export function setupVoice({appendLog,notify,endpoint='/voice'}){
         if(data.error)voiceError(data.error);
         if(!['listening','ready','interrupting'].includes(state)&&recording)await release(false);
         update();
-      }else if(data.type==='voice_route'){
+      }else if(data.type==='voice_profile'){appendLog(data.message,'声音设置')}
+      else if(data.type==='studio_notice'){appendLog(data.text,data.source==='local_task'?'本地任务提醒':'计时任务 · 请求灵矽播报')}
+      else if(data.type==='voice_route'){
         route=data.route;
         const text=route==='local'?`本地识别 · 动作完整匹配${Number.isFinite(data.asr_ms)?` · ${data.asr_ms} ms`:''}`:route==='cloud_fallback'?`${reasons[data.reason]??'本地未匹配'}，正在连接灵矽并转交原录音。`:'未收到清晰语音，请重试。';
         if($('voice-route'))$('voice-route').textContent=text;
@@ -185,4 +187,10 @@ export function setupVoice({appendLog,notify,endpoint='/voice'}){
   // A history-cache restore reuses a document whose microphone and audio were closed.
   window.addEventListener('pageshow',event=>{if(event.persisted)window.location.reload()});
   window.addEventListener('pagehide',()=>{clearInterval(heartbeat);clearTimeout(closingTimer);release(false);ws?.close();output.close();clearTimeout(audioReportTimer)});
+  return {send, get state(){return state}, clearPlayback, interrupt(){
+    clearPlayback();
+    if(['ready','thinking','speaking'].includes(state)){
+      minGeneration=generation+1;state='interrupting';send({type:'interrupt'});update();
+    }
+  }};
 }

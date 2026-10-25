@@ -142,3 +142,5 @@ CI 要求每个后端模块行覆盖率 ≥90%、分支覆盖率 ≥85%。后端
 - [贡献指南](CONTRIBUTING.md)、[团队与分工](docs/TEAM.md)、[原创贡献](docs/CONTRIBUTION_SCOPE.md)、[安全说明](SECURITY.md)
 
 `v0` 保留空仓库基线；后续变更使用功能分支与 Pull Request。原创代码采用 [MIT](LICENSE)，官方模型、策略、谱面与歌曲分别遵循其原许可，详见 [第三方来源](THIRD_PARTY.md)。
+
+现场互动工坊：从演示页进入 [`studio.html`](https://ztmonitor.qbox.net/duckking/studio.html)，十项语音任务及边界见 [使用说明](docs/INTERACTIVE_STUDIO.md)。

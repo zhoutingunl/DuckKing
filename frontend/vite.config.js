@@ -14,6 +14,7 @@ export default defineConfig({
       input: {
         main: fileURLToPath(new URL('./index.html', import.meta.url)),
         statistics: fileURLToPath(new URL('./statistics.html', import.meta.url)),
+        studio: fileURLToPath(new URL('./studio.html', import.meta.url)),
         demos: fileURLToPath(new URL('./demos.html', import.meta.url)),
         scenarios: fileURLToPath(new URL('./scenarios.html', import.meta.url)),
         deploys: fileURLToPath(new URL('./deploys.html', import.meta.url)),

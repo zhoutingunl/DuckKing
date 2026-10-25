@@ -21,6 +21,8 @@ SCENE_ACTIONS = {
     "stand",
     "scene_seated",
     "seated_show",
+    "seated_ready",
+    "seated_solo",
     "scene_table",
     "table_show",
     "scene_ball",
@@ -29,6 +31,10 @@ SCENE_ACTIONS = {
     "pick_up",
     "carry",
     "put_down",
+    "ball_prepare_left",
+    "ball_prepare_right",
+    "ball_shoot_left",
+    "ball_shoot_right",
     "kick_left",
     "kick_right",
     "find_companion",
@@ -59,8 +65,14 @@ class Action(BaseModel):
         "stand",
         "scene_seated",
         "seated_show",
+        "seated_ready",
+        "seated_solo",
         "scene_table",
         "table_show",
+        "look_left",
+        "look_right",
+        "look_forward",
+        "look_down",
         "nod",
         "walk",
         "turn_left",
@@ -75,6 +87,10 @@ class Action(BaseModel):
         "pick_up",
         "carry",
         "put_down",
+        "ball_prepare_left",
+        "ball_prepare_right",
+        "ball_shoot_left",
+        "ball_shoot_right",
         "kick_left",
         "kick_right",
         "find_companion",
@@ -84,7 +100,7 @@ class Action(BaseModel):
     ]
     duration: float = Field(default=1.2, ge=0.2, le=44)
     speed: float | None = Field(default=None, ge=0.02, le=0.4)
-    target: Literal["a", "b", "both"] = "a"
+    target: Literal["a", "b", "c", "d", "both"] = "a"
     request_id: str = Field(default_factory=lambda: str(uuid.uuid4()), min_length=1, max_length=100)
 
     @model_validator(mode="before")
@@ -98,8 +114,14 @@ class Action(BaseModel):
             "stand": 3,
             "scene_seated": 0.2,
             "seated_show": 44,
+            "seated_ready": 3,
+            "seated_solo": 10,
             "scene_table": 0.2,
             "table_show": 36,
+            "ball_prepare_left": 0.6,
+            "ball_prepare_right": 0.6,
+            "ball_shoot_left": 2,
+            "ball_shoot_right": 2,
             "kick_left": 2,
             "kick_right": 2,
             "chorus": 3,
@@ -121,13 +143,19 @@ class Action(BaseModel):
 
     @model_validator(mode="after")
     def choreography_timing(self):
+        if self.target in {"c", "d"} and self.name != "seated_solo":
+            raise ValueError("鸭 C / D 仅用于语音独唱")
+        if self.name == "seated_solo" and self.target == "both":
+            raise ValueError("一次只能指定一位独唱者")
         if (
             self.name in {"table_show", "scene_table", "seated_show", "scene_seated"}
             and self.target != "a"
         ):
             raise ValueError("桌上编排统一控制四只鸭，不接受单独指定成员")
         if (
-            self.name not in {"put_down", "table_show", "seated_show", *SKILL_DURATIONS}
+            self.name not in {
+                "put_down", "table_show", "seated_show", "seated_solo", *SKILL_DURATIONS
+            }
             and self.duration > 3
         ):
             raise ValueError("此动作最长为 3 秒")
@@ -141,8 +169,14 @@ class Action(BaseModel):
             "stand": 3,
             "scene_seated": 0.2,
             "seated_show": 44,
+            "seated_ready": 3,
+            "seated_solo": 10,
             "scene_table": 0.2,
             "table_show": 36,
+            "ball_prepare_left": 0.6,
+            "ball_prepare_right": 0.6,
+            "ball_shoot_left": 2,
+            "ball_shoot_right": 2,
             "kick_left": 2,
             "kick_right": 2,
             "chorus": 3,
@@ -251,6 +285,7 @@ class MotionController:
         self.events = deque(maxlen=60)
         self.event_sequence = 0
         self.failure: str | None = None
+        self.studio = None
 
     def event(self, kind: str, text: str, **data):
         self.event_sequence += 1
@@ -258,7 +293,9 @@ class MotionController:
             {"id": self.event_sequence, "time": time.time(), "kind": kind, "text": text, **data}
         )
 
-    async def submit(self, action: Action) -> dict:
+    async def submit(self, action: Action, *, owner=None) -> dict:
+        if self.studio and owner is not self.studio and action.request_id not in self.records:
+            await self.studio.external(action)
         async with self.lock:
             previous = self.records.get(action.request_id)
             fingerprint = action.model_dump(exclude={"request_id"})
@@ -332,6 +369,11 @@ class MotionController:
                         )
                         await self.backend.head(frame.head_pitch, frame.head_yaw, frame.head_roll)
                         await self.backend.move(frame.forward, frame.turn, frame.lateral)
+                    elif action.name.startswith("look_"):
+                        pitch, yaw = {"look_left": (0, 0.35), "look_right": (0, -0.35),
+                                      "look_forward": (0, 0), "look_down": (0.18, 0)}[action.name]
+                        blend = min(1, elapsed / 0.3)
+                        await self.backend.head(pitch * blend, yaw * blend)
                     elif action.name in {"nod", "shake_head", "tilt_head"}:
                         # Smooth, bounded head trajectory, not a new learned motion policy.
                         phase = elapsed / action.duration
@@ -394,9 +436,12 @@ class MotionController:
             "action": dict(self.current) if self.current else None,
             "error": self.failure,
             "events": list(self.events),
+            **({"studio": self.studio.snapshot()} if self.studio else {}),
         }
 
     async def close(self):
+        if self.studio:
+            await self.studio.close()
         async with self.lock:
             await self._cancel()
             await self.backend.close()

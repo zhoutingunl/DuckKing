@@ -220,6 +220,7 @@ class MuJoCoBackend:
         self.contacts = {"ball": 0, "ducks": 0}
         self.ball_feet = set()
         self.ball_start = None
+        self.ball_prepared = None
         self.discovered = []
         self.geom_ids = [
             i
@@ -328,7 +329,7 @@ class MuJoCoBackend:
             "stop",
         }:
             raise ValueError(self.error)
-        if action.target != "a" and self.scene not in {"duo", "table"}:
+        if action.target != "a" and self.scene not in {"duo", "table", "seated"}:
             raise ValueError("当前场景只有鸭 A")
         if self.grasp and action.name not in {
             "pick_up",
@@ -359,6 +360,7 @@ class MuJoCoBackend:
         }:
             raise ValueError("桌上场景请使用完整合唱表演，避免单独行走破坏舞台布置")
         if self.seated and action.name not in {
+            "seated_ready", "seated_solo",
             "seated_show",
             "stop",
             "reset",
@@ -396,7 +398,7 @@ class MuJoCoBackend:
             "stand",
             "nod",
             "shake_head",
-            "tilt_head",
+            "tilt_head", "look_left", "look_right", "look_forward", "look_down",
             "idle_on",
             "idle_off",
             "yawn",
@@ -404,7 +406,7 @@ class MuJoCoBackend:
             "reset",
             "chorus",
             "find_companion",
-            "seated_show",
+            "seated_show", "seated_ready", "seated_solo",
         } and not action.name.startswith("scene_"):
             drivers = self.drivers if action.name in {"duo_walk", "collide"} else self.targets()
             if any(d.rest_posture == "sit" for d in drivers):
@@ -476,6 +478,22 @@ class MuJoCoBackend:
         self.contacts["ball"] = 0
         self.ball_feet.clear()
         mujoco.mj_forward(self.model, self.data)
+
+    def ball_observation(self):
+        if self.scene != "ball":
+            raise ValueError("当前不是踢球舞台")
+        driver = self.drivers[0]
+        position, yaw = driver.pose(self.data)
+        ball = self.data.xpos[self.model.body("ball").id]
+        dx, dy = ball[:2] - position[:2]
+        forward = math.cos(yaw) * dx + math.sin(yaw) * dy
+        lateral = -math.sin(yaw) * dx + math.cos(yaw) * dy
+        ready = {foot: bool(abs(forward - .09) < .035 and abs(lateral - side) < .03
+                            and .025 < ball[2] < .05 and driver.rest_posture == "stand")
+                 for foot, side in (("left", .042), ("right", -.042))}
+        return {"sensor": "mujoco_state_query", "ball": self.ball_state(), "ready": ready,
+                "prepared_foot": self.ball_prepared,
+                "message": "只读取仿真状态，本次没有摆球或踢球"}
 
     def ball_state(self):
         if self.scene != "ball":
@@ -569,6 +587,12 @@ class MuJoCoBackend:
             return {"scene": self.scene, "verified": True}
         if action.name in {"sit", "stand"}:
             return await change_posture(self, self.targets(), action.name, action.duration)
+        if action.name in {"seated_ready", "seated_solo"}:
+            if not self.seated:
+                raise ValueError("请先切换到坐姿合唱舞台")
+            if action.name == "seated_ready":
+                return await change_posture(self, self.drivers, "sit")
+            return await self.seated.single(action.target)
         if action.name == "seated_show":
             if not self.seated:
                 raise ValueError("请先切换到坐姿合唱舞台")
@@ -581,6 +605,35 @@ class MuJoCoBackend:
             if not self.grasp:
                 raise ValueError("请先切换到嘴部搬运场景")
             return await self.grasp.perform(action.name)
+        if action.name.startswith("ball_prepare_"):
+            if self.scene != "ball":
+                raise ValueError("请先切到踢球舞台")
+            foot = action.name.removeprefix("ball_prepare_")
+            driver = self.drivers[0]
+            driver.policy = driver.base_policy
+            driver.command[:] = 0
+            await self.wait_sim(.4)
+            self.place_ball(foot)
+            self.ball_prepared = foot
+            await self.wait_sim(.2)
+            return {"verified": True, "message": "已明确摆球，尚未踢球", "foot": foot,
+                    **self.ball_observation()}
+        if action.name.startswith("ball_shoot_"):
+            foot = action.name.removeprefix("ball_shoot_")
+            state = self.ball_observation()
+            if self.ball_prepared != foot or not state["ready"].get(foot):
+                raise ValueError("球尚未在所选脚前准备好，请明确摆球后再踢；未移动球")
+            self.ball_prepared = None
+            self.contacts["ball"] = 0
+            self.ball_feet.clear()
+            self.ball_start = self.data.xpos[self.model.body("ball").id].copy()
+            driver = self.drivers[0]
+            driver.policy, driver.until = "kick_" + foot, float(self.data.time) + .5
+            await self.wait_sim(2)
+            result = self.ball_state()
+            verified = foot in self.ball_feet and result["displacement_m"] > .02
+            return {**result, "foot": foot, "verified": verified,
+                    "message": "已确认所选脚触球和位移" if verified else "本轮未确认踢中"}
         if action.name.startswith("kick_"):
             if self.scene != "ball" or action.target != "a":
                 raise ValueError("请先切换到单鸭踢球场景，选择鸭 A")
