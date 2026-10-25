@@ -34,7 +34,8 @@ def test_latency_denominators_failures_pending_and_nearest_rank():
     feed(stats, "listen_stop", 1000, turn=3)
     result = stats.snapshot()
     assert result["counts"] == {
-        "rounds": 3, "submitted": 3, "closed": 2, "pending": 1, "recognized": 1, "replied": 1,
+        "rounds": 3, "submitted": 3, "closed": 2, "cloud_closed": 2, "pending": 1,
+        "recognized": 1, "replied": 1,
         "timeouts": 1, "interrupted": 0, "errors": 0, "actions": 2, "finished_actions": 2,
         "completed_actions": 1,
     }

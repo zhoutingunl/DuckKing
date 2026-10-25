@@ -54,3 +54,9 @@ python scripts/release_smoke.py --url https://ztmonitor.qbox.net/duckking/ --com
 ## 发布冻结
 
 遵守仓库 `AGENTS.md`：2026-10-25 23:59 Asia/Shanghai 后，未经明确解除冻结的新指令，不得修改远程仓库。
+
+## 独立离线识别服务
+
+发布包包含校验过的 SenseVoiceSmall INT8 权重、模型许可和两个合成回归录音。安装器先做真实 ASR 推理及物理自检，再安装 `duckking-asr.service`；仅监听 127.0.0.1:8768，单线程、CPUQuota=100%、MemoryMax=1G、最多两个未完成任务。DuckKing 主服务保留自己的 CPU/内存额度，通过 `DUCKKING_LOCAL_ASR=1` 开启模式选择。无新增公网端口，不改 ai_gateway 路由，不重启 ai_gateway。
+
+worker 健康检查通过后才重启 DuckKing 主服务。部署失败恢复旧链接与两个服务配置；首次增加 worker 的回滚会停止、禁用并移除新增 worker 单元。`/var/lib/duckking/verification/asr-<version>.json` 保存真实推理结果与实测耗时，不包含用户录音。最终公网验收还需检查本地命中、真实灵矽回退、打断与两个房间隔离。

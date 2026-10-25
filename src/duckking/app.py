@@ -18,9 +18,11 @@ from fastapi.responses import JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
+from . import asr_client
 from .config import Settings
 from .deployment import DeploymentStatus
 from .diagnostics import VoiceDiagnostics
+from .hybrid_voice import HybridVoiceSession
 from .model_metrics import ModelLoadMetrics
 from .motion import Action, MotionController, PreviewBackend
 from .robotd import RobotdBackend
@@ -208,11 +210,12 @@ def create_app(
     async def start_scene(body: Action, room: str = "1"):
         if (
             body.name not in {
-                "scene_ball", "scene_duo", "scene_carry", "scene_table", "scene_seated"
+                "scene_ball", "scene_duo", "scene_carry", "scene_table", "scene_seated",
+                "scene_skills", "scene_rollers"
             }
             or body.target != "a"
         ):
-            raise HTTPException(422, "选择踢球、双鸭互动、嘴部搬运或桌上合唱场景")
+            raise HTTPException(422, "请选择有效的物理场景")
         selected = get_room(room)
         async with selected.scene_lock:
             if selected.scene_motion is None:
@@ -385,6 +388,12 @@ def create_app(
         finally:
             room.viewers -= 1
 
+    @app.get("/api/voice/modes")
+    async def voice_modes():
+        configured = app.state.settings.local_asr
+        status = await asr_client.availability() if configured else {"available": False}
+        return {"local_first": configured, **status}
+
     @app.websocket("/voice")
     @app.websocket("/scene-voice")
     async def voice_stream(ws: WebSocket):
@@ -452,6 +461,20 @@ def create_app(
                         raise ValueError("语音指令必须为 JSON 对象")
                     command = data.get("type")
                     if command == "connect":
+                        mode = data.get("mode", "cloud")
+                        if mode not in {"cloud", "local_first"}:
+                            raise ValueError("未知语音模式")
+                        if mode == "local_first" and not isinstance(session, HybridVoiceSession):
+                            if not room.settings.local_asr:
+                                raise ValueError("服务器尚未启用本地识别")
+                            if session.state != "disconnected":
+                                raise ValueError("请先断开语音，再切换模式")
+                            session = HybridVoiceSession(
+                                send_voice, voice_motion, room.settings, room.voice_diagnostics
+                            )
+                            room.voice = session
+                        if mode == "cloud" and isinstance(session, HybridVoiceSession):
+                            raise ValueError("请先断开语音，再切换模式")
                         session.start_connect()
                     elif command == "listen_start":
                         await session.listen(True)

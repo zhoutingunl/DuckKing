@@ -39,3 +39,13 @@
 
 - 坐站采用同一固定策略仓库版本 `665ae4eb20bfe13bca1ef4ea6d4bb6b4a096e448` 的 `alpha_sitstand.onnx`，SHA-256 `a6f102d9fd655782ba85bfffe18175c34621da719cffcdd673be7982a06fc254`。训练、实机验证及头部范围说明来自官方 [`sitstand_policy.md`](https://github.com/pollen-robotics/microduck_rl/blob/b02fdea4902c2b93b7d34a83a6f05da4ececb7d3/docs/sitstand_policy.md)；本项目仅做接入、观测验证与编排，没有声明训练该策略或自行完成实机验证。
 - 第十二幕使用上述 Public Domain《欢乐颂》谱面，分句、声区与接唱编排由 DuckKing 改编。四只鸭均为真实物理实例，本地合成音色不代表官方声音或云端生成歌声。
+
+- 前滚翻、低头啄取、轮滑与轮滑下蹲使用固定版本 `665ae4eb20bfe13bca1ef4ea6d4bb6b4a096e448` 的官方 ONNX 文件，文件名与摘要见 `scripts/fetch_scene_assets.py`。动作相位、被动轮轴承摩擦和缩放参考固定版本 `microduck_rl/scripts/infer_policy.py` 及官方策略 manifest；模型及策略各自沿用上游许可证。本项目未训练这些策略，也未验证实体机器人。
+- 自然待机参考官方 [`robotd/src/idle_head.rs`](https://github.com/pollen-robotics/microduck/blob/942e58e3aa6dbb28e7037203fff11866122c7567/robotd/src/idle_head.rs) 中看四周、歪头、渐静、打哈欠及命令优先的设计概念。Python 轨迹、状态管理和前端由 DuckKing 编写，属于本地适配，未声称完整复刻官方随机行为或视觉自主栈。
+
+## 离线语音识别
+
+- [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx) 固定版本 2.0.0，Apache-2.0；CPU ONNX 推理运行时。
+- [SenseVoiceSmall](https://huggingface.co/FunAudioLLM/SenseVoiceSmall)，FunAudioLLM / Alibaba Group。使用 sherpa-onnx 官方文档推荐的 `sherpa-onnx-sense-voice-zh-en-ja-ko-yue-int8-2024-07-17` 转换，固定发布包 SHA-256 和文件摘要见 `scripts/fetch_asr_assets.py`。不是 2025 年粤语微调版，不重新训练模型。
+- 模型沿用 [FunASR Model Open Source License Agreement](https://github.com/modelscope/FunASR/blob/fbbfe01800a8c4c9103cb2150fb1a5d06cc64758/MODEL_LICENSE)，许可原文随 `docs/licenses/SenseVoice-MODEL_LICENSE.txt` 保存，发布权重旁也携带许可与来源。模型不适用 DuckKing 自身的 MIT 许可。
+- `tests/audio/` 为 macOS Tingting 系统合成语音，经 ffmpeg 转为 PCM16，文本与生成方式在同目录 README 中说明。不是用户录音、手机准确率数据或真人声音克隆。

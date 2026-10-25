@@ -39,6 +39,9 @@ async def verify(output: Path):
             "table_show",
             "scene_seated",
             "seated_show",
+            "scene_skills", "roulade", "ground_pick", "yawn", "idle_on", "idle_off",
+            "backward", "strafe_left", "strafe_right", "shake_head", "tilt_head",
+            "scene_rollers", "skate", "roller_crouch",
         ]:
             action = Action(name=name)
             await motion.submit(action)
@@ -46,7 +49,14 @@ async def verify(output: Path):
             result = {k: record[k] for k in ("name", "status", "outcome", "error") if k in record}
             results.append(result)
             if record["status"] != "completed":
-                raise RuntimeError(f"Physics check failed: {name}")
+                output.parent.mkdir(parents=True, exist_ok=True)
+                await asyncio.to_thread(output.write_text, json.dumps({
+                    "recorded_at": datetime.now(UTC).isoformat(),
+                    "passed": False, "results": results,
+                }, ensure_ascii=False, indent=2) + "\n")
+                raise RuntimeError(
+                    f"Physics check failed: {json.dumps(result, ensure_ascii=False)}"
+                )
         evidence = {
             "recorded_at": datetime.now(UTC).isoformat(),
             "runtime": "MuJoCo CPU + official ONNX, not robotd",

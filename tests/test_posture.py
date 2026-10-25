@@ -171,3 +171,47 @@ async def test_seated_show_cancellation_has_no_later_solo_or_standing_intents(ba
         assert backend.seated is None
     finally:
         await motion.close()
+
+
+@pytest.mark.parametrize('foot,rest', [('left', 0), ('right', 0), ('left', .6), ('right', .6)])
+async def test_standing_then_kicking_transfers_to_trained_stance(backend, foot, rest):
+    motion = MotionController(backend)
+    try:
+        assert (await run(motion, 'sit'))['status'] == 'completed'
+        assert (await run(motion, 'stand'))['status'] == 'completed'
+        if rest:
+            await backend.wait_sim(rest)
+        started = float(backend.data.time)
+        result = await run(motion, 'kick_' + foot)
+        assert result['status'] == 'completed', result
+        assert result['outcome']['verified'] and foot in result['outcome']['contact_feet']
+        assert result['outcome']['displacement_m'] > .02
+        assert backend.data.time - started < 2.15
+    finally:
+        await motion.close()
+
+
+async def test_cancel_during_posture_to_kick_handoff_never_starts_kick(backend, monkeypatch):
+    motion = MotionController(backend)
+    placed = []
+    original = backend.place_ball
+
+    def place(foot):
+        placed.append(foot)
+        original(foot)
+
+    monkeypatch.setattr(backend, 'place_ball', place)
+    try:
+        assert (await run(motion, 'sit'))['status'] == 'completed'
+        assert (await run(motion, 'stand'))['status'] == 'completed'
+        action = Action(name='kick_left')
+        await motion.submit(action)
+        await backend.wait_sim(.1)
+        await run(motion, 'stop')
+        assert (await motion.wait(action.request_id))['status'] == 'cancelled'
+        await backend.wait_sim(.5)
+        assert not placed
+        assert backend.drivers[0].policy == 'walk'
+        assert not backend.drivers[0].command.any()
+    finally:
+        await motion.close()

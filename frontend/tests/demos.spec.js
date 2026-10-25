@@ -77,7 +77,8 @@ test('table music failure is explicit and never substitutes another song or star
 test('stopping the table song silences every music node and cancels the real choreography',async({page})=>{
  test.setTimeout(90000);
  await page.addInitScript(()=>{
-  const native=AudioBufferSourceNode.prototype.start;window.tableMusic={started:0,ended:0,selectorDisabled:false};
+  const native=AudioBufferSourceNode.prototype.start,nativeStop=AudioBufferSourceNode.prototype.stop,stopped=new WeakSet();window.tableMusic={started:0,stopped:0,ended:0,selectorDisabled:false};
+  AudioBufferSourceNode.prototype.stop=function(...args){if(this.buffer?.duration>=35&&!stopped.has(this)){stopped.add(this);window.tableMusic.stopped++}return nativeStop.apply(this,args)};
   AudioBufferSourceNode.prototype.start=function(...args){
    const music=this.buffer?.duration>=35;
    if(music){window.tableMusic.started++;this.addEventListener('ended',()=>window.tableMusic.ended++,{once:true})}
@@ -92,7 +93,9 @@ test('stopping the table song silences every music node and cancels the real cho
  await page.goto('/demos.html?room=1');await page.locator('[data-demo="tabletop"]').click();
  await expect(page.locator('#table-panel')).toBeVisible({timeout:45000});
  await expect(page.locator('#show-status')).toHaveText('演示已停止',{timeout:15000});
- await expect.poll(()=>page.evaluate(()=>window.tableMusic)).toEqual({started:4,ended:4,selectorDisabled:true});
+ // Audio-thread ended callbacks and driver evaluation can be delayed by the
+ // software renderer. Every source must still receive stop and actually end.
+ await expect.poll(()=>page.evaluate(()=>window.tableMusic),{timeout:15000}).toEqual({started:4,stopped:4,ended:4,selectorDisabled:true});
  await expect(page.locator('#table-song')).toBeEnabled();
  const state=await (await page.request.get('/api/scenes/state?room=1')).json();
  expect(state.backend.tabletop.running).toBe(false);expect(state.backend.tabletop.dropped_at).toBeNull();
@@ -153,7 +156,18 @@ test('seated solos stop sounding and return to seated rest when cancelled',async
  await expect(page.locator('#demo-mode')).toBeEnabled();
  await expect.poll(async()=>{const s=await (await page.request.get('/api/scenes/state?room=1')).json();return s.backend.ducks.every(d=>d.posture.observed==='sit')}).toBe(true);
  const state=await (await page.request.get('/api/scenes/state?room=1')).json();
- expect(state.backend.seated_choir.running).toBe(false);expect(state.backend.seated_choir.completed_solos).toEqual([]);
+ expect(state.backend.seated_choir.running).toBe(false);
+ // A delayed rendered cue can arrive after A's solo has finished. Cancellation
+ // must preserve that truthful history, cancel the action, and never add solos.
+ const started=state.events.findLast(e=>e.kind==='action'&&e.text==='开始动作 · seated_show');
+ expect(started).toBeTruthy();
+ const record=await(await page.request.get(`/api/scenes/actions/${started.action_id}?room=1`)).json();
+ expect(record.status).toBe('cancelled');
+ expect(state.backend.seated_choir.completed_solos.length).toBeLessThan(4);
+ await page.waitForTimeout(1500);
+ const later=await(await page.request.get('/api/scenes/state?room=1')).json();
+ expect(later.backend.seated_choir.completed_solos).toEqual(state.backend.seated_choir.completed_solos);
+ expect(later.backend.ducks.every(d=>d.posture.observed==='sit')).toBe(true);
  await expect(page.locator('#theatre-result')).toHaveCount(0);
 });
 

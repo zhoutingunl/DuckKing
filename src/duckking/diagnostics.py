@@ -20,12 +20,18 @@ EVENTS = {
     "stt", "tts_start", "tts_stop", "tts_sentence", "tool_start", "tool_end",
     "timeout", "reset", "connection_error", "connection_closed", "command_error",
     "action_start", "action_end",
+    "voice_route", "local_asr", "local_end",
 }
 ENUMS = {
     "output_state": {"uninitialized", "running", "suspended", "interrupted", "closed"},
     "state": STATES,
+    "mode": {"cloud", "local_first"},
+    "source": {"local", "linx"},
+    "route": {"local", "cloud_fallback", "no_speech"},
     "reason": {
         "recording_limit", "response_idle", "playback_idle", "turn_limit", "manual", "browser_idle",
+        "matched", "unmatched", "unsupported_context", "empty_or_long", "plan_limit",
+        "asr_timeout", "asr_unavailable", "no_speech",
     },
     "tool": {
         "duck_nod", "duck_walk_short", "duck_stop", "duck_get_status",
@@ -33,6 +39,9 @@ ENUMS = {
         "duck_set_scene", "duck_kick", "duck_find_companion", "duck_duo_walk",
         "duck_collide", "duck_chorus", "duck_pick_up", "duck_carry", "duck_put_down",
         "duck_sit", "duck_stand",
+        "duck_backward", "duck_strafe_left", "duck_strafe_right",
+        "duck_shake_head", "duck_tilt_head", "duck_roulade", "duck_ground_pick",
+        "duck_skate", "duck_roller_crouch", "duck_yawn", "duck_idle_on", "duck_idle_off",
     },
     "method": {"initialize", "tools/list", "tools/call", "notifications/initialized"},
     "result": {"ok", "error", "ignored", "completed", "failed", "cancelled", "aborted"},
@@ -48,7 +57,9 @@ PLAYBACK_COUNTERS = {
     "received_frames", "scheduled_frames", "ended_frames", "dropped_frames",
     "queued_ms", "signal_peak_milli", "output_sample_rate",
 }
-COUNTERS = {"turn", "call", "uplink_frames", "downlink_frames", "elapsed_ms", "text_chars"}
+COUNTERS = {
+    "turn", "call", "uplink_frames", "downlink_frames", "elapsed_ms", "text_chars", "asr_ms",
+}
 COUNTERS |= PLAYBACK_COUNTERS
 
 

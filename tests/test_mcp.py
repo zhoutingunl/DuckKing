@@ -28,6 +28,8 @@ async def test_discovery_protocol_errors_and_status():
         "duck_get_status",
         "duck_flash_step",
         "duck_bear_shake",
+        "duck_backward", "duck_strafe_left", "duck_strafe_right",
+        "duck_shake_head", "duck_tilt_head",
     }
     assert "error" in await mcp.handle(request("not-a-method", ident=3))
     assert "error" in await mcp.handle(request("tools/call", [1], ident=4))
