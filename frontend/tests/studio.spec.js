@@ -42,7 +42,7 @@ test('conductor changes pending solo and gates audible part on actual standing',
   return s.backend.seated_choir?.phase==='solo'&&s.backend.seated_choir.solo==='c';
  },{timeout:12000,intervals:[100]}).toBe(true);
  await page.getByRole('button',{name:'下一位换 B',exact:true}).click();
- await expect(page.locator('#task-status')).toContainText('已完成',{timeout:22000});
+ await expect(page.locator('#task-status')).toContainText('已完成',{timeout:35000});
  const music=JSON.parse(await page.locator('#physics-viewport').getAttribute('data-music-evidence'));
  expect([...new Set(music.map(n=>n.member))]).toEqual(['c','b']);
  const physical=await page.request.get('/api/scenes/state?room=1').then(r=>r.json());

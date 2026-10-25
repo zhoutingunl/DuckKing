@@ -7,6 +7,7 @@ import time
 from .posture import change_posture, measure_posture, request_posture
 
 SEATED_SECONDS = 40.0
+LIVE_SOLO_SECONDS = 8.0
 SEATED_SPAWNS = [(-0.05, y) for y in (-0.33, -0.11, 0.11, 0.33)]
 
 
@@ -70,7 +71,7 @@ class SeatedChoir:
             "performance_id": self.performance_id,
             "error": self.error,
             "elapsed": self.elapsed,
-            "duration": SEATED_SECONDS,
+            "duration": LIVE_SOLO_SECONDS if self.live else SEATED_SECONDS,
             "running": self.running,
             "music_started": self.music_started,
             "solo": None if self.solo is None else "abcd"[self.solo],
@@ -105,7 +106,7 @@ class SeatedChoir:
             self.phase = "solo"
             self.music_started = True
             start = time.monotonic()
-            while time.monotonic() - start < 4:
+            while time.monotonic() - start < LIVE_SOLO_SECONDS:
                 b.ensure_running()
                 self.elapsed = time.monotonic() - start
                 if any(self.floor_contacts) or max(self.max_drift) > .12:

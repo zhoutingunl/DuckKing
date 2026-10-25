@@ -13,11 +13,11 @@ export class StudioChoir {
   if(key!==this.key){this.stop();this.key=key}
   clearTimeout(this.watch);this.watch=setTimeout(()=>this.stop(),1200);
   if(this.ctx?.state!=='running')return;
-  const phrase=odeToJoyScore().filter(n=>n.part===3&&n.beat<8);
+  const phrase=odeToJoyScore().filter(n=>n.part===3&&n.beat<16);
   for(const [i,n] of phrase.entries()){
    const from=n.beat/2,end=(n.beat+n.duration)/2;
    if(this.played.has(i)||from>state.elapsed+.12||end<=state.elapsed)continue;
-   this.played.add(i);const duration=Math.min(4,end)-Math.max(state.elapsed,from);
+   this.played.add(i);const duration=Math.min(state.duration,end)-Math.max(state.elapsed,from);
    if(duration<.04)continue;
    const ctx=this.ctx,osc=ctx.createOscillator(),gain=ctx.createGain(),pan=ctx.createStereoPanner();
    osc.type='triangle';osc.frequency.value=440*2**((n.midi+[-12,0,0,12][part]-69)/12);pan.pan.value=[-.65,-.2,.2,.65][part];

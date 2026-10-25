@@ -120,7 +120,7 @@ async def test_real_conductor_replaces_pending_queue(tmp_path):
                 await asyncio.sleep(.02)
         assert backend.seated.snapshot()["solo"] == "c"
         await studio.invoke("duck_conduct", {"operation": "queue", "order": ["b"]})
-        await asyncio.wait_for(asyncio.shield(studio.task), 20)
+        await asyncio.wait_for(asyncio.shield(studio.task), 30)
         assert studio.state["status"] == "completed", studio.snapshot()
         assert backend.seated.completed_solos == ["c", "b"]
         assert all(p["observed"] == "sit" for p in backend.seated.snapshot()["postures"])
