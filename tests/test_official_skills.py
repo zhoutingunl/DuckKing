@@ -77,6 +77,23 @@ async def test_actual_new_motion_and_return_to_supported_stance(backend, scene, 
         await motion.close()
 
 
+async def test_roll_completes_from_different_settled_states(backend):
+    # Resetting just once misses the unstable gait phases seen in the browser.
+    motion = MotionController(backend)
+    try:
+        for settle in range(0, 201, 10):
+            backend.load("skills")
+            for _ in range(settle):
+                backend.tick()
+            result = await run(motion, "roulade")
+            assert result["status"] == "completed", (settle, result)
+            out = result["outcome"]
+            assert out["rotation_rad"] > 5 and out["min_upright"] < -0.5, (settle, out)
+            assert out["supported"] and out["stable_s"] >= 0.3, (settle, out)
+    finally:
+        await motion.close()
+
+
 @pytest.mark.parametrize(
     "scene,name",
     [

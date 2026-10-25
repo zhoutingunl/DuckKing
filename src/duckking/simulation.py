@@ -100,7 +100,10 @@ class Driver:
         if action.shape != (14,) or not np.isfinite(action).all():
             raise ValueError("策略返回无效关节目标")
         self.last[:] = action
-        data.ctrl[self.ids] = HOME + action * (0.8 if self.base_policy == "roller" else 1)
+        # Keep previous_action in the network's units. Scale only the joint targets;
+        # the roll needs its own calibrated gain for reliable full rotation/recovery.
+        scale = 0.8 if self.base_policy == "roller" else 0.9 if self.policy == "roulade" else 1
+        data.ctrl[self.ids] = HOME + action * scale
 
     def pose(self, data):
         q = data.qpos[self.root + 3 : self.root + 7]
@@ -280,10 +283,16 @@ class MuJoCoBackend:
 
     async def _loop(self):
         try:
+            next_tick = time.monotonic()
             while True:
-                started = time.monotonic()
                 self.tick()
-                await asyncio.sleep(max(0.001, 0.02 - (time.monotonic() - started)))
+                # Keep a shared wall-clock cadence instead of accumulating event-loop
+                # scheduling jitter on every frame. Catch up with real physics steps,
+                # yielding after each one; never accumulate more than three steps.
+                next_tick += 0.02
+                now = time.monotonic()
+                next_tick = max(next_tick, now - 0.06)
+                await asyncio.sleep(max(0.001, next_tick - now))
         except asyncio.CancelledError:
             raise
         except Exception:
