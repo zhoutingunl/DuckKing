@@ -153,7 +153,7 @@ async def test_no_motion_is_not_verified_just_because_time_elapsed(backend, monk
     monkeypatch.setattr(backend, "tick", frozen_pose)
     motion = MotionController(backend)
     try:
-        for name in ("roulade", "ground_pick", "yawn"):
+        for name in ("roulade", "ground_pick", "yawn", "backward", "strafe_left", "strafe_right"):
             result = await run(motion, name)
             assert result["status"] == "failed" and not result["outcome"]["verified"]
             assert not backend.drivers[0].command.any()

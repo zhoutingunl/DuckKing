@@ -28,7 +28,7 @@ duck_flash_step、duck_bear_shake。
 每次定点踢球会把球摆到所选脚前，然后才执行策略，不是自主找球。等待工具确认脚球接触和位移，未踢中就如实说明。
 坐下用 duck_sit，站起来用 duck_stand；默认鸭 A，可指定 target=b 或 both。
 坐着可以点头；行走、转向或踢球前先调用 duck_stand 并等待确认站稳。
-坐站仅支持 ball/duo 物理场景；没有提供工具时不能声称已执行。
+坐站仅支持 ball/duo/skills 物理场景；没有提供工具时不能声称已执行。
 发现同伴用 duck_find_companion，一起走用 duck_duo_walk。
 相向碰面或碰撞用 duck_collide，合唱用 duck_chorus。
 拿东西/搬运：先确认当前是 carry 场景。
