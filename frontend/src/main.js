@@ -27,7 +27,10 @@ export function appendLog(text, label='系统', error=false) {
 }
 export async function post(url,body={}) {
   const response=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
-  const value=await response.json();if(!response.ok)throw new Error(typeof value.detail==='string'?value.detail:'请求参数或服务状态异常');return value;
+  let value;
+  try{value=await response.json()}
+  catch{throw new Error(response.ok?'本地服务返回了无效响应。':`本地后端请求失败（HTTP ${response.status}），请检查服务与端口。`)}
+  if(!response.ok)throw new Error(typeof value?.detail==='string'?value.detail:'请求参数或服务状态异常');return value;
 }
 let actionRequests=Promise.resolve();
 function action(name){

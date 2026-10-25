@@ -2,3 +2,5 @@
 
 .action-grid button.choreography{background:#f0f5df;border-color:#d5dfba}
 .action-grid button.choreography:hover{background:#e5efc9;border-color:#a6bd79}
+.home-nav{display:flex;align-items:center;gap:24px;font-size:13px}
+@media(max-width:480px){.home-nav{gap:14px}.home-nav .repo-link{gap:4px}}

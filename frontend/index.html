@@ -11,7 +11,7 @@
     <header class="topbar">
       <a class="brand" href="/" aria-label="DuckKing 首页"><span class="brand-mark">dk<span>●</span></span>DuckKing</a>
       <div class="top-label">VOICE × MOTION LAB <span> / 001</span></div>
-      <a class="repo-link" href="https://github.com/zhoutingunl/DuckKing" target="_blank" rel="noopener">源代码 <span>↗</span></a>
+      <nav class="home-nav" aria-label="工作台导航"><a href="/statistics.html" target="_blank" rel="noopener" title="新标签页打开，保留语音连接">交互统计</a><a class="repo-link" href="https://github.com/zhoutingunl/DuckKing" target="_blank" rel="noopener">源代码 <span>↗</span></a></nav>
     </header>
     <main>
       <section class="intro">
@@ -37,6 +37,7 @@
             <button id="talk-button" class="talk-button" disabled aria-label="按住说话"><svg viewBox="0 0 24 24" width="25" height="25" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="8" y="2" width="8" height="13" rx="4"/><path d="M5 10v2a7 7 0 0 0 14 0v-2M12 19v3M8 22h8"/></svg><span>按住说话</span><span class="key-hint">SPACE</span></button>
             <div class="voice-caption" id="voice-caption">当前可以先用下方按钮探索动作。</div>
             <div class="voice-setup"><button id="connect-voice" class="text-button" disabled>连接灵矽 <span>↗</span></button><span id="voice-connection-hint">接入模块准备中</span></div>
+            <div class="voice-setup"><button id="reset-voice" class="text-button" disabled>重置语音 ↻</button><a class="text-button" href="/api/voice/diagnostics" target="_blank" rel="noopener">连接诊断 ↗</a></div>
             <div id="activation" class="activation" hidden></div>
           </section>
           <section class="action-card">

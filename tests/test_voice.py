@@ -105,6 +105,12 @@ async def test_real_local_websocket_opus_transcripts_and_tools(tmp_path):
         audio = next(m for m in messages if m["type"] == "audio")
         assert len(base64.b64decode(audio["pcm"])) == 2880
         assert any(m.get("aborted") for m in messages)
+        stats = session.diagnostics.statistics.snapshot()
+        assert stats["counts"]["recognized"] == 1
+        assert stats["counts"]["interrupted"] == 1
+        assert stats["counts"]["completed_actions"] == 1
+        assert stats["latencies"]["first_audio"]["count"] == 1
+        assert stats["rounds"][0]["text"] == "点点头"
         release.set()
         await eventually(lambda: session.state == "disconnected")
         await session.disconnect()

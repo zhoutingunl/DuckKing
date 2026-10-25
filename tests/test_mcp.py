@@ -22,6 +22,8 @@ async def test_discovery_protocol_errors_and_status():
     assert {tool["name"] for tool in listing["result"]["tools"]} == {
         "duck_nod",
         "duck_walk_short",
+        "duck_turn_left",
+        "duck_turn_right",
         "duck_stop",
         "duck_get_status",
         "duck_flash_step",
@@ -66,6 +68,9 @@ async def test_stop_interrupts_an_inflight_mcp_action():
         {"name": "duck_nod", "arguments": {"command": "bad"}},
         {"name": "duck_nod", "arguments": []},
         {"name": "duck_walk_short", "arguments": {"duration": 100}},
+        {"name": "duck_turn_left", "arguments": {"duration": 0.1}},
+        {"name": "duck_turn_right", "arguments": {"duration": 4}},
+        {"name": "duck_turn_left", "arguments": {"angle": 90}},
     ],
 )
 async def test_invalid_tools_and_arguments_produce_tool_errors(params):
@@ -110,4 +115,38 @@ async def test_bear_tool_can_be_stopped_by_another_tool_call():
     await mcp.handle(request("tools/call", {"name": "duck_stop"}, ident=2))
     assert (await dance)["result"]["isError"] is True
     assert (await motion.backend.snapshot())["pose"]["body_z"] == 0
+    await motion.close()
+
+
+async def test_sequential_walk_left_right_directions_and_deduplicated_measurements():
+    class ObservedPreview(PreviewBackend):
+        def __init__(self):
+            super().__init__()
+            self.commands = []
+
+        async def move(self, forward, turn, lateral=0):
+            self.commands.append((forward, turn))
+            await super().move(forward, turn, lateral)
+
+    backend = ObservedPreview()
+    motion = MotionController(backend)
+    mcp = DeviceMCP(motion, "sequence")
+    events = []
+
+    def observe(event, **fields):
+        events.append((event, fields))
+
+    for ident, name in enumerate(["duck_walk_short", "duck_turn_left", "duck_turn_right"]):
+        call = request("tools/call", {"name": name, "arguments": {"duration": .2}}, ident)
+        result = await mcp.handle(call, observe=observe)
+        assert not result["result"]["isError"]
+        assert await mcp.handle(call, observe=observe) == result
+    assert [e[1]["tool"] for e in events if e[0] == "action_start"] == [
+        "duck_walk_short", "duck_turn_left", "duck_turn_right"
+    ]
+    assert len(events) == 6
+    assert all(e[1]["result"] == "completed" for e in events if e[0] == "action_end")
+    assert any(v > 0 and y == 0 for v, y in backend.commands)
+    assert any(v == 0 and y > 0 for v, y in backend.commands)
+    assert any(v == 0 and y < 0 for v, y in backend.commands)
     await motion.close()

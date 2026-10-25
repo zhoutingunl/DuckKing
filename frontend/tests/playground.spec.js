@@ -35,3 +35,19 @@ test('mobile controls fit the viewport and are operable',async({page})=>{
   await expect.poll(async()=> (await (await page.request.get(`/api/actions/${id}`)).json()).status).toBe('completed');
   expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
 });
+
+test('action errors stay readable and a failed request does not block the next action',async({page})=>{
+  await page.goto('/');
+  await page.route('**/api/actions',route=>route.fulfill({status:503,contentType:'text/plain',body:'Service unavailable'}));
+  await page.locator('[data-action="nod"]').click();
+  await expect(page.locator('#notice')).toContainText('HTTP 503');
+  await page.unroute('**/api/actions');
+  await page.route('**/api/actions',route=>route.fulfill({status:409,json:{detail:'测试：动作请求冲突'}}));
+  await page.locator('[data-action="nod"]').click();
+  await expect(page.locator('#notice')).toHaveText('测试：动作请求冲突');
+  await page.unroute('**/api/actions');
+  const accepted=page.waitForResponse(response=>response.url().endsWith('/api/actions'));
+  await page.locator('[data-action="nod"]').click();
+  const id=(await (await accepted).json()).id;
+  await expect.poll(async()=> (await (await page.request.get(`/api/actions/${id}`)).json()).status).toBe('completed');
+});
