@@ -114,4 +114,4 @@ $('apply-persona').addEventListener('click',()=>{
 });
 for(const audio of document.querySelectorAll('[data-voice-sample]'))audio.src=appURL(`voice-samples/${audio.dataset.voiceSample}.wav`);
 
-window.addEventListener('pagehide',()=>{if(!selected)return;const url=appURL('api/scenes/actions');url.searchParams.set('room',currentRoom);void fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:'stop'}),keepalive:true}).catch(()=>{});viewer?.dispose()});
+window.addEventListener('pagehide',()=>{choir.stop();if(!selected)return;const url=appURL('api/scenes/actions');url.searchParams.set('room',currentRoom);void fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:'stop'}),keepalive:true}).catch(()=>{});viewer?.dispose()});

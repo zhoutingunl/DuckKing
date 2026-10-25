@@ -50,6 +50,7 @@ class VoiceSession:
         self.turn = self.uplink_frames = self.downlink_frames = 0
         self.last_activity = self.state_since = time.monotonic()
         self.logged_state = None
+        self.state_changed = asyncio.Event()
         self.sensitive_values = set()
         self.generation = 0
         self.pending_input = None
@@ -85,6 +86,16 @@ class VoiceSession:
             self.start_connect(recovering=True)
 
     async def announce(self, text):
+        # A short focus timer can expire while its initial acknowledgement is playing.
+        # Wait for that turn to finish; cancellation of the owning task cancels this wait.
+        deadline = time.monotonic() + RESPONSE_TIMEOUT
+        while (self.cloud and self.state in {"thinking", "speaking", "listening"}
+               and time.monotonic() < deadline):
+            self.state_changed.clear()
+            try:
+                await asyncio.wait_for(self.state_changed.wait(), deadline - time.monotonic())
+            except TimeoutError:
+                break
         if not self.cloud or self.state != "ready":
             await self.send({"type": "studio_notice", "text": text,
                              "spoken": False, "source": "local_task"})
@@ -124,6 +135,7 @@ class VoiceSession:
                 "error": self.error, "generation": self.generation}
 
     def _record_state(self):
+        self.state_changed.set()
         if self.logged_state != self.state:
             self.state_since = time.monotonic()
             self.logged_state = self.state

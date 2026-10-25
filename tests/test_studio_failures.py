@@ -200,3 +200,35 @@ async def test_announcements_mark_origin_and_require_idle_cloud(studio, tmp_path
     await session.open()
     assert session.state == 'error'  # No configured/bound remote device for this fixture.
     await session.disconnect()
+
+
+async def test_busy_announcement_waits_and_cancellation_prevents_late_speech(
+    studio, tmp_path, monkeypatch,
+):
+    messages, frames = [], []
+    async def send(data):
+        messages.append(data)
+    async def cloud(data):
+        frames.append(data)
+    session = VoiceSession(send, studio.motion, Settings(data_dir=tmp_path))
+    session.cloud, session.state, session._json = object(), 'speaking', cloud
+    pending = asyncio.create_task(session.announce('先取消这次提醒'))
+    await asyncio.sleep(.01)
+    assert not frames
+    pending.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await pending
+    session.state = 'ready'
+    await asyncio.sleep(.06)
+    assert not frames and not messages
+    session.state = 'speaking'
+    pending = asyncio.create_task(session.announce('时间到了'))
+    await asyncio.sleep(.01)
+    session.state = 'ready'
+    session._record_state()
+    await pending
+    assert len(frames) == 1 and '时间到了' in frames[0]['text']
+    monkeypatch.setattr('duckking.voice.RESPONSE_TIMEOUT', .01)
+    session.state = 'speaking'
+    await session.announce('等待已超时')
+    assert len(frames) == 1 and messages[-1]['spoken'] is False
