@@ -202,6 +202,7 @@ async function runStep(run,step){
     },{tracks,offset});
     const [result,audio]=await Promise.all([movement,music]);
     run.results.push({name:'table_music',status:'completed',outcome:audio});
+    $('table-beat').textContent=`${TABLE_SECONDS} / ${TABLE_SECONDS} 秒`;
     $('result-summary').textContent=`四只鸭参与；鸭 D 在第 ${result.outcome.dropped_at.toFixed(1)} 秒离桌，随后实际接触地面。其余三只仍有桌面支撑。`;
     entry('真实跌落验收通过：桌面支撑 → 离桌 → 地面接触；其余三只留在桌上');
   }

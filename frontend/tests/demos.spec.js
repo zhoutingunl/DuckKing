@@ -15,7 +15,8 @@ test('all eleven automated scripts validate actual MuJoCo outcomes and chorale s
   await page.locator(`[data-demo="${demo.id}"]`).click();
   await expect(page.locator('#show-status')).toHaveText('本幕完成 · 可重演或进入下一幕',{timeout:90000});
   const proof=await page.locator('#theatre-result').textContent();expect(JSON.parse(proof).scene).toBe(demo.id);
-  expect(JSON.parse(proof).mode).toBe('scripted_rehearsal');await expect(page.locator('#demo-notice')).toBeHidden();
+  expect(JSON.parse(proof).mode).toBe('scripted_rehearsal');
+  if(demo.id==='tabletop')await expect(page.locator('#table-beat')).toHaveText('36 / 36 秒');await expect(page.locator('#demo-notice')).toBeHidden();
   await expect(page.locator('#demo-mode')).toBeEnabled({timeout:10000});
  }
  expect(errors).toEqual([]);
