@@ -60,7 +60,7 @@ for(const song of ['chorale','tabletop'])test(`suspended audio clock stops ${son
 test('table music failure is explicit and never substitutes another song or starts the fall',async({page})=>{
  test.setTimeout(60000);
  await page.route('**/demo-audio/*.wav*',route=>route.fulfill({contentType:'audio/wav',body:silentFixture()}));
- await page.route('**/demo-music/*.mp3',route=>route.fulfill({status:503,body:'unavailable'}));
+ await page.route('**/demo-music/*.mp3*',route=>route.fulfill({status:503,body:'unavailable'}));
  await page.goto('/demos.html?room=1');await page.locator('[data-demo="tabletop"]').click();
  await expect(page.locator('#show-status')).toHaveText('本幕未完成 · 点击节目重试',{timeout:45000});
  await expect(page.locator('#demo-notice')).toContainText('音源加载失败');
@@ -94,4 +94,18 @@ test('source link stays at the right edge with no navigation or viewport overlap
   expect(nav.y>=source.y+source.height||nav.x+nav.width<=source.x).toBe(true);
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
  }
+});
+
+for(const song of ['ode','tigers'])test(`stopping synthesized ${song} stops all oscillators and actual stepping`,async({page})=>{
+ test.setTimeout(60000);
+ await page.addInitScript(()=>{const native=OscillatorNode.prototype.start;window.scorePlaying=0;OscillatorNode.prototype.start=function(...args){window.scorePlaying++;this.addEventListener('ended',()=>window.scorePlaying--,{once:true});return native.apply(this,args)}});
+ await page.route('**/demo-audio/*.wav*',route=>route.fulfill({contentType:'audio/wav',body:silentFixture()}));
+ await page.goto('/demos.html?room=1');await page.locator(`[data-table-song="${song}"]`).click();
+ await expect(page.locator('#table-panel')).toBeVisible({timeout:45000});
+ await expect.poll(()=>page.evaluate(()=>window.scorePlaying)).toBeGreaterThan(0);
+ await expect(page.locator('#caption-role')).toContainText('本地合成');
+ if(song==='tigers')await expect(page.locator('.table-seat[data-duck=d]')).toContainText('等待入唱');
+ await page.locator('#stop-demo').click();await expect.poll(()=>page.evaluate(()=>window.scorePlaying)).toBe(0);
+ const state=await (await page.request.get('/api/scenes/state?room=1')).json();expect(state.backend.tabletop.running).toBe(false);
+ await expect(page.locator('#theatre-result')).toHaveCount(0);
 });

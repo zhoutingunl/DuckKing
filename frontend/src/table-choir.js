@@ -1,20 +1,24 @@
 // User-supplied song mixes, plus a separately selectable original rehearsal score.
 import {pause,until} from './demo-runtime.js';
 import {appURL} from './urls.js';
+import {TABLE_SCORES} from './table-scores.js';
 export const TABLE_SECONDS=36, TABLE_TEMPO=72;
 export const TABLE_PARTS=['低音','次中音','中音','高音'];
 export const BUILTIN_SONGS={
-  choir:{title:'夜空中最亮的星 · 人声叠唱',files:['night-star-a.mp3','night-star-b.mp3','night-star-c.mp3','night-star-d.mp3'],source:'user_provided_octave_chorus_mix'},
+  choir:{title:'夜空中最亮的星 · 主唱与轻叠唱',files:['night-star-a.mp3','night-star-b.mp3','night-star-c.mp3','night-star-d.mp3'],source:'user_provided_octave_chorus_mix',parts:['低八度铺底','轻齐唱','高八度点缀','原人声主唱'],pans:[-.55,-.2,.55,0]},
   vocal:{title:'夜空中最亮的星 · 原人声版',files:['night-star-vocal.mp3'],source:'user_provided_vocal_mix'},
   instrumental:{title:'夜空中最亮的星 · 器乐版',files:['night-star-instrumental.mp3'],source:'user_provided_instrumental_mix'},
 };
 const musicCache=new Map();
 export async function loadBuiltinSong(name,ctx,signal){
+  signal.throwIfAborted();
+  if(TABLE_SCORES[name])return TABLE_SCORES[name];
   if(name==='original')return null;
   const info=BUILTIN_SONGS[name];if(!info)throw new Error('未知歌曲音源');
   if(musicCache.has(name))return musicCache.get(name);
   const buffers=await Promise.all(info.files.map(async file=>{
-    const response=await fetch(appURL('demo-music/'+file),{signal:AbortSignal.any([signal,AbortSignal.timeout(30000)])});
+    const url=appURL('demo-music/'+file);url.searchParams.set('v','lead-d-20261025');
+    const response=await fetch(url,{signal:AbortSignal.any([signal,AbortSignal.timeout(30000)])});
     if(!response.ok)throw new Error('歌曲音源加载失败，请重演；不会自动替换曲目');
     return ctx.decodeAudioData(await response.arrayBuffer());
   }));
@@ -47,27 +51,31 @@ export async function decodeTracks(files,ctx){
 }
 export function checkOffset(tracks,offset){
   if(!Number.isFinite(offset)||offset<0||offset>600)throw new Error('起播位置须在 0—600 秒之间');
-  if(tracks?.buffers.some(b=>b.duration<offset+TABLE_SECONDS))throw new Error('起播位置之后需要至少 36 秒音频');
+  if(tracks?.notes&&offset!==0)throw new Error('合成曲目从第 0 秒开始，请将起播位置归零');
+  if(tracks?.buffers?.some(b=>b.duration<offset+TABLE_SECONDS))throw new Error('起播位置之后需要至少 36 秒音频');
 }
 export async function playTableChoir(output,signal,readState,onFrame,{tracks=null,offset=0}={}){
   checkOffset(tracks,offset);
   await until(()=>readState()?.running,{signal,timeout:10000});
   const ctx=output.context();if(ctx.state!=='running')throw new Error('声音未启用，请重新点击节目');
-  const first=readState(),start=ctx.currentTime-first.elapsed,seconds=60/TABLE_TEMPO;
+  const first=readState(),start=ctx.currentTime-first.elapsed,seconds=60/(tracks?.bpm??TABLE_TEMPO);
   const master=ctx.createGain();master.gain.value=.7;master.connect(ctx.destination);
-  const buses=TABLE_PARTS.map((_,i)=>{const gain=ctx.createGain(),pan=ctx.createStereoPanner();pan.pan.value=(i-1.5)*.35;gain.connect(pan);pan.connect(master);return {gain,pan}});
-  const nodes=new Set(),scheduled=new Set(),score=originalTableScore();let reacted=false,lastProgress=performance.now(),lastElapsed=first.elapsed;
+  const buses=TABLE_PARTS.map((_,i)=>{const gain=ctx.createGain(),pan=ctx.createStereoPanner();pan.pan.value=tracks?.pans?.[i]??(i-1.5)*.35;gain.connect(pan);pan.connect(master);return {gain,pan}});
+  const nodes=new Set(),scheduled=new Set(),score=tracks?.notes??originalTableScore();let reacted=false,lastProgress=performance.now(),lastElapsed=first.elapsed;
   const stop=()=>{for(const source of nodes){try{source.stop()}catch{}}};
   signal.addEventListener('abort',stop,{once:true});
   function hum(note,elapsed){
     const from=Math.max(note.beat*seconds,elapsed),length=(note.beat+note.duration)*seconds-from;
     if(length<.04)return;
     const at=Math.max(ctx.currentTime,start+from),osc=ctx.createOscillator(),gain=ctx.createGain();
-    osc.type='sawtooth';osc.frequency.value=440*2**((note.midi-69)/12);
-    const formants=[650,1150,2500].map((frequency,i)=>{const f=ctx.createBiquadFilter();f.type='bandpass';f.frequency.value=frequency;f.Q.value=4+i*2;osc.connect(f);f.connect(gain);return f});
-    gain.gain.setValueAtTime(0,at);gain.gain.linearRampToValueAtTime(.065,at+.04);gain.gain.setValueAtTime(.065,at+Math.max(.04,length-.08));gain.gain.linearRampToValueAtTime(0,at+length);
+    // Keep the fundamental audible: the previous vowel-only filters obscured
+    // recognizable melodies. A gentle triangle voice carries the pitch.
+    osc.type='triangle';osc.frequency.value=440*2**((note.midi-69)/12);
+    const filter=ctx.createBiquadFilter();filter.type='lowpass';filter.frequency.value=2600;osc.connect(filter);filter.connect(gain);
+    const volume=tracks?.gains?.[note.part]??.10,attack=Math.min(.025,length/4),release=Math.min(.07,length/3);
+    gain.gain.setValueAtTime(0,at);gain.gain.linearRampToValueAtTime(volume,at+attack);gain.gain.setValueAtTime(volume,at+length-release);gain.gain.linearRampToValueAtTime(0,at+length);
     gain.connect(buses[note.part].gain);osc.start(at);osc.stop(at+length+.01);nodes.add(osc);
-    osc.onended=()=>{nodes.delete(osc);osc.disconnect();gain.disconnect();formants.forEach(f=>f.disconnect())};
+    osc.onended=()=>{nodes.delete(osc);osc.disconnect();gain.disconnect();filter.disconnect()};
   }
   function stumble(){
     const osc=ctx.createOscillator(),gain=ctx.createGain(),at=ctx.currentTime;
@@ -77,7 +85,7 @@ export async function playTableChoir(output,signal,readState,onFrame,{tracks=nul
     osc.onended=()=>{nodes.delete(osc);osc.disconnect();gain.disconnect()};
   }
   try{
-    if(tracks)tracks.buffers.forEach((buffer,i)=>{
+    if(tracks?.buffers)tracks.buffers.forEach((buffer,i)=>{
       const source=ctx.createBufferSource();source.buffer=buffer;source.connect(tracks.buffers.length===1?master:buses[i].gain);
       source.start(ctx.currentTime,offset+first.elapsed,TABLE_SECONDS-first.elapsed);nodes.add(source);source.onended=()=>{nodes.delete(source);source.disconnect()};
     });
@@ -92,13 +100,13 @@ export async function playTableChoir(output,signal,readState,onFrame,{tracks=nul
       master.gain.setTargetAtTime(state.phase==='surprised'?.12:.7,ctx.currentTime,.06);
       buses[3].gain.gain.setTargetAtTime(dropped&&!returning?0:1,ctx.currentTime,.05);
       if(dropped&&!reacted){reacted=true;stumble()}
-      if(!tracks)for(const [id,note] of score.entries()){
+      if(!tracks?.buffers)for(const [id,note] of score.entries()){
         if(scheduled.has(id)||note.beat*seconds>elapsed+.08||(note.beat+note.duration)*seconds<=elapsed)continue;
         scheduled.add(id);hum(note,elapsed);
       }
-      onFrame({elapsed,phase:state.phase,dropped,landed:state.landed_at!==null,returning,parts:tracks?.buffers.length??4});
+      onFrame({elapsed,phase:state.phase,dropped,landed:state.landed_at!==null,returning,parts:tracks?.buffers?.length??4,activeParts:(tracks?.entries??[0,0,0,0]).map((beat,i)=>elapsed>=beat*seconds&&!(i===3&&dropped&&!returning))});
       await pause(30,signal);
     }
-    return {source:tracks?.source??(tracks?'user_selected_audio':'original_vowel_harmony'),parts:tracks?.buffers.length??4,duration:TABLE_SECONDS,physical_ducks:4,fall_cue:reacted,ble:false};
+    return {source:tracks?.source??(tracks?'user_selected_audio':'original_synth_harmony'),parts:tracks?.buffers?.length??4,duration:TABLE_SECONDS,physical_ducks:4,fall_cue:reacted,ble:false};
   }finally{signal.removeEventListener('abort',stop);stop();master.disconnect();buses.forEach(b=>{b.gain.disconnect();b.pan.disconnect()});}
 }

@@ -16,6 +16,34 @@ TEMPO = 72
 SPAWNS = [(-0.05, -0.33), (-0.05, -0.11), (-0.05, 0.11), (0.30, 0.33)]
 
 
+def dance_command(driver, data, index, elapsed):
+    """Alternate four beats of real stepping with four beats of standing sway.
+
+    Feedback is a bounded velocity request to the official policy, never a
+    correction to qpos. Standing body poses must be zero during walking.
+    """
+    position, yaw = driver.pose(data)
+    x, y = SPAWNS[index]
+    if math.hypot(position[0] - x, position[1] - y) > 0.14:
+        raise ValueError("踏步偏离站位过远，表演已停止，请重置场景")
+    beat = elapsed * TEMPO / 60 * math.tau
+    if int(elapsed * TEMPO / 60 / 4) % 2:
+        driver.command[4] = 0.10 * math.sin(beat)
+        driver.command[6] = 0.09 * math.sin(beat / 2)
+        driver.command[10] = 0.17 * math.sin(beat / 2)
+        driver.command[11] = 0.10 * math.cos(beat / 2)
+        return
+    vx = max(-0.4, min(0.4, (x + 0.04 * math.sin(beat / 2) - position[0]) * 8))
+    if abs(vx) >= 0.05:
+        vx = math.copysign(max(0.26, abs(vx)), vx)
+    vy = max(-0.22, min(0.22, (y - position[1]) * 4))
+    driver.command[:3] = (
+        math.cos(yaw) * vx + math.sin(yaw) * vy,
+        -math.sin(yaw) * vx + math.cos(yaw) * vy,
+        max(-0.5, min(0.5, -yaw * 3)),
+    )
+
+
 def build_table_model(robot_dir):
     spec = mujoco.MjSpec.from_string(
         '<mujoco><worldbody><geom name="floor" type="plane" size="4 4 .1" '
@@ -55,6 +83,12 @@ class TableChoir:
         self.dropped_at = None
         self.landed_at = None
         self.min_z = [float("inf")] * 4
+        self.feet = [
+            [backend.model.body(c + "_ankle_" + s).id for s in ("left", "right")] for c in "abcd"
+        ]
+        self.motion_min = [[float("inf")] * 4 for _ in range(4)]
+        self.motion_max = [[float("-inf")] * 4 for _ in range(4)]
+        self.max_drift = [0.0] * 4
 
     def update(self):
         b = self.backend
@@ -75,6 +109,18 @@ class TableChoir:
         for i, driver in enumerate(b.drivers):
             z = float(b.data.qpos[driver.root + 2])
             self.min_z[i] = min(self.min_z[i], z)
+            # Exclude the authored departure and fall from dance measurements.
+            if self.running and (i < 3 or self.elapsed < 16):
+                values = [float(b.data.qpos[driver.q[j]]) for j in (3, 12)] + [
+                    float(b.data.xpos[j, 2]) for j in self.feet[i]
+                ]
+                for j, value in enumerate(values):
+                    self.motion_min[i][j] = min(self.motion_min[i][j], value)
+                    self.motion_max[i][j] = max(self.motion_max[i][j], value)
+                pos, _ = driver.pose(b.data)
+                self.max_drift[i] = max(
+                    self.max_drift[i], math.hypot(pos[0] - SPAWNS[i][0], pos[1] - SPAWNS[i][1])
+                )
             if self.running and i == 3:
                 if self.dropped_at is None and z < TABLE_HEIGHT - 0.06 and not self.supported[i]:
                     self.dropped_at = self.elapsed
@@ -105,6 +151,15 @@ class TableChoir:
             "ground_contacts": self.ground_samples.copy(),
             "supported": self.supported.copy(),
             "min_root_height_m": self.min_z.copy(),
+            "knee_excursion_deg": [
+                [math.degrees(max(0, hi - lo)) for lo, hi in zip(low[:2], high[:2], strict=True)]
+                for low, high in zip(self.motion_min, self.motion_max, strict=True)
+            ],
+            "ankle_vertical_excursion_m": [
+                [max(0, hi - lo) for lo, hi in zip(low[2:], high[2:], strict=True)]
+                for low, high in zip(self.motion_min, self.motion_max, strict=True)
+            ],
+            "dance_max_drift_m": self.max_drift.copy(),
             "source": "scripted_gait_real_contacts_gravity",
         }
 
@@ -138,10 +193,8 @@ class TableChoir:
                             driver.command[4] = 0.10 * math.sin(elapsed * TEMPO / 60 * math.tau)
                         continue
                     if not reaction:
-                        beat = elapsed * TEMPO / 60 * math.tau
-                        driver.command[4] = 0.10 * math.sin(beat)
-                        driver.command[6] = 0.09 * math.sin(beat / 2 + i * 0.12)
-                        driver.command[10] = 0.035 * math.sin(beat / 2)
+                        if i < 3 or elapsed < 16:
+                            dance_command(driver, b.data, i, elapsed)
                     else:
                         driver.command[5] = 0.30
                     # A bounded forward gait crosses the real table edge. No

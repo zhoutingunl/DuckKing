@@ -5,6 +5,27 @@ import {DEMOS,AUDIO_LINES} from '../src/demo-catalog.js';
 import {pcmWave,pause,DemoVoice,matchesCloudActions} from '../src/demo-runtime.js';
 import {ChoraleRoster,openingScore} from '../src/chorale-demo.js';
 import {checkTrackFiles,checkOffset,decodeTracks,originalTableScore,TABLE_SECONDS,TABLE_TEMPO,playTableChoir} from '../src/table-choir.js';
+import {TABLE_SCORES,odeToJoyScore,tigerCanonScore} from '../src/table-scores.js';
+
+test('recognizable scores preserve melody, independent SATB and eight-beat canon entrances',()=>{
+  const ode=odeToJoyScore(),tigers=tigerCanonScore();
+  assert.deepEqual(ode.filter(n=>n.part===3).slice(0,8).map(n=>n.midi),[71,71,72,74,74,72,71,69]);
+  assert.equal(new Set([0,1,2,3].map(part=>JSON.stringify(ode.filter(n=>n.part===part).map(n=>n.midi)))).size,4);
+  for(const [part,transpose] of [0,-12,0,12].entries()){
+    const phrase=tigers.filter(n=>n.part===part);
+    assert.equal(phrase[0].beat,part*8);
+    assert.deepEqual(phrase.slice(0,4).map(n=>n.midi-transpose),[60,62,64,60]);
+  }
+  for(const score of Object.values(TABLE_SCORES)){
+    assert.throws(()=>checkOffset(score,1));checkOffset(score,0);
+    assert.ok(score.notes.every(n=>n.beat>=0&&n.duration>0&&n.midi>=36&&n.midi<=84&&(n.beat+n.duration)*60/score.bpm<=TABLE_SECONDS));
+    assert.ok(score.gains.reduce((a,b)=>a+b,0)<.6);
+    for(let part=0;part<4;part++){
+      const line=score.notes.filter(n=>n.part===part);assert.equal(line.at(-1).beat+line.at(-1).duration,64);
+      assert.ok(line.every((n,i)=>!i||line[i-1].beat+line[i-1].duration===n.beat));
+    }
+  }
+});
 
 test('all eleven scripts have real bounded PCM audio, with no microphone requirement',()=>{
   assert.equal(DEMOS.length,11);assert.equal(new Set(DEMOS.map(d=>d.id)).size,11);

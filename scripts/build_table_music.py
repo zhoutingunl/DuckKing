@@ -52,24 +52,29 @@ def main():
         "atrim=0:36,asetpts=PTS-STARTPTS,apad=whole_dur=36,atrim=0:36,"
         "loudnorm=I=-18:TP=-2:LRA=9,aresample=44100"
     )
-    fade = "afade=t=in:d=0.08,afade=t=out:st=35.1:d=0.9"
+    # The supplied vocal ends at 35.232 s; finish the fade before its hard end.
+    fade = "afade=t=in:d=0.08,afade=t=out:st=34.1:d=1.1"
     mono = "pan=mono|c0=0.5*c0+0.5*c1"
     layers = {
         "a": (
             f"{mono},asetrate=22050,aresample=44100,atempo=2,lowpass=f=900,"
-            "highpass=f=60,volume=.10",
+            "highpass=f=60,volume=.07",
             1,
             "octave below, quiet low-pass layer",
         ),
         "b": (
-            f"{mono},chorus=.6:.8:12:0.25:.3:1,highpass=f=170,lowpass=f=3500,volume=.12",
+            f"{mono},chorus=.6:.8:12:0.25:.3:1,highpass=f=170,lowpass=f=3500,volume=.06",
             1,
             "unison chorus layer",
         ),
-        "c": ("volume=.85", 2, "original lead mix"),
         "d": (
+            "volume=.92",
+            2,
+            "original lead mix; muted on the actual fall and resumed after landing",
+        ),
+        "c": (
             f"{mono},asetrate=88200,aresample=44100,atempo=.5,highpass=f=800,"
-            "lowpass=f=5000,volume=.08",
+            "lowpass=f=5000,volume=.04",
             1,
             "octave above, quiet high-pass layer",
         ),

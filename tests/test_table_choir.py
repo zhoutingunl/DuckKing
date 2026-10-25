@@ -12,7 +12,7 @@ from pydantic import ValidationError
 from duckking.model_assets import pack_visual_model
 from duckking.motion import Action, MotionController, PreviewBackend
 from duckking.simulation import MuJoCoBackend
-from duckking.table_choir import SHOW_DURATION, TABLE_HEIGHT
+from duckking.table_choir import SHOW_DURATION, TABLE_HEIGHT, dance_command
 
 ASSETS = Path(__file__).resolve().parents[1] / "external"
 
@@ -32,8 +32,7 @@ async def test_four_ducks_sing_and_only_one_really_leaves_the_table_and_lands(ba
     task = Action(name="table_show")
     await motion.submit(task)
     await asyncio.sleep(0.3)
-    assert any(abs(driver.command[4]) > 0.01 for driver in backend.drivers)
-    assert any(abs(driver.command[6]) > 0.01 for driver in backend.drivers)
+    assert backend.tabletop.running
     result = await motion.wait(task.request_id)
     assert result["status"] == "completed"
     out = result["outcome"]
@@ -43,6 +42,9 @@ async def test_four_ducks_sing_and_only_one_really_leaves_the_table_and_lands(ba
     assert all(out["table_contacts"])
     assert out["ground_contacts"][:3] == [0, 0, 0] and out["ground_contacts"][3] > 0
     assert out["min_root_height_m"][3] < TABLE_HEIGHT - 0.2
+    assert all(min(pair) > 25 for pair in out["knee_excursion_deg"])
+    assert all(min(pair) > 0.012 for pair in out["ankle_vertical_excursion_m"])
+    assert max(out["dance_max_drift_m"]) < 0.14
     final = [driver.pose(backend.data)[0].copy() for driver in backend.drivers]
     # Ground impacts may bounce the root back under the table edge. Actual
     # loss of table support, height loss and floor contacts prove the fall.
@@ -104,6 +106,31 @@ async def test_invalid_table_state_and_solver_failure(backend, monkeypatch):
     await preview.submit(task)
     assert (await preview.wait(task.request_id))["status"] == "failed"
     await preview.close()
+
+
+async def test_dance_position_guard_cancels_and_clears_all_intents(backend, monkeypatch):
+    driver = backend.drivers[0]
+    pose = driver.pose
+
+    def displaced(data):
+        position, yaw = pose(data)
+        position = position.copy()
+        position[0] += 0.2
+        return position, yaw
+
+    monkeypatch.setattr(driver, "pose", displaced)
+    with pytest.raises(ValueError, match="偏离站位"):
+        await backend.tabletop.perform()
+    assert not backend.tabletop.running
+    assert all(not d.command.any() for d in backend.drivers)
+    monkeypatch.setattr(driver, "pose", pose)
+    for elapsed in np.linspace(0, 15.9, 100):
+        driver.command[:] = 0
+        dance_command(driver, backend.data, 0, elapsed)
+        assert np.linalg.norm(driver.command[:2]) <= 0.46
+        assert abs(driver.command[2]) <= 0.5
+        if driver.command[:2].any():
+            assert not driver.command[9:12].any()
 
 
 @pytest.mark.parametrize(
@@ -172,7 +199,7 @@ async def test_cancelled_cold_compile_is_reused_and_cannot_change_scene_later(mo
         assert backend.scene == "ball"
         second = Action(name="scene_table")
         await motion.submit(second)
-        await asyncio.sleep(.05)
+        await asyncio.sleep(0.05)
         assert calls == ["table"] and backend.scene == "ball"
         release.set()
         assert (await motion.wait(second.request_id))["status"] == "completed"

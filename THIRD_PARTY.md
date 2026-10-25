@@ -33,3 +33,6 @@
 依赖版本将记录在 `uv.lock` 和前端 `package-lock.json`。旧版程序化卡通预览保留在 Git 历史和旧演示视频中；当前首页使用官方模型网格，关节动画脚本仍由本项目实现，不是物理仿真结果。
 
 - 第十一幕的《夜空中最亮的星》人声与器乐录音由项目用户直接提供。`frontend/public/demo-music/manifest.json` 记录源文件摘要、裁剪/响度/叠唱处理和输出摘要；原录音与歌曲的权利仍归原权利方，不随本仓库 MIT 许可授予。叠唱是用户混音的八度/齐唱处理，包含伴奏，不是独立录制的四声部或音色克隆。另选“原创排练”时由 DuckKing 的原创和弦序列本地合成，不含该歌曲旋律。
+
+- 第十一幕新增《欢乐颂》SATB：依据 Peter Chubb 排印的 [Mutopia Ode to Joy](https://www.mutopiaproject.org/ftp/BeethovenLv/ode/ode.ly) 前八小节，重复一次并将速度改为 108 BPM。原 LilyPond 源文件随 `frontend/public/scores/ode.ly` 提供，声明 Public Domain（Mutopia-2009/08/05-528）。浏览器音色与平衡由 DuckKing 编写，不是官方 MicroDuck 乐谱。
+- 《两只老虎》四鸭轮唱采用传统《Frère Jacques》旋律；四声叠置参考 Hautbois 的[公共领域谱例](https://commons.wikimedia.org/wiki/File:Fr_Jacques_4_Vx.jpg)。本项目采用 C 调常见等分节奏、每 8 拍入声、高低八度分配和末尾四拍收束；没有使用现代录音或第三方受限编曲。

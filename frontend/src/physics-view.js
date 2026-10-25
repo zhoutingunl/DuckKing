@@ -62,5 +62,5 @@ export function physicsView(container) {
     // voice audio or the stream of physical state. Physics remains at 200 Hz.
     timer=setTimeout(()=>{frame=requestAnimationFrame(animate);},reduced?100:33);
   }animate();
-  return {load,update,clear,frameScene(scene){const close=scene==='carry',table=scene==='table';camera.position.set(...(table?[1.6,1.10,-1.6]:close?[.6,.4,.65]:[.85,.62,.95]));controls.target.set(close ? .12 : table ? .20 : 0,table ? .25 : .13,table ? -.10 : 0);controls.update();controls.saveState();},reset(){controls.reset();},dispose(){clearTimeout(timer);cancelAnimationFrame(frame);observer.disconnect();clear();controls.dispose();renderer.dispose();}};
+  return {load,update,clear,frameScene(scene){const close=scene==='carry',table=scene==='table';camera.position.set(...(table?[1.35,.98,-1.35]:close?[.6,.4,.65]:[.85,.62,.95]));controls.target.set(close ? .12 : table ? .20 : 0,table ? .25 : .13,table ? -.10 : 0);controls.update();controls.saveState();},reset(){controls.reset();},dispose(){clearTimeout(timer);cancelAnimationFrame(frame);observer.disconnect();clear();controls.dispose();renderer.dispose();}};
 }
