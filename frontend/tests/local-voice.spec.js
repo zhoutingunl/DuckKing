@@ -23,8 +23,12 @@ test('local-first source stays explicit and cloud mode remains selectable',async
   });
   await page.goto('/?room=1');
   await expect(page.locator('#voice-mode')).toHaveValue('local_first');
+  await expect(page.locator('#connect-voice')).toHaveAccessibleName('启用语音');
+  await expect(page.locator('#connect-voice svg')).toHaveCount(1);
   await page.locator('#connect-voice').click();
   await expect(page.locator('#talk-button')).toBeEnabled();
+  await expect(page.locator('#connect-voice')).toHaveAccessibleName('断开连接');
+  await expect(page.locator('#voice-badge')).toHaveClass(/connected/);
   await expect(page.locator('#voice-mode')).toBeDisabled();
   await page.locator('#talk-button').dispatchEvent('pointerdown',{pointerId:1});
   await expect.poll(()=>frames).toBeGreaterThan(0);
@@ -36,10 +40,42 @@ test('local-first source stays explicit and cloud mode remains selectable',async
   await expect(page.locator('#voice-route')).toContainText('本地');
   await page.locator('#connect-voice').click();
   await expect(page.locator('#voice-mode')).toBeEnabled();
+  await expect(page.locator('#voice-badge')).not.toHaveClass(/connected/);
   await page.locator('#voice-mode').selectOption('cloud');
+  await expect(page.locator('#connect-voice')).toHaveAccessibleName('连接灵矽');
+  await expect(page.locator('#connect-voice svg')).toHaveCount(1);
   await page.locator('#connect-voice').click();
   await expect(page.locator('#voice-badge')).toHaveText('灵矽已连接');
   expect(connects).toEqual(['local_first','cloud']);
+});
+
+test('scene voice retry keeps local labels, button icon and connection state',async({page})=>{
+  await page.route('**/api/voice/modes*',route=>route.fulfill({json:{local_first:true,available:true}}));
+  let attempts=0;
+  await page.routeWebSocket('**/scene-voice',socket=>socket.onMessage(message=>{
+    if(typeof message!=='string')return;
+    const data=JSON.parse(message);
+    if(data.type==='connect')socket.send(JSON.stringify(++attempts===1
+      ?{type:'voice_status',state:'error',error:'协议测试：连接暂不可用'}
+      :{type:'voice_status',state:'ready',mode:data.mode}));
+    if(data.type==='disconnect')socket.send(JSON.stringify({type:'voice_status',state:'disconnected'}));
+  }));
+  await page.goto('/scenarios.html?room=1');
+  const button=page.locator('#connect-voice'),badge=page.locator('#voice-badge');
+  await expect(button).toHaveAccessibleName('启用语音');
+  await button.click();
+  await expect(badge).toHaveText('连接异常');
+  await expect(badge).not.toHaveClass(/connected/);
+  await expect(button).toHaveAccessibleName('启用语音');
+  await button.click();
+  await expect(badge).toHaveText('本地优先 · 已就绪');
+  await expect(badge).toHaveClass(/connected/);
+  await expect(button).toHaveAccessibleName('断开连接');
+  await expect(button.locator('svg')).toHaveCount(1);
+  await button.click();
+  await expect(badge).toHaveText('语音未启用');
+  await expect(badge).not.toHaveClass(/connected/);
+  await expect(button).toHaveAccessibleName('启用语音');
 });
 
 test('late capability response cannot switch an already connected cloud session',async({page})=>{

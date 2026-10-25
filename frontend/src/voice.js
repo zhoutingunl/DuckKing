@@ -4,7 +4,7 @@ import { createSocket } from './transport.js';
 import { VoiceAudio } from './audio-output.js';
 
 export function setupVoice({appendLog,notify,endpoint='/voice'}){
-  const $=id=>document.getElementById(id),talk=$('talk-button'),connect=$('connect-voice');
+  const $=id=>document.getElementById(id),talk=$('talk-button'),connect=$('connect-voice'),connectLabel=$('connect-label');
   let ws=null,state='disconnected',pressed=false,recording=null,timeout=null,heartbeat=null,closingTimer=null,voiceNotice=null;
   function voiceError(text){voiceNotice=text;notify(text)}
   let generation=0,minGeneration=0,captureId=0,audioReportTimer=null;
@@ -35,8 +35,13 @@ export function setupVoice({appendLog,notify,endpoint='/voice'}){
     talk.classList.toggle('recording',state==='listening');
     $('enable-sound').disabled=pressed;
     connect.disabled=state==='disconnecting';
-    connect.textContent=state==='disconnecting'?'正在释放语音…':['connecting','recovering','interrupting','ready','listening','thinking','speaking'].includes(state)?'断开连接 ↗':state==='awaiting_binding'?'我已绑定，重新连接 ↗':state==='busy'?'本房间释放后重试 ↗':'连接灵矽 ↗';
-    if(mode==='local_first'&&['disconnected','error'].includes(state))connect.textContent='启用语音 ↗';
+    const connected=['connecting','recovering','interrupting','ready','listening','thinking','speaking'].includes(state);
+    connect.classList.toggle('connected',connected);
+    $('voice-badge').classList.toggle('connected',connected);
+    let connectText=state==='disconnecting'?'正在释放语音…':connected?'断开连接':state==='awaiting_binding'?'我已绑定，重新连接':state==='busy'?'本房间释放后重试':'连接灵矽';
+    if(mode==='local_first'&&['disconnected','error'].includes(state))connectText='启用语音';
+    connectLabel.textContent=connectText;
+    connect.setAttribute('aria-label',connectText);
     $('reset-voice').disabled=!['ready','listening','thinking','speaking','error'].includes(state);
     $('voice-connection-hint').textContent=state==='disconnected'?'使用灵矽智能体':'设备端语音连接';
     if(mode==='local_first')$('voice-connection-hint').textContent='服务器离线识别 · 未匹配时交灵矽';
