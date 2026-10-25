@@ -7,17 +7,21 @@ function silentFixture(){
  const b=Buffer.alloc(44+3200);b.write('RIFF');b.writeUInt32LE(b.length-8,4);b.write('WAVE',8);b.write('fmt ',12);b.writeUInt32LE(16,16);b.writeUInt16LE(1,20);b.writeUInt16LE(1,22);b.writeUInt32LE(16000,24);b.writeUInt32LE(32000,28);b.writeUInt16LE(2,32);b.writeUInt16LE(16,34);b.write('data',36);b.writeUInt32LE(3200,40);return b;
 }
 test('all eleven automated scripts validate actual MuJoCo outcomes and chorale seats',async({page})=>{
- test.setTimeout(240000);
+ // Eleven real-time scenes plus model transfers can exceed four minutes on
+ // shared Linux runners. Each scene still has its own 90 s completion bound.
+ test.setTimeout(360000);
  await page.route('**/demo-audio/*.wav*',route=>route.fulfill({contentType:'audio/wav',body:silentFixture()}));
  const errors=[];page.on('pageerror',e=>errors.push(e.message));await page.goto('/demos.html?room=1');
  await expect(page.locator('.program-item')).toHaveCount(11);
  for(const demo of DEMOS){
+  await test.step(demo.id,async()=>{
   await page.locator(`[data-demo="${demo.id}"]`).click();
   await expect(page.locator('#show-status')).toHaveText('本幕完成 · 可重演或进入下一幕',{timeout:90000});
   const proof=await page.locator('#theatre-result').textContent();expect(JSON.parse(proof).scene).toBe(demo.id);
   expect(JSON.parse(proof).mode).toBe('scripted_rehearsal');
   if(demo.id==='tabletop')await expect(page.locator('#table-beat')).toHaveText('36 / 36 秒');await expect(page.locator('#demo-notice')).toBeHidden();
   await expect(page.locator('#demo-mode')).toBeEnabled({timeout:10000});
+  });
  }
  expect(errors).toEqual([]);
 });
