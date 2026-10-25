@@ -17,7 +17,11 @@ DuckKing 与 ai_gateway 使用不同目录、虚拟环境、端口和 systemd �
 uv run --frozen --no-sync python scripts/build_release.py --ref <已提交commit> --version <tag>
 ```
 
-构建脚本通过 `git archive` 获取已提交源码，在临时目录 `npm ci && npm run build`，打包跟踪文件、重新构建的前端和 `release.json`。官方模型另外从固定上游 Git commit 导出，包含原始许可，策略文件逐个验证 SHA-256；因此服务器无需访问 GitLab 或 Hugging Face。不包含本地 `.env`、设备身份、日志、工作区未提交内容、node_modules 或模型仓库 `.git`。输出 tar.gz 与 SHA-256 文件，作为 GitHub Release 附件供 YZH737 下载。
+构建脚本通过 `git archive` 获取已提交源码，在临时目录 `npm ci && npm run build`，打包跟踪文件、重新构建的前端和 `release.json`。官方模型另外从固定上游 Git commit 导出，包含原始许可，策略文件逐个验证 SHA-256；因此服务器无需访问 GitLab 或 Hugging Face。不包含本地 `.env`、设备身份、日志、工作区未提交内容、node_modules 或模型仓库 `.git`。输出 tar.gz 与 SHA-256 文件，作为 GitHub Release 附件，或通过发布页中已校验的 CDN 下载链接供 YZH737 下载。
+
+部署页的“变更提交”来自发布包内 `release-commits.json`：只提取该发布提交可达的 Git 历史（最多 2000 项，SHA、父提交和摘要，不含作者邮箱）。页面按同一目标上一次成功部署计算新增提交；暂存／失败不推进基准，同版本的暂存与成功记录使用同一基准。每次最多展示 50 项并链接 GitHub 对比；回退、同提交重发、历史不完整分别明确标注，服务器不需要联网查询 GitHub。
+
+“行覆盖率 / 分支覆盖率”明确限定为 Python 后端测试，包含单元及集成检查。CI 输出 `coverage-summary.json`，绑定 PR head／提交 SHA、覆盖计数和 CI URL。构建时可重复传入 `--coverage-summary <从已完成CI下载的coverage-summary.json>`，将当前及历史版本的已核验报告写入 `release-coverage.json`；服务器只给完全相同的提交展示报告。不传报告或旧版本缺少证据时显示“未记录”，不复用工作目录可能过期的 `coverage.json`。构建前需确认对应 CI 完整成功，且报告 SHA 与准备发布的提交一致。
 
 目标机先核对 SHA-256，再从已验证的包中取出安装脚本：
 
