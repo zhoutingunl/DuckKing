@@ -30,6 +30,7 @@ test('local-first source stays explicit and cloud mode remains selectable',async
   await expect.poll(()=>frames).toBeGreaterThan(0);
   await page.locator('#talk-button').dispatchEvent('pointerup',{pointerId:1});
   await expect(page.locator('#activity-log')).toContainText('本地反馈');
+  await expect(page.locator('#activity-log')).not.toContainText('灵矽已连接');
   await expect(page.locator('#voice-route')).toContainText('本地');
   await page.locator('#connect-voice').click();
   await expect(page.locator('#voice-mode')).toBeEnabled();

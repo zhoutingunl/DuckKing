@@ -11,9 +11,9 @@ export function setupVoice({appendLog,notify,endpoint='/voice'}){
   let mode='cloud',route='cloud',modesReady=false;
   const modeSelect=$('voice-mode');
   const reasons={unmatched:'整句未完整匹配动作',unsupported_context:'当前场景不支持整句动作',plan_limit:'指令超出本地动作范围',empty_or_long:'识别内容不足或过长',asr_timeout:'本地识别超时',asr_unavailable:'本地识别暂不可用'};
-  const stateLabel=()=>mode!=='local_first'?labels[state]??state:
-    state==='ready'?'本地优先 · 已就绪':state==='disconnected'?'语音未启用':
-    state==='thinking'?(route==='local'?'正在执行本地动作':route==='cloud_fallback'?'灵矽处理中':'正在本地识别'):labels[state]??state;
+  const stateLabel=(value=state)=>mode!=='local_first'?labels[value]??value:
+    value==='ready'?'本地优先 · 已就绪':value==='disconnected'?'语音未启用':
+    value==='thinking'?(route==='local'?'正在执行本地动作':route==='cloud_fallback'?'灵矽处理中':'正在本地识别'):labels[value]??value;
   const output=new VoiceAudio(snapshot=>{
     $('audio-status').textContent=snapshot.output_state!=='running'
       ? (snapshot.received_frames?'已收到回复音频，播放尚未就绪。请点“启用 / 测试声音”。':'点“启用 / 测试声音”可检查手机声音。')
@@ -139,7 +139,7 @@ export function setupVoice({appendLog,notify,endpoint='/voice'}){
       if(data.type==='voice_status'){
         receivedStatus=true;
         if(data.mode)mode=data.mode;if(data.route)route=data.route;
-        if(state!==data.state)appendLog(labels[data.state]??'语音状态更新','语音状态',data.state==='error');
+        if(state!==data.state)appendLog(stateLabel(data.state),'语音状态',data.state==='error');
         state=data.state;if(state==='busy')owner=false;
         $('activation').hidden=!data.activation_code;
         $('activation').textContent=data.activation_code?`激活码：${data.activation_code}。请在灵矽控制台添加设备，再点击重新连接。`:'';
@@ -148,7 +148,7 @@ export function setupVoice({appendLog,notify,endpoint='/voice'}){
         update();
       }else if(data.type==='voice_route'){
         route=data.route;
-        const text=route==='local'?`本地识别 · 动作完整匹配${Number.isFinite(data.asr_ms)?` · ${data.asr_ms} ms`:''}`:route==='cloud_fallback'?`${reasons[data.reason]??'本地未匹配'}，已将原录音交给灵矽。`:'未收到清晰语音，请重试。';
+        const text=route==='local'?`本地识别 · 动作完整匹配${Number.isFinite(data.asr_ms)?` · ${data.asr_ms} ms`:''}`:route==='cloud_fallback'?`${reasons[data.reason]??'本地未匹配'}，正在连接灵矽并转交原录音。`:'未收到清晰语音，请重试。';
         if($('voice-route'))$('voice-route').textContent=text;
         appendLog(text,'处理路径');if(route==='local')void output.testTone();update();
       }else if(data.type==='transcript'){appendLog(data.text,data.source==='local'?(data.role==='user'?'本地识别':'本地反馈'):data.role==='user'?'你说':'灵矽')}
