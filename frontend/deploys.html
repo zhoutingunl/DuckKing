@@ -20,9 +20,11 @@
       </section>
       <section class="release-history" aria-labelledby="history-heading">
         <div class="section-heading"><h2 id="history-heading">发布流水</h2><span id="deploy-updated" class="stats-note">每 10 秒更新</span></div>
-        <div class="table-scroll"><table class="stats-table"><thead><tr><th scope="col">版本 / 提交</th><th scope="col">发布时间</th><th scope="col">发布人 / 目标</th><th scope="col">结果 / 自检</th></tr></thead><tbody id="deploy-rows"></tbody></table></div>
+        <div class="table-scroll"><table class="stats-table"><thead><tr><th scope="col">版本 / 提交</th><th scope="col">发布时间</th><th scope="col">发布人 / 目标</th><th scope="col">结果 / 自检</th><th scope="col">行覆盖率</th><th scope="col">分支覆盖率</th><th scope="col">变更提交</th></tr></thead><tbody id="deploy-rows"></tbody></table></div>
         <p id="deploy-empty" class="stats-empty" hidden>尚无部署记录。本地开发不会生成上线成功记录。</p>
         <p class="stats-note">最近 100 次发布。只有页面、静态资源、版本、状态流和受限动作检查通过后才记录成功。云端语音与 MuJoCo 需要单独验证。</p>
+        <p class="stats-note">变更提交对比同一目标的上一次成功部署；待验收和失败记录不改变比较基准。每次最多显示 50 项，完整差异可通过 GitHub 链接查看。</p>
+        <p class="stats-note">覆盖率为该提交对应的 Python 后端测试报告，包含单元与集成测试，点击百分比查看 CI。缺少可核验报告的版本显示“未记录”，不以当前版本或前端局部覆盖率替代。</p>
       </section>
     </main>
     <script type="module" src="/src/deploys.js"></script>

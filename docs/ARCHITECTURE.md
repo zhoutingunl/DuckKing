@@ -2,27 +2,32 @@
 
 ## 交付范围
 
-DuckKing 是本地运行的语音与动作工作台。动画预览使用官方外观和本项目的脚本；物理实验室使用进程内 MuJoCo CPU / ONNX，另有独立的 robotd/MuJoCo 适配路径。已完成真实灵矽设备绑定、语音识别、MCP 动作调用与语音回复联调，测试输入为系统合成中文语音。
+DuckKing 是可本地运行或部署在 HTTPS 入口后的语音、动作与自动演示应用。动画预览使用官方外观和本项目的脚本；物理实验室使用进程内 MuJoCo CPU / ONNX，另有独立的 robotd/MuJoCo 适配路径。已完成真实灵矽设备绑定、语音识别、MCP 动作调用与语音回复联调，测试输入为系统合成中文语音。
 
-它不等于实体硬件复刻，是否满足原竞赛题的实物要求仍需主办方认可。
+它没有完成实体硬件复刻或实机验收；物理结果仅对当前仿真配置成立。
 
 ## 架构
 
 ```mermaid
 flowchart LR
-    Mic[浏览器麦克风] --> PCM[AudioWorklet / PCM16 分帧]
-    PCM -->|本地 WebSocket| Voice[VoiceSession]
-    Voice <-->|OTA / WSS / Opus / MCP| Cloud[灵矽云端]
-    Voice -->|PCM16| Speaker[Web Audio 播放]
-    Voice --> MCP[DeviceMCP]
-    Buttons[动作按钮 / Esc] --> Motion[MotionController]
-    MCP --> Motion
-    Motion --> Preview[脚本动画状态]
-    Motion --> Adapter[RobotdBackend]
-    Adapter <-->|Unix socket / NDJSON| Robot[官方 robotd]
-    Robot <--> Physics[官方 MuJoCo body]
-    Preview --> UI[Three.js 示意界面]
-    Adapter -->|遥测和连接状态| UI
+    Mic[浏览器麦克风 / 预录指令] --> PCM[PCM16 / AudioWorklet]
+    PCM --> Transport[原生 WebSocket / HTTPS 网关通道]
+    Transport --> Hybrid[房间 1 / 2 独立语音会话]
+    Hybrid -->|本地优先| ASR[loopback ASR worker / SenseVoiceSmall]
+    ASR --> Grammar[整句白名单与场景检查]
+    Grammar -->|完整命中| Motion[本房间 MotionController]
+    Grammar -->|未命中 / 超时| Cloud[灵矽 OTA / WSS / Opus / MCP]
+    Hybrid -->|灵矽云端模式| Cloud
+    Cloud -->|工具调用| Motion
+    Cloud -->|真实 TTS| Audio[浏览器 Web Audio]
+    Buttons[按钮 / 十二幕脚本 / Esc] --> Motion
+    Motion --> Preview[官方外观 + 脚本动画预览]
+    Motion --> Sim[进程内 MuJoCo / ONNX / 接触验收]
+    Motion --> Adapter[RobotdBackend / Unix socket]
+    Adapter --> Robot[官方 robotd + MuJoCo body]
+    Sim --> View[Three.js 真实物理状态渲染]
+    Score[预录对白 / 本地合成音乐] --> Audio
+    Hybrid --> Stats[脱敏诊断 / 逐轮统计]
 ```
 
 robotd 路径的物理计算在官方 MuJoCo body 中完成，官方 robotd 运行已有策略。首页网格来自官方模型，但姿态动画仍是运动学示意；真实实时接触画面在独立物理实验室中呈现。
@@ -44,6 +49,11 @@ robotd 路径的物理计算在官方 MuJoCo body 中完成，官方 robotd 运�
 | 交互统计 | `statistics.py`、`frontend/src/statistics.js` | 脱敏事件 → 最近 500 轮、百分位、统计页 | 单调时钟、进程内唯一轮次；缺失不补零、不同后端可筛选；不推断物理或扬声器延迟 |
 | 端侧 MCP | `mcp.py` | JSON-RPC → 工具结果 | 初始化 / 工具发现 / 白名单调用；结果关联原请求 ID |
 | 浏览器音频 | `frontend/src/voice.js`、`audio-output.js`、`audio-codec.js` | 麦克风 / 语音事件 | 录音权限、流式重采样、分帧、播放队列与释放麦克风 |
+| 离线语音路由 | `hybrid_voice.py`、`local_commands.py` | PCM / 转写 → 本地动作或一次云端回退 | 有界内存录音、整句匹配、取消隔离；不保存录音 |
+| 离线识别进程 | `asr_service.py`、`asr_client.py` | loopback HTTP → 转写 | sherpa-onnx / SenseVoiceSmall、单推理线程、限流；仅共享 worker，不共享房间动作 |
+| 物理场景 | `simulation.py`、`official_skills.py`、`grasp.py`、`posture.py` | 动作 → 实际状态 / 接触结果 | 独立房间的 MuJoCo 数据、固定官方策略、有界验证 |
+| 四鸭演出 | `table_choir.py`、`seated_choir.py`、`frontend/src/demos.js` | 剧本 / 乐谱 → 可取消演出 | 本地音乐与云端语音分别标记；失败不补造动作 |
+| 发布元数据 | `deployment.py`、`release_changes.py`、`release_coverage.py` | Git 历史 / CI 摘要 → 部署页 | 上次成功部署的提交差异、准确 SHA 对应的后端覆盖率、字段白名单 |
 | 三维界面 | `frontend/src/duck.js`、`main.js` | 后端状态 → 画面 / 记录 | 官方外观 + 脚本关节动画；不计算物理，加载失败显式报错 |
 
 ## 本地接口
@@ -52,16 +62,23 @@ robotd 路径的物理计算在官方 MuJoCo body 中完成，官方 robotd 运�
 
 | 接口 | 用途 |
 |---|---|
+| `GET /api/rooms`、`POST /api/rooms/claim` | 房间可用性和短暂预留，不创建私人账户 |
+| `GET /api/voice/modes` | 本地优先配置与 worker 可用性 |
+| `GET /api/deployments`、`GET /deploys.html` | 发布版本、最多 100 条流水、提交变更、覆盖率 |
 | `GET /api/health` | 版本、后端类型与服务可达性 |
 | `GET /api/models/microduck` | 缓存的官方视觉网格、局部关节轴和默认姿态；不启动物理循环或 ONNX 推理 |
 | `GET /api/state` | 当前动作、后端状态、近期事件 |
 | `GET /api/voice/diagnostics` | 语音阶段、停留时间、音频帧数和脱敏诊断事件 |
-| `GET /api/voice/statistics?backend=all` | 本进程最近 500 轮统计；可筛选 `preview` / `robotd`；同源检查、禁止缓存 |
+| `GET /api/voice/statistics?backend=all` | 本进程最近 500 轮统计；可筛选 `preview` / `robotd` / `mujoco`；同源检查、禁止缓存 |
 | `GET /statistics.html` | 主页链接打开的独立统计页面；不创建语音连接 |
 | `POST /api/actions` | 提交受限动作，返回 202 和请求 ID |
 | `GET /api/actions/{id}` | 查询完成、取消或失败结果 |
 | `WS /ws` | 推送工作台状态 |
-| `WS /voice` | 浏览器录音、连接控制、语音事件与下行音频 |
+| `WS /voice` | 工作台语音：按所选模式创建云端或本地优先会话 |
+| `POST /api/scenes/start`、`GET /api/scenes/state` | 惰性加载物理场景及当前状态 |
+| `POST /api/scenes/actions`、`GET /api/scenes/actions/{id}` | 物理动作受理与实际结果 |
+| `GET /api/scenes/model.dkm.gz`、`WS /scene-ws` | 真实物理几何与有确认机制的状态流 |
+| `WS /scene-voice` | 物理场景语音；先加载场景，同房间与工作台共用一个语音名额 |
 
 动作请求示例：
 
@@ -69,9 +86,9 @@ robotd 路径的物理计算在官方 MuJoCo body 中完成，官方 robotd 运�
 {"name":"walk","duration":1.2,"request_id":"caller-generated-unique-id"}
 ```
 
-动作名称：`nod`、`walk`、`turn_left`、`turn_right`、`stop`、`reset`、`flash_step`、`bear_shake`。普通动作时长范围 0.2–3 秒；两个组合动作默认 3 秒，范围 2.4–3 秒。普通移动的可选速度范围为 0.02–0.4 m/s；不提供时，预览后端使用 0.12，官方仿真适配器使用实测可启动步态的 0.35。组合动作使用固定速度编排，不接受 `speed`。速度指令不保证固定距离。
+工作台动作名称：`nod`、`walk`、`backward`、`strafe_left`、`strafe_right`、`shake_head`、`tilt_head`、`turn_left`、`turn_right`、`stop`、`reset`、`flash_step`、`bear_shake`。物理专属动作见下文各场景与 `motion.py:Action`。普通动作时长范围 0.2–3 秒；两个组合动作默认 3 秒，范围 2.4–3 秒。普通移动的可选速度范围为 0.02–0.4 m/s；不提供时，预览后端使用 0.12，官方仿真适配器使用实测可启动步态的 0.35。组合动作使用固定速度编排，不接受 `speed`。速度指令不保证固定距离。
 
-`reset` 只支持动画预览。官方适配器不会把它映射成实体机器人上电、断扭矩或未知重置指令。
+工作台接口的 `reset` 只支持动画预览；独立物理场景接口另支持场景重置。官方适配器不会把它映射成实体机器人上电、断扭矩或未知重置指令。
 
 执行记录状态为 `running`、`completed`、`cancelled`、`failed`。`completed` 表示本地指令序列完成、停止请求获确认，不保证机械位移达到某个目标值；实际运动需看官方遥测和物理状态。MCP 会将取消或失败结果标为错误，不返回虚构成功。
 
@@ -89,7 +106,7 @@ robotd 路径的物理计算在官方 MuJoCo body 中完成，官方 robotd 运�
 
 按键说话时，浏览器采集单声道音频，转换为 16 kHz、PCM16、60 ms 一帧。后端编码 Opus 后上传。服务端下行可能使用不同采样率，后端按握手参数解码，再让浏览器按正确采样率播放。
 
-每次录音最多 15 秒。播放时可按住按钮打断，清除播放队列后录制新命令；非打断的 TTS 结束会等待已有音频播放完成。断线后停止相关动作、释放音频资源并提示用户重新连接。首版不做唤醒词、全双工或自动恢复录音。
+每次录音最多 15 秒。播放时可按住按钮打断，清除播放队列后录制新命令；非打断的 TTS 结束会等待已有音频播放完成。断线后停止相关动作、释放音频资源并提示用户重新连接。当前不做唤醒词、全双工或自动恢复录音。
 
 后端独立监控录音时限，即使浏览器不再发音频也会在 15 秒结束录音。思考阶段 20 秒没有 STT / MCP / TTS / 音频等有效进展，或回答阶段 15 秒没有新进展时，关闭旧云端会话并重连一次；包括录音在内的整轮另有 60 秒上限。重连前取消工具任务、停止动作、关闭编解码器并通知浏览器清空播放队列。旧录音不重发，恢复到 ready 后需重新按键说话；重连失败会进入 error，不无限重试。
 
@@ -99,7 +116,7 @@ robotd 路径的物理计算在官方 MuJoCo body 中完成，官方 robotd 运�
 
 云端连接整体限时 35 秒，发送/关闭云端 socket 限时 5 秒。连接任务与浏览器指令接收分离，用户可以在连接或恢复期间断开，也可以用「重置语音」取消卡住的一轮并重建会话。日志接收枚举字段、整数计数、本地产生的时间/序号及脱敏 STT 文字（最多 2000 字符）；不写入云端 session ID、原始工具调用 ID、原始异常正文或音频。统计直接消费过滤后的事件，独立于最近 200 条事件窗口，不从旧文件回放。
 
-端侧 MCP 提供八个工具：
+工作台端侧 MCP 提供 13 个工具；物理场景再增加 18 个专属工具（完整定义在 `mcp.py`）：
 
 | 工具 | 参数 | 结果 |
 |---|---|---|
@@ -111,6 +128,8 @@ robotd 路径的物理计算在官方 MuJoCo body 中完成，官方 robotd 运�
 | `duck_get_status` | 无 | 后端类型、连接、当前动作 |
 | `duck_flash_step` | 无 | 三秒闪身步编排及执行结果 |
 | `duck_bear_shake` | 无 | 三秒狗熊哆嗦毛编排及执行结果 |
+| `duck_backward`、`duck_strafe_left`、`duck_strafe_right` | 无 | 默认时长的后退与左右横移 |
+| `duck_shake_head`、`duck_tilt_head` | 无 | 摇头、歪头后回正 |
 
 一次会话内按 JSON-RPC ID 去重，最多同时处理 32 个工具消息。工具调用不阻塞音频接收，使停止调用可以打断正在等待结果的前进调用。
 
@@ -122,7 +141,7 @@ Linux 部署使用独立的 `duckking.service`，按要求以 root 运行，发�
 
 ai_gateway 可独立添加固定 loopback 路由；现有前置代理不透传 Upgrade 时，浏览器使用网关声明的 HTTPS 通道，网关转为真实后端 WebSocket。文本与二进制帧按序传输，失败关闭、不重放录音，不改变预览、物理仿真或真实云端的能力边界。DuckKing release 切换不需要修改或重启网关。
 
-`GET /api/deployments` 仅返回发布字段白名单与最近 100 条流水；当前进程启动时固定读取版本元数据，原子切换磁盘链接不会给旧进程贴上新版本。`staged` 代表独立后端本机自检通过，`success` 需要入口验收后确认。发布失败与回滚结果分别记录；密钥、设备身份和原始配置不出现在该 API 中。
+`GET /api/deployments` 仅返回发布字段白名单与最近 100 条流水；当前进程启动时固定读取版本元数据，原子切换磁盘链接不会给旧进程贴上新版本。`staged` 代表独立后端本机自检通过，`success` 需要入口验收后确认。发布失败与回滚结果分别记录；`CommitHistory` 按目标的上次成功部署计算新增提交，暂存／失败不推进基准。覆盖率从 CI 摘要读取，只关联完全相同的 SHA，范围限定后端；旧版缺失报告时显示未记录。密钥、设备身份和原始配置不出现在该 API 中。
 
 `simulation.py` 在 Python 进程中运行 MuJoCo CPU 与官方 ONNX 推理，`kind=mujoco`、`physics=true`、`runtime=mujoco_cpu_onnx`；它不是 robotd 适配器，也不复用首页预览的姿态动画。原工作台控制器与场景控制器相互独立。
 
@@ -134,7 +153,7 @@ ai_gateway 可独立添加固定 loopback 路由；现有前置代理不透传 U
 
 Three.js 渲染官方几何，不会用预设踢球动画替换实际关节结果。每次绘制后留出至少 33 ms 空闲时间；检测到 SwiftShader / llvmpipe 等软件渲染器或连续慢帧时关闭阴影，将画布宽度限制为 640 像素，并延长绘制间隔至 100 ms。这样可以为输入、语音和状态处理留出时间，不改变物理步进和接触判定。
 
-`/scene-voice` 复用真实 `VoiceSession`，连接场景控制器，按同源规则保护。同一房间内和 `/voice` 共用一个语音名额；两个房间分别使用独立的设备身份、控制器与物理世界。新增 MCP 工具仅对 MuJoCo 控制器公布：`duck_set_scene`、`duck_kick`（必填 left/right）、`duck_find_companion`、`duck_duo_walk`、`duck_collide`、`duck_chorus`、`duck_pick_up`、`duck_carry`、`duck_put_down`。状态工具剔除渲染网格，避免将大量图形数据送入模型上下文。统计按 `mujoco` 单独筛选。
+`/scene-voice` 根据模式选择 `VoiceSession` 或 `HybridVoiceSession`，连接场景控制器，按同源规则保护。同一房间内和 `/voice` 共用一个语音名额；两个房间分别使用独立的设备身份、控制器与物理世界。物理专属 MCP 工具仅对 MuJoCo 控制器公布：`duck_set_scene`、`duck_kick`（必填 left/right）、`duck_find_companion`、`duck_duo_walk`、`duck_collide`、`duck_chorus`、`duck_pick_up`、`duck_carry`、`duck_put_down`、`duck_sit`、`duck_stand`、`duck_roulade`、`duck_ground_pick`、`duck_yawn`、`duck_idle_on`、`duck_idle_off`、`duck_skate`、`duck_roller_crouch`。桌上与坐姿四鸭演出由应用编排，不增加云端工具。状态工具剔除渲染网格，避免将大量图形数据送入模型上下文。统计按 `mujoco` 单独筛选。
 
 发现同伴使用仿真真值：距离 ≤1.2 m、相对朝向 ±60°、`mj_ray` 检查遮挡。合唱为应用自己的 3 秒双声部旋律，两只鸭收到相同点头节拍，浏览器两个声部共享 AudioContext；声音依赖用户启用，工具成功表示控制编排完成，不承诺扬声器播放或跨设备同步。不是官方 BLE/duckether 合唱实现。
 
@@ -216,7 +235,7 @@ Three.js 渲染官方几何，不会用预设踢球动画替换实际关节结�
 
 ## 服务器离线识别与整句回退
 
-`DUCKKING_LOCAL_ASR=1` 开启可选“本地优先”模式，页面仍保留“全部交给灵矽”。`GET /api/voice/modes` 返回配置开关和 worker 可用性；不返回设备身份。普通手机浏览器仍用现有 HTTPS 麦克风和音频传输，不安装识别模型。
+`DUCKKING_LOCAL_ASR=1` 开启可选“本地优先”模式，页面仍保留“灵矽云端”。`GET /api/voice/modes` 返回配置开关和 worker 可用性；不返回设备身份。普通手机浏览器仍用现有 HTTPS 麦克风和音频传输，不安装识别模型。
 
 本地路径：浏览器 PCM → `HybridVoiceSession` 内存录音 → loopback `duckking-asr` → SenseVoiceSmall INT8 → `local_commands.py` 整句语法 → 同一个 `MotionController`。音频不落盘，最多 15 秒 / 250 帧。模型使用单 CPU 推理线程；独立进程最多容纳两个未结束任务，调用者取消不会提前释放仍在运行的原生推理占位。主应用等待识别最多 3 秒，worker 最多等待 8 秒，繁忙或失败显式转交灵矽。
 

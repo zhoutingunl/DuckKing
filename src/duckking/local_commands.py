@@ -8,11 +8,11 @@ from .motion import SCENE_ACTIONS, Action
 
 ALIASES = {
     "walk": "前进|向前走|往前走|向前走走|moveforward",
-    "backward": "后退|向后走|往后走|往后退|退后|movebackward",
+    "backward": "后退|向后退|向后走|往后走|往后退|退后|movebackward",
     "turn_left": "左转|向左转|往左转|turnleft",
     "turn_right": "右转|向右转|往右转|turnright",
-    "strafe_left": "左移|向左移|向左横移|往左横移|向左平移",
-    "strafe_right": "右移|向右移|向右横移|往右横移|向右平移",
+    "strafe_left": "左移|左横移|向左挪|往左挪|向左移|向左横移|往左横移|向左平移",
+    "strafe_right": "右移|右横移|向右挪|往右挪|向右移|向右横移|往右横移|向右平移",
     "nod": "点头|点点头|点一下头",
     "shake_head": "摇头|摇摇头|摇一下头",
     "tilt_head": "歪头|歪歪头|歪一下头",

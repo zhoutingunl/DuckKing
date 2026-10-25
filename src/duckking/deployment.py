@@ -4,6 +4,9 @@ import json
 from collections import deque
 from pathlib import Path
 
+from .release_changes import CommitHistory
+from .release_coverage import load_coverage
+
 FIELDS = ("version", "commit", "built_at", "operator", "git_ref", "target")
 RECORD_FIELDS = (*FIELDS, "ts", "status", "selftest", "rollback", "previous_version")
 
@@ -17,6 +20,8 @@ class DeploymentStatus:
         self.history_file = history_file
         self.release = {}
         self.warning = None
+        self.commit_history = CommitHistory(release_file.with_name("release-commits.json"))
+        self.coverage = load_coverage(release_file.with_name("release-coverage.json"))
         # Read once: replacing a symlink must not relabel an already running process.
         try:
             value = json.loads(release_file.read_text())
@@ -33,6 +38,8 @@ class DeploymentStatus:
     def snapshot(self) -> dict:
         warnings = [self.warning] if self.warning else []
         rows = deque(maxlen=100)
+        successful = {}
+        baselines = {}
         try:
             with self.history_file.open() as stream:
                 for line in stream:
@@ -45,7 +52,16 @@ class DeploymentStatus:
                             or not value["version"]
                         ):
                             raise ValueError("invalid history")
-                        rows.append(public_fields(value, RECORD_FIELDS))
+                        row = public_fields(value, RECORD_FIELDS)
+                        target = row.get("target", "")
+                        identity = (target, row["version"], row.get("commit"))
+                        # A staged/failed attempt never advances the successful baseline.
+                        # Repeated staged/success records for one version share a baseline.
+                        previous = baselines.setdefault(identity, successful.get(target))
+                        row["coverage"] = self.coverage.get(row.get("commit"))
+                        rows.append(row | self.commit_history.changes(row.get("commit"), previous))
+                        if row["status"] == "success":
+                            successful[target] = row.get("commit")
                     except ValueError:
                         if "部分部署记录损坏" not in warnings:
                             warnings.append("部分部署记录损坏")
