@@ -111,3 +111,28 @@ def test_statistics_api_same_origin_filter_empty_and_no_store(tmp_path):
         assert client.get(
             "/api/voice/statistics", headers={"origin": "https://external.example"}
         ).status_code == 403
+
+
+def test_physics_posture_rounds_reach_statistics_and_stay_room_scoped(tmp_path):
+    app = create_app(settings=Settings(data_dir=tmp_path))
+    with TestClient(app) as client:
+        journal = app.state.rooms["2"].voice_diagnostics
+        fields = {"turn": journal.next_turn(), "backend": "mujoco"}
+        journal.record("listen_start", **fields, elapsed_ms=0)
+        journal.record("listen_stop", **fields, elapsed_ms=1000)
+        journal.record("stt", **fields, elapsed_ms=1200, text="坐下再站起来 token=secret")
+        for call, tool in enumerate(("duck_sit", "duck_stand"), 1):
+            journal.record("action_start", **fields, elapsed_ms=call * 2000, call=call, tool=tool)
+            journal.record("action_end", **fields, elapsed_ms=call * 2000 + 700,
+                           call=call, result="completed")
+        journal.record("tts_stop", **fields, elapsed_ms=6000, result="ok")
+        response = client.get("/api/voice/statistics?room=2&backend=mujoco")
+        assert response.status_code == 200
+        result = response.json()
+        assert result["counts"]["replied"] == 1
+        assert result["counts"]["completed_actions"] == 2
+        assert [a["tool"] for a in result["rounds"][0]["actions"]] == ["duck_sit", "duck_stand"]
+        assert result["latencies"]["action_duration"]["p95_ms"] == 700
+        assert "secret" not in response.text
+        assert client.get("/api/voice/statistics?room=2&backend=preview").json()["rounds"] == []
+        assert client.get("/api/voice/statistics?room=1").json()["rounds"] == []

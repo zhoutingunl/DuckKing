@@ -36,3 +36,6 @@
 
 - 第十一幕新增《欢乐颂》SATB：依据 Peter Chubb 排印的 [Mutopia Ode to Joy](https://www.mutopiaproject.org/ftp/BeethovenLv/ode/ode.ly) 前八小节，重复一次并将速度改为 108 BPM。原 LilyPond 源文件随 `frontend/public/scores/ode.ly` 提供，声明 Public Domain（Mutopia-2009/08/05-528）。浏览器音色与平衡由 DuckKing 编写，不是官方 MicroDuck 乐谱。
 - 《两只老虎》四鸭轮唱采用传统《Frère Jacques》旋律；四声叠置参考 Hautbois 的[公共领域谱例](https://commons.wikimedia.org/wiki/File:Fr_Jacques_4_Vx.jpg)。本项目采用 C 调常见等分节奏、每 8 拍入声、高低八度分配和末尾四拍收束；没有使用现代录音或第三方受限编曲。
+
+- 坐站采用同一固定策略仓库版本 `665ae4eb20bfe13bca1ef4ea6d4bb6b4a096e448` 的 `alpha_sitstand.onnx`，SHA-256 `a6f102d9fd655782ba85bfffe18175c34621da719cffcdd673be7982a06fc254`。训练、实机验证及头部范围说明来自官方 [`sitstand_policy.md`](https://github.com/pollen-robotics/microduck_rl/blob/b02fdea4902c2b93b7d34a83a6f05da4ececb7d3/docs/sitstand_policy.md)；本项目仅做接入、观测验证与编排，没有声明训练该策略或自行完成实机验证。
+- 第十二幕使用上述 Public Domain《欢乐颂》谱面，分句、声区与接唱编排由 DuckKing 改编。四只鸭均为真实物理实例，本地合成音色不代表官方声音或云端生成歌声。

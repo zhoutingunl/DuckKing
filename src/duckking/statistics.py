@@ -20,7 +20,7 @@ class VoiceStatistics:
         self.rounds = deque(maxlen=capacity)
         self.started_at = datetime.now(UTC).isoformat(timespec="seconds")
         self.total_rounds = 0
-        self.service = {kind: Counter() for kind in ("preview", "robotd")}
+        self.service = {kind: Counter() for kind in ("preview", "robotd", "mujoco")}
         self.recovering = {}
         self.recoveries = {kind: deque(maxlen=capacity) for kind in self.service}
 

@@ -4,3 +4,5 @@
 .music-settings select{width:100%;padding:10px;border:1px solid #d1ddbc;border-radius:9px;font:inherit;background:#fff;color:#354b2e}
 
 .table-choices{display:grid;gap:7px;margin:0 0 18px;padding:12px;background:#f5f0e6;border-radius:10px}.table-choices>span{font-size:12px;color:#75644d}.table-choices button{display:flex;justify-content:space-between;align-items:center;gap:8px;text-align:left;border:1px solid #dfd6c6;border-radius:7px;padding:10px;background:#fff;color:#384b2c;font:inherit;font-size:13px;cursor:pointer}.table-choices small{font-size:11px;color:#82715a}.table-choices button:disabled{opacity:.5;cursor:default}.table-seat[data-active=false]:not([data-fallen=true]){opacity:.45}
+
+.table-seat[data-solo="true"]{border-color:#526d32;background:#e2edc8;box-shadow:inset 0 3px #526d32}.table-seat[data-active="false"]{opacity:.65}

@@ -76,6 +76,24 @@ TOOLS = [
 ]
 
 SCENE_TOOLS = [
+    *[
+        {
+            "name": name,
+            "description": description,
+            "inputSchema": {
+                "type": "object",
+                "properties": {"target": {"type": "string", "enum": ["a", "b", "both"],
+                                            "default": "a"}},
+                "additionalProperties": False,
+            },
+        }
+        for name, description in [
+            ("duck_sit", "官方坐下策略，确认身体降下、双膝折起且接触支撑后保持坐姿。"
+             "只在 ball 或 duo 场景使用；默认鸭 A，可选 b 或 both。坐着可以点头；行走前先站起。"),
+            ("duck_stand", "官方站起策略，确认站稳后才完成。只在 ball 或 duo 场景使用。"
+             "默认鸭 A，可选 b 或 both；失败时不能继续声称已站起或执行走路。"),
+        ]
+    ],
     {
         "name": "duck_set_scene",
         "description": (
@@ -199,7 +217,9 @@ class DeviceMCP:
             )
             if self.motion.backend.kind == "mujoco":
                 allowed = (
-                    {"scene"}
+                    {"target"}
+                    if name in {"duck_sit", "duck_stand"}
+                    else {"scene"}
                     if name == "duck_set_scene"
                     else {"foot"}
                     if name == "duck_kick"
@@ -234,6 +254,8 @@ class DeviceMCP:
                         kind, arguments = "kick_" + arguments["foot"], {}
                     else:
                         kind = {
+                            "duck_sit": "sit",
+                            "duck_stand": "stand",
                             "duck_find_companion": "find_companion",
                             "duck_duo_walk": "duo_walk",
                             "duck_collide": "collide",

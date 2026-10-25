@@ -207,7 +207,9 @@ def create_app(
     @app.post("/api/scenes/start", status_code=202)
     async def start_scene(body: Action, room: str = "1"):
         if (
-            body.name not in {"scene_ball", "scene_duo", "scene_carry", "scene_table"}
+            body.name not in {
+                "scene_ball", "scene_duo", "scene_carry", "scene_table", "scene_seated"
+            }
             or body.target != "a"
         ):
             raise HTTPException(422, "选择踢球、双鸭互动、嘴部搬运或桌上合唱场景")

@@ -22,6 +22,8 @@ async def verify(output: Path):
     results = []
     try:
         for name in [
+            "sit",
+            "stand",
             "kick_left",
             "reset",
             "kick_right",
@@ -35,6 +37,8 @@ async def verify(output: Path):
             "put_down",
             "scene_table",
             "table_show",
+            "scene_seated",
+            "seated_show",
         ]:
             action = Action(name=name)
             await motion.submit(action)
