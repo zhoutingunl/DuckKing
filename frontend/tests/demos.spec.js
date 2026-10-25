@@ -133,10 +133,22 @@ test('seated solos stop sounding and return to seated rest when cancelled',async
   OscillatorNode.prototype.start=function(...args){window.seatedSounding++;this.addEventListener('ended',()=>window.seatedSounding--,{once:true});return start.apply(this,args)};
  });
  await page.goto('/demos.html?room=1');await page.locator('#demo-mode').selectOption('live');
+ // Software GPU tracing can spend several seconds waiting for click stability.
+ // Arm the real stop button handler in-page so cancellation occurs during A's
+ // four-second solo. Physics, transport and audio still run without interception.
+ await page.evaluate(()=>{
+  const cue=document.getElementById('table-cue');window.cancelledSolo=null;
+  const observer=new MutationObserver(()=>{
+   if(cue.textContent==='鸭 A 已站稳，轮到它独唱。'){
+    window.cancelledSolo=cue.textContent;observer.disconnect();document.getElementById('stop-demo').click();
+   }
+  });observer.observe(cue,{childList:true,characterData:true,subtree:true});
+ });
  await page.locator('[data-demo="seated"]').click();
- await expect.poll(async()=>{const error=await page.locator('#demo-notice').isVisible()?await page.locator('#demo-notice').textContent():null;if(error)throw new Error(error);return await page.locator('#table-cue').textContent()},{timeout:45000}).toContain('轮到它独唱');
+ await page.waitForFunction(()=>window.cancelledSolo,null,{timeout:45000});
+ expect(await page.evaluate(()=>window.cancelledSolo)).toBe('鸭 A 已站稳，轮到它独唱。');
  await expect(page.locator('#voice-source')).toContainText('本地音乐');
- await page.locator('#stop-demo').click();await expect(page.locator('#show-status')).toHaveText('演示已停止');
+ await expect(page.locator('#show-status')).toHaveText('演示已停止');
  await expect.poll(()=>page.evaluate(()=>window.seatedSounding)).toBe(0);
  await expect(page.locator('#demo-mode')).toBeEnabled();
  await expect.poll(async()=>{const s=await (await page.request.get('/api/scenes/state?room=1')).json();return s.backend.ducks.every(d=>d.posture.observed==='sit')}).toBe(true);
