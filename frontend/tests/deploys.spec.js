@@ -14,6 +14,7 @@ test('deployment changes and coverage use safe links, retain expanded history an
   for(const name of ['变更提交','行覆盖率','分支覆盖率'])await expect(page.getByRole('columnheader',{name,exact:true})).toBeVisible();
   const rows=page.locator('#deploy-rows tr'),current=rows.first();
   await expect(rows).toHaveCount(4);
+  expect(await page.locator('.table-scroll').evaluate(el=>el.scrollWidth<=el.clientWidth)).toBe(true);
   await expect(current.locator('.coverage-value')).toHaveText(['97.14%','93.44%']);
   await expect(current.locator('.coverage-value').first()).toHaveAttribute('href','https://github.com/zhoutingunl/DuckKing/actions/runs/123');
   await expect(current.locator('.compare-link')).toHaveAttribute('href',`https://github.com/zhoutingunl/DuckKing/compare/${sha('b')}...${sha('e')}`);
