@@ -75,16 +75,23 @@ test('table music failure is explicit and never substitutes another song or star
 
 test('stopping the table song silences every music node and cancels the real choreography',async({page})=>{
  test.setTimeout(90000);
- await page.addInitScript(()=>{const native=AudioBufferSourceNode.prototype.start;window.tablePlaying=0;AudioBufferSourceNode.prototype.start=function(...args){window.tablePlaying++;this.addEventListener('ended',()=>window.tablePlaying--,{once:true});return native.apply(this,args)}});
+ await page.addInitScript(()=>{
+  const native=AudioBufferSourceNode.prototype.start;window.tableMusic={started:0,ended:0,selectorDisabled:false};
+  AudioBufferSourceNode.prototype.start=function(...args){
+   const music=this.buffer?.duration>=35;
+   if(music){window.tableMusic.started++;this.addEventListener('ended',()=>window.tableMusic.ended++,{once:true})}
+   const result=native.apply(this,args);
+   // Press the actual stop button as soon as all four real music sources
+   // start. This avoids a driver round-trip racing a busy software renderer.
+   if(music&&window.tableMusic.started===4)queueMicrotask(()=>{window.tableMusic.selectorDisabled=document.querySelector('#table-song').disabled;document.querySelector('#stop-demo').click()});
+   return result;
+  };
+ });
  await page.route('**/demo-audio/*.wav*',route=>route.fulfill({contentType:'audio/wav',body:silentFixture()}));
  await page.goto('/demos.html?room=1');await page.locator('[data-demo="tabletop"]').click();
  await expect(page.locator('#table-panel')).toBeVisible({timeout:45000});
- // The panel opens before the action/state handshake starts music (bounded
- // to 10 s in the app). Include failure context instead of a 5 s race.
- await expect.poll(async()=>({playing:await page.evaluate(()=>window.tablePlaying),status:await page.locator('#show-status').textContent(),error:await page.locator('#demo-notice').isVisible()?await page.locator('#demo-notice').textContent():null}),{timeout:15000}).toMatchObject({playing:4,error:null});
- await expect(page.locator('#table-song')).toBeDisabled();
- await page.locator('#stop-demo').click();await expect(page.locator('#show-status')).toHaveText('演示已停止');
- await expect.poll(()=>page.evaluate(()=>window.tablePlaying)).toBe(0);
+ await expect(page.locator('#show-status')).toHaveText('演示已停止',{timeout:15000});
+ await expect.poll(()=>page.evaluate(()=>window.tableMusic)).toEqual({started:4,ended:4,selectorDisabled:true});
  await expect(page.locator('#table-song')).toBeEnabled();
  const state=await (await page.request.get('/api/scenes/state?room=1')).json();
  expect(state.backend.tabletop.running).toBe(false);expect(state.backend.tabletop.dropped_at).toBeNull();
