@@ -18,7 +18,7 @@ export function physicsView(container) {
   const floor=new THREE.Mesh(new THREE.PlaneGeometry(20,20),new THREE.MeshStandardMaterial({color:'#edf0e5',roughness:1}));floor.rotation.x=-Math.PI/2;floor.receiveShadow=true;scene.add(floor);
   const grid=new THREE.GridHelper(8,80,0xcbd6bd,0xe0e6d7);grid.position.y=.0001;scene.add(grid);
   const world=new THREE.Group();world.rotation.x=-Math.PI/2;scene.add(world);
-  let objects=new Map(),labels=new Map(),textures=[],geometries=[],materials=[],frame,timer,revision=null,slowFrames=0,lastFrame=performance.now(),pixelBudget=640;
+  let objects=new Map(),labels=new Map(),textures=[],geometries=[],materials=[],frame,timer,revision=null,slowFrames=0,lastFrame=performance.now(),pixelBudget=640,drawCost=0,drawPause=0;
   const matrix=new THREE.Matrix4();
   function clear(){world.clear();geometries.forEach(g=>g.dispose());materials.forEach(m=>m.dispose());textures.forEach(t=>t.dispose());geometries=[];materials=[];textures=[];objects.clear();labels.clear();}
   function load(model){
@@ -72,12 +72,17 @@ export function physicsView(container) {
   const observer=new ResizeObserver(resize);observer.observe(container);
   function animate(){
     const started=performance.now();controls.update();renderer.render(scene,camera);
-    slowFrames=performance.now()-started>70||started-lastFrame>180?slowFrames+1:0;lastFrame=started;
+    // WebGL can submit quickly while a software GPU blocks the next frame.
+    // Include that delay, excluding our own idle interval, in the draw budget.
+    const elapsed=Math.max(performance.now()-started,started-lastFrame-drawPause);
+    drawCost=Math.max(drawCost*.85,elapsed);
+    slowFrames=elapsed>70?slowFrames+1:0;lastFrame=started;
     if(!reduced&&slowFrames>=3){reduced=true;renderer.shadowMap.enabled=false;floor.material.needsUpdate=true;materials.forEach(m=>m.needsUpdate=true);resize();container.dataset.renderQuality='reduced';}
     if(reduced&&slowFrames>=3&&pixelBudget>240){pixelBudget=Math.max(240,Math.floor(pixelBudget/2));slowFrames=0;resize();}
     // Leave an idle interval after each draw so software GPUs cannot starve input,
     // voice audio or the stream of physical state. Physics remains at 200 Hz.
-    timer=setTimeout(()=>{frame=requestAnimationFrame(animate);},reduced?100:seatedView?66:33);
+    drawPause=reduced?Math.max(100,Math.min(2000,drawCost*2)):seatedView?66:33;
+    timer=setTimeout(()=>{frame=requestAnimationFrame(animate);},drawPause);
   }animate();
   return {load,update,clear,renderNow(){controls.update();renderer.render(scene,camera);},frameScene(scene){manualView=false;floorFramed=false;seatedView=scene==='seated';resize();const close=scene==='carry',seated=scene==='seated',table=scene==='table';camera.position.set(...(seated?[1.05,.90,-1.05]:table?[1.35,.98,-1.35]:close?[.6,.4,.65]:[.85,.62,.95]));controls.target.set(close ? .12 : table ? .20 : 0,seated ? .52 : table ? .25 : .13,table ? -.10 : 0);controls.update();controls.saveState();},reset(){manualView=false;floorFramed=false;controls.reset();},dispose(){clearTimeout(timer);cancelAnimationFrame(frame);observer.disconnect();clear();controls.dispose();renderer.dispose();}};
 }
