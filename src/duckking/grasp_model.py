@@ -26,40 +26,7 @@ def build_grasp_model(robot_dir: Path):
     tree = ET.parse(robot_dir / "robot_groundcontact.xml")
     root = tree.getroot()
     root.find("compiler").set("meshdir", str((robot_dir / "assets").resolve()))
-    head = root.find('.//body[@name="jaw_soft"]')
-    lower = ET.SubElement(head, "body", name="grasp_jaw", pos=numbers(PIVOT))
-    ET.SubElement(
-        lower,
-        "joint",
-        name="mouth",
-        type="hinge",
-        axis="0 1 0",
-        range=numbers((MOUTH_CLOSED, MOUTH_OPEN)),
-        damping="0.015",
-        frictionloss="0.001",
-        armature="0.00002",
-    )
-    # Keep total head mass unchanged. The split inertia is an approximation.
-    inertial = head.find("inertial")
-    mass = float(inertial.get("mass"))
-    inertial.set("mass", str(mass - 0.012))
-    inertial.set(
-        "fullinertia",
-        numbers(float(x) * (mass - 0.012) / mass for x in inertial.get("fullinertia").split()),
-    )
-    ET.SubElement(
-        lower,
-        "inertial",
-        pos="-0.012 0 -0.035",
-        mass="0.012",
-        diaginertia="0.000012 0.000009 0.000014",
-    )
-    for geom in list(head.findall("geom")):
-        if geom.get("mesh") in {"jaw", "jaw_soft", "bottom_head_shell"}:
-            pos = [float(x) for x in geom.get("pos", "0 0 0").split()]
-            geom.set("pos", numbers(p - v for p, v in zip(pos, PIVOT, strict=True)))
-            head.remove(geom)
-            lower.append(geom)
+    head, lower = articulate_mouth(root)
     for parent, name, position in [
         (head, "upper_pad", PAD_UPPER),
         (lower, "lower_pad", tuple(p - v for p, v in zip(PAD_LOWER, PIVOT, strict=True))),
@@ -81,16 +48,6 @@ def build_grasp_model(robot_dir: Path):
             solimp="0.95 0.99 0.001",
             mass="0",
         )
-    ET.SubElement(
-        root.find("actuator"),
-        "position",
-        name="mouth",
-        joint="mouth",
-        kp="0.3",
-        kv="0.008",
-        ctrlrange=numbers((MOUTH_CLOSED, MOUTH_OPEN)),
-        forcerange="-0.025 0.025",
-    )
     world = root.find("worldbody")
     ET.SubElement(
         world,
@@ -178,3 +135,52 @@ def build_grasp_model(robot_dir: Path):
     model.opt.cone = mujoco.mjtCone.mjCONE_ELLIPTIC
     model.opt.iterations = 80
     return model
+
+
+def articulate_mouth(root):
+    """Share the experimental jaw with the expressive scene; preserve original mass."""
+    head = root.find('.//body[@name="jaw_soft"]')
+    lower = ET.SubElement(head, "body", name="grasp_jaw", pos=numbers(PIVOT))
+    ET.SubElement(
+        lower,
+        "joint",
+        name="mouth",
+        type="hinge",
+        axis="0 1 0",
+        range=numbers((MOUTH_CLOSED, MOUTH_OPEN)),
+        damping="0.015",
+        frictionloss="0.001",
+        armature="0.00002",
+    )
+    # Keep total head mass unchanged. The split inertia is an approximation.
+    inertial = head.find("inertial")
+    mass = float(inertial.get("mass"))
+    inertial.set("mass", str(mass - 0.012))
+    inertial.set(
+        "fullinertia",
+        numbers(float(x) * (mass - 0.012) / mass for x in inertial.get("fullinertia").split()),
+    )
+    ET.SubElement(
+        lower,
+        "inertial",
+        pos="-0.012 0 -0.035",
+        mass="0.012",
+        diaginertia="0.000012 0.000009 0.000014",
+    )
+    for geom in list(head.findall("geom")):
+        if geom.get("mesh") in {"jaw", "jaw_soft", "bottom_head_shell"}:
+            pos = [float(x) for x in geom.get("pos", "0 0 0").split()]
+            geom.set("pos", numbers(p - v for p, v in zip(pos, PIVOT, strict=True)))
+            head.remove(geom)
+            lower.append(geom)
+    ET.SubElement(
+        root.find("actuator"),
+        "position",
+        name="mouth",
+        joint="mouth",
+        kp="0.3",
+        kv="0.008",
+        ctrlrange=numbers((MOUTH_CLOSED, MOUTH_OPEN)),
+        forcerange="-0.025 0.025",
+    )
+    return head, lower

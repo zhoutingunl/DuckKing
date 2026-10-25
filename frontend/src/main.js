@@ -8,7 +8,7 @@ import { setupRoom } from './room.js';
 await setupRoom();
 
 const $ = (id) => document.getElementById(id);
-const names = {nod:'点头',walk:'前进',turn_left:'左转',turn_right:'右转',stop:'停止',reset:'回到起点',flash_step:'闪身步',bear_shake:'狗熊哆嗦毛'};
+const names = {backward:'后退',strafe_left:'左横移',strafe_right:'右横移',shake_head:'摇头',tilt_head:'歪头',nod:'点头',walk:'前进',turn_left:'左转',turn_right:'右转',stop:'停止',reset:'回到起点',flash_step:'闪身步',bear_shake:'狗熊哆嗦毛'};
 const actionNames = new RegExp(Object.keys(names).join('|'),'g');
 let scene;
 try { scene = createDuckScene($('viewport'),{onLoad:timing=>appendLog(

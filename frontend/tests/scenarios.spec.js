@@ -118,3 +118,42 @@ test('scene recovery clears stale failures without hiding an unrelated voice err
   await expect(page.locator('#stop-scene')).toBeDisabled();
   await expect(page.locator('#notice')).toBeHidden();
 });
+
+test('official skills, natural idle, wheel skating and cancellation work from the page',async({page})=>{
+  test.setTimeout(120000);
+  const errors=[];page.on('pageerror',e=>errors.push(e.message));
+  await page.goto('/scenarios.html?room=1');
+  await page.getByRole('button',{name:'动作练习场'}).click();
+  await expect(page.locator('#skills-controls')).toBeVisible({timeout:30000});
+  await expect(page.locator('#scene-placeholder')).toBeHidden({timeout:20000});
+  for(const [name,label] of [['roulade','前滚翻'],['ground_pick','低头啄取'],['yawn','打个哈欠']]){
+    await page.locator(`[data-sim-action="${name}"]`).click();
+    await expect(page.locator('#action-result')).toContainText(`${label} · 完成`,{timeout:15000});
+    const state=await(await page.request.get('/api/scenes/state?room=1')).json();
+    expect(state.backend.skill.status).toBe('completed');
+    expect(state.backend.skill.supported).toBe(true);
+    await expect(page.locator('#skill-readouts')).toContainText(label);
+  }
+  await page.locator('[data-sim-action="idle_on"]').click();
+  await expect(page.locator('#idle-status')).toContainText('看看四周',{timeout:10000});
+  await page.locator('[data-sim-action="shake_head"]').click();
+  await expect(page.locator('#action-result')).toContainText('摇头 · 完成');
+  await page.locator('#stop-scene').click();
+  await expect(page.locator('#idle-status')).toContainText('已关闭');
+  await page.locator('[data-sim-action="roulade"]').click();
+  await expect(page.locator('#action-result')).toContainText('前滚翻 · 进行中');
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#action-result')).toContainText('停止 · 完成');
+  await expect(page.locator('#activity-log')).toContainText('前滚翻 · 已取消');
+  await page.getByRole('button',{name:'轮滑小鸭'}).click();
+  await expect(page.locator('#rollers-controls')).toBeVisible();
+  await expect(page.locator('#floor-moves')).toBeHidden();
+  for(const [name,label] of [['skate','向前滑行'],['roller_crouch','轮滑下蹲']]){
+    await page.locator(`[data-sim-action="${name}"]`).click();
+    await expect(page.locator('#action-result')).toContainText(`${label} · 完成`,{timeout:15000});
+  }
+  await page.setViewportSize({width:390,height:844});
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+  expect(errors).toEqual([]);
+  await page.screenshot({path:'test-results/new-skills-mobile.png'});
+});
