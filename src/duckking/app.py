@@ -413,7 +413,7 @@ def create_app(
         voice_motion = room.scene_motion if ws.url.path.endswith("/scene-voice") else room.motion
         if voice_motion is None:
             await ws.send_json(
-                {"type": "voice_status", "state": "error", "error": "请先启动物理场景再连接灵矽"}
+                {"type": "voice_status", "state": "error", "error": "请先加载物理场景，再启用语音"}
             )
             await ws.close(code=1008)
             return

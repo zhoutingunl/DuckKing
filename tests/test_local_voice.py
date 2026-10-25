@@ -53,6 +53,17 @@ def test_context_checked_before_any_action(text, physical, scene):
     assert not parse_commands(text, physical=physical, scene=scene).actions
 
 
+@pytest.mark.parametrize('text,names', [
+    ('翻个跟头，再打个哈欠', ['roulade', 'yawn']),
+    ('先向后退，再左横移，最后向右挪', ['backward', 'strafe_left', 'strafe_right']),
+    ('低头啄取，再摇头，再歪头', ['ground_pick', 'shake_head', 'tilt_head']),
+])
+def test_practice_scene_local_sequences(text, names):
+    plan = parse_commands(text, physical=True, scene='skills')
+    assert plan.reason == 'matched'
+    assert [action.name for action in plan.actions] == names
+
+
 async def eventually(predicate):
     async with asyncio.timeout(3):
         while not predicate():  # noqa: ASYNC110
