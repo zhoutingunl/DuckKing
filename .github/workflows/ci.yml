@@ -8,7 +8,8 @@ permissions:
 jobs:
   quality:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # Both browser modes run real-time physics, including four-duck music.
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
         with:
