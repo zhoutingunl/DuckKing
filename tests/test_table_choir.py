@@ -34,7 +34,7 @@ async def test_four_ducks_sing_and_only_one_really_leaves_the_table_and_lands(ba
     await asyncio.sleep(0.3)
     assert backend.tabletop.running
     result = await motion.wait(task.request_id)
-    assert result["status"] == "completed"
+    assert result["status"] == "completed", result
     out = result["outcome"]
     assert out["verified"] and not out["running"]
     assert 16 < out["dropped_at"] <= out["landed_at"] < SHOW_DURATION
