@@ -1,0 +1,42 @@
+{
+  "title": "夜空中最亮的星",
+  "source": "user_provided_recordings",
+  "rights": "User-supplied music; original rights retained. Not covered by the repository MIT license.",
+  "duration": 36,
+  "source_offset_seconds": 0,
+  "vocal_sha256": "95cad936e6ee2a30e1c1d0c1fd9c1dfaf3431b64c5039cf092f1cfe6f371b646",
+  "instrumental_sha256": "1abb0edc460bbfb8b27c9b4a5e1846bd67b267713832a462091e5521776af9f0",
+  "layers": {
+    "a": "octave below, quiet low-pass layer",
+    "b": "unison chorus layer",
+    "c": "original lead mix",
+    "d": "octave above, quiet high-pass layer"
+  },
+  "limitation": "Processed original mix, including its accompaniment; not isolated vocal stems or independent SATB arrangements.",
+  "files": {
+    "night-star-a.mp3": {
+      "bytes": 577245,
+      "sha256": "e05567056d9d02dac369a8671b1ee13e4be18bd93bbdd2b9951816d5e484ba8e"
+    },
+    "night-star-b.mp3": {
+      "bytes": 577245,
+      "sha256": "d613d0ab0b1df6fa2fed42852c9fb7bdd779fce1a1b7579562f02c63a555fa33"
+    },
+    "night-star-c.mp3": {
+      "bytes": 577245,
+      "sha256": "096d55b71b831a37e3557c4e543b66de6dd8616ae19d6c50176a881d545d05db"
+    },
+    "night-star-d.mp3": {
+      "bytes": 577245,
+      "sha256": "080d415ee3d1d06ca6d1c0ec4dac1cc91c3abf58ee0d4d710c85da88e5a8f0e7"
+    },
+    "night-star-instrumental.mp3": {
+      "bytes": 577245,
+      "sha256": "6833d1c87679618fd0e3fbc58bcbd5bc23f2a87ea0c42a8a37d4ac71ef1f144a"
+    },
+    "night-star-vocal.mp3": {
+      "bytes": 577245,
+      "sha256": "9329f1154f7c4894afa102b2e1a4cbb5db19f791b9103fd70f2e004b34d7fadc"
+    }
+  }
+}

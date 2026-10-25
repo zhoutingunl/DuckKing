@@ -28,7 +28,7 @@ PrivateTmp=true
 ProtectHome=read-only
 ProtectSystem=strict
 CPUQuota=150%
-MemoryMax=2G
+MemoryMax=4G
 TasksMax=128
 
 [Install]

@@ -22,8 +22,11 @@ export const DEMOS=[
   steps:[line('debut-intro','一个鸭是打工，两个鸭就是创业团队。请两位成员见面。','旁白'),command('debut-meet','请发现同伴，然后相向碰面。',['find_companion','collide']),{kind:'inspect',label:'本轮接触验收'},command('debut-chorus','你们的团名叫鸭力山大。请来一段同步合唱。',['chorus']),line('debut-end','我们的第一张专辑，叫明天一定交付。')]},
  {id:'chorale',title:'四声部谢幕',hook:'从两条旋律，到四层和声。听见成员的加入。',scene:'duo',source:'方案 1 · 幕三',duration:'约 35 秒',
   steps:[line('chorale-intro','这次不是两只鸭唱同一个音。低音和高音先开场，中音和次中音依次加入。','旁白'),{kind:'music'},line('chorale-end','有人加入，其他成员不换声部。有人离开，留住他的席位。这就是合唱团的默契。')]},
+ {id:'tabletop',title:'桌上不掉拍',hook:'四只鸭一张桌。掉下去，也要把歌唱完。',scene:'table',source:'新增桌上四鸭合唱',duration:'约 45 秒',
+  steps:[line('table-intro','四位歌手，一张桌子。请把掌声留到最后，桌子的面积有限。','旁白'),{kind:'table_music'},line('table-end','我没掉队，只是把低音部，搬到了楼下。')]},
 ];
-export const ACTION_NAMES={scene_ball:'准备球场',scene_carry:'准备搬运场景',scene_duo:'准备双鸭场景',nod:'点头',walk:'前进',turn_left:'左转',turn_right:'右转',flash_step:'闪身步',bear_shake:'抖毛',kick_left:'左脚踢球',kick_right:'右脚踢球',pick_up:'夹起',carry:'搬运',put_down:'放下',find_companion:'发现同伴',collide:'相向碰面',chorus:'双声部合唱',stop:'停止'};
+export const AUDIO_VERSION='personas-20261025';
+export const ACTION_NAMES={scene_table:'准备桌面舞台',table_show:'桌上合唱',scene_ball:'准备球场',scene_carry:'准备搬运场景',scene_duo:'准备双鸭场景',nod:'点头',walk:'前进',turn_left:'左转',turn_right:'右转',flash_step:'闪身步',bear_shake:'抖毛',kick_left:'左脚踢球',kick_right:'右脚踢球',pick_up:'夹起',carry:'搬运',put_down:'放下',find_companion:'发现同伴',collide:'相向碰面',chorus:'双声部合唱',stop:'停止'};
 export const AUDIO_LINES=DEMOS.flatMap(d=>d.steps.flatMap(s=>[
  ...(s.id?[{id:s.id,text:s.text,role:s.role??'预录指令'}]:[]),
  ...(s.replacement?[{id:s.replacement,text:s.replacementText,role:'预录指令'}]:[]),

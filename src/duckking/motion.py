@@ -13,6 +13,8 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 from .choreography import CHOREOGRAPHIES, DEFAULT_DURATION, MIN_DURATION, sample
 
 SCENE_ACTIONS = {
+    "scene_table",
+    "table_show",
     "scene_ball",
     "scene_duo",
     "scene_carry",
@@ -31,6 +33,8 @@ SCENE_ACTIONS = {
 class Action(BaseModel):
     model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
     name: Literal[
+        "scene_table",
+        "table_show",
         "nod",
         "walk",
         "turn_left",
@@ -52,7 +56,7 @@ class Action(BaseModel):
         "collide",
         "chorus",
     ]
-    duration: float = Field(default=1.2, ge=0.2, le=4.5)
+    duration: float = Field(default=1.2, ge=0.2, le=36)
     speed: float | None = Field(default=None, ge=0.02, le=0.4)
     target: Literal["a", "b", "both"] = "a"
     request_id: str = Field(default_factory=lambda: str(uuid.uuid4()), min_length=1, max_length=100)
@@ -61,6 +65,8 @@ class Action(BaseModel):
     @classmethod
     def choreography_defaults(cls, data):
         fixed = {
+            "scene_table": 0.2,
+            "table_show": 36,
             "kick_left": 2,
             "kick_right": 2,
             "chorus": 3,
@@ -82,11 +88,15 @@ class Action(BaseModel):
 
     @model_validator(mode="after")
     def choreography_timing(self):
-        if self.name != "put_down" and self.duration > 3:
+        if self.name in {"table_show", "scene_table"} and self.target != "a":
+            raise ValueError("桌上编排统一控制四只鸭，不接受单独指定成员")
+        if self.name not in {"put_down", "table_show"} and self.duration > 3:
             raise ValueError("此动作最长为 3 秒")
         if self.name in SCENE_ACTIONS and self.speed is not None:
             raise ValueError("场景动作使用固定策略速度，不接受 speed 参数")
         fixed = {
+            "scene_table": 0.2,
+            "table_show": 36,
             "kick_left": 2,
             "kick_right": 2,
             "chorus": 3,

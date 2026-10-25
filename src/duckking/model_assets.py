@@ -36,18 +36,22 @@ def pack_visual_model(model):
     Positions remain exact float32 values. Indices narrow to uint16 only when
     every value fits; this changes storage, never topology or physical geometry.
     """
-    payload, meshes = bytearray(), {}
+    payload, meshes, shared = bytearray(), {}, {}
     for key, mesh in model["meshes"].items():
         arrays = {}
         for name, dtype in (("vertices", "<f4"), ("faces", "<u4")):
             values = np.frombuffer(base64.b64decode(mesh[name]), dtype=dtype)
             if name == "faces" and values.size and values.max() < 65536:
                 values = values.astype("<u2")
-            payload.extend(b"\0" * (-len(payload) % 4))
-            arrays[name] = {
-                "offset": len(payload), "count": values.size, "bytes": values.dtype.itemsize,
-            }
-            payload.extend(values.tobytes())
+            data = values.tobytes()
+            array_key = (values.dtype.str, data)
+            if array_key not in shared:
+                payload.extend(b"\0" * (-len(payload) % 4))
+                shared[array_key] = {
+                    "offset": len(payload), "count": values.size, "bytes": values.dtype.itemsize,
+                }
+                payload.extend(data)
+            arrays[name] = shared[array_key]
         meshes[key] = arrays
     metadata = json.dumps({**model, "meshes": meshes}, separators=(",", ":")).encode()
     return (

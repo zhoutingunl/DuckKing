@@ -18,6 +18,7 @@ import onnxruntime as ort
 from .grasp import BeakGrasp
 from .grasp_model import build_grasp_model
 from .model_assets import geometry
+from .table_choir import SPAWNS, TABLE_HEIGHT, TableChoir, build_table_model
 
 POLICY_JOINTS = (
     "left_hip_yaw",
@@ -92,6 +93,7 @@ class MuJoCoBackend:
 
     def __init__(self, assets: Path):
         self.assets = assets
+        self.table_build_task = None
         self.robot_dir = assets / "microduck_rl/src/mjlab_microduck/robot/microduck"
         options = ort.SessionOptions()
         options.intra_op_num_threads = options.inter_op_num_threads = 1
@@ -116,6 +118,8 @@ class MuJoCoBackend:
         self.load("ball")
 
     def _build(self, scene):
+        if scene == "table":
+            return build_table_model(self.robot_dir)
         if scene == "carry":
             return build_grasp_model(self.robot_dir)
         if scene == "ball":
@@ -133,13 +137,21 @@ class MuJoCoBackend:
         return model
 
     def load(self, scene):
+        if scene == "table" and scene not in self.models:
+            self.models[scene] = self._build(scene)
+            self.revisions[scene] = uuid.uuid4().hex
         self.scene = scene
         self.model = self.models[scene]
         self.data = mujoco.MjData(self.model)
         self.revision = self.revisions[scene]
-        self.drivers = [
-            Driver(self.model, p, self.sessions) for p in ([""] if scene != "duo" else ["a_", "b_"])
-        ]
+        prefixes = (
+            [c + "_" for c in "abcd"]
+            if scene == "table"
+            else ["a_", "b_"]
+            if scene == "duo"
+            else [""]
+        )
+        self.drivers = [Driver(self.model, p, self.sessions) for p in prefixes]
         for i, driver in enumerate(self.drivers):
             self.data.qpos[driver.root : driver.root + 7] = (
                 [0, 0, 0.125, 1, 0, 0, 0]
@@ -150,6 +162,15 @@ class MuJoCoBackend:
             )
             self.data.qpos[driver.q] = HOME
             self.data.ctrl[driver.ids] = HOME
+            if scene == "table":
+                self.data.qpos[driver.root : driver.root + 7] = [
+                    *SPAWNS[i],
+                    TABLE_HEIGHT + 0.125,
+                    1,
+                    0,
+                    0,
+                    0,
+                ]
         self.grasp = BeakGrasp(self) if scene == "carry" else None
         self.selected = "a"
         self.chorus = None
@@ -167,8 +188,9 @@ class MuJoCoBackend:
         for i in range(self.model.ngeom):
             name = self.model.body(self.model.geom_bodyid[i]).name
             self.geom_owner.append(
-                0 if name.startswith("a_") else 1 if name.startswith("b_") else -1
+                next((j for j, c in enumerate("abcd") if name.startswith(c + "_")), -1)
             )
+        self.tabletop = TableChoir(self) if scene == "table" else None
         mujoco.mj_forward(self.model, self.data)
         # Explicit initial settling, not a simulated successful action.
         for _ in range(200 if scene == "carry" else 60):
@@ -187,6 +209,8 @@ class MuJoCoBackend:
                 raise ValueError("MuJoCo 数值失稳，停止场景；请显式重置")
             if self.grasp:
                 self.grasp.update()
+            if self.tabletop:
+                self.tabletop.update()
             for contact in self.data.contact:
                 one, two = int(contact.geom1), int(contact.geom2)
                 if ball in (one, two) and ball >= 0:
@@ -195,7 +219,11 @@ class MuJoCoBackend:
                     if name in {"ankle_left", "ankle_right"}:
                         self.contacts["ball"] += 1
                         self.ball_feet.add(name.removeprefix("ankle_"))
-                if {self.geom_owner[one], self.geom_owner[two]} == {0, 1}:
+                if (
+                    self.geom_owner[one] >= 0
+                    and self.geom_owner[two] >= 0
+                    and self.geom_owner[one] != self.geom_owner[two]
+                ):
                     self.contacts["ducks"] += 1
 
     def start(self):
@@ -233,10 +261,11 @@ class MuJoCoBackend:
             "scene_ball",
             "scene_duo",
             "scene_carry",
+            "scene_table",
             "stop",
         }:
             raise ValueError(self.error)
-        if action.target != "a" and self.scene != "duo":
+        if action.target != "a" and self.scene not in {"duo", "table"}:
             raise ValueError("当前场景只有鸭 A")
         if self.grasp and action.name not in {
             "pick_up",
@@ -247,8 +276,19 @@ class MuJoCoBackend:
             "scene_ball",
             "scene_duo",
             "scene_carry",
+            "scene_table",
         }:
             raise ValueError("夹取场景请使用夹起、搬运、放下；其他动作会破坏夹持")
+        if self.tabletop and action.name not in {
+            "table_show",
+            "stop",
+            "reset",
+            "scene_ball",
+            "scene_duo",
+            "scene_carry",
+            "scene_table",
+        }:
+            raise ValueError("桌上场景请使用完整合唱表演，避免单独行走破坏舞台布置")
         self.selected = action.target
 
     async def move(self, vx, vyaw, vy=0):
@@ -267,6 +307,8 @@ class MuJoCoBackend:
             driver.command[9:12] = [z, roll, pitch] if active else [0, 0, 0]
 
     async def stop(self):
+        if self.tabletop:
+            self.tabletop.stop()
         if self.grasp:
             self.grasp.stop()
         for driver in self.drivers:
@@ -369,9 +411,33 @@ class MuJoCoBackend:
 
     async def perform(self, action):
         if action.name.startswith("scene_"):
+            if action.name == "scene_table" and "table" not in self.models:
+                # Cancelling a UI request cannot stop native compilation. Keep
+                # one pending build so rapid replacements never launch several
+                # four-robot compilers or switch scenes after cancellation.
+                if self.table_build_task is None:
+                    self.table_build_task = asyncio.create_task(
+                        asyncio.to_thread(self._build, "table")
+                    )
+                    self.table_build_task.add_done_callback(
+                        lambda task: None if task.cancelled() else task.exception()
+                    )
+                try:
+                    self.models["table"] = await asyncio.shield(self.table_build_task)
+                except asyncio.CancelledError:
+                    raise
+                except Exception:
+                    self.table_build_task = None
+                    raise
+                self.table_build_task = None
+                self.revisions["table"] = uuid.uuid4().hex
             self.load(action.name.removeprefix("scene_"))
             self.start()
             return {"scene": self.scene, "verified": True}
+        if action.name == "table_show":
+            if not self.tabletop:
+                raise ValueError("请先切换到桌上合唱场景")
+            return await self.tabletop.perform()
         if action.name in {"pick_up", "carry", "put_down"}:
             if not self.grasp:
                 raise ValueError("请先切换到嘴部搬运场景")
@@ -474,7 +540,7 @@ class MuJoCoBackend:
             "real_time_factor": (float(self.data.time) - self.sim_start) / max(elapsed, 0.001),
             "ducks": [
                 {
-                    "id": "ab"[i],
+                    "id": "abcd"[i],
                     "position": d.pose(self.data)[0].tolist(),
                     "yaw": d.pose(self.data)[1],
                     "policy": d.policy,
@@ -484,6 +550,7 @@ class MuJoCoBackend:
             ],
             "ball": self.ball_state(),
             "grasp": self.grasp.snapshot() if self.grasp else None,
+            "tabletop": self.tabletop.snapshot() if self.tabletop else None,
             "contacts": dict(self.contacts),
             "discovered": self.discovered,
             "chorus": chorus,

@@ -33,6 +33,8 @@ async def verify(output: Path):
             "pick_up",
             "carry",
             "put_down",
+            "scene_table",
+            "table_show",
         ]:
             action = Action(name=name)
             await motion.submit(action)

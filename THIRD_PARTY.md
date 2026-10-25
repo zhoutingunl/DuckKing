@@ -18,7 +18,7 @@
 
 ## 自动演示的对白与四声部乐谱
 
-- 演示场景的角色文案与自动编排由 DuckKing 编写；预录中文使用 macOS Tingting 系统语音生成，未克隆真人或官方鸭子音色。生成工具为 `scripts/build_demo_audio.py`，生成结果和逐句文本清单位于 `frontend/public/demo-audio/`。实时灵矽模式中的识别、工具调用与回复另由真实云端会话产生。
+- 演示场景的角色文案与自动编排由 DuckKing 编写；人类指令/旁白使用 macOS Tingting，小鸭使用 Eddy 中文系统语音加轻量升调和滤波生成，未克隆真人或官方鸭子音色。生成工具为 `scripts/build_demo_audio.py`，生成结果和逐句文本清单位于 `frontend/public/demo-audio/`。实时灵矽模式中的识别、工具调用与回复另由真实云端会话产生。
 - 第十幕使用 Pollen Robotics Microduck 固定提交 `942e58e3aa6dbb28e7037203fff11866122c7567` 的原创 `sounds/scores/wistful.duckscore` 开头 16 拍。原谱与 Apache-2.0 许可保存在 `frontend/public/scores/`；声部编队规则参考同提交 `sounds/src/chorale/mod.rs`。DuckKing 自行编写浏览器合成与节目调度，不宣称官方音色、BLE 传输或硬件时钟同步。
 
 ## 协议参考
@@ -31,3 +31,5 @@
 协议适配自行实现；不复制示例中的身份、token 或关闭 TLS 验证的设置。
 
 依赖版本将记录在 `uv.lock` 和前端 `package-lock.json`。旧版程序化卡通预览保留在 Git 历史和旧演示视频中；当前首页使用官方模型网格，关节动画脚本仍由本项目实现，不是物理仿真结果。
+
+- 第十一幕的《夜空中最亮的星》人声与器乐录音由项目用户直接提供。`frontend/public/demo-music/manifest.json` 记录源文件摘要、裁剪/响度/叠唱处理和输出摘要；原录音与歌曲的权利仍归原权利方，不随本仓库 MIT 许可授予。叠唱是用户混音的八度/齐唱处理，包含伴奏，不是独立录制的四声部或音色克隆。另选“原创排练”时由 DuckKing 的原创和弦序列本地合成，不含该歌曲旋律。

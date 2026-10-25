@@ -206,8 +206,11 @@ def create_app(
 
     @app.post("/api/scenes/start", status_code=202)
     async def start_scene(body: Action, room: str = "1"):
-        if body.name not in {"scene_ball", "scene_duo", "scene_carry"} or body.target != "a":
-            raise HTTPException(422, "选择踢球、双鸭互动或嘴部搬运场景")
+        if (
+            body.name not in {"scene_ball", "scene_duo", "scene_carry", "scene_table"}
+            or body.target != "a"
+        ):
+            raise HTTPException(422, "选择踢球、双鸭互动、嘴部搬运或桌上合唱场景")
         selected = get_room(room)
         async with selected.scene_lock:
             if selected.scene_motion is None:

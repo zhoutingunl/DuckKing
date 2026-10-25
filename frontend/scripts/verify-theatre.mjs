@@ -30,7 +30,7 @@ try{
   const result=JSON.parse(await page.locator('#theatre-result').textContent());expect(result.scene).toBe(id);
   const row={id,passed:true,elapsed_ms:Date.now()-started,result,timeline:await page.locator('#demo-timeline li').allTextContents(),audio:await page.evaluate(()=>window.theatreAudio)};
   proof.scenes.push(row);console.log(JSON.stringify({id,passed:true,elapsed_ms:row.elapsed_ms,audio:row.audio}));
-  if(['delivery','chorale'].includes(id)){mkdirSync('../.duckking/theatre-images',{recursive:true});await page.screenshot({path:`../.duckking/theatre-images/${mode}-${id}.png`,fullPage:true});}
+  if(['delivery','chorale','tabletop'].includes(id)){mkdirSync('../.duckking/theatre-images',{recursive:true});await page.screenshot({path:`../.duckking/theatre-images/${mode}-${id}.png`,fullPage:true});}
  }
  expect(proof.page_errors).toEqual([]);expect(proof.scenes.at(-1).audio.nonzero).toBeGreaterThan(0);proof.passed=true;
 }finally{await browser.close();writeFileSync(output,JSON.stringify(proof,null,2)+'\n');}
