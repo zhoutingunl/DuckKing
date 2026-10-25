@@ -55,10 +55,6 @@ python scripts/release_smoke.py --url https://ztmonitor.qbox.net/duckking/ --com
 
 前置 Nginx 的 WebSocket 配置参考 [Nginx 官方文档](https://nginx.org/en/docs/http/websocket.html)，浏览器麦克风的安全上下文要求参考 [MDN getUserMedia](https://developer.mozilla.org/en-US/docs/Web/API/MediaDevices/getUserMedia)。
 
-## 发布冻结
-
-遵守仓库 `AGENTS.md`：2026-10-25 23:59 Asia/Shanghai 后，未经明确解除冻结的新指令，不得修改远程仓库。
-
 ## 独立离线识别服务
 
 发布包包含校验过的 SenseVoiceSmall INT8 权重、模型许可和两个合成回归录音。安装器先做真实 ASR 推理及物理自检，再安装 `duckking-asr.service`；仅监听 127.0.0.1:8768，单线程、CPUQuota=100%、MemoryMax=1G、最多两个未完成任务。DuckKing 主服务保留自己的 CPU/内存额度，通过 `DUCKKING_LOCAL_ASR=1` 开启模式选择。无新增公网端口，不改 ai_gateway 路由，不重启 ai_gateway。
