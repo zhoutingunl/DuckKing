@@ -1,3 +1,4 @@
+import {VoiceExperience} from './experience.js';
 import { PCMFramer } from './audio-codec.js';
 import { appURL } from './urls.js';
 import { createSocket } from './transport.js';
@@ -9,6 +10,7 @@ export function setupVoice({appendLog,notify,endpoint='/voice',cloudOnly=false})
   function voiceError(text){voiceNotice=text;notify(text)}
   let generation=0,minGeneration=0,captureId=0,audioReportTimer=null;
   let mode='cloud',route='cloud',modesReady=false;
+  const experience=new VoiceExperience();
   const modeSelect=$('voice-mode');
   const reasons={unmatched:'整句未完整匹配动作',unsupported_context:'当前场景不支持整句动作',plan_limit:'指令超出本地动作范围',empty_or_long:'识别内容不足或过长',asr_timeout:'本地识别超时',asr_unavailable:'本地识别暂不可用'};
   const stateLabel=(value=state)=>mode!=='local_first'?labels[value]??value:
@@ -75,7 +77,7 @@ export function setupVoice({appendLog,notify,endpoint='/voice',cloudOnly=false})
       const {stream,node,source,framer}=recording;recording=null;
       node.port.onmessage=null;source.disconnect();node.disconnect();
       stream.getTracks().forEach(track=>track.stop());
-      if(sendStop){framer.flush().forEach(frame=>send(frame));send({type:'listen_stop'})}
+      if(sendStop){experience.stop();framer.flush().forEach(frame=>send(frame));send({type:'listen_stop'})}
     }
     output.setCapture(false);
     if(output.ctx)void output.resume({gesture:true});
@@ -85,7 +87,7 @@ export function setupVoice({appendLog,notify,endpoint='/voice',cloudOnly=false})
     if(talk.disabled||pressed)return;pressed=true;
     const channel=ws,attempt=++captureId;
     if(['thinking','speaking'].includes(state)||output.busy){
-      minGeneration=generation+1;state='interrupting';send({type:'interrupt'});
+      experience.finish('cancelled');minGeneration=generation+1;state='interrupting';send({type:'interrupt'});
     }
     clearPlayback();
     let stream,context;
@@ -99,7 +101,7 @@ export function setupVoice({appendLog,notify,endpoint='/voice',cloudOnly=false})
       const source=context.createMediaStreamSource(stream),node=new AudioWorkletNode(context,'duck-capture');
       const framer=new PCMFramer(context.sampleRate);
       recording={stream,node,source,context,framer};
-      send({type:'listen_start'});
+      send({type:'listen_start',experience:experience.start(mode,ws?.transport)});
       node.port.onmessage=event=>{if(pressed)framer.push(event.data).forEach(frame=>send(frame))};
       source.connect(node);node.connect(context.destination);
       timeout=setTimeout(()=>release(),15000);
@@ -139,9 +141,10 @@ export function setupVoice({appendLog,notify,endpoint='/voice',cloudOnly=false})
     channel.onmessage=async(event)=>{
       if(ws!==channel)return;
       const data=JSON.parse(event.data);
-      if(['voice_status','voice_route','audio','transcript','playback_end'].includes(data.type)){
+      if(['voice_status','voice_route','audio','transcript','playback_end','voice_milestone'].includes(data.type)){
         const incoming=data.generation??0;if(incoming<minGeneration)return;generation=incoming;
       }
+      experience.receive(data);
       if(data.type==='voice_status'){
         receivedStatus=true;
         if(data.mode)mode=data.mode;if(data.route)route=data.route;
@@ -166,7 +169,7 @@ export function setupVoice({appendLog,notify,endpoint='/voice',cloudOnly=false})
     };
     channel.onclose=async()=>{
       if(ws!==channel)return;
-      ws=null;clearInterval(heartbeat);clearTimeout(closingTimer);
+      experience.finish('abandoned');ws=null;clearInterval(heartbeat);clearTimeout(closingTimer);
       await release(false);if(ws!==null)return;clearPlayback();
       state=owner?(['error','awaiting_binding'].includes(state)?state:receivedStatus?'disconnected':'error'):'busy';
       if(owner&&!receivedStatus)voiceError('本地语音通道连接失败，请检查页面地址、代理或修改请求头的浏览器扩展。');
@@ -174,7 +177,7 @@ export function setupVoice({appendLog,notify,endpoint='/voice',cloudOnly=false})
     };
   });
   $('reset-voice').addEventListener('click',async()=>{
-    await release(false);clearPlayback();
+    experience.finish('cancelled');await release(false);clearPlayback();
     if(ws?.readyState===WebSocket.OPEN){send({type:'reset'})}
     else{connect.click()}
   });
@@ -190,7 +193,7 @@ export function setupVoice({appendLog,notify,endpoint='/voice',cloudOnly=false})
   return {send, get state(){return state}, clearPlayback, interrupt(){
     clearPlayback();
     if(['ready','thinking','speaking'].includes(state)){
-      minGeneration=generation+1;state='interrupting';send({type:'interrupt'});update();
+      experience.finish('cancelled');minGeneration=generation+1;state='interrupting';send({type:'interrupt'});update();
     }
   }};
 }

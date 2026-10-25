@@ -132,7 +132,9 @@ class VoiceSession:
 
     def status(self):
         return {"state": self.state, "activation_code": self.activation_code,
-                "error": self.error, "generation": self.generation}
+                "error": self.error, "generation": self.generation,
+                "backend": self.motion.backend.kind,
+                "scene": getattr(self.motion.backend, "scene", "unknown")}
 
     def _record_state(self):
         self.state_changed.set()
@@ -323,6 +325,13 @@ class VoiceSession:
                 elapsed_ms=int(max(0, time.monotonic() - started) * 1000) if turn else 0,
                 **fields,
             )
+            if event == "action_start":
+                notice = asyncio.create_task(self.send({
+                    "type": "voice_milestone", "phase": "action_start", "turn": turn,
+                    "generation": generation if generation is not None else self.generation,
+                }))
+                self.tasks.add(notice)
+                notice.add_done_callback(self.tasks.discard)
 
         self.record("tool_start", method=payload.get("method"), tool=tool)
         try:

@@ -1,3 +1,4 @@
+import {VoiceExperience} from './experience.js';
 import { appURL } from './urls.js';
 import { DuckSocket } from './transport.js';
 
@@ -42,7 +43,7 @@ export function matchesCloudActions(records,expected,scene){
   return JSON.stringify(names)===JSON.stringify(expected);
 }
 export class DemoVoice {
-  constructor(room,output,onEvent){this.room=room;this.output=output;this.onEvent=onEvent;this.state='disconnected';this.generation=0;this.minimum=0;this.ended=0;this.received=0;this.error=null;this.closed=false;}
+  constructor(room,output,onEvent){this.experience=new VoiceExperience({room,traffic:'demo',backend:'mujoco'});this.room=room;this.output=output;this.onEvent=onEvent;this.state='disconnected';this.generation=0;this.minimum=0;this.ended=0;this.received=0;this.error=null;this.closed=false;}
   send(value){if(this.socket?.readyState!==1)throw new Error('语音连接已关闭');this.socket.send(value instanceof ArrayBuffer?value:JSON.stringify(value))}
   async connect(signal){
     const channel=new DuckSocket('scene-voice');this.socket=channel;this.state='connecting';
@@ -59,7 +60,7 @@ export class DemoVoice {
       }else if(data.type==='audio'){try{this.output.enqueue(data);this.received++}catch(e){this.error=e.message}}
       else if(data.type==='playback_end')this.ended++;
       else if(data.type==='error')this.error=data.message;
-      this.onEvent(data);
+      this.experience.receive(data);this.onEvent(data);
     };
     channel.onclose=()=>{clearInterval(this.heartbeat);if(!this.closed)this.error='灵矽连接中断，演示已停止'};
     await this.wait(()=>this.state==='ready',signal);
@@ -67,11 +68,11 @@ export class DemoVoice {
   async wait(predicate,signal,timeout=60000){await until(()=>{if(this.error)throw new Error(this.error);return predicate()},{signal,timeout})}
   async input(pcm,signal){
     await this.wait(()=>this.state==='ready',signal);
-    this.send({type:'listen_start'});await this.wait(()=>this.state==='listening',signal);
+    this.send({type:'listen_start',experience:this.experience.start('cloud',this.socket?.transport)});await this.wait(()=>this.state==='listening',signal);
     for(let i=0;i<pcm.length;i+=960){
       if(signal.aborted)throw stopped();const frame=new Int16Array(960);frame.set(pcm.subarray(i,i+960));this.send(frame.buffer);await pause(60,signal);
     }
-    this.send({type:'listen_stop'});
+    this.experience.stop();this.send({type:'listen_stop'});
   }
   async turn(pcm,signal){
     const before=this.ended,received=this.received;await this.input(pcm,signal);
@@ -80,10 +81,10 @@ export class DemoVoice {
     await until(()=>!this.output.busy,{signal,timeout:15000});
   }
   async interrupt(signal){
-    this.minimum=this.generation+1;this.output.clear();this.send({type:'interrupt'});
+    this.experience.finish('cancelled');this.minimum=this.generation+1;this.output.clear();this.send({type:'interrupt'});
     await this.wait(()=>this.generation>=this.minimum&&this.state==='ready',signal);
   }
-  close(){this.closed=true;clearInterval(this.heartbeat);this.output.clear();if(this.socket?.readyState===1){try{this.send({type:'disconnect'})}catch{}}this.socket?.close();}
+  close(){this.experience.finish('cancelled');this.closed=true;clearInterval(this.heartbeat);this.output.clear();if(this.socket?.readyState===1){try{this.send({type:'disconnect'})}catch{}}this.socket?.close();}
 }
 
 // One generation owns the timeline. A replacement cannot continue an old script.

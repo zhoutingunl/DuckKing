@@ -1,3 +1,4 @@
+import {measurement,loadMetrics,afterFrame} from './experience.js';
 import './style.css';
 import './scenarios.css';
 import { createPhysicsModelLoader } from './model-loader.js';
@@ -15,7 +16,7 @@ const names={scene_skills:'动作练习场',scene_rollers:'轮滑小鸭',roulade
 const graspPhases={ready:'待夹取',closing:'正在合嘴',lifting:'正在抬起',holding:'夹持中',carrying:'正在搬运',carried:'已到接物台',lowering:'正在低头',opening:'正在张嘴',retreating:'正在退开',released:'已放稳',interrupted:'已停止',dropped:'夹持丢失',failed:'未通过验证'};
 const statuses={completed:'完成',failed:'未完成',cancelled:'已取消',running:'进行中'};
 const loadPhysicsModel=createPhysicsModelLoader();
-let sceneRequestedAt=null;
+let failedRevision=null,sceneRequestedAt=null,sceneExperience=null,sceneRequestPending=false,sceneRequestId=null,sceneTarget=null;
 let viewer,scene=null,revision=null,loadingModel=false,changing=false,seen=0,latest=null,online=false;
 try{viewer=physicsView($('physics-viewport'));}catch{$('canvas-fallback').hidden=false;}
 let noticeOwner=null;
@@ -36,10 +37,11 @@ function action(name){
   requests=requests.then(()=>post('/api/scenes/actions',{name,target,request_id:requestId()})).catch(e=>notify(e.message));return requests;
 }
 for(const button of document.querySelectorAll('[data-scene]'))button.addEventListener('click',async()=>{
-  sceneRequestedAt=performance.now();changing=true;buttons();chorus.stop();$('sim-status').textContent='正在加载官方模型…';$('notice').hidden=true;
-  try{await post('/api/scenes/start',{name:`scene_${button.dataset.scene}`,request_id:requestId()});}
-  catch(e){notify(e.message);$('sim-status').textContent='物理场景启动失败';}
-  finally{changing=false;buttons();}
+  sceneExperience?.finish('cancelled');sceneExperience=measurement('load');
+  sceneRequestedAt=performance.now();sceneRequestPending=true;sceneRequestId=requestId();sceneTarget=button.dataset.scene;changing=true;buttons();chorus.stop();$('sim-status').textContent='正在加载官方模型…';$('notice').hidden=true;
+  try{const record=await post('/api/scenes/start',{name:`scene_${button.dataset.scene}`,request_id:sceneRequestId});if(record.status==='failed')throw Error(record.error??'场景准备失败');}
+  catch(e){sceneExperience?.finish('failed');sceneExperience=null;sceneRequestedAt=null;notify(e.message);$('sim-status').textContent='物理场景启动失败';}
+  finally{sceneRequestPending=false;changing=false;buttons();}
 });
 for(const button of document.querySelectorAll('[data-sim-action]'))button.addEventListener('click',async()=>{if(button.dataset.simAction==='chorus')await chorus.enable();await action(button.dataset.simAction);});
 $('enable-chorus').addEventListener('click',()=>chorus.enable().catch(e=>notify(e.message)));
@@ -51,8 +53,10 @@ $('release-scene').addEventListener('click',async()=>{
 });
 $('reset-scene').addEventListener('click',()=>action('reset'));$('stop-scene').addEventListener('click',()=>action('stop'));$('reset-camera').addEventListener('click',()=>viewer?.reset());$('clear-log').addEventListener('click',()=>$('activity-log').replaceChildren());
 window.addEventListener('keydown',e=>{if(e.key==='Escape'&&scene)action('stop');});
-async function loadModel(state){
-  if(loadingModel||revision===state.revision)return;loadingModel=true;
+async function loadModel(state,currentAction){
+  if(sceneExperience&&(sceneRequestPending||state.scene!==sceneTarget||currentAction?.id===sceneRequestId))return;
+  if(loadingModel||((revision===state.revision||failedRevision===state.revision)&&!sceneExperience))return;loadingModel=true;
+  const experience=sceneExperience??measurement('load');sceneExperience=null;const requested=sceneRequestedAt!==null;const modelStarted=performance.now();
   const started=sceneRequestedAt??performance.now();sceneRequestedAt=null;
   const metrics={view:'scenario',scene:state.scene,cache:'unknown',manifest_ms:0,asset_ms:0,parse_ms:0,assemble_ms:0,first_frame_ms:0};
   let result='failed';
@@ -62,15 +66,16 @@ async function loadModel(state){
     if(!viewer)throw new Error('浏览器无法绘制官方模型，请检查 WebGL 支持');
     const assembling=performance.now();viewer.load(model);viewer.frameScene(latest.scene);revision=model.revision;viewer.update(latest);
     metrics.assemble_ms=performance.now()-assembling;
-    const drawing=performance.now();viewer.renderNow();metrics.first_frame_ms=performance.now()-drawing;
-    $('scene-placeholder').hidden=true;result='ready';
+    const drawing=performance.now();viewer.renderNow();await afterFrame();metrics.first_frame_ms=performance.now()-drawing;
+    $('scene-placeholder').hidden=true;failedRevision=null;result='ready';
     appendLog(`场景外观已显示 · ${((performance.now()-started)/1000).toFixed(2)} 秒 · ${metrics.cache==='memory'?'复用模型':metrics.cache==='persistent'?'读取缓存':'压缩下载'}`,'加载');
-  }catch(e){notify(e.message);}
+  }catch(e){failedRevision=state.revision;notify(e.message);}
   finally{
     loadingModel=false;
     const timing={...metrics,result,elapsed_ms:performance.now()-started,navigation_ms:performance.now()};
     for(const key of Object.keys(timing))if(typeof timing[key]==='number')timing[key]=Math.round(timing[key]);
     $('physics-viewport').dataset.modelTiming=JSON.stringify(timing);
+    experience.finish(result==='ready'?'completed':'failed',{...loadMetrics(timing),model_ms:Math.round(performance.now()-modelStarted),...(requested?{scene_ms:Math.round(performance.now()-started)}:{})},{cache:metrics.cache,scene:state.scene});
     console.info('[DuckKing:scene-load]',timing);
     fetch(appURL('api/models/load-metrics'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(timing),keepalive:true}).catch(()=>{});
   }
@@ -96,7 +101,7 @@ function update(data){
   $('duck-contact').textContent=scene==='duo'?state.contacts.ducks:'—';$('sim-speed').textContent=`${state.real_time_factor.toFixed(2)}×`;
   if(state.discovered.length)$('peer-status').textContent=state.discovered.map(p=>`鸭 ${p.observer.toUpperCase()} 发现鸭 ${p.peer.toUpperCase()}，相距 ${p.distance_m.toFixed(2)} m`).join('；');
   else $('peer-status').textContent='未记录发现结果。检测范围 1.2 m / 120°，考虑遮挡。';
-  chorus.update(state.chorus);loadModel(state);viewer?.update(state);
+  chorus.update(state.chorus);loadModel(state,data.action);viewer?.update(state);
   if(data.action)$('action-result').textContent=`${names[data.action.name]??data.action.name} · 进行中`;
   for(const event of data.events){if(event.id<=seen)continue;seen=event.id;const text=event.text.replace(new RegExp(Object.keys(names).sort((a,b)=>b.length-a.length).join('|'),'g'),k=>names[k]??k).replace(/completed|failed|cancelled/g,k=>statuses[k]);appendLog(text,event.kind==='result'?'执行结果':'物理动作',event.status==='failed');if(event.kind==='result')$('action-result').textContent=text;}
   syncSceneError(state.error||data.error);

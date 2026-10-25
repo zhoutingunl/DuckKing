@@ -1,3 +1,4 @@
+import {measurement,loadMetrics,afterFrame} from './experience.js';
 import './style.css';
 import './demos.css';
 import { DEMOS, ACTION_NAMES, AUDIO_VERSION } from './demo-catalog.js';
@@ -72,6 +73,8 @@ function connectStage(room,container){
   stages.set(room,stage);return stage;
 }
 async function prepare(room,scene,run,second=false){
+  const experience=measurement('load',{room}),metrics={};
+  try{
   run.signal.throwIfAborted();run.rooms.add(room);status('正在准备官方物理场景…');
   let stage=stages.get(room);if(stage?.socket.readyState===3){stage.viewer.dispose();stages.delete(room);stage=null}
   stage??=connectStage(room,$(second?'demo-second':'demo-viewport'));
@@ -86,12 +89,16 @@ async function prepare(room,scene,run,second=false){
     if(state.error)throw new Error(state.error);
   }while(state.backend.scene!==scene||state.action?.id===record.id);
   const rev=state.backend.revision,url=appURL('api/scenes/model.dkm.gz');url.searchParams.set('room',room);
-  const model=await loadPhysicsModel(url,rev,{signal:AbortSignal.any([run.signal,AbortSignal.timeout(60000)])});
+  const model=await loadPhysicsModel(url,rev,{signal:AbortSignal.any([run.signal,AbortSignal.timeout(60000)]),metrics});
+  const assembling=performance.now();
   run.signal.throwIfAborted();if(stage.revision!==rev){stage.viewer.load(model);stage.revision=rev;}
   stage.viewer.frameScene(scene);
   stage.viewer.update(stage.latest?.backend.revision===rev?stage.latest.backend:state.backend);
   if(!second)$('stage-placeholder').hidden=true;
+  metrics.assemble_ms=performance.now()-assembling;const drawing=performance.now();stage.viewer.renderNow();await afterFrame();metrics.first_frame_ms=performance.now()-drawing;
+  experience.finish('completed',{...loadMetrics(metrics),scene_ms:Math.round(performance.now()-experience.started)},{cache:metrics.cache??'unknown',scene});
   stage.error=null;status('舞台已就绪');return stage;
+  }catch(error){experience.finish(run.signal.aborted?'cancelled':'failed');throw error}
 }
 async function perform(run,room,name,options={},expectFailure=false){
   const result=await action(room,name,run.signal,options);run.results.push({...result,room});

@@ -7,6 +7,7 @@ from types import SimpleNamespace
 from fastapi import HTTPException
 
 from .diagnostics import VoiceDiagnostics
+from .experience import VoiceExperience
 from .motion import MotionController, PreviewBackend
 
 
@@ -28,7 +29,8 @@ class RoomRegistry:
             motion=MotionController(PreviewBackend()), voice=None, scene_motion=None,
             settings=settings, scene_lock=asyncio.Lock(), viewers=0, reserved_until=0.0,
             last_used=time.monotonic(), voice_diagnostics=VoiceDiagnostics(
-                settings.data_dir / "voice.jsonl"
+                settings.data_dir / "voice.jsonl",
+                experience=VoiceExperience(self.primary.experience, number),
             ),
         )
 

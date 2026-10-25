@@ -1,3 +1,4 @@
+import {measurement,loadMetrics} from './experience.js';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { appURL } from './urls.js';
@@ -26,6 +27,7 @@ export function createDuckScene(container,{onLoad=()=>{}}={}) {
   const duck=new THREE.Group();duck.scale.setScalar(5);scene.add(duck);
   const basis=new THREE.Group();basis.rotation.x=-Math.PI/2;duck.add(basis);
   const joints=new Map(), geometries=[], materials=[];
+  let loadExperience;
   let state={}, frame,timer,disposed=false,slowFrames=0,lastFrame=performance.now(),root,needsRender=true,poseKey='',pendingLoad;
   controls.addEventListener('change',()=>{needsRender=true});
   const abort=new AbortController();
@@ -34,9 +36,11 @@ export function createDuckScene(container,{onLoad=()=>{}}={}) {
     const timing={result,...metrics,elapsed_ms:performance.now()-started,navigation_ms:performance.now()};
     for(const key of Object.keys(timing))if(typeof timing[key]==='number')timing[key]=Math.round(timing[key]);
     container.dataset.modelTiming=JSON.stringify(timing);console.info('[DuckKing:model-load]',timing);onLoad(timing);
+    loadExperience?.finish(result==='ready'?'completed':'failed',{...loadMetrics(timing),model_ms:Math.round(timing.elapsed_ms),navigation_ms:Math.round(timing.navigation_ms)},{cache:timing.cache});
     fetch(appURL('api/models/load-metrics'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(timing),keepalive:true}).catch(()=>{});
   }
   async function load(){
+    loadExperience?.finish('cancelled');loadExperience=measurement('load');
     const started=performance.now(),metrics={cache:'unknown',manifest_ms:0,asset_ms:0,parse_ms:0,assemble_ms:0,first_frame_ms:0,transfer_bytes:0,encoded_bytes:0,decoded_bytes:0};
     status.textContent='正在加载官方 MicroDuck 外观…';status.hidden=false;container.dataset.model='loading';
     try {
@@ -100,5 +104,5 @@ export function createDuckScene(container,{onLoad=()=>{}}={}) {
     if(!reduced&&slowFrames>=3){reduced=true;renderer.shadowMap.enabled=false;materials.forEach(m=>m.needsUpdate=true);resize();}
     timer=setTimeout(()=>{frame=requestAnimationFrame(animate);},reduced?100:33);
   }animate();
-  return {update(next){state=next;const key=JSON.stringify([next.pose,next.velocity]);if(key!==poseKey){poseKey=key;needsRender=true}},resetCamera(){controls.reset()},dispose(){disposed=true;abort.abort();clearTimeout(timer);cancelAnimationFrame(frame);observer.disconnect();geometries.forEach(g=>g.dispose());materials.forEach(m=>m.dispose());renderer.dispose();controls.dispose();status.remove();}};
+  return {update(next){state=next;const key=JSON.stringify([next.pose,next.velocity]);if(key!==poseKey){poseKey=key;needsRender=true}},resetCamera(){controls.reset()},dispose(){loadExperience?.finish('cancelled');disposed=true;abort.abort();clearTimeout(timer);cancelAnimationFrame(frame);observer.disconnect();geometries.forEach(g=>g.dispose());materials.forEach(m=>m.dispose());renderer.dispose();controls.dispose();status.remove();}};
 }

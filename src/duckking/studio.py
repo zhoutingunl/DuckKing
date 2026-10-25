@@ -4,12 +4,15 @@ import asyncio
 import copy
 import time
 from contextlib import suppress
+from contextvars import ContextVar
 from pathlib import Path
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from .motion import Action
+
+motion_observer = ContextVar("studio_motion_observer", default=None)
 
 
 class Strict(BaseModel):
@@ -183,10 +186,24 @@ class Studio:
 
     async def move(self, name, **kwargs):
         action = Action(name=name, **kwargs)
-        await self.motion.submit(action, owner=self)
-        result = await self.motion.wait(action.request_id)
+        result = await self.perform(action)
         if result["status"] != "completed":
             raise ValueError(result.get("error", "动作已中断"))
+        return result
+
+    async def perform(self, action):
+        await self.motion.submit(action, owner=self)
+        observer = motion_observer.get() if action.name != "stop" else None
+        if observer:
+            observer("action_start", action.request_id)
+        try:
+            result = await self.motion.wait(action.request_id)
+        except asyncio.CancelledError:
+            if observer:
+                observer("action_end", action.request_id, "cancelled")
+            raise
+        if observer:
+            observer("action_end", action.request_id, result["status"])
         return result
 
     async def start(self, kind, run):
@@ -235,8 +252,7 @@ class Studio:
             self.state["step"] = index + 1
             # Validate every step before starting; never partially execute an invalid plan.
             action = step.motion()
-            await self.motion.submit(action, owner=self)
-            result = await self.motion.wait(action.request_id)
+            result = await self.perform(action)
             self.state["results"].append(result)
             if result["status"] != "completed":
                 raise ValueError(result.get("error", "表演已中断"))

@@ -21,6 +21,7 @@ from . import asr_client
 from .config import Settings
 from .deployment import DeploymentStatus
 from .diagnostics import VoiceDiagnostics
+from .experience import ExperienceBatch, ExperienceContext, ExperienceStore, VoiceExperience
 from .hybrid_voice import HybridVoiceSession
 from .model_metrics import ModelLoadMetrics
 from .motion import Action, MotionController, PreviewBackend
@@ -60,6 +61,7 @@ def create_app(
                 await room.motion.close()
                 if room.scene_motion:
                     await room.scene_motion.close()
+            await anyio.to_thread.run_sync(app.state.experience.close)
 
     app = FastAPI(title="DuckKing", lifespan=lifespan)
     app.state.motion = motion
@@ -75,11 +77,16 @@ def create_app(
         ),
     )
     app.state.settings = settings or Settings.load()
+    app.state.experience = ExperienceStore(
+        app.state.settings.data_dir / "experience.sqlite3",
+        (app.state.deployment.release or {}).get("commit", "development"),
+    )
     app.state.scene_lock = asyncio.Lock()
     app.state.viewers = 0
     app.state.reserved_until = 0.0
     app.state.voice_diagnostics = VoiceDiagnostics(
-        (settings or Settings.load()).data_dir / "voice.jsonl"
+        (settings or Settings.load()).data_dir / "voice.jsonl",
+        experience=VoiceExperience(app.state.experience, "1"),
     )
     app.state.room_registry = RoomRegistry(app.state)
     app.state.rooms = app.state.room_registry.rooms
@@ -150,6 +157,50 @@ def create_app(
     @app.get("/api/deployments")
     async def deployments():
         return JSONResponse(app.state.deployment.snapshot(), headers={"Cache-Control": "no-store"})
+
+    @app.post("/api/experience", status_code=202)
+    async def experience_ingest(request: Request, room: str = "1"):
+        # Bound streamed bodies too; Content-Length is not trusted.
+        body = bytearray()
+        async for part in request.stream():
+            body.extend(part)
+            if len(body) > 32768:
+                raise HTTPException(413, "统计批次过大")
+        if not re.fullmatch(r"[1-9][0-9]?", room):
+            raise HTTPException(422, "无效统计房间")
+        try:
+            batch = ExperienceBatch.model_validate_json(body)
+        except ValueError as exc:
+            raise HTTPException(422, "统计格式无效") from exc
+        accepted = sum(app.state.experience.submit(e, source="browser", room=room)
+                       for e in batch.events)
+        if accepted != len(batch.events):
+            raise HTTPException(503, "统计队列已满，请稍后重试")
+        return {"queued": accepted}
+
+    @app.get("/api/experience")
+    async def experience_summary(hours: int = 168, traffic: str = "interactive",
+                                 page: str = "all", device: str = "all", cache: str = "all",
+                                 room: str = "all", release: str = "all", backend: str = "all",
+                                 scene: str = "all"):
+        allowed = {"traffic": {"all", "interactive", "demo", "verification", "unattributed"},
+                   "page": {"all", "home", "scenarios", "demos", "studio", "unknown"},
+                   "device": {"all", "mobile", "desktop", "unknown"},
+                   "cache": {"all", "network", "http", "persistent", "memory", "unknown"},
+                   "backend": {"all", "preview", "mujoco", "robotd", "unknown"},
+                   "scene": {"all", "ball", "duo", "carry", "skills", "rollers", "table",
+                             "seated", "unknown"}}
+        filters = dict(traffic=traffic, page=page, device=device, cache=cache,
+                       backend=backend, scene=scene)
+        if (hours not in {1, 24, 168, 720, 2160}
+                or any(v not in allowed[k] for k, v in filters.items())
+                or (room != "all" and not re.fullmatch(r"[1-9][0-9]?", room))
+                or (release not in {"all", "development"}
+                    and not re.fullmatch(r"[a-f0-9]{40}", release))):
+            raise HTTPException(422, "未知统计筛选")
+        result = await anyio.to_thread.run_sync(lambda: app.state.experience.snapshot(
+            hours=hours, room=room, release=release, **filters))
+        return JSONResponse(result, headers={"Cache-Control": "no-store"})
 
     @app.get("/api/state")
     async def state(room: str = "1"):
@@ -544,6 +595,15 @@ def create_app(
                     elif command == "persona":
                         session.set_persona(data.get("settings", {}))
                     elif command == "listen_start":
+                        try:
+                            room.voice_diagnostics.experience.pending = (
+                                ExperienceContext.model_validate(data["experience"])
+                                if "experience" in data else None)
+                            if room.voice_diagnostics.experience.pending:
+                                room.voice_diagnostics.experience.pending.scene = getattr(
+                                    voice_motion.backend, "scene", "unknown")
+                        except (ValueError, TypeError):
+                            room.voice_diagnostics.experience.pending = None
                         await session.listen(True)
                     elif command == "listen_stop":
                         await session.listen(False)

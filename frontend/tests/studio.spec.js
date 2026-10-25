@@ -3,10 +3,12 @@ import {test,expect} from '@playwright/test';
 test('live director cancels old plan and keeps prerecorded theatre available',async({page})=>{
  test.setTimeout(90000);
  const errors=[];page.on('pageerror',e=>errors.push(e.message));
+  const measurements=[];page.on('request',r=>{if(r.method()==='POST'&&new URL(r.url()).pathname==='/api/experience')measurements.push(...r.postDataJSON().events)});
  await page.goto('/studio.html?room=1');
  await page.locator('[data-studio=director]').click();
  await expect(page.locator('#scene-title')).toHaveText('临场小导演',{timeout:60000});
  await expect(page.locator('#physics-viewport canvas')).toBeVisible();
+ await expect.poll(()=>measurements.some(e=>e.kind==='load'&&e.status==='completed'&&e.metrics.scene_ms>0)).toBe(true);
  await page.getByRole('button',{name:'排练：周一上班',exact:true}).click();
  await expect(page.locator('#task-status')).toContainText('正在执行');
  await page.getByRole('button',{name:'改成只用头',exact:true}).click();

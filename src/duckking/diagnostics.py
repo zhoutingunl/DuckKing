@@ -42,6 +42,8 @@ ENUMS = {
         "duck_backward", "duck_strafe_left", "duck_strafe_right",
         "duck_shake_head", "duck_tilt_head", "duck_roulade", "duck_ground_pick",
         "duck_skate", "duck_roller_crouch", "duck_yawn", "duck_idle_on", "duck_idle_off",
+        "duck_direct", "duck_deliver", "duck_conduct", "duck_recipe", "duck_coach",
+        "duck_game", "duck_discuss", "duck_focus", "duck_task",
     },
     "method": {"initialize", "tools/list", "tools/call", "notifications/initialized"},
     "result": {"ok", "error", "ignored", "completed", "failed", "cancelled", "aborted"},
@@ -82,7 +84,8 @@ def redact_transcript(text, sensitive_values=()):
 
 
 class VoiceDiagnostics:
-    def __init__(self, path: Path | None = None, *, capacity=200, max_bytes=262144):
+    def __init__(self, path: Path | None = None, *, capacity=200, max_bytes=262144,
+                 experience=None):
         self.path = path
         self.events = deque(maxlen=capacity)
         self.sequence = 0
@@ -92,6 +95,7 @@ class VoiceDiagnostics:
         self.statistics = VoiceStatistics()
         self.playback = None
         self.playback_logged_at = 0.0
+        self.experience = experience
 
     def update_playback(self, data):
         state = data.get("output_state")
@@ -129,6 +133,15 @@ class VoiceDiagnostics:
                 entry[key] = redact_transcript(value, sensitive_values)
         self.events.append(entry)
         self.statistics.observe(entry, time.monotonic())
+        if self.experience and event in {
+            "listen_start", "listen_stop", "stt", "local_asr", "voice_route", "local_end",
+            "action_start", "downlink_first_frame", "tts_stop", "timeout", "reset",
+            "interrupt", "connection_error", "command_error", "state",
+        }:
+            row = next((r for r in reversed(self.statistics.rounds)
+                        if r["turn"] == entry.get("turn")), None)
+            if row:
+                self.experience.observe(entry, row)
         if self.path is not None:
             self._write(entry)
 
