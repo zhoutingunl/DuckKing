@@ -9,6 +9,7 @@ from pathlib import Path
 REVISION = "b02fdea4902c2b93b7d34a83a6f05da4ececb7d3"
 POLICIES = "665ae4eb20bfe13bca1ef4ea6d4bb6b4a096e448"
 CHECKSUMS = {
+    "alpha_sitstand.onnx": "a6f102d9fd655782ba85bfffe18175c34621da719cffcdd673be7982a06fc254",
     "manifest.json": "c566390738dd90a54c1e2de829aaab0e904c636949e2c2c6158ee7bbb889b818",
     "velstand.onnx": "2fc7f8ee6acd7d0d3f66a99927b5d5a56589aeed02ec714de329b252d5ccf492",
     "ball_kick_left.onnx": "d6928284dccd3dd61e08bf2f760effa74309fbefd97b2b31afb2a60f526d196a",

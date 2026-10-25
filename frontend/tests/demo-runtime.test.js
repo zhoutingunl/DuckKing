@@ -5,6 +5,7 @@ import {DEMOS,AUDIO_LINES} from '../src/demo-catalog.js';
 import {pcmWave,pause,DemoVoice,matchesCloudActions} from '../src/demo-runtime.js';
 import {ChoraleRoster,openingScore} from '../src/chorale-demo.js';
 import {checkTrackFiles,checkOffset,decodeTracks,originalTableScore,TABLE_SECONDS,TABLE_TEMPO,playTableChoir} from '../src/table-choir.js';
+import {seatedScore} from '../src/seated-choir.js';
 import {TABLE_SCORES,odeToJoyScore,tigerCanonScore} from '../src/table-scores.js';
 
 test('recognizable scores preserve melody, independent SATB and eight-beat canon entrances',()=>{
@@ -27,8 +28,8 @@ test('recognizable scores preserve melody, independent SATB and eight-beat canon
   }
 });
 
-test('all eleven scripts have real bounded PCM audio, with no microphone requirement',()=>{
-  assert.equal(DEMOS.length,11);assert.equal(new Set(DEMOS.map(d=>d.id)).size,11);
+test('all twelve scripts have real bounded PCM audio, with no microphone requirement',()=>{
+  assert.equal(DEMOS.length,12);assert.equal(new Set(DEMOS.map(d=>d.id)).size,12);
   assert.equal(new Set(AUDIO_LINES.map(d=>d.id)).size,AUDIO_LINES.length);
   for(const line of AUDIO_LINES){
     const bytes=readFileSync(new URL('../public/demo-audio/'+line.id+'.wav',import.meta.url));
@@ -105,4 +106,16 @@ test('table song input and original notes are bounded, invalid files cannot fall
   assert.ok(notes.every(n=>n.beat>=0&&n.duration>0&&(n.beat+n.duration)*60/TABLE_TEMPO<=TABLE_SECONDS+.001));
   const controller=new AbortController(),pending=playTableChoir({context(){throw new Error('audio must not start')}},controller.signal,()=>null,()=>{});
   controller.abort();await assert.rejects(pending,{name:'AbortError'});
+});
+
+test('seated solo score gives each standing singer a complete phrase without other voices',()=>{
+ const notes=seatedScore();
+ assert.ok(notes.every(n=>n.beat>=0&&n.duration>0&&(n.beat+n.duration)/2<=40));
+ for(let part=0;part<4;part++){
+  const first=12+part*16,last=first+8;
+  const audible=notes.filter(n=>n.beat<last&&n.beat+n.duration>first);
+  assert.ok(audible.length>0&&audible.every(n=>n.solo&&n.part===part));
+  assert.equal(audible.reduce((n,note)=>n+note.duration,0),8);
+ }
+ for(const beat of [0,72])assert.equal(new Set(notes.filter(n=>n.beat===beat).map(n=>n.part)).size,4);
 });

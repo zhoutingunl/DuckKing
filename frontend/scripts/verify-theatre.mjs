@@ -22,15 +22,18 @@ try{
  const health=await (await context.request.get(new URL('api/health',base).href)).json();proof.release=health.release;
  await page.goto(new URL('demos.html?room=1',base).href);await page.locator('#demo-mode').selectOption(mode);
  for(const id of ids){
+  const beforeAudio=await page.evaluate(()=>window.theatreAudio.oscillators);
   const started=Date.now();await page.locator(`[data-demo="${id}"]`).click();
-  await expect(page.locator('#show-status')).toHaveText(/本幕完成|本幕未完成/,{timeout:240000});
-  const error=await page.locator('#demo-notice').isVisible()?await page.locator('#demo-notice').textContent():null;
+  await expect(page.locator('#show-status')).toHaveText(/本幕完成|本幕未完成|已停止/,{timeout:240000});
+  const status=await page.locator('#show-status').textContent();
+  const error=await page.locator('#demo-notice').isVisible()?await page.locator('#demo-notice').textContent():status.includes('已停止')?status:null;
   if(error){proof.scenes.push({id,passed:false,error,elapsed_ms:Date.now()-started});throw new Error(id+': '+error)}
   await expect(page.locator('#demo-mode')).toBeEnabled({timeout:20000});
   const result=JSON.parse(await page.locator('#theatre-result').textContent());expect(result.scene).toBe(id);
   const row={id,passed:true,elapsed_ms:Date.now()-started,result,timeline:await page.locator('#demo-timeline li').allTextContents(),audio:await page.evaluate(()=>window.theatreAudio)};
+  if(id==='seated'){expect(row.audio.oscillators-beforeAudio).toBeGreaterThan(40);expect(result.results.find(r=>r.name==='seated_music').outcome.solos).toEqual(['a','b','c','d']);}
   proof.scenes.push(row);console.log(JSON.stringify({id,passed:true,elapsed_ms:row.elapsed_ms,audio:row.audio}));
-  if(['delivery','chorale','tabletop'].includes(id)){mkdirSync('../.duckking/theatre-images',{recursive:true});await page.screenshot({path:`../.duckking/theatre-images/${mode}-${id}.png`,fullPage:true});}
+  if(['delivery','chorale','tabletop','seated'].includes(id)){mkdirSync('../.duckking/theatre-images',{recursive:true});await page.screenshot({path:`../.duckking/theatre-images/${mode}-${id}.png`,fullPage:true});}
  }
- expect(proof.page_errors).toEqual([]);expect(proof.scenes.at(-1).audio.nonzero).toBeGreaterThan(0);proof.passed=true;
+ expect(proof.page_errors).toEqual([]);expect(proof.scenes.at(-1).audio.nonzero+proof.scenes.at(-1).audio.oscillators).toBeGreaterThan(0);proof.passed=true;
 }finally{await browser.close();writeFileSync(output,JSON.stringify(proof,null,2)+'\n');}

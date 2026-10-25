@@ -12,7 +12,7 @@ export function physicsView(container) {
   container.append(renderer.domElement);renderer.domElement.setAttribute('aria-label','官方 MicroDuck 模型，位置与关节姿态来自 MuJoCo');
   const camera=new THREE.PerspectiveCamera(38,1,.01,30);camera.position.set(.85,.62,.95);
   const controls=new OrbitControls(camera,renderer.domElement);controls.target.set(0,.13,0);controls.minDistance=.35;controls.maxDistance=6;controls.maxPolarAngle=Math.PI/2.02;controls.enableDamping=true;controls.update();controls.saveState();
-  let manualView=false,floorFramed=false;controls.addEventListener('start',()=>{manualView=true});
+  let manualView=false,floorFramed=false,seatedView=false;controls.addEventListener('start',()=>{manualView=true});
   scene.add(new THREE.HemisphereLight(0xffffff,0x71815a,2.4));
   const sun=new THREE.DirectionalLight(0xfff6df,3);sun.position.set(1,2,1);sun.castShadow=true;sun.shadow.mapSize.set(1024,1024);sun.shadow.camera.left=-2;sun.shadow.camera.right=2;sun.shadow.camera.top=2;sun.shadow.camera.bottom=-2;sun.shadow.bias=-.0001;sun.shadow.normalBias=.001;scene.add(sun);
   const floor=new THREE.Mesh(new THREE.PlaneGeometry(20,20),new THREE.MeshStandardMaterial({color:'#edf0e5',roughness:1}));floor.rotation.x=-Math.PI/2;floor.receiveShadow=true;scene.add(floor);
@@ -68,7 +68,7 @@ export function physicsView(container) {
       controls.update();
     }
   }
-  function resize(){const {width,height}=container.getBoundingClientRect();if(width&&height){renderer.setPixelRatio(reduced?Math.min(1,640/width):Math.min(devicePixelRatio,2));renderer.setSize(width,height);camera.aspect=width/height;camera.updateProjectionMatrix();}}
+  function resize(){const {width,height}=container.getBoundingClientRect();if(width&&height){renderer.setPixelRatio(reduced?Math.min(1,640/width):Math.min(devicePixelRatio,seatedView?1:2));renderer.setSize(width,height);camera.aspect=width/height;camera.updateProjectionMatrix();}}
   const observer=new ResizeObserver(resize);observer.observe(container);
   function animate(){
     const started=performance.now();controls.update();renderer.render(scene,camera);
@@ -76,7 +76,7 @@ export function physicsView(container) {
     if(!reduced&&slowFrames>=3){reduced=true;renderer.shadowMap.enabled=false;floor.material.needsUpdate=true;materials.forEach(m=>m.needsUpdate=true);resize();container.dataset.renderQuality='reduced';}
     // Leave an idle interval after each draw so software GPUs cannot starve input,
     // voice audio or the stream of physical state. Physics remains at 200 Hz.
-    timer=setTimeout(()=>{frame=requestAnimationFrame(animate);},reduced?100:33);
+    timer=setTimeout(()=>{frame=requestAnimationFrame(animate);},reduced?100:seatedView?66:33);
   }animate();
-  return {load,update,clear,frameScene(scene){manualView=false;floorFramed=false;const close=scene==='carry',table=scene==='table';camera.position.set(...(table?[1.35,.98,-1.35]:close?[.6,.4,.65]:[.85,.62,.95]));controls.target.set(close ? .12 : table ? .20 : 0,table ? .25 : .13,table ? -.10 : 0);controls.update();controls.saveState();},reset(){manualView=false;floorFramed=false;controls.reset();},dispose(){clearTimeout(timer);cancelAnimationFrame(frame);observer.disconnect();clear();controls.dispose();renderer.dispose();}};
+  return {load,update,clear,frameScene(scene){manualView=false;floorFramed=false;seatedView=scene==='seated';resize();const close=scene==='carry',seated=scene==='seated',table=scene==='table';camera.position.set(...(seated?[1.05,.90,-1.05]:table?[1.35,.98,-1.35]:close?[.6,.4,.65]:[.85,.62,.95]));controls.target.set(close ? .12 : table ? .20 : 0,seated ? .52 : table ? .25 : .13,table ? -.10 : 0);controls.update();controls.saveState();},reset(){manualView=false;floorFramed=false;controls.reset();},dispose(){clearTimeout(timer);cancelAnimationFrame(frame);observer.disconnect();clear();controls.dispose();renderer.dispose();}};
 }

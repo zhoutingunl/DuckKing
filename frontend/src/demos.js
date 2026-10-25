@@ -8,6 +8,7 @@ import { unpackVisualModel } from './model-loader.js';
 import { createChorus } from './chorus.js';
 import { playChorale, PART_NAMES } from './chorale-demo.js';
 import { playTableChoir, decodeTracks, checkOffset, loadBuiltinSong, TABLE_PARTS, TABLE_SECONDS } from './table-choir.js';
+import {playSeatedChoir,SEATED_SECONDS} from './seated-choir.js';
 import { TABLE_SCORES } from './table-scores.js';
 import { DuckSocket } from './transport.js';
 import { appURL, currentRoom } from './urls.js';
@@ -191,6 +192,23 @@ async function runStep(run,step){
     $('result-summary').textContent='官方乐谱节选已演奏。四个声部先后进入，中音离开后留席；两只物理鸭随有界头部动作表演。';
     run.results.push({name:'chorale',status:'completed',outcome:result});entry('四声部节选完成：加入不重排，中音离开后保留席位；未模拟 BLE 时钟');
   }
+  if(step.kind==='seated_music'){
+    $('table-panel').hidden=false;$('table-song-title').textContent='欢乐颂 · 坐着合唱，站起独唱';
+    $('table-beat').textContent='正在就座';$('table-cue').textContent='四位歌手先坐稳，再开始合唱。';$('table-seats').replaceChildren();
+    message('本地合成四声部 · 官方坐站策略','A、B、C、D 轮流起身独唱，唱完坐回原位。');
+    const movement=perform(run,currentRoom,'seated_show');
+    const music=playSeatedChoir(output,run.signal,()=>stages.get(currentRoom)?.latest?.backend.seated_choir,frame=>{
+      $('table-beat').textContent=`${Math.min(SEATED_SECONDS,Math.floor(frame.elapsed))} / ${SEATED_SECONDS} 秒`;
+      const who=frame.solo?.toUpperCase();
+      $('table-cue').textContent=frame.phase==='solo'?`鸭 ${who} 已站稳，轮到它独唱。`:frame.phase==='rising'?`鸭 ${who} 正在起身，其他成员轻声和声。`:frame.phase==='sitting'?`鸭 ${who} 唱完坐回原位，准备接唱。`:'四位歌手坐着合唱。';
+      $('table-seats').replaceChildren(...frame.postures.map((pose,i)=>{const seat=document.createElement('div');seat.className='table-seat';seat.dataset.duck='abcd'[i];seat.dataset.active=String(frame.activeParts[i]);seat.dataset.solo=String(frame.phase==='solo'&&frame.solo==='abcd'[i]);const name=document.createElement('strong');name.textContent='鸭 '+'ABCD'[i];const label=document.createElement('span');label.textContent=frame.phase==='solo'&&frame.solo==='abcd'[i]?'站起独唱':pose.observed==='sit'?'坐姿和声':pose.observed==='stand'?'站稳候唱':'调整姿态';seat.append(name,label);return seat}));
+    });
+    const [result,audio]=await Promise.all([movement,music]);
+    run.results.push({name:'seated_music',status:'completed',outcome:audio});
+    $('table-beat').textContent=`${SEATED_SECONDS} / ${SEATED_SECONDS} 秒`;
+    $('result-summary').textContent='四只鸭均完成坐姿合唱、站稳独唱、唱完坐回。全程保留桌面接触，没有根坐标传送。';
+    entry(`独唱交接完成：${result.outcome.completed_solos.map(d=>d.toUpperCase()).join(' → ')}；四只鸭均已坐稳`);
+  }
   if(step.kind==='table_music'){
     if(trackLoading||trackError)throw new Error(trackError||'歌曲音源还在读取，请稍后重演');
     const tracks=tableTracks??await loadBuiltinSong($('table-song').value,output.context(),run.signal),offset=Number($('table-offset').value);checkOffset(tracks,offset);
@@ -235,7 +253,7 @@ function start(index){
   const run=new DemoRun();run.live=$('demo-mode').value==='live';current=run;selected=index;
   status('正在准备节目…');$('theatre-result')?.remove();$('demo-notice').hidden=true;$('stop-demo').disabled=false;$('next-demo').disabled=index>=DEMOS.length-1;$('demo-mode').disabled=true;
   $('demo-timeline').replaceChildren();$('result-summary').textContent='等待本轮动作结果。';$('chorale-panel').hidden=true;$('table-panel').hidden=true;$('demo-second').hidden=true;
-  const demo=DEMOS[index];mode();if(['chorale','tabletop'].includes(demo.id)){run.live=false;$('voice-source').textContent='本幕：本地音乐 + 物理编排'}$('show-number').textContent=`第 ${String(index+1).padStart(2,'0')} 幕 · ${demo.duration}`;$('show-title').textContent=demo.title;
+  const demo=DEMOS[index];mode();if(['chorale','tabletop','seated'].includes(demo.id)){run.live=false;$('voice-source').textContent='本幕：本地音乐 + 物理编排'}$('show-number').textContent=`第 ${String(index+1).padStart(2,'0')} 幕 · ${demo.duration}`;$('show-title').textContent=demo.title;
   for(const b of document.querySelectorAll('.program-item'))b.setAttribute('aria-current',String(b.dataset.demo===demo.id));
   run.promise=(async()=>{
     try{

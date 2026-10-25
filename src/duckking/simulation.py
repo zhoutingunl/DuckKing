@@ -18,6 +18,8 @@ import onnxruntime as ort
 from .grasp import BeakGrasp
 from .grasp_model import build_grasp_model
 from .model_assets import geometry
+from .posture import change_posture, measure_posture
+from .seated_choir import SEATED_SPAWNS, SeatedChoir
 from .table_choir import SPAWNS, TABLE_HEIGHT, TableChoir, build_table_model
 
 POLICY_JOINTS = (
@@ -58,11 +60,21 @@ class Driver:
         self.last = np.zeros(14, dtype=np.float32)
         self.policy = "walk"
         self.until = 0.0
+        self.posture_target = self.rest_posture = "stand"
+        bodies = {self.body}
+        for i in range(self.body + 1, model.nbody):
+            if int(model.body_parentid[i]) in bodies:
+                bodies.add(i)
+        self.contact_geoms = {i for i in range(model.ngeom) if model.geom_bodyid[i] in bodies}
 
     def step(self, model, data):
-        if data.time >= self.until:
+        if self.policy != "sitstand" and data.time >= self.until:
             self.policy = "walk"
         command = self.command if self.policy == "walk" else np.zeros(13)
+        if self.policy == "sitstand":
+            # vx is a binary posture flag here, never a walking velocity.
+            command[0] = float(self.posture_target == "sit")
+            command[3:7] = self.command[3:7]
         gravity = -data.xmat[self.body].reshape(3, 3)[2, :]
         obs = np.concatenate(
             [
@@ -105,6 +117,7 @@ class MuJoCoBackend:
                 "walk": "velstand.onnx",
                 "kick_left": "ball_kick_left.onnx",
                 "kick_right": "ball_kick_right.onnx",
+                "sitstand": "alpha_sitstand.onnx",
             }.items()
         }
         self.models = {scene: self._build(scene) for scene in ("ball", "duo", "carry")}
@@ -137,16 +150,19 @@ class MuJoCoBackend:
         return model
 
     def load(self, scene):
-        if scene == "table" and scene not in self.models:
-            self.models[scene] = self._build(scene)
-            self.revisions[scene] = uuid.uuid4().hex
+        if scene in {"table", "seated"} and scene not in self.models:
+            if "table" not in self.models:
+                self.models["table"] = self._build("table")
+                self.revisions["table"] = uuid.uuid4().hex
+            self.models[scene] = self.models["table"]
+            self.revisions[scene] = self.revisions["table"]
         self.scene = scene
         self.model = self.models[scene]
         self.data = mujoco.MjData(self.model)
         self.revision = self.revisions[scene]
         prefixes = (
             [c + "_" for c in "abcd"]
-            if scene == "table"
+            if scene in {"table", "seated"}
             else ["a_", "b_"]
             if scene == "duo"
             else [""]
@@ -162,9 +178,9 @@ class MuJoCoBackend:
             )
             self.data.qpos[driver.q] = HOME
             self.data.ctrl[driver.ids] = HOME
-            if scene == "table":
+            if scene in {"table", "seated"}:
                 self.data.qpos[driver.root : driver.root + 7] = [
-                    *SPAWNS[i],
+                    *(SEATED_SPAWNS[i] if scene == "seated" else SPAWNS[i]),
                     TABLE_HEIGHT + 0.125,
                     1,
                     0,
@@ -191,6 +207,7 @@ class MuJoCoBackend:
                 next((j for j, c in enumerate("abcd") if name.startswith(c + "_")), -1)
             )
         self.tabletop = TableChoir(self) if scene == "table" else None
+        self.seated = SeatedChoir(self) if scene == "seated" else None
         mujoco.mj_forward(self.model, self.data)
         # Explicit initial settling, not a simulated successful action.
         for _ in range(200 if scene == "carry" else 60):
@@ -211,6 +228,8 @@ class MuJoCoBackend:
                 self.grasp.update()
             if self.tabletop:
                 self.tabletop.update()
+            if self.seated:
+                self.seated.update()
             for contact in self.data.contact:
                 one, two = int(contact.geom1), int(contact.geom2)
                 if ball in (one, two) and ball >= 0:
@@ -262,6 +281,7 @@ class MuJoCoBackend:
             "scene_duo",
             "scene_carry",
             "scene_table",
+            "scene_seated",
             "stop",
         }:
             raise ValueError(self.error)
@@ -277,6 +297,7 @@ class MuJoCoBackend:
             "scene_duo",
             "scene_carry",
             "scene_table",
+            "scene_seated",
         }:
             raise ValueError("夹取场景请使用夹起、搬运、放下；其他动作会破坏夹持")
         if self.tabletop and action.name not in {
@@ -287,9 +308,24 @@ class MuJoCoBackend:
             "scene_duo",
             "scene_carry",
             "scene_table",
+            "scene_seated",
         }:
             raise ValueError("桌上场景请使用完整合唱表演，避免单独行走破坏舞台布置")
+        if self.seated and action.name not in {
+            "seated_show", "stop", "reset", "scene_ball", "scene_duo", "scene_carry",
+            "scene_table", "scene_seated",
+        }:
+            raise ValueError("坐姿合唱舞台请使用完整轮唱节目")
         self.selected = action.target
+        if (action.name not in {"sit", "stand", "nod", "stop", "reset", "chorus",
+                               "find_companion", "seated_show"}
+                and not action.name.startswith("scene_")):
+            drivers = self.drivers if action.name in {"duo_walk", "collide"} else self.targets()
+            if any(d.rest_posture == "sit" for d in drivers):
+                raise ValueError("请先让小鸭站起来，再执行行走、转向或踢球")
+            for d in drivers:
+                if d.policy == "sitstand":
+                    d.policy = "walk"
 
     async def move(self, vx, vyaw, vy=0):
         self.ensure_running()
@@ -309,6 +345,8 @@ class MuJoCoBackend:
     async def stop(self):
         if self.tabletop:
             self.tabletop.stop()
+        if self.seated:
+            self.seated.stop()
         if self.grasp:
             self.grasp.stop()
         for driver in self.drivers:
@@ -317,7 +355,10 @@ class MuJoCoBackend:
                 driver.command[7:] = 0
             else:
                 driver.command[:] = 0
-            driver.policy = "walk"
+            if driver.policy == "sitstand":
+                driver.posture_target = driver.rest_posture
+            else:
+                driver.policy = "walk"
             driver.until = 0
         self.chorus = None
 
@@ -411,7 +452,7 @@ class MuJoCoBackend:
 
     async def perform(self, action):
         if action.name.startswith("scene_"):
-            if action.name == "scene_table" and "table" not in self.models:
+            if action.name in {"scene_table", "scene_seated"} and "table" not in self.models:
                 # Cancelling a UI request cannot stop native compilation. Keep
                 # one pending build so rapid replacements never launch several
                 # four-robot compilers or switch scenes after cancellation.
@@ -434,6 +475,12 @@ class MuJoCoBackend:
             self.load(action.name.removeprefix("scene_"))
             self.start()
             return {"scene": self.scene, "verified": True}
+        if action.name in {"sit", "stand"}:
+            return await change_posture(self, self.targets(), action.name, action.duration)
+        if action.name == "seated_show":
+            if not self.seated:
+                raise ValueError("请先切换到坐姿合唱舞台")
+            return await self.seated.perform()
         if action.name == "table_show":
             if not self.tabletop:
                 raise ValueError("请先切换到桌上合唱场景")
@@ -544,6 +591,8 @@ class MuJoCoBackend:
                     "position": d.pose(self.data)[0].tolist(),
                     "yaw": d.pose(self.data)[1],
                     "policy": d.policy,
+                    "posture": measure_posture(self, d)
+                    if self.scene in {"ball", "duo", "seated"} else None,
                     "fallen": bool(self.data.xmat[d.body].reshape(3, 3)[2, 2] < 0.45),
                 }
                 for i, d in enumerate(self.drivers)
@@ -551,6 +600,7 @@ class MuJoCoBackend:
             "ball": self.ball_state(),
             "grasp": self.grasp.snapshot() if self.grasp else None,
             "tabletop": self.tabletop.snapshot() if self.tabletop else None,
+            "seated_choir": self.seated.snapshot() if self.seated else None,
             "contacts": dict(self.contacts),
             "discovered": self.discovered,
             "chorus": chorus,

@@ -24,9 +24,11 @@ export const DEMOS=[
   steps:[line('chorale-intro','这次不是两只鸭唱同一个音。低音和高音先开场，中音和次中音依次加入。','旁白'),{kind:'music'},line('chorale-end','有人加入，其他成员不换声部。有人离开，留住他的席位。这就是合唱团的默契。')]},
  {id:'tabletop',title:'桌上不掉拍',hook:'四只鸭一张桌。掉下去，也要把歌唱完。',scene:'table',source:'新增桌上四鸭合唱',duration:'约 45 秒',
   steps:[line('table-intro','四位歌手，一张桌子。请把掌声留到最后，桌子的面积有限。','旁白'),{kind:'table_music'},line('table-end','我没掉队，只是把低音部，搬到了楼下。')]},
+ {id:'seated',title:'轮到我开唱',hook:'一起坐着唱，轮到谁，谁站起来。',scene:'seated',source:'新增坐姿合唱',duration:'约 45 秒',
+  steps:[{kind:'seated_music'}]},
 ];
 export const AUDIO_VERSION='personas-20261025';
-export const ACTION_NAMES={scene_table:'准备桌面舞台',table_show:'桌上合唱',scene_ball:'准备球场',scene_carry:'准备搬运场景',scene_duo:'准备双鸭场景',nod:'点头',walk:'前进',turn_left:'左转',turn_right:'右转',flash_step:'闪身步',bear_shake:'抖毛',kick_left:'左脚踢球',kick_right:'右脚踢球',pick_up:'夹起',carry:'搬运',put_down:'放下',find_companion:'发现同伴',collide:'相向碰面',chorus:'双声部合唱',stop:'停止'};
+export const ACTION_NAMES={sit:'坐下',stand:'站起来',scene_seated:'准备坐姿合唱舞台',seated_show:'坐姿合唱与独唱交接',scene_table:'准备桌面舞台',table_show:'桌上合唱',scene_ball:'准备球场',scene_carry:'准备搬运场景',scene_duo:'准备双鸭场景',nod:'点头',walk:'前进',turn_left:'左转',turn_right:'右转',flash_step:'闪身步',bear_shake:'抖毛',kick_left:'左脚踢球',kick_right:'右脚踢球',pick_up:'夹起',carry:'搬运',put_down:'放下',find_companion:'发现同伴',collide:'相向碰面',chorus:'双声部合唱',stop:'停止'};
 export const AUDIO_LINES=DEMOS.flatMap(d=>d.steps.flatMap(s=>[
  ...(s.id?[{id:s.id,text:s.text,role:s.role??'预录指令'}]:[]),
  ...(s.replacement?[{id:s.replacement,text:s.replacementText,role:'预录指令'}]:[]),

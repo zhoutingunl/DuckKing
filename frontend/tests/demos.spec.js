@@ -6,19 +6,20 @@ import {DEMOS} from '../src/demo-catalog.js';
 function silentFixture(){
  const b=Buffer.alloc(44+3200);b.write('RIFF');b.writeUInt32LE(b.length-8,4);b.write('WAVE',8);b.write('fmt ',12);b.writeUInt32LE(16,16);b.writeUInt16LE(1,20);b.writeUInt16LE(1,22);b.writeUInt32LE(16000,24);b.writeUInt32LE(32000,28);b.writeUInt16LE(2,32);b.writeUInt16LE(16,34);b.write('data',36);b.writeUInt32LE(3200,40);return b;
 }
-test('all eleven automated scripts validate actual MuJoCo outcomes and chorale seats',async({page})=>{
- // Eleven real-time scenes plus model transfers can exceed four minutes on
+test('all twelve automated scripts validate actual MuJoCo outcomes and chorale seats',async({page})=>{
+ // Twelve real-time scenes plus model transfers can exceed four minutes on
  // shared Linux runners. Each scene still has its own 90 s completion bound.
  test.setTimeout(360000);
  await page.route('**/demo-audio/*.wav*',route=>route.fulfill({contentType:'audio/wav',body:silentFixture()}));
  const errors=[];page.on('pageerror',e=>errors.push(e.message));await page.goto('/demos.html?room=1');
- await expect(page.locator('.program-item')).toHaveCount(11);
+ await expect(page.locator('.program-item')).toHaveCount(12);
  for(const demo of DEMOS){
   await test.step(demo.id,async()=>{
   await page.locator(`[data-demo="${demo.id}"]`).click();
   await expect(page.locator('#show-status')).toHaveText('本幕完成 · 可重演或进入下一幕',{timeout:90000});
   const proof=await page.locator('#theatre-result').textContent();expect(JSON.parse(proof).scene).toBe(demo.id);
   expect(JSON.parse(proof).mode).toBe('scripted_rehearsal');
+  if(demo.id==='seated'){const result=JSON.parse(proof);expect(result.results.find(r=>r.name==='seated_show').outcome.completed_solos).toEqual(['a','b','c','d']);expect(result.results.find(r=>r.name==='seated_music').outcome.solos).toEqual(['a','b','c','d']);}
   if(demo.id==='tabletop')await expect(page.locator('#table-beat')).toHaveText('36 / 36 秒');await expect(page.locator('#demo-notice')).toBeHidden();
   await expect(page.locator('#demo-mode')).toBeEnabled({timeout:10000});
   });
@@ -122,4 +123,36 @@ for(const song of ['ode','tigers'])test(`stopping synthesized ${song} stops all 
  await expect(page.locator('#table-song')).toBeEnabled(); // Network stop finishes after local audio stops.
  const state=await (await page.request.get('/api/scenes/state?room=1')).json();expect(state.backend.tabletop.running).toBe(false);
  await expect(page.locator('#theatre-result')).toHaveCount(0);
+});
+
+
+test('seated solos stop sounding and return to seated rest when cancelled',async({page})=>{
+ test.setTimeout(75000);
+ await page.addInitScript(()=>{
+  const start=OscillatorNode.prototype.start;window.seatedSounding=0;
+  OscillatorNode.prototype.start=function(...args){window.seatedSounding++;this.addEventListener('ended',()=>window.seatedSounding--,{once:true});return start.apply(this,args)};
+ });
+ await page.goto('/demos.html?room=1');await page.locator('#demo-mode').selectOption('live');
+ await page.locator('[data-demo="seated"]').click();
+ await expect.poll(async()=>{const error=await page.locator('#demo-notice').isVisible()?await page.locator('#demo-notice').textContent():null;if(error)throw new Error(error);return await page.locator('#table-cue').textContent()},{timeout:45000}).toContain('轮到它独唱');
+ await expect(page.locator('#voice-source')).toContainText('本地音乐');
+ await page.locator('#stop-demo').click();await expect(page.locator('#show-status')).toHaveText('演示已停止');
+ await expect.poll(()=>page.evaluate(()=>window.seatedSounding)).toBe(0);
+ await expect(page.locator('#demo-mode')).toBeEnabled();
+ await expect.poll(async()=>{const s=await (await page.request.get('/api/scenes/state?room=1')).json();return s.backend.ducks.every(d=>d.posture.observed==='sit')}).toBe(true);
+ const state=await (await page.request.get('/api/scenes/state?room=1')).json();
+ expect(state.backend.seated_choir.running).toBe(false);expect(state.backend.seated_choir.completed_solos).toEqual([]);
+ await expect(page.locator('#theatre-result')).toHaveCount(0);
+});
+
+test('physics page can sit, keep the pose and stand again',async({page})=>{
+ test.setTimeout(60000);await page.goto('/scenarios.html?room=1');
+ await page.locator('[data-scene="ball"]').click();
+ await expect(page.locator('#posture-controls')).toBeVisible({timeout:30000});
+ await page.locator('[data-sim-action="sit"]').click();
+ await expect(page.locator('#posture-status')).toContainText('已坐稳',{timeout:10000});
+ await expect(page.locator('#action-result')).toContainText('坐下 · 完成');
+ await page.locator('[data-sim-action="stand"]').click();
+ await expect(page.locator('#action-result')).toContainText('站起来 · 完成');
+ await expect(page.locator('#posture-status')).toContainText('站立');
 });
