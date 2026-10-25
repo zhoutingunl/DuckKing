@@ -12,7 +12,7 @@ DuckKing 是可本地运行或部署在 HTTPS 入口后的语音、动作与自�
 flowchart LR
     Mic[浏览器麦克风 / 预录指令] --> PCM[PCM16 / AudioWorklet]
     PCM --> Transport[原生 WebSocket / HTTPS 网关通道]
-    Transport --> Hybrid[房间 1 / 2 独立语音会话]
+    Transport --> Hybrid[动态房间独立语音会话]
     Hybrid -->|本地优先| ASR[loopback ASR worker / SenseVoiceSmall]
     ASR --> Grammar[整句白名单与场景检查]
     Grammar -->|完整命中| Motion[本房间 MotionController]
@@ -153,7 +153,7 @@ ai_gateway 可独立添加固定 loopback 路由；现有前置代理不透传 U
 
 Three.js 渲染官方几何，不会用预设踢球动画替换实际关节结果。每次绘制后留出至少 33 ms 空闲时间；检测到 SwiftShader / llvmpipe 等软件渲染器或连续慢帧时关闭阴影，将画布宽度限制为 640 像素，并延长绘制间隔至 100 ms。这样可以为输入、语音和状态处理留出时间，不改变物理步进和接触判定。
 
-`/scene-voice` 根据模式选择 `VoiceSession` 或 `HybridVoiceSession`，连接场景控制器，按同源规则保护。同一房间内和 `/voice` 共用一个语音名额；两个房间分别使用独立的设备身份、控制器与物理世界。物理专属 MCP 工具仅对 MuJoCo 控制器公布：`duck_set_scene`、`duck_kick`（必填 left/right）、`duck_find_companion`、`duck_duo_walk`、`duck_collide`、`duck_chorus`、`duck_pick_up`、`duck_carry`、`duck_put_down`、`duck_sit`、`duck_stand`、`duck_roulade`、`duck_ground_pick`、`duck_yawn`、`duck_idle_on`、`duck_idle_off`、`duck_skate`、`duck_roller_crouch`。桌上与坐姿四鸭演出由应用编排，不增加云端工具。状态工具剔除渲染网格，避免将大量图形数据送入模型上下文。统计按 `mujoco` 单独筛选。
+`/scene-voice` 根据模式选择 `VoiceSession` 或 `HybridVoiceSession`，连接场景控制器，按同源规则保护。同一房间内和 `/voice` 共用一个语音名额；各房间使用独立设备身份与控制器，物理世界按需初始化并另设并发上限。物理专属 MCP 工具仅对 MuJoCo 控制器公布：`duck_set_scene`、`duck_kick`（必填 left/right）、`duck_find_companion`、`duck_duo_walk`、`duck_collide`、`duck_chorus`、`duck_pick_up`、`duck_carry`、`duck_put_down`、`duck_sit`、`duck_stand`、`duck_roulade`、`duck_ground_pick`、`duck_yawn`、`duck_idle_on`、`duck_idle_off`、`duck_skate`、`duck_roller_crouch`。桌上与坐姿四鸭演出由应用编排，不增加云端工具。状态工具剔除渲染网格，避免将大量图形数据送入模型上下文。统计按 `mujoco` 单独筛选。
 
 发现同伴使用仿真真值：距离 ≤1.2 m、相对朝向 ±60°、`mj_ray` 检查遮挡。合唱为应用自己的 3 秒双声部旋律，两只鸭收到相同点头节拍，浏览器两个声部共享 AudioContext；声音依赖用户启用，工具成功表示控制编排完成，不承诺扬声器播放或跨设备同步。不是官方 BLE/duckether 合唱实现。
 
@@ -255,3 +255,12 @@ Three.js 渲染官方几何，不会用预设踢球动画替换实际关节结�
 场景页交互日志显示外观就绪耗时，控制台 `[DuckKing:scene-load]` 与服务器 `official_model_load` 日志包含 `view=scenario`、场景名、缓存来源及下载/解析/组装/首次绘制调用耗时。点击切换时总耗时从点击计，打开已有场景时从首次收到有效状态计；`navigation_ms` 始终从导航计。首次绘制不是显示器出光计时。压缩接口的 `Server-Timing: model_prepare` 单独测服务端准备耗时。浏览器上报仍只接受有界白名单字段。
 
 统计 API 的分布包含 `count`、`mean_ms`、`p50_ms`、`p90_ms`、`p95_ms`，空样本返回 null，百分位采用最近秩法。`routing.recognition_latency` 分别使用首个本地/云端非空 STT 事件，均相对服务端收到结束录音计时；本地识别后转交的轮次可以为两个引擎分别贡献一个样本。灵矽包含网络、排队及转交等待，不等于其内部纯推理耗时；录音结束前已返回的识别不纳入非负分布。本地 ASR 工作进程耗时另列，包含其排队与返回。统计页显示均值、P50/P90/P95 和样本数；少量样本不能代表稳定性能。
+
+
+### 动态房间与资源回收
+
+`rooms.py` 管理有界公开房间集合。`POST /api/rooms/claim` 原子预留空闲房间 15 秒，没有空闲时按需创建；`POST /api/rooms` 显式新建。默认最多 10 个，满额返回 409；`GET /api/rooms` 返回已有编号、使用状态和容量，不包含设备身份或凭据。每 15 秒检查空闲实例，默认 300 秒无查看、语音和执行中动作才回收；默认房间 1/2 仅释放重场景，新房间还移除运行控制器。私有身份目录保留，旧运行统计不冒充新房间记录。状态连接断开和语音释放都会更新空闲起点。
+
+场景初始化另用全局锁限制并发世界数（默认 4），房间创建不会预先加载模型。`POST /api/scenes/close` 在无语音占用时停止并释放该房间物理控制器，其他房间不变。双房间演出通过分配 API 取得另一个空闲房间，编号不再写死为 1/2；演出结束后关闭借用房间的查看连接，再通过 `if_unused=true` 释放物理场景，有新查看者、语音或动作时保留。10 路房间不代表 10 个四鸭重场景能实时运行。部署预算仅调整 DuckKing 到 CPUQuota=400%、MemoryMax=8G，不改 ai_gateway；离线 ASR 的两任务队列仍保持有界。
+
+演示场景也使用按 revision 的压缩模型缓存。公网大模型下载可能占用浏览器/网关传输时间，`scene-ws` 确认帧的发送等待上限由 7 秒调整为 20 秒，仍小于后端 30 秒确认等待。语音发送仍为 7 秒；队列、帧大小、顺序检查和不重发语音的规则不变。

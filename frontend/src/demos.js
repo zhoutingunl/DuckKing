@@ -4,7 +4,7 @@ import { DEMOS, ACTION_NAMES, AUDIO_VERSION } from './demo-catalog.js';
 import { DemoRun, DemoVoice, api, action, until, pause, pcmWave, stopped, matchesCloudActions } from './demo-runtime.js';
 import { VoiceAudio } from './audio-output.js';
 import { physicsView } from './physics-view.js';
-import { unpackVisualModel } from './model-loader.js';
+import { createPhysicsModelLoader } from './model-loader.js';
 import { createChorus } from './chorus.js';
 import { playChorale, PART_NAMES } from './chorale-demo.js';
 import { playTableChoir, decodeTracks, checkOffset, loadBuiltinSong, TABLE_PARTS, TABLE_SECONDS } from './table-choir.js';
@@ -15,7 +15,7 @@ import { appURL, currentRoom } from './urls.js';
 import { setupRoom } from './room.js';
 
 await setupRoom();
-const $=id=>document.getElementById(id),output=new VoiceAudio(),clips=new Map(),models=new Map(),stages=new Map();
+const $=id=>document.getElementById(id),output=new VoiceAudio(),clips=new Map(),loadPhysicsModel=createPhysicsModelLoader(),stages=new Map();
 const chorus=createChorus(()=>{},{getContext:()=>output.context()});let current=null,selected=-1,serial=Promise.resolve();
 let tableTracks=null,trackError=null,trackLoading=false,trackEpoch=0,preview=null;
 const controlsBusy=value=>document.querySelectorAll('[data-idle-control]').forEach(el=>{el.disabled=value});
@@ -85,13 +85,8 @@ async function prepare(room,scene,run,second=false){
     state=await api('api/scenes/state',room,{signal:run.signal});
     if(state.error)throw new Error(state.error);
   }while(state.backend.scene!==scene||state.action?.id===record.id);
-  const rev=state.backend.revision;let model=models.get(rev);
-  if(!model){
-    const url=appURL('api/scenes/model.dkm.gz');url.searchParams.set('room',room);
-    const response=await fetch(url,{signal:AbortSignal.any([run.signal,AbortSignal.timeout(60000)])});if(!response.ok)throw new Error('官方场景模型加载失败');
-    model=unpackVisualModel(await response.arrayBuffer(),{physics:true});if(model.revision!==rev)throw new Error('场景已被其他页面切换，请重演本幕');models.set(rev,model);
-    if(models.size>6)models.delete(models.keys().next().value);
-  }
+  const rev=state.backend.revision,url=appURL('api/scenes/model.dkm.gz');url.searchParams.set('room',room);
+  const model=await loadPhysicsModel(url,rev,{signal:AbortSignal.any([run.signal,AbortSignal.timeout(60000)])});
   run.signal.throwIfAborted();if(stage.revision!==rev){stage.viewer.load(model);stage.revision=rev;}
   stage.viewer.frameScene(scene);
   stage.viewer.update(stage.latest?.backend.revision===rev?stage.latest.backend:state.backend);
@@ -169,8 +164,8 @@ async function runStep(run,step){
   if(step.kind==='inspect')await inspect(run,currentRoom,step.label);
   if(step.kind==='interrupt')await interrupt(run,step);
   if(step.kind==='duel'){
-    const other=currentRoom==='1'?'2':'1';
-    const claimed=await api('api/rooms/claim',currentRoom,{body:{},signal:run.signal});if(claimed.room!==other)throw new Error('另一个房间正在使用，本幕需要两个空闲房间');
+    const claimed=await api('api/rooms/claim',currentRoom,{body:{},signal:run.signal}),other=claimed.room;
+    if(other===currentRoom)throw new Error('本幕需要两个独立房间，请重新选择空闲房间');
     await prepare(other,'ball',run,true);
     if(run.live)await Promise.all([command(run,currentRoom,{id:step.id,text:step.text,actions:['flash_step']}),command(run,other,{id:step.second,text:step.secondText,actions:['bear_shake']})]);
     else{await speak(step.id,step.text,'预录指令 · 房间 '+currentRoom,run);await speak(step.second,step.secondText,'预录指令 · 房间 '+other,run);await Promise.all([perform(run,currentRoom,'flash_step'),perform(run,other,'bear_shake')]);}
@@ -239,6 +234,14 @@ function cleanup(run){
     }
   }
   for(const [room,stage] of stages)if(room!==currentRoom){stages.delete(room);stage.socket.close();stage.viewer.dispose();}
+  // A borrowed second world should not keep simulating through the remaining
+  // program. Let its viewer disconnect settle; preserve it if someone joined.
+  for(const room of run.rooms)if(room!==currentRoom){
+    for(let attempt=0;attempt<5;attempt++){
+      try{await api('api/scenes/close?if_unused=true',room,{body:{},signal:AbortSignal.timeout(2000)});break}
+      catch{await pause(100)}
+    }
+  }
   })();
 }
 function stop(reason='演示已停止'){

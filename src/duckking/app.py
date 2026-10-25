@@ -9,7 +9,6 @@ import re
 import time
 from contextlib import asynccontextmanager, suppress
 from pathlib import Path
-from types import SimpleNamespace
 
 import anyio
 import uvicorn
@@ -26,6 +25,7 @@ from .hybrid_voice import HybridVoiceSession
 from .model_metrics import ModelLoadMetrics
 from .motion import Action, MotionController, PreviewBackend
 from .robotd import RobotdBackend
+from .rooms import RoomRegistry
 from .voice import VoiceSession
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -46,13 +46,18 @@ def create_app(
 
     @asynccontextmanager
     async def lifespan(app):
-        yield
-        for room in app.state.rooms.values():
-            if room.voice:
-                await room.voice.disconnect()
-            await room.motion.close()
-            if room.scene_motion:
-                await room.scene_motion.close()
+        reaper = asyncio.create_task(app.state.room_registry.watch())
+        try:
+            yield
+        finally:
+            reaper.cancel()
+            await asyncio.gather(reaper, return_exceptions=True)
+            for room in list(app.state.rooms.values()):
+                if room.voice:
+                    await room.voice.disconnect()
+                await room.motion.close()
+                if room.scene_motion:
+                    await room.scene_motion.close()
 
     app = FastAPI(title="DuckKing", lifespan=lifespan)
     app.state.motion = motion
@@ -74,19 +79,12 @@ def create_app(
     app.state.voice_diagnostics = VoiceDiagnostics(
         (settings or Settings.load()).data_dir / "voice.jsonl"
     )
-    second_settings = app.state.settings.for_room("2")
-    app.state.rooms = {"1": app.state}
-    if motion.backend.kind == "preview":
-        app.state.rooms["2"] = SimpleNamespace(
-            motion=MotionController(PreviewBackend()), voice=None, scene_motion=None,
-            settings=second_settings, scene_lock=asyncio.Lock(), viewers=0, reserved_until=0.0,
-            voice_diagnostics=VoiceDiagnostics(second_settings.data_dir / "voice.jsonl"),
-        )
+    app.state.room_registry = RoomRegistry(app.state)
+    app.state.rooms = app.state.room_registry.rooms
+    app.state.physics_lock = asyncio.Lock()
 
     def get_room(number="1"):
-        if number not in app.state.rooms:
-            raise HTTPException(404, "房间不存在或当前 robotd 后端不支持独立第二房间")
-        return app.state.rooms[number]
+        return app.state.room_registry.get(number)
 
     async def socket_room(ws):
         # Selection is a protocol frame so existing HTTPS bridges need no changes.
@@ -114,19 +112,16 @@ def create_app(
 
     @app.get("/api/rooms")
     async def rooms():
-        return {"rooms": [{"id": number, "viewers": room.viewers,
-                           "voice_busy": room.voice is not None}
-                          for number, room in app.state.rooms.items()]}
+        return JSONResponse(app.state.room_registry.snapshot(),
+                            headers={"Cache-Control": "no-store"})
 
     @app.post("/api/rooms/claim")
     async def claim_room():
-        # A short reservation prevents simultaneous page loads choosing one room.
-        # Rooms are public demo spaces, not authenticated private accounts.
-        for number, room in app.state.rooms.items():
-            if not room.viewers and room.voice is None and room.reserved_until <= time.monotonic():
-                room.reserved_until = time.monotonic() + 10
-                return {"room": number}
-        raise HTTPException(409, "两个房间均在使用，请选择房间查看；语音需要等待该房间释放")
+        return await app.state.room_registry.claim()
+
+    @app.post("/api/rooms", status_code=201)
+    async def create_room():
+        return await app.state.room_registry.claim(create=True)
 
     app.add_middleware(
         TrustedHostMiddleware,
@@ -219,20 +214,41 @@ def create_app(
         selected = get_room(room)
         async with selected.scene_lock:
             if selected.scene_motion is None:
-                try:
-                    from .simulation import MuJoCoBackend
+                async with app.state.physics_lock:
+                    count = sum(r.scene_motion is not None for r in app.state.rooms.values())
+                    limit = app.state.room_registry.physics_limit
+                    if count >= limit:
+                        raise HTTPException(
+                            409, f"物理场景已达并发上限（{limit}）；"
+                            "请释放空闲场景后重试，语音工作台仍可使用",
+                        )
+                    try:
+                        from .simulation import MuJoCoBackend
 
-                    assets = Path(os.environ.get("DUCKKING_SIM_DIR", ROOT / "external"))
-                    backend = await asyncio.to_thread(MuJoCoBackend, assets)
-                    selected.scene_motion = MotionController(backend)
-                except Exception as exc:
-                    raise HTTPException(
-                        503, "物理场景未就绪，请运行 scripts/setup_scenarios.sh 并重新启动服务"
-                    ) from exc
+                        assets = Path(os.environ.get("DUCKKING_SIM_DIR", ROOT / "external"))
+                        backend = await asyncio.to_thread(MuJoCoBackend, assets)
+                        selected.scene_motion = MotionController(backend)
+                    except Exception as exc:
+                        raise HTTPException(
+                            503, "物理场景未就绪，请运行 scripts/setup_scenarios.sh 并重新启动服务"
+                        ) from exc
             try:
                 return await scene_controller(room).submit(body)
             except ValueError as exc:
                 raise HTTPException(409, str(exc)) from exc
+
+    @app.post("/api/scenes/close", status_code=204)
+    async def close_scene(room: str = "1", if_unused: bool = False):
+        selected = get_room(room)
+        async with selected.scene_lock:
+            if if_unused and app.state.room_registry.busy(selected):
+                raise HTTPException(409, "房间仍有人使用，保留物理场景")
+            if selected.voice is not None:
+                raise HTTPException(409, "请先断开本房间语音，再释放物理场景")
+            controller, selected.scene_motion = selected.scene_motion, None
+            if controller:
+                await controller.close()
+        return Response(status_code=204)
 
     @app.get("/api/models/microduck")
     async def preview_model():
@@ -374,6 +390,7 @@ def create_app(
             pass
         finally:
             room.viewers -= 1
+            room.last_used = time.monotonic()
 
     @app.websocket("/ws")
     async def state_stream(ws: WebSocket):
@@ -390,6 +407,7 @@ def create_app(
             pass
         finally:
             room.viewers -= 1
+            room.last_used = time.monotonic()
 
     @app.get("/api/voice/modes")
     async def voice_modes():
@@ -518,6 +536,7 @@ def create_app(
                 finally:
                     if room.voice is session:
                         room.voice = None
+                        room.last_used = time.monotonic()
                     with suppress(WebSocketDisconnect, RuntimeError, OSError):
                         if manual_disconnect:
                             session.activation_code = session.error = ""

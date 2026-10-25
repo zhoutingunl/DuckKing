@@ -28,8 +28,8 @@ NoNewPrivileges=true
 PrivateTmp=true
 ProtectHome=read-only
 ProtectSystem=strict
-CPUQuota=150%
-MemoryMax=4G
+CPUQuota=400%
+MemoryMax=8G
 TasksMax=128
 
 [Install]
