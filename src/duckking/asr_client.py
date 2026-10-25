@@ -4,7 +4,7 @@ import time
 
 import httpx
 
-ASR_URL = "http://127.0.0.1:8767"
+ASR_URL = "http://127.0.0.1:8768"
 
 
 async def availability():

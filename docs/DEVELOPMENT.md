@@ -204,6 +204,6 @@ HTTP API 用 `room=1|2` 查询参数选择房间（省略时兼容房间 1）。
 
 ## 可选服务器离线语音
 
-运行 `scripts/setup_local_asr.sh` 安装固定版本 sherpa-onnx 和校验过的 SenseVoiceSmall INT8 权重。在一个终端运行 `uv run --frozen --no-sync duckking-asr`，另一个运行 `DUCKKING_LOCAL_ASR=1 scripts/run_local.sh`，页面选择“本地优先”。worker 仅监听 127.0.0.1:8767；模型只需首次下载，日常识别不联网。未匹配的指令仍需已配置的灵矽设备和网络。
+运行 `scripts/setup_local_asr.sh` 安装固定版本 sherpa-onnx 和校验过的 SenseVoiceSmall INT8 权重。在一个终端运行 `uv run --frozen --no-sync duckking-asr`，另一个运行 `DUCKKING_LOCAL_ASR=1 scripts/run_local.sh`，页面选择“本地优先”。worker 仅监听 127.0.0.1:8768；模型只需首次下载，日常识别不联网。未匹配的指令仍需已配置的灵矽设备和网络。
 
 `uv run --extra local-asr python scripts/verify_local_asr.py` 对披露来源的合成录音做真实推理验证。可说“向前走再向左转再向右转”“后退两秒然后点头”。“不要前进”“前进然后去火星”整句交云端。复杂物理动作先在对应实验场景中启用语音，例如动作练习场中的“前滚翻”。本地确认是提示音和文字，聊天回复由灵矽提供。

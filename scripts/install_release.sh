@@ -140,7 +140,7 @@ systemctl enable duckking duckking-asr
 systemctl restart duckking-asr
 asr_ready=0
 for attempt in {1..30}; do
-  if curl -fsS http://127.0.0.1:8767/health >/dev/null; then asr_ready=1; break; fi
+  if curl -fsS http://127.0.0.1:8768/health >/dev/null; then asr_ready=1; break; fi
   sleep 1
 done
 [[ $asr_ready == 1 ]]

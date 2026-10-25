@@ -95,7 +95,7 @@ def main():
     import uvicorn
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--port", type=int, default=8767)
+    parser.add_argument("--port", type=int, default=8768)
     parser.add_argument("--model-dir", type=Path, default=Path(
         os.getenv("DUCKKING_ASR_MODEL_DIR", "external/asr")
     ))

@@ -8,5 +8,5 @@ cat <<'HELP'
 Offline ASR is ready. Run in two terminals:
   uv run --frozen --no-sync duckking-asr
   DUCKKING_LOCAL_ASR=1 scripts/run_local.sh
-The worker binds only 127.0.0.1:8767. Browser microphone setup stays unchanged.
+The worker binds only 127.0.0.1:8768. Browser microphone setup stays unchanged.
 HELP
