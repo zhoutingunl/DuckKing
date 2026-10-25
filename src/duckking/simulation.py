@@ -17,9 +17,13 @@ import onnxruntime as ort
 
 from .grasp import BeakGrasp
 from .grasp_model import build_grasp_model
+from .idle import IdleBehaviour
 from .model_assets import geometry
+from .motion_catalog import SKILL_DURATIONS, TRANSLATIONS
+from .official_skills import perform_skill, perform_translation
 from .posture import change_posture, measure_posture
 from .seated_choir import SEATED_SPAWNS, SeatedChoir
+from .skills_model import build_skills_model
 from .table_choir import SPAWNS, TABLE_HEIGHT, TableChoir, build_table_model
 
 POLICY_JOINTS = (
@@ -46,7 +50,7 @@ HOME = np.array(
 
 
 class Driver:
-    def __init__(self, model, prefix, sessions):
+    def __init__(self, model, prefix, sessions, base_policy="walk"):
         self.ids = np.array([model.actuator(prefix + name).id for name in POLICY_JOINTS])
         if len(self.ids) != 14:
             raise ValueError("官方模型应包含 14 个策略关节")
@@ -58,7 +62,8 @@ class Driver:
         self.sessions = sessions
         self.command = np.zeros(13, dtype=np.float32)
         self.last = np.zeros(14, dtype=np.float32)
-        self.policy = "walk"
+        self.base_policy = self.policy = base_policy
+        self.phase_started = 0.0
         self.until = 0.0
         self.posture_target = self.rest_posture = "stand"
         bodies = {self.body}
@@ -68,9 +73,13 @@ class Driver:
         self.contact_geoms = {i for i in range(model.ngeom) if model.geom_bodyid[i] in bodies}
 
     def step(self, model, data):
-        if self.policy != "sitstand" and data.time >= self.until:
-            self.policy = "walk"
-        command = self.command if self.policy == "walk" else np.zeros(13)
+        if self.policy not in {"sitstand", self.base_policy} and data.time >= self.until:
+            self.policy = self.base_policy
+        command = self.command.copy() if self.policy == self.base_policy else np.zeros(13)
+        if self.policy in {"ground_pick", "roller_crouch"}:
+            period = 4 if self.policy == "ground_pick" else 5
+            phase = (data.time - self.phase_started) / period * math.tau
+            command[:2] = [math.cos(phase), math.sin(phase)]
         if self.policy == "sitstand":
             # vx is a binary posture flag here, never a walking velocity.
             command[0] = float(self.posture_target == "sit")
@@ -91,7 +100,7 @@ class Driver:
         if action.shape != (14,) or not np.isfinite(action).all():
             raise ValueError("策略返回无效关节目标")
         self.last[:] = action
-        data.ctrl[self.ids] = HOME + action
+        data.ctrl[self.ids] = HOME + action * (0.8 if self.base_policy == "roller" else 1)
 
     def pose(self, data):
         q = data.qpos[self.root + 3 : self.root + 7]
@@ -118,6 +127,10 @@ class MuJoCoBackend:
                 "kick_left": "ball_kick_left.onnx",
                 "kick_right": "ball_kick_right.onnx",
                 "sitstand": "alpha_sitstand.onnx",
+                "roulade": "roulade.onnx",
+                "ground_pick": "alpha_ground_pick.onnx",
+                "roller": "roller.onnx",
+                "roller_crouch": "roller_crouch.onnx",
             }.items()
         }
         self.models = {scene: self._build(scene) for scene in ("ball", "duo", "carry")}
@@ -131,6 +144,8 @@ class MuJoCoBackend:
         self.load("ball")
 
     def _build(self, scene):
+        if scene in {"skills", "rollers"}:
+            return build_skills_model(self.robot_dir, rollers=scene == "rollers")
         if scene == "table":
             return build_table_model(self.robot_dir)
         if scene == "carry":
@@ -150,6 +165,9 @@ class MuJoCoBackend:
         return model
 
     def load(self, scene):
+        if scene in {"skills", "rollers"} and scene not in self.models:
+            self.models[scene] = self._build(scene)
+            self.revisions[scene] = uuid.uuid4().hex
         if scene in {"table", "seated"} and scene not in self.models:
             if "table" not in self.models:
                 self.models["table"] = self._build("table")
@@ -167,7 +185,10 @@ class MuJoCoBackend:
             if scene == "duo"
             else [""]
         )
-        self.drivers = [Driver(self.model, p, self.sessions) for p in prefixes]
+        self.drivers = [
+            Driver(self.model, p, self.sessions, "roller" if scene == "rollers" else "walk")
+            for p in prefixes
+        ]
         for i, driver in enumerate(self.drivers):
             self.data.qpos[driver.root : driver.root + 7] = (
                 [0, 0, 0.125, 1, 0, 0, 0]
@@ -178,6 +199,8 @@ class MuJoCoBackend:
             )
             self.data.qpos[driver.q] = HOME
             self.data.ctrl[driver.ids] = HOME
+            if scene == "rollers":
+                self.data.qpos[driver.root + 2] = 0.1385
             if scene in {"table", "seated"}:
                 self.data.qpos[driver.root : driver.root + 7] = [
                     *(SEATED_SPAWNS[i] if scene == "seated" else SPAWNS[i]),
@@ -208,6 +231,8 @@ class MuJoCoBackend:
             )
         self.tabletop = TableChoir(self) if scene == "table" else None
         self.seated = SeatedChoir(self) if scene == "seated" else None
+        self.idle = IdleBehaviour(self) if scene == "skills" else None
+        self.skill_run = None
         mujoco.mj_forward(self.model, self.data)
         # Explicit initial settling, not a simulated successful action.
         for _ in range(200 if scene == "carry" else 60):
@@ -216,6 +241,8 @@ class MuJoCoBackend:
         self.sim_start = float(self.data.time)
 
     def tick(self):
+        if self.idle:
+            self.idle.tick()
         for driver in self.drivers:
             driver.step(self.model, self.data)
         ball = self.model.geom("ball_geom").id if self.scene == "ball" else -1
@@ -244,6 +271,8 @@ class MuJoCoBackend:
                     and self.geom_owner[one] != self.geom_owner[two]
                 ):
                     self.contacts["ducks"] += 1
+        if self.skill_run:
+            self.skill_run.tick()
 
     def start(self):
         if self.task is None or (self.task.done() and not self.error):
@@ -259,6 +288,9 @@ class MuJoCoBackend:
             raise
         except Exception:
             self.error = "MuJoCo 推进失败，请重置场景"
+            if self.idle:
+                self.idle.enabled = False
+                self.idle.stop()
             for driver in self.drivers:
                 driver.command[:] = 0
 
@@ -282,6 +314,8 @@ class MuJoCoBackend:
             "scene_carry",
             "scene_table",
             "scene_seated",
+            "scene_skills",
+            "scene_rollers",
             "stop",
         }:
             raise ValueError(self.error)
@@ -298,6 +332,8 @@ class MuJoCoBackend:
             "scene_carry",
             "scene_table",
             "scene_seated",
+            "scene_skills",
+            "scene_rollers",
         }:
             raise ValueError("夹取场景请使用夹起、搬运、放下；其他动作会破坏夹持")
         if self.tabletop and action.name not in {
@@ -309,17 +345,58 @@ class MuJoCoBackend:
             "scene_carry",
             "scene_table",
             "scene_seated",
+            "scene_skills",
+            "scene_rollers",
         }:
             raise ValueError("桌上场景请使用完整合唱表演，避免单独行走破坏舞台布置")
         if self.seated and action.name not in {
-            "seated_show", "stop", "reset", "scene_ball", "scene_duo", "scene_carry",
-            "scene_table", "scene_seated",
+            "seated_show",
+            "stop",
+            "reset",
+            "scene_ball",
+            "scene_duo",
+            "scene_carry",
+            "scene_table",
+            "scene_seated",
+            "scene_skills",
+            "scene_rollers",
         }:
             raise ValueError("坐姿合唱舞台请使用完整轮唱节目")
         self.selected = action.target
-        if (action.name not in {"sit", "stand", "nod", "stop", "reset", "chorus",
-                               "find_companion", "seated_show"}
-                and not action.name.startswith("scene_")):
+        if self.idle:
+            if action.name in {"stop", "reset"} or action.name.startswith("scene_"):
+                self.idle.enabled = False
+            self.idle.pause()
+        if (
+            self.scene == "rollers"
+            and not action.name.startswith("scene_")
+            and action.name
+            not in {
+                "skate",
+                "roller_crouch",
+                "stop",
+                "reset",
+                "nod",
+                "shake_head",
+                "tilt_head",
+            }
+        ):
+            raise ValueError("轮滑场景请使用滑行、轮滑下蹲或头部动作；其他动作需切换场景")
+        if action.name not in {
+            "sit",
+            "stand",
+            "nod",
+            "shake_head",
+            "tilt_head",
+            "idle_on",
+            "idle_off",
+            "yawn",
+            "stop",
+            "reset",
+            "chorus",
+            "find_companion",
+            "seated_show",
+        } and not action.name.startswith("scene_"):
             drivers = self.drivers if action.name in {"duo_walk", "collide"} else self.targets()
             if any(d.rest_posture == "sit" for d in drivers):
                 raise ValueError("请先让小鸭站起来，再执行行走、转向或踢球")
@@ -358,8 +435,10 @@ class MuJoCoBackend:
             if driver.policy == "sitstand":
                 driver.posture_target = driver.rest_posture
             else:
-                driver.policy = "walk"
+                driver.policy = driver.base_policy
             driver.until = 0
+        if self.idle:
+            self.idle.stop()
         self.chorus = None
 
     async def reset(self):
@@ -451,6 +530,10 @@ class MuJoCoBackend:
         return found
 
     async def perform(self, action):
+        if action.name in TRANSLATIONS:
+            return await perform_translation(self, action)
+        if action.name in SKILL_DURATIONS:
+            return await perform_skill(self, action)
         if action.name.startswith("scene_"):
             if action.name in {"scene_table", "scene_seated"} and "table" not in self.models:
                 # Cancelling a UI request cannot stop native compilation. Keep
@@ -592,7 +675,8 @@ class MuJoCoBackend:
                     "yaw": d.pose(self.data)[1],
                     "policy": d.policy,
                     "posture": measure_posture(self, d)
-                    if self.scene in {"ball", "duo", "seated"} else None,
+                    if self.scene in {"ball", "duo", "seated", "skills"}
+                    else None,
                     "fallen": bool(self.data.xmat[d.body].reshape(3, 3)[2, 2] < 0.45),
                 }
                 for i, d in enumerate(self.drivers)
@@ -601,6 +685,8 @@ class MuJoCoBackend:
             "grasp": self.grasp.snapshot() if self.grasp else None,
             "tabletop": self.tabletop.snapshot() if self.tabletop else None,
             "seated_choir": self.seated.snapshot() if self.seated else None,
+            "idle": self.idle.snapshot() if self.idle else None,
+            "skill": self.skill_run.snapshot() if self.skill_run else None,
             "contacts": dict(self.contacts),
             "discovered": self.discovered,
             "chorus": chorus,
@@ -616,6 +702,8 @@ class MuJoCoBackend:
         }
 
     async def close(self):
+        if self.idle:
+            self.idle.enabled = False
         await self.stop()
         if self.task:
             self.task.cancel()

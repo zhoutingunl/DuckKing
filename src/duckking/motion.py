@@ -11,8 +11,12 @@ from typing import Literal, Protocol
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from .choreography import CHOREOGRAPHIES, DEFAULT_DURATION, MIN_DURATION, sample
+from .motion_catalog import SKILL_DURATIONS, TRANSLATIONS
 
 SCENE_ACTIONS = {
+    *SKILL_DURATIONS,
+    "scene_skills",
+    "scene_rollers",
     "sit",
     "stand",
     "scene_seated",
@@ -37,6 +41,20 @@ SCENE_ACTIONS = {
 class Action(BaseModel):
     model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
     name: Literal[
+        "roulade",
+        "ground_pick",
+        "skate",
+        "roller_crouch",
+        "yawn",
+        "idle_on",
+        "idle_off",
+        "scene_skills",
+        "scene_rollers",
+        "backward",
+        "strafe_left",
+        "strafe_right",
+        "shake_head",
+        "tilt_head",
         "sit",
         "stand",
         "scene_seated",
@@ -73,6 +91,9 @@ class Action(BaseModel):
     @classmethod
     def choreography_defaults(cls, data):
         fixed = {
+            **SKILL_DURATIONS,
+            "scene_skills": 0.2,
+            "scene_rollers": 0.2,
             "sit": 3,
             "stand": 3,
             "scene_seated": 0.2,
@@ -100,14 +121,22 @@ class Action(BaseModel):
 
     @model_validator(mode="after")
     def choreography_timing(self):
-        if (self.name in {"table_show", "scene_table", "seated_show", "scene_seated"}
-                and self.target != "a"):
+        if (
+            self.name in {"table_show", "scene_table", "seated_show", "scene_seated"}
+            and self.target != "a"
+        ):
             raise ValueError("桌上编排统一控制四只鸭，不接受单独指定成员")
-        if self.name not in {"put_down", "table_show", "seated_show"} and self.duration > 3:
+        if (
+            self.name not in {"put_down", "table_show", "seated_show", *SKILL_DURATIONS}
+            and self.duration > 3
+        ):
             raise ValueError("此动作最长为 3 秒")
         if self.name in SCENE_ACTIONS and self.speed is not None:
             raise ValueError("场景动作使用固定策略速度，不接受 speed 参数")
         fixed = {
+            **SKILL_DURATIONS,
+            "scene_skills": 0.2,
+            "scene_rollers": 0.2,
             "sit": 3,
             "stand": 3,
             "scene_seated": 0.2,
@@ -276,7 +305,9 @@ class MotionController:
                 await self.backend.prepare(action)
             elif action.name in SCENE_ACTIONS or action.target != "a":
                 raise ValueError("此动作需要官方 MuJoCo 场景，不会退回动画预览")
-            if action.name in SCENE_ACTIONS:
+            if action.name in SCENE_ACTIONS or (
+                self.backend.kind == "mujoco" and action.name in TRANSLATIONS
+            ):
                 record["outcome"] = await self.backend.perform(action)
                 if record["outcome"].get("verified") is False:
                     raise ValueError(record["outcome"]["message"])
@@ -301,17 +332,31 @@ class MotionController:
                         )
                         await self.backend.head(frame.head_pitch, frame.head_yaw, frame.head_roll)
                         await self.backend.move(frame.forward, frame.turn, frame.lateral)
-                    elif action.name == "nod":
+                    elif action.name in {"nod", "shake_head", "tilt_head"}:
                         # Smooth, bounded head trajectory, not a new learned motion policy.
-                        pitch = 0.18 * math.sin(elapsed / action.duration * math.tau * 2)
-                        await self.backend.head(pitch)
+                        phase = elapsed / action.duration
+                        if action.name == "nod":
+                            await self.backend.head(0.18 * math.sin(phase * math.tau * 2))
+                        elif action.name == "shake_head":
+                            await self.backend.head(0, 0.30 * math.sin(phase * math.tau * 2))
+                        else:
+                            await self.backend.head(0, 0, 0.20 * math.sin(phase * math.pi) ** 2)
                     else:
                         speed = (
                             action.speed if action.speed is not None else self.backend.default_speed
                         )
-                        vx = speed if action.name == "walk" else 0.0
+                        vx = (
+                            speed
+                            if action.name == "walk"
+                            else -min(speed, 0.20)
+                            if action.name == "backward"
+                            else 0.0
+                        )
+                        lateral = min(speed, 0.15) * {"strafe_left": 1, "strafe_right": -1}.get(
+                            action.name, 0
+                        )
                         yaw = {"turn_left": 0.6, "turn_right": -0.6}.get(action.name, 0.0)
-                        await self.backend.move(vx, yaw)
+                        await self.backend.move(vx, yaw, lateral)
                     await asyncio.sleep(0.05)
             record["status"] = "completed"
         except asyncio.CancelledError:

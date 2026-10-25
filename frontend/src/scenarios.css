@@ -2,3 +2,5 @@
 .scenarios-page footer>span{white-space:normal;font:inherit;overflow-wrap:anywhere}
 
 .carry-buttons{display:grid;gap:8px}.carry-buttons button{border:1px solid #dce2d0;border-radius:9px;background:#f0f5df;padding:14px 8px;font-size:12px;color:#4e6334}.carry-buttons button:hover{background:#e2ecbf}.scene-readouts[hidden]{display:none}@media(max-width:600px){.scene-tabs{flex-wrap:wrap;gap:8px}.scene-tabs button{flex:1 1 130px}}
+
+.scene-tabs{flex-wrap:wrap}.scene-tabs button{flex:1 1 160px}#basic-controls .duck-moves{margin-top:8px}.duck-moves[hidden]{display:none}#skill-readouts{padding:12px;background:#f4f7ea;border-radius:8px}

@@ -10,7 +10,7 @@ import { setupRoom } from './room.js';
 await setupRoom();
 
 const $=id=>document.getElementById(id);
-const names={sit:'坐下',stand:'站起来',scene_ball:'单鸭踢球',scene_duo:'双鸭互动',scene_carry:'嘴部搬运',pick_up:'用嘴夹起',carry:'夹持搬运',put_down:'放下物品',kick_left:'左脚踢球',kick_right:'右脚踢球',find_companion:'发现同伴',duo_walk:'双鸭一起走',collide:'相向碰面',chorus:'同步合唱',walk:'前进',turn_left:'左转',turn_right:'右转',stop:'停止',reset:'重置场景',nod:'点头'};
+const names={scene_skills:'动作练习场',scene_rollers:'轮滑小鸭',roulade:'前滚翻',ground_pick:'低头啄取',skate:'向前滑行',roller_crouch:'轮滑下蹲',yawn:'打个哈欠',idle_on:'开启自然待机',idle_off:'关闭自然待机',backward:'后退',strafe_left:'左横移',strafe_right:'右横移',shake_head:'摇头',tilt_head:'歪头',sit:'坐下',stand:'站起来',scene_ball:'单鸭踢球',scene_duo:'双鸭互动',scene_carry:'嘴部搬运',pick_up:'用嘴夹起',carry:'夹持搬运',put_down:'放下物品',kick_left:'左脚踢球',kick_right:'右脚踢球',find_companion:'发现同伴',duo_walk:'双鸭一起走',collide:'相向碰面',chorus:'同步合唱',walk:'前进',turn_left:'左转',turn_right:'右转',stop:'停止',reset:'重置场景',nod:'点头'};
 const graspPhases={ready:'待夹取',closing:'正在合嘴',lifting:'正在抬起',holding:'夹持中',carrying:'正在搬运',carried:'已到接物台',lowering:'正在低头',opening:'正在张嘴',retreating:'正在退开',released:'已放稳',interrupted:'已停止',dropped:'夹持丢失',failed:'未通过验证'};
 const statuses={completed:'完成',failed:'未完成',cancelled:'已取消',running:'进行中'};
 let viewer,scene=null,revision=null,loadingModel=false,changing=false,seen=0,latest=null,online=false;
@@ -28,7 +28,7 @@ async function post(url,body){const response=await fetch(appURL(url),{method:'PO
 const requestId=()=>Array.from(crypto.getRandomValues(new Uint8Array(16)),v=>v.toString(16).padStart(2,'0')).join('');
 let requests=Promise.resolve();
 function action(name){
-  const target=scene==='duo'&&['sit','stand','walk','turn_left','turn_right','nod'].includes(name)?$('duck-target').value:'a';
+  const target=scene==='duo'&&['sit','stand','walk','backward','strafe_left','strafe_right','turn_left','turn_right','nod','shake_head','tilt_head'].includes(name)?$('duck-target').value:'a';
   if(name==='stop'||name==='reset')chorus.stop();
   requests=requests.then(()=>post('/api/scenes/actions',{name,target,request_id:requestId()})).catch(e=>notify(e.message));return requests;
 }
@@ -44,17 +44,23 @@ $('reset-scene').addEventListener('click',()=>action('reset'));$('stop-scene').a
 window.addEventListener('keydown',e=>{if(e.key==='Escape'&&scene)action('stop');});
 async function loadModel(state){
   if(loadingModel||revision===state.revision)return;loadingModel=true;
-  try{const response=await fetch(appURL('/api/scenes/model'),{cache:'no-store',signal:AbortSignal.timeout(60000)});if(!response.ok)throw new Error('模型加载失败');const model=await response.json();if(latest?.revision!==model.revision)return;viewer?.load(model);revision=model.revision;if(latest?.revision===revision)viewer?.update(latest);$('scene-placeholder').hidden=true;}
+  try{const response=await fetch(appURL('/api/scenes/model'),{cache:'no-store',signal:AbortSignal.timeout(60000)});if(!response.ok)throw new Error('模型加载失败');const model=await response.json();if(latest?.revision!==model.revision)return;viewer?.load(model);viewer?.frameScene(latest.scene);revision=model.revision;if(latest?.revision===revision)viewer?.update(latest);$('scene-placeholder').hidden=true;}
   catch(e){notify(e.message);}finally{loadingModel=false;}
 }
 function update(data){
   const state=data.backend;latest=state;online=true;scene=state.scene;buttons();
   if(data.events.length&&data.events.at(-1).id<seen)seen=0;
   $('sim-status').textContent=state.error?'物理场景异常':'MuJoCo 物理运行中';
-  $('scene-title').textContent=scene==='seated'?'四鸭坐姿合唱 · 轮流独唱':scene==='table'?'四鸭桌上合唱':scene==='carry'?'单鸭 + 轻质小棒 · 接触夹持':scene==='ball'?'单鸭 + 球':'鸭 A + 鸭 B · 共享物理世界';
-  $('actions-heading').textContent=scene==='carry'?'用嘴完成一次搬运':scene==='ball'?'练习一次定点踢球':'一起活动';
+  $('scene-title').textContent=scene==='skills'?'单鸭 · 动作与表情':scene==='rollers'?'单鸭 · 官方轮滑模型':scene==='seated'?'四鸭坐姿合唱 · 轮流独唱':scene==='table'?'四鸭桌上合唱':scene==='carry'?'单鸭 + 轻质小棒 · 接触夹持':scene==='ball'?'单鸭 + 球':'鸭 A + 鸭 B · 共享物理世界';
+  $('actions-heading').textContent=scene==='skills'?'练一项新本领':scene==='rollers'?'让小鸭滑起来':scene==='carry'?'用嘴完成一次搬运':scene==='ball'?'练习一次定点踢球':'一起活动';
   $('ball-controls').hidden=scene!=='ball';$('duo-controls').hidden=scene!=='duo';$('carry-controls').hidden=$('grasp-readouts').hidden=scene!=='carry';
-  $('posture-controls').hidden=!['ball','duo'].includes(scene);
+  $('posture-controls').hidden=!['ball','duo','skills'].includes(scene);
+  $('skills-controls').hidden=scene!=='skills';$('rollers-controls').hidden=scene!=='rollers';
+  $('basic-controls').hidden=!['ball','duo','skills','rollers'].includes(scene);$('floor-moves').hidden=scene==='rollers';
+  $('skill-readouts').hidden=!['skills','rollers'].includes(scene)||!state.skill;
+  if(state.idle)$('idle-status').textContent=state.idle.enabled?`自然待机已开启 · ${{off:'等待',waiting:'等待安静下来',paused:'当前动作优先',look_around:'看看四周',yawn:'打哈欠'}[state.idle.phase]??'等待'}`:'自然待机已关闭';
+  if(state.skill){const k=state.skill;$('skill-readouts').textContent=`${names[k.name]??k.name} · ${statuses[k.status]??'已中断'} · `+(k.name==='ground_pick'?`嘴尖最低 ${(k.min_mouth_height_m*100).toFixed(1)} cm`:k.name==='roulade'?`实测翻转 ${(k.rotation_rad*180/Math.PI).toFixed(0)}°`:k.name==='yawn'?`嘴巴最大张开 ${(k.max_mouth_open_rad*180/Math.PI).toFixed(0)}°`:k.name==='skate'?`实测位移 ${(k.displacement_m*100).toFixed(1)} cm`:`身体最低 ${(k.min_body_height_m*100).toFixed(1)} cm`);}
+
   $('posture-status').textContent=state.ducks.map(d=>`鸭 ${d.id.toUpperCase()} · ${{sit:'已坐稳',stand:'站立',transition:'调整姿态'}[d.posture?.observed]??'等待姿态数据'}`).join('；');
   if(state.grasp){const g=state.grasp;$('grasp-phase').textContent=graspPhases[g.phase]??g.phase;$('grasp-force').textContent=`${g.normal_force_n.upper.toFixed(2)} / ${g.normal_force_n.lower.toFixed(2)} N`;$('grasp-lift').textContent=`${(Math.max(0,g.max_lift_clearance_m)*1000).toFixed(1)} mm`;$('grasp-distance').textContent=`${(g.carry_distance_m*100).toFixed(1)} cm`;$('grasp-detail').textContent=g.error??`双侧连续接触 ${g.bilateral_s.toFixed(1)} 秒 · 放下稳定 ${g.released_stable_s.toFixed(1)} 秒`;}
   $('ball-distance').textContent=state.ball?`${state.ball.displacement_m.toFixed(2)} m`:'—';
@@ -64,7 +70,7 @@ function update(data){
   else $('peer-status').textContent='未记录发现结果。检测范围 1.2 m / 120°，考虑遮挡。';
   chorus.update(state.chorus);loadModel(state);viewer?.update(state);
   if(data.action)$('action-result').textContent=`${names[data.action.name]??data.action.name} · 进行中`;
-  for(const event of data.events){if(event.id<=seen)continue;seen=event.id;const text=event.text.replace(/scene_ball|scene_duo|scene_carry|sit|stand|pick_up|put_down|carry|kick_left|kick_right|find_companion|duo_walk|collide|chorus|turn_left|turn_right|walk|stop|reset|nod/g,k=>names[k]??k).replace(/completed|failed|cancelled/g,k=>statuses[k]);appendLog(text,event.kind==='result'?'执行结果':'物理动作',event.status==='failed');if(event.kind==='result')$('action-result').textContent=text;}
+  for(const event of data.events){if(event.id<=seen)continue;seen=event.id;const text=event.text.replace(new RegExp(Object.keys(names).sort((a,b)=>b.length-a.length).join('|'),'g'),k=>names[k]??k).replace(/completed|failed|cancelled/g,k=>statuses[k]);appendLog(text,event.kind==='result'?'执行结果':'物理动作',event.status==='failed');if(event.kind==='result')$('action-result').textContent=text;}
   syncSceneError(state.error||data.error);
 }
 let socket,connectionNotice=null,retryDelay=1000;
@@ -72,7 +78,7 @@ function notStarted(){
   syncSceneError(null);
   scene=revision=latest=null;seen=0;viewer?.clear();chorus.stop();buttons();
   $('scene-placeholder').hidden=false;$('sim-status').textContent='选择场景开始';$('scene-title').textContent='等待启动';$('actions-heading').textContent='选择场景后开始';
-  $('posture-controls').hidden=true;
+  for(const id of ['posture-controls','skills-controls','rollers-controls','skill-readouts','basic-controls'])$(id).hidden=true;
   $('ball-controls').hidden=$('duo-controls').hidden=$('carry-controls').hidden=$('grasp-readouts').hidden=true;
   for(const id of ['ball-distance','ball-contact','duck-contact','sim-speed'])$(id).textContent='—';
 }

@@ -208,11 +208,12 @@ def create_app(
     async def start_scene(body: Action, room: str = "1"):
         if (
             body.name not in {
-                "scene_ball", "scene_duo", "scene_carry", "scene_table", "scene_seated"
+                "scene_ball", "scene_duo", "scene_carry", "scene_table", "scene_seated",
+                "scene_skills", "scene_rollers"
             }
             or body.target != "a"
         ):
-            raise HTTPException(422, "选择踢球、双鸭互动、嘴部搬运或桌上合唱场景")
+            raise HTTPException(422, "请选择有效的物理场景")
         selected = get_room(room)
         async with selected.scene_lock:
             if selected.scene_motion is None:

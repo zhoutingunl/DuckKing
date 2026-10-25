@@ -39,6 +39,9 @@ async def verify(output: Path):
             "table_show",
             "scene_seated",
             "seated_show",
+            "scene_skills", "roulade", "ground_pick", "yawn", "idle_on", "idle_off",
+            "backward", "strafe_left", "strafe_right", "shake_head", "tilt_head",
+            "scene_rollers", "skate", "roller_crouch",
         ]:
             action = Action(name=name)
             await motion.submit(action)
