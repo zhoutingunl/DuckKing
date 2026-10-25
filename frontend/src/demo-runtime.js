@@ -95,7 +95,7 @@ export class DemoRun {
 export async function action(room,name,signal,options={}){
   signal.throwIfAborted();
   const submitted=await api('api/scenes/actions',room,{body:{name,request_id:crypto.randomUUID(),...options},signal});
-  const end=performance.now()+15000;let result=submitted;
+  const end=performance.now()+(name==='table_show'?43000:15000);let result=submitted;
   while(result.status==='running'){
     if(performance.now()>end)throw new Error('物理动作超时，演示已停止');
     await pause(80,signal);result=await api('api/scenes/actions/'+submitted.id,room,{signal});

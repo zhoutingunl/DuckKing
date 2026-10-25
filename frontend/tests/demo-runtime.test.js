@@ -4,9 +4,10 @@ import {readFileSync} from 'node:fs';
 import {DEMOS,AUDIO_LINES} from '../src/demo-catalog.js';
 import {pcmWave,pause,DemoVoice,matchesCloudActions} from '../src/demo-runtime.js';
 import {ChoraleRoster,openingScore} from '../src/chorale-demo.js';
+import {checkTrackFiles,checkOffset,decodeTracks,originalTableScore,TABLE_SECONDS,TABLE_TEMPO,playTableChoir} from '../src/table-choir.js';
 
-test('all ten scripts have real bounded PCM audio, with no microphone requirement',()=>{
-  assert.equal(DEMOS.length,10);assert.equal(new Set(DEMOS.map(d=>d.id)).size,10);
+test('all eleven scripts have real bounded PCM audio, with no microphone requirement',()=>{
+  assert.equal(DEMOS.length,11);assert.equal(new Set(DEMOS.map(d=>d.id)).size,11);
   assert.equal(new Set(AUDIO_LINES.map(d=>d.id)).size,AUDIO_LINES.length);
   for(const line of AUDIO_LINES){
     const bytes=readFileSync(new URL('../public/demo-audio/'+line.id+'.wav',import.meta.url));
@@ -62,4 +63,25 @@ test('official score opening is sixteen beats with four different harmonic lines
   assert.deepEqual(score.notes.slice(0,4).map(n=>n.midi),[48,55,60,64]);
   assert.deepEqual(score.notes.slice(0,4).map(n=>n.beat),[0,.75,1.5,2.25]);
   assert.throws(()=>openingScore('bpm: 120'));
+});
+
+test('human instructions and duck dialogue ship distinct synthetic voices and processing',()=>{
+  const manifest=JSON.parse(readFileSync(new URL('../public/demo-audio/manifest.json',import.meta.url)));
+  const lines=manifest.lines;
+  const human=lines.find(line=>line.id==='football-left'),duck=lines.find(line=>line.id==='interview-joke');
+  assert.notEqual(human.voice,duck.voice);assert.notEqual(human.processing,duck.processing);
+  assert.equal(lines.length,AUDIO_LINES.length);
+});
+
+
+test('table song input and original notes are bounded, invalid files cannot fall back',async()=>{
+  for(const files of [[],[{size:1},{size:1}],[{size:0}],[{size:26*1024*1024}],Array(4).fill({size:11*1024*1024})])assert.throws(()=>checkTrackFiles(files));
+  checkTrackFiles([{size:1}]);checkTrackFiles(Array(4).fill({size:1}));
+  for(const offset of [-1,Infinity,NaN,601])assert.throws(()=>checkOffset(null,offset));
+  assert.throws(()=>checkOffset({buffers:[{duration:40}]},5));checkOffset({buffers:[{duration:40}]},4);
+  await assert.rejects(decodeTracks([{size:100,arrayBuffer:async()=>new ArrayBuffer(100)}],{decodeAudioData:async()=>({duration:10,length:160000,numberOfChannels:1})}));
+  const notes=originalTableScore();assert.equal(new Set(notes.map(n=>n.part)).size,4);
+  assert.ok(notes.every(n=>n.beat>=0&&n.duration>0&&(n.beat+n.duration)*60/TABLE_TEMPO<=TABLE_SECONDS+.001));
+  const controller=new AbortController(),pending=playTableChoir({context(){throw new Error('audio must not start')}},controller.signal,()=>null,()=>{});
+  controller.abort();await assert.rejects(pending,{name:'AbortError'});
 });

@@ -1,12 +1,13 @@
 import './style.css';
 import './demos.css';
-import { DEMOS, ACTION_NAMES } from './demo-catalog.js';
+import { DEMOS, ACTION_NAMES, AUDIO_VERSION } from './demo-catalog.js';
 import { DemoRun, DemoVoice, api, action, until, pause, pcmWave, stopped, matchesCloudActions } from './demo-runtime.js';
 import { VoiceAudio } from './audio-output.js';
 import { physicsView } from './physics-view.js';
 import { unpackVisualModel } from './model-loader.js';
 import { createChorus } from './chorus.js';
 import { playChorale, PART_NAMES } from './chorale-demo.js';
+import { playTableChoir, decodeTracks, checkOffset, loadBuiltinSong, TABLE_PARTS, TABLE_SECONDS } from './table-choir.js';
 import { DuckSocket } from './transport.js';
 import { appURL, currentRoom } from './urls.js';
 import { setupRoom } from './room.js';
@@ -14,19 +15,37 @@ import { setupRoom } from './room.js';
 await setupRoom();
 const $=id=>document.getElementById(id),output=new VoiceAudio(),clips=new Map(),models=new Map(),stages=new Map();
 const chorus=createChorus(()=>{},{getContext:()=>output.context()});let current=null,selected=-1,serial=Promise.resolve();
+let tableTracks=null,trackError=null,trackLoading=false,trackEpoch=0,preview=null;
+const controlsBusy=value=>document.querySelectorAll('[data-idle-control]').forEach(el=>{el.disabled=value});
 const message=(role,text)=>{$('caption-role').textContent=role;$('caption').textContent=text};
 const status=text=>$('show-status').textContent=text;
 function entry(text,state='completed'){const item=document.createElement('li');item.textContent=text;item.dataset.status=state;$('demo-timeline').append(item);}
 function error(text){$('demo-notice').textContent=text;$('demo-notice').hidden=false;}
 function mode(){const live=$('demo-mode').value==='live';$('mode-note').textContent=live?'预录指令发往真实灵矽，现场识别和回答；依赖网络。':'本地编排 + 实时物理仿真；不使用麦克风。';$('voice-source').textContent=live?'预录指令 · 灵矽实时回答':'预录台词 · 本地编排';}
 $('demo-mode').addEventListener('change',mode);
+$('program-count').textContent=`${DEMOS.length} 幕`;
+$('table-tracks').addEventListener('change',async event=>{
+  const epoch=++trackEpoch;tableTracks=null;trackError='音源尚未就绪';trackLoading=true;$('track-note').textContent='正在读取本机音频…';
+  try{const tracks=await decodeTracks([...event.target.files],output.context());if(epoch!==trackEpoch)return;tableTracks=tracks;trackError=null;$('track-note').textContent=`已选 ${tracks.buffers.length} 轨：${tracks.names.join('、')}。演示使用 ${TABLE_SECONDS} 秒片段。`}
+  catch(e){if(epoch===trackEpoch){trackError=e.message;$('track-note').textContent=e.message+'；请重新选择或恢复内置音源。'}}
+  finally{if(epoch===trackEpoch)trackLoading=false}
+});
+function resetTracks(){trackEpoch++;tableTracks=null;trackError=null;trackLoading=false;$('table-tracks').value='';$('table-offset').value='0';$('track-note').textContent='当前使用上方选定的内置音源。人声叠唱来自用户提供的录音，加入轻量八度与齐唱层。'}
+$('clear-tracks').addEventListener('click',resetTracks);$('table-song').addEventListener('change',resetTracks);
+for(const [button,id,text,role] of [['preview-human','football-left','请用左脚踢球。','人类指令 · 试听'],['preview-duck','interview-joke','恭喜录用，工资是每天两句夸奖。','小鸭台词 · 试听']]){
+  $(button).addEventListener('click',async()=>{
+    if(current)return;preview?.abort();preview=new AbortController();const signal=preview.signal,enabled=output.resume({gesture:true});output.clear();
+    try{if(!await enabled)throw new Error('请再点击一次以启用声音');await speak(id,text,role,{signal})}catch(e){if(e.name!=='AbortError')error(e.message)}
+  });
+}
 for(const [index,demo] of DEMOS.entries()){
   const button=document.createElement('button');button.className='program-item';button.dataset.demo=demo.id;button.setAttribute('aria-current','false');
   const n=document.createElement('span');n.textContent=String(index+1).padStart(2,'0');const text=document.createElement('div'),title=document.createElement('strong'),detail=document.createElement('small');title.textContent=demo.title;detail.textContent=demo.hook;text.append(title,detail);button.append(n,text);button.addEventListener('click',()=>start(index));$('demo-list').append(button);
 }
 async function clip(id,signal){
   if(clips.has(id))return clips.get(id);
-  const response=await fetch(appURL(`demo-audio/${id}.wav`),{signal});if(!response.ok)throw new Error('预录台词加载失败，请刷新后重试');
+  const url=appURL(`demo-audio/${id}.wav`);url.searchParams.set('v',AUDIO_VERSION);
+  const response=await fetch(url,{signal});if(!response.ok)throw new Error('预录台词加载失败，请刷新后重试');
   const pcm=pcmWave(await response.arrayBuffer());clips.set(id,pcm);return pcm;
 }
 async function speak(id,text,role,run,{wait=true}={}){
@@ -170,6 +189,23 @@ async function runStep(run,step){
     $('result-summary').textContent='官方乐谱节选已演奏。四个声部先后进入，中音离开后留席；两只物理鸭随有界头部动作表演。';
     run.results.push({name:'chorale',status:'completed',outcome:result});entry('四声部节选完成：加入不重排，中音离开后保留席位；未模拟 BLE 时钟');
   }
+  if(step.kind==='table_music'){
+    if(trackLoading||trackError)throw new Error(trackError||'歌曲音源还在读取，请稍后重演');
+    const tracks=tableTracks??await loadBuiltinSong($('table-song').value,output.context(),run.signal),offset=Number($('table-offset').value);checkOffset(tracks,offset);
+    $('table-panel').hidden=false;$('table-song-title').textContent=tracks?(tracks.title??'本机音源 · '+tracks.names.join(' / ')):'桌边的星光 · 原创和声排练';
+    message(tracks?(tracks.title?'预录歌曲 · 四鸭物理编排':'本机歌曲 · 四鸭物理编排'):'原创四声部 · 本地合成','四位歌手，请留意脚下的舞台。');
+    const movement=perform(run,currentRoom,'table_show');
+    const music=playTableChoir(output,run.signal,()=>stages.get(currentRoom)?.latest?.backend.tabletop,frame=>{
+      $('table-beat').textContent=`${Math.min(TABLE_SECONDS,Math.floor(frame.elapsed))} / ${TABLE_SECONDS} 秒`;
+      $('table-cue').textContent=frame.returning?'楼下那位，继续唱。':frame.landed?'已确认落地，另外三只仍在桌上。':frame.dropped?'等一下，怎么少了一个声部？':'四只鸭同场点头、摇摆。';
+      $('table-seats').replaceChildren(...TABLE_PARTS.map((part,i)=>{const seat=document.createElement('div');seat.className='table-seat';seat.dataset.duck='abcd'[i];seat.dataset.fallen=String(i===3&&frame.dropped);const name=document.createElement('strong');name.textContent='鸭 '+'ABCD'[i];const label=document.createElement('span');label.textContent=i===3&&frame.dropped?(frame.returning?'楼下继续':'暂离桌面'):tracks&&tracks.buffers.length===1?'歌曲混音':part;seat.append(name,label);return seat}));
+    },{tracks,offset});
+    const [result,audio]=await Promise.all([movement,music]);
+    run.results.push({name:'table_music',status:'completed',outcome:audio});
+    $('table-beat').textContent=`${TABLE_SECONDS} / ${TABLE_SECONDS} 秒`;
+    $('result-summary').textContent=`四只鸭参与；鸭 D 在第 ${result.outcome.dropped_at.toFixed(1)} 秒离桌，随后实际接触地面。其余三只仍有桌面支撑。`;
+    entry('真实跌落验收通过：桌面支撑 → 离桌 → 地面接触；其余三只留在桌上');
+  }
 }
 function cleanup(run){
   return run.cleanupPromise??=(async()=>{
@@ -187,16 +223,17 @@ function cleanup(run){
 }
 function stop(reason='演示已停止'){
   const run=current;if(!run)return Promise.resolve();current=null;run.abort();output.clear();chorus.stop();status(reason);$('stop-demo').disabled=true;$('demo-mode').disabled=false;
-  serial=Promise.allSettled([serial,cleanup(run),run.promise]).then(()=>{});return serial;
+  serial=Promise.allSettled([serial,cleanup(run),run.promise]).then(()=>{if(!current)controlsBusy(false)});return serial;
 }
 function start(index){
   // Unlock in the original click, before any fetch or room allocation.
   const enabled=output.resume({gesture:true});void chorus.enable().catch(()=>{});
+  preview?.abort();output.clear();controlsBusy(true);
   if(current)void stop('正在切换节目…');
   const run=new DemoRun();run.live=$('demo-mode').value==='live';current=run;selected=index;
   status('正在准备节目…');$('theatre-result')?.remove();$('demo-notice').hidden=true;$('stop-demo').disabled=false;$('next-demo').disabled=index>=DEMOS.length-1;$('demo-mode').disabled=true;
-  $('demo-timeline').replaceChildren();$('result-summary').textContent='等待本轮动作结果。';$('chorale-panel').hidden=true;$('demo-second').hidden=true;
-  const demo=DEMOS[index];mode();if(demo.id==='chorale')$('voice-source').textContent='本幕：预录旁白 + 本地音乐合成';$('show-number').textContent=`第 ${String(index+1).padStart(2,'0')} 幕 · ${demo.duration}`;$('show-title').textContent=demo.title;
+  $('demo-timeline').replaceChildren();$('result-summary').textContent='等待本轮动作结果。';$('chorale-panel').hidden=true;$('table-panel').hidden=true;$('demo-second').hidden=true;
+  const demo=DEMOS[index];mode();if(['chorale','tabletop'].includes(demo.id)){run.live=false;$('voice-source').textContent='本幕：本地音乐 + 物理编排'}$('show-number').textContent=`第 ${String(index+1).padStart(2,'0')} 幕 · ${demo.duration}`;$('show-title').textContent=demo.title;
   for(const b of document.querySelectorAll('.program-item'))b.setAttribute('aria-current',String(b.dataset.demo===demo.id));
   run.promise=(async()=>{
     try{
@@ -207,13 +244,13 @@ function start(index){
       run.signal.throwIfAborted();if($('result-summary').textContent==='等待本轮动作结果。')$('result-summary').textContent=`本轮 ${run.results.filter(r=>r.status==='completed').length} 个动作完成，${run.results.filter(r=>r.status==='cancelled').length} 个动作已取消。结果来自本次物理执行。`;status('本幕完成 · 可重演或进入下一幕');entry('本幕完成');
       $('theatre-result')?.remove();const proof=document.createElement('script');proof.type='application/json';proof.id='theatre-result';proof.textContent=JSON.stringify({scene:demo.id,mode:run.live?'live_linx':'scripted_rehearsal',status:'completed',results:run.results,cloud_audio_frames:run.voices.reduce((n,v)=>n+v.received,0)});document.body.append(proof);
     }catch(e){if(e.name!=='AbortError'&&!run.signal.aborted&&current===run){error(e.message);status('本幕未完成 · 点击节目重试');entry(e.message,'failed')}}
-    finally{await cleanup(run);if(current===run){current=null;$('stop-demo').disabled=true;$('demo-mode').disabled=false;}}
+    finally{await cleanup(run);if(current===run){current=null;$('stop-demo').disabled=true;$('demo-mode').disabled=false;controlsBusy(false);}}
   })();
 }
 $('stop-demo').addEventListener('click',()=>void stop());$('next-demo').addEventListener('click',()=>start(Math.min(selected+1,DEMOS.length-1)));
 $('reset-camera').addEventListener('click',()=>{for(const stage of stages.values())stage.viewer.reset()});
 window.addEventListener('keydown',e=>{if(e.key==='Escape')void stop()});
-window.addEventListener('pagehide',()=>{const run=current;run?.abort();output.close();chorus.dispose();for(const stage of stages.values()){stage.socket.close();stage.viewer.dispose()}
+window.addEventListener('pagehide',()=>{const run=current;run?.abort();preview?.abort();output.close();chorus.dispose();for(const stage of stages.values()){stage.socket.close();stage.viewer.dispose()}
   for(const room of run?.rooms??[]){const url=appURL('api/scenes/actions');url.searchParams.set('room',room);void fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:'stop',request_id:crypto.randomUUID()}),keepalive:true}).catch(()=>{})}
 });
 mode();

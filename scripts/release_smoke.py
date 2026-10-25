@@ -2,6 +2,7 @@
 
 import argparse
 import asyncio
+import hashlib
 import json
 import re
 import struct
@@ -77,6 +78,18 @@ async def verify(base, commit):
         speech = await client.get(urljoin(base, "demo-audio/identity-command.wav"))
         speech.raise_for_status()
         assert speech.content[:4] == b"RIFF" and speech.content[8:12] == b"WAVE"
+        music = await client.get(urljoin(base, "demo-music/manifest.json"))
+        music.raise_for_status()
+        tracks = music.json()
+        assert tracks["source"] == "user_provided_recordings" and tracks["duration"] == 36
+        assert set(tracks["files"]) == {
+            f"night-star-{part}.mp3" for part in ["a", "b", "c", "d", "vocal", "instrumental"]
+        }
+        for name, info in tracks["files"].items():
+            track = await client.get(urljoin(base, "demo-music/" + name))
+            track.raise_for_status()
+            assert len(track.content) == info["bytes"]
+            assert hashlib.sha256(track.content).hexdigest() == info["sha256"]
         score = await client.get(urljoin(base, "scores/wistful.duckscore"))
         score.raise_for_status()
         assert "name: wistful" in score.text
