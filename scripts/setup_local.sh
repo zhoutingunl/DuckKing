@@ -17,7 +17,8 @@ node --input-type=module -e '
   }
 '
 
-uv sync --frozen --python 3.12
+uv sync --frozen --extra simulation --python 3.12
+uv run --frozen --no-sync python scripts/fetch_scene_assets.py
 (cd frontend && npm ci && npm run build)
 
 # Preview does not need native audio or a cloud account. Probe only the codec;

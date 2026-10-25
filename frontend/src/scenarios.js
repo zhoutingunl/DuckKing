@@ -10,14 +10,15 @@ import { setupRoom } from './room.js';
 await setupRoom();
 
 const $=id=>document.getElementById(id);
-const names={scene_ball:'单鸭踢球',scene_duo:'双鸭互动',kick_left:'左脚踢球',kick_right:'右脚踢球',find_companion:'发现同伴',duo_walk:'双鸭一起走',collide:'相向碰面',chorus:'同步合唱',walk:'前进',turn_left:'左转',turn_right:'右转',stop:'停止',reset:'重置场景',nod:'点头'};
+const names={scene_ball:'单鸭踢球',scene_duo:'双鸭互动',scene_carry:'嘴部搬运',pick_up:'用嘴夹起',carry:'夹持搬运',put_down:'放下物品',kick_left:'左脚踢球',kick_right:'右脚踢球',find_companion:'发现同伴',duo_walk:'双鸭一起走',collide:'相向碰面',chorus:'同步合唱',walk:'前进',turn_left:'左转',turn_right:'右转',stop:'停止',reset:'重置场景',nod:'点头'};
+const graspPhases={ready:'待夹取',closing:'正在合嘴',lifting:'正在抬起',holding:'夹持中',carrying:'正在搬运',carried:'已到接物台',lowering:'正在低头',opening:'正在张嘴',retreating:'正在退开',released:'已放稳',interrupted:'已停止',dropped:'夹持丢失',failed:'未通过验证'};
 const statuses={completed:'完成',failed:'未完成',cancelled:'已取消',running:'进行中'};
 let viewer,scene=null,revision=null,loadingModel=false,changing=false,seen=0,latest=null,online=false;
 try{viewer=physicsView($('physics-viewport'));}catch{$('canvas-fallback').hidden=false;}
 function notify(text){$('notice').textContent=text;$('notice').hidden=false;}
 function appendLog(text,label='场景',error=false){const row=document.createElement('div');row.className=`log-line${error?' error':''}`;for(const [value,cls] of [[new Date().toLocaleTimeString('zh-CN',{hour12:false}),'log-time'],[label,'log-label'],[text,'']]){const span=document.createElement('span');span.textContent=value;span.className=cls;row.append(span);}$('activity-log').append(row);while($('activity-log').children.length>80)$('activity-log').firstChild.remove();$('activity-log').scrollTop=$('activity-log').scrollHeight;}
 const chorus=createChorus(text=>$('chorus-status').textContent=text);
-function buttons(){document.querySelectorAll('[data-sim-action]').forEach(b=>b.disabled=!online||!scene||changing);$('stop-scene').disabled=$('reset-scene').disabled=!online||!scene;document.querySelectorAll('[data-scene]').forEach(b=>{b.disabled=changing||!online;b.setAttribute('aria-pressed',String(b.dataset.scene===scene));});}
+function buttons(){document.querySelectorAll('[data-sim-action]').forEach(b=>b.disabled=!online||!scene||changing||(['pick_up','carry','put_down'].includes(b.dataset.simAction)&&latest?.grasp?.phase!==({pick_up:'ready',carry:'holding',put_down:'carried'}[b.dataset.simAction])));$('stop-scene').disabled=$('reset-scene').disabled=!online||!scene;document.querySelectorAll('[data-scene]').forEach(b=>{b.disabled=changing||!online;b.setAttribute('aria-pressed',String(b.dataset.scene===scene));});}
 async function post(url,body){const response=await fetch(appURL(url),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body),signal:AbortSignal.timeout(45000)});const data=await response.json();if(!response.ok)throw new Error(typeof data.detail==='string'?data.detail:'场景指令未被接受');return data;}
 const requestId=()=>Array.from(crypto.getRandomValues(new Uint8Array(16)),v=>v.toString(16).padStart(2,'0')).join('');
 let requests=Promise.resolve();
@@ -45,9 +46,10 @@ function update(data){
   const state=data.backend;latest=state;online=true;scene=state.scene;buttons();
   if(data.events.length&&data.events.at(-1).id<seen)seen=0;
   $('sim-status').textContent=state.error?'物理场景异常':'MuJoCo 物理运行中';
-  $('scene-title').textContent=scene==='ball'?'单鸭 + 球':'鸭 A + 鸭 B · 共享物理世界';
-  $('actions-heading').textContent=scene==='ball'?'练习一次定点踢球':'一起活动';
-  $('ball-controls').hidden=scene!=='ball';$('duo-controls').hidden=scene!=='duo';
+  $('scene-title').textContent=scene==='carry'?'单鸭 + 轻质小棒 · 接触夹持':scene==='ball'?'单鸭 + 球':'鸭 A + 鸭 B · 共享物理世界';
+  $('actions-heading').textContent=scene==='carry'?'用嘴完成一次搬运':scene==='ball'?'练习一次定点踢球':'一起活动';
+  $('ball-controls').hidden=scene!=='ball';$('duo-controls').hidden=scene!=='duo';$('carry-controls').hidden=$('grasp-readouts').hidden=scene!=='carry';
+  if(state.grasp){const g=state.grasp;$('grasp-phase').textContent=graspPhases[g.phase]??g.phase;$('grasp-force').textContent=`${g.normal_force_n.upper.toFixed(2)} / ${g.normal_force_n.lower.toFixed(2)} N`;$('grasp-lift').textContent=`${(Math.max(0,g.max_lift_clearance_m)*1000).toFixed(1)} mm`;$('grasp-distance').textContent=`${(g.carry_distance_m*100).toFixed(1)} cm`;$('grasp-detail').textContent=g.error??`双侧连续接触 ${g.bilateral_s.toFixed(1)} 秒 · 放下稳定 ${g.released_stable_s.toFixed(1)} 秒`;}
   $('ball-distance').textContent=state.ball?`${state.ball.displacement_m.toFixed(2)} m`:'—';
   $('ball-contact').textContent=state.ball?(state.ball.contact_feet.map(f=>f==='left'?'左脚':'右脚').join('、')||'尚无'):'—';
   $('duck-contact').textContent=scene==='duo'?state.contacts.ducks:'—';$('sim-speed').textContent=`${state.real_time_factor.toFixed(2)}×`;
@@ -56,14 +58,14 @@ function update(data){
   if(state.error)notify(state.error);
   chorus.update(state.chorus);loadModel(state);viewer?.update(state);
   if(data.action)$('action-result').textContent=`${names[data.action.name]??data.action.name} · 进行中`;
-  for(const event of data.events){if(event.id<=seen)continue;seen=event.id;const text=event.text.replace(/scene_ball|scene_duo|kick_left|kick_right|find_companion|duo_walk|collide|chorus|turn_left|turn_right|walk|stop|reset|nod/g,k=>names[k]??k).replace(/completed|failed|cancelled/g,k=>statuses[k]);appendLog(text,event.kind==='result'?'执行结果':'物理动作',event.status==='failed');if(event.kind==='result')$('action-result').textContent=text;}
+  for(const event of data.events){if(event.id<=seen)continue;seen=event.id;const text=event.text.replace(/scene_ball|scene_duo|scene_carry|pick_up|put_down|carry|kick_left|kick_right|find_companion|duo_walk|collide|chorus|turn_left|turn_right|walk|stop|reset|nod/g,k=>names[k]??k).replace(/completed|failed|cancelled/g,k=>statuses[k]);appendLog(text,event.kind==='result'?'执行结果':'物理动作',event.status==='failed');if(event.kind==='result')$('action-result').textContent=text;}
   if(data.error)notify(data.error);
 }
 let socket,connectionNotice=null,retryDelay=1000;
 function notStarted(){
   scene=revision=latest=null;seen=0;viewer?.clear();chorus.stop();buttons();
   $('scene-placeholder').hidden=false;$('sim-status').textContent='选择场景开始';$('scene-title').textContent='等待启动';$('actions-heading').textContent='选择场景后开始';
-  $('ball-controls').hidden=$('duo-controls').hidden=true;
+  $('ball-controls').hidden=$('duo-controls').hidden=$('carry-controls').hidden=$('grasp-readouts').hidden=true;
   for(const id of ['ball-distance','ball-contact','duck-contact','sim-speed'])$(id).textContent='—';
 }
 function connect(){

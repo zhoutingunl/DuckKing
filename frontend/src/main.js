@@ -16,7 +16,7 @@ catch { $('canvas-fallback').hidden = false; }
 let seen=0, completed=new Set(), reconnectDelay=500;
 let backendKind='preview',voiceState='disconnected';
 function scope(){
-  $('scope-note').textContent=(backendKind==='preview'?'动画预览为原创示意形象，不进行物理计算。':'正在连接官方 robotd；本页鸭子仅为示意，物理画面请查看 MuJoCo 窗口。')+
+  $('scope-note').textContent=(backendKind==='preview'?'使用官方 MicroDuck 外观的动画预览，不进行物理计算。':'正在连接官方 robotd；本页为官方外观动画示意，物理画面请查看 MuJoCo 窗口。')+
     (['ready','listening','thinking','speaking'].includes(voiceState)?'灵矽语音已连接。':'灵矽语音尚未连接。');
 }
 window.addEventListener('duckking-voice-state',event=>{voiceState=event.detail;scope()});

@@ -1,6 +1,9 @@
 import {test,expect} from '@playwright/test';
 
 test('two unassigned pages choose distinct rooms and actions and stats stay scoped',async({page,context})=>{
+  // Two official models plus room/action isolation and two failed cloud attempts
+  // exceed 30 s on CI's software GPU. Keep each assertion's timeout unchanged.
+  test.setTimeout(60000);
   const other=await context.newPage();
   const frames=[[],[]];
   for(const [i,tab] of [page,other].entries())tab.on('websocket',ws=>{

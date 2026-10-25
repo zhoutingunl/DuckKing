@@ -17,3 +17,8 @@
 官方模型的许可证见上游 [LICENSE-MODELS.md](https://github.com/pollen-robotics/microduck_rl/blob/b02fdea4902c2b93b7d34a83a6f05da4ececb7d3/LICENSE-MODELS.md)，标注为 CC BY-NC-SA 4.0。官方模型演示视频遵循该许可，不由仓库根目录的原创代码 MIT 许可替代。
 
 媒体录制工具位于 `frontend/scripts/record-demo.mjs`、`frontend/scripts/record-live-voice.mjs` 和 `scripts/record_physics.py`。官方视频是基于实时物理状态的渲染，没有替换成预设走路动画；它也不是实体机器人的录像。云端生成的语音标明其服务来源，不将其描述为真实人物录音。
+
+- `official-home.png`：当前首页的实际 Chrome 截图，使用官方模型网格和本项目脚本动画，不是 MuJoCo 物理画面。
+- `beak-holding.png`、`beak-released.png`：当前物理实验室的真实 Chrome 截图；嘴部为 DuckKing 在官方网格上增加的实验性铰链和接触垫，图片中的模型及改编遵循 CC BY-NC-SA 4.0。
+- `beak-physics.json`：本机运行当前 `scripts/verify_scenarios.py` 的 11 个实际动作记录，包括三步接触搬运，不是实体硬件结果。
+- `beak-voice-verification.json`：系统合成中文单句命令经真实灵矽 STT / MCP / TTS，依次完成夹起、搬运、放下。仅验证后端和云端链路；不是人声录音或手机扬声器实听。此轮回复出现内部字段名，随后提示词增加了禁止口述内部字段的要求；本文件保留本轮原始事实。
