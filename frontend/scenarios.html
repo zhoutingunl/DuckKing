@@ -1,7 +1,7 @@
 <!doctype html>
-<html lang="zh-CN"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><meta name="theme-color" content="#f6f7f2"/><title>DuckKing · 物理实验室</title><link rel="icon" href="/favicon.svg"/></head>
+<html lang="zh-CN"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><meta name="theme-color" content="#f6f7f2"/><title>DuckKing · 物理实验室</title><link rel="icon" href="./favicon.svg"/></head>
 <body class="scenarios-page">
-<header class="topbar"><a class="brand" href="/" aria-label="DuckKing 首页"><span class="brand-mark">dk<span>●</span></span>DuckKing</a><nav class="home-nav"><a href="/statistics.html" target="_blank" rel="noopener">交互统计</a><a href="/">返回工作台</a></nav></header>
+<header class="topbar"><a class="brand" href="./" aria-label="DuckKing 首页"><span class="brand-mark">dk<span>●</span></span>DuckKing</a><nav class="home-nav"><a href="./deploys.html" target="_blank" rel="noopener">部署记录</a><a href="./statistics.html" target="_blank" rel="noopener">交互统计</a><a href="./">返回工作台</a></nav></header>
 <main>
 <section class="intro"><div><h1>一只练脚法，两只交朋友。</h1><p class="subtitle">官方 MicroDuck 模型与策略，在同一个 MuJoCo 世界里活动。按钮操作无需连接灵矽。</p></div><span id="sim-status" class="connection-pill" role="status">正在连接本地场景…</span></section>
 <div class="scene-tabs" role="group" aria-label="选择物理场景"><button data-scene="ball" aria-pressed="false"><b>单鸭定点踢球</b><span>左脚 / 右脚 · 70 mm 球</span></button><button data-scene="duo" aria-pressed="false"><b>双鸭互动</b><span>碰面 · 发现同伴 · 合唱</span></button></div>
@@ -18,7 +18,7 @@
             <button id="talk-button" class="talk-button" disabled aria-label="按住说话"><svg viewBox="0 0 24 24" width="25" height="25" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="8" y="2" width="8" height="13" rx="4"/><path d="M5 10v2a7 7 0 0 0 14 0v-2M12 19v3M8 22h8"/></svg><span>按住说话</span><span class="key-hint">SPACE</span></button>
             <div class="voice-caption" id="voice-caption">当前可以先用下方按钮探索动作。</div>
             <div class="voice-setup"><button id="connect-voice" class="text-button" disabled>连接灵矽 <span>↗</span></button><span id="voice-connection-hint">接入模块准备中</span></div>
-            <div class="voice-setup"><button id="reset-voice" class="text-button" disabled>重置语音 ↻</button><a class="text-button" href="/api/voice/diagnostics" target="_blank" rel="noopener">连接诊断 ↗</a></div>
+            <div class="voice-setup"><button id="reset-voice" class="text-button" disabled>重置语音 ↻</button><a class="text-button" href="./api/voice/diagnostics" target="_blank" rel="noopener">连接诊断 ↗</a></div>
             <div id="activation" class="activation" hidden></div>
           </section></aside></div>
 <section class="activity-card"><div class="section-heading"><h2>场景与语音记录</h2><button id="clear-log" class="subtle-button">清空显示</button></div><div id="activity-log" class="activity-log" role="log" aria-live="polite"></div></section>
