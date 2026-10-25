@@ -1,20 +1,31 @@
 import './style.css';
 import { createDuckScene } from './duck.js';
 import { setupVoice } from './voice.js';
+import { appURL } from './urls.js';
+import { createSocket } from './transport.js';
+
+import { setupRoom } from './room.js';
+await setupRoom();
 
 const $ = (id) => document.getElementById(id);
-const names = {nod:'点头',walk:'前进',turn_left:'左转',turn_right:'右转',stop:'停止',reset:'回到起点',flash_step:'闪身步',bear_shake:'狗熊哆嗦毛'};
+const names = {backward:'后退',strafe_left:'左横移',strafe_right:'右横移',shake_head:'摇头',tilt_head:'歪头',nod:'点头',walk:'前进',turn_left:'左转',turn_right:'右转',stop:'停止',reset:'回到起点',flash_step:'闪身步',bear_shake:'狗熊哆嗦毛'};
 const actionNames = new RegExp(Object.keys(names).join('|'),'g');
 let scene;
-try { scene = createDuckScene($('viewport')); }
+try { scene = createDuckScene($('viewport'),{onLoad:timing=>appendLog(
+  `官方外观${timing.result==='ready'?'已显示':'加载失败'} · ${(timing.elapsed_ms/1000).toFixed(1)} 秒${['persistent','http'].includes(timing.cache)?' · 使用缓存':''}`,
+  '模型加载',timing.result!=='ready')}); }
 catch { $('canvas-fallback').hidden = false; }
 let seen=0, completed=new Set(), reconnectDelay=500;
-let backendKind='preview',voiceState='disconnected';
+let backendKind='preview',voiceState='disconnected',voiceMode='cloud',voiceRoute='cloud';
 function scope(){
-  $('scope-note').textContent=(backendKind==='preview'?'动画预览为原创示意形象，不进行物理计算。':'正在连接官方 robotd；本页鸭子仅为示意，物理画面请查看 MuJoCo 窗口。')+
-    (['ready','listening','thinking','speaking'].includes(voiceState)?'灵矽语音已连接。':'灵矽语音尚未连接。');
+  $('scope-note').textContent=(backendKind==='preview'?'使用官方 MicroDuck 外观的动画预览，不进行物理计算。':'正在连接官方 robotd；本页为官方外观动画示意，物理画面请查看 MuJoCo 窗口。')+
+    (voiceMode==='local_first'?(voiceRoute==='cloud_fallback'?'当前指令已选择灵矽处理。':['ready','listening','thinking'].includes(voiceState)?'本地优先语音已启用，未匹配时转交灵矽。':'本地优先语音尚未启用。'):['ready','listening','thinking','speaking'].includes(voiceState)?'灵矽语音已连接。':'灵矽语音尚未连接。');
 }
-window.addEventListener('duckking-voice-state',event=>{voiceState=event.detail;scope()});
+window.addEventListener('duckking-voice-state',event=>{
+  if(typeof event.detail==='string')voiceState=event.detail;
+  else{voiceState=event.detail.state;voiceMode=event.detail.mode;voiceRoute=event.detail.route}
+  scope();
+});
 export function notify(message) { $('notice').textContent=message;$('notice').hidden=false; }
 export function appendLog(text, label='系统', error=false) {
   const log=$('activity-log');log.querySelector('.empty-log')?.remove();
@@ -26,7 +37,7 @@ export function appendLog(text, label='系统', error=false) {
   while(log.children.length>80)log.firstChild.remove();log.scrollTop=log.scrollHeight;
 }
 export async function post(url,body={}) {
-  const response=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  const response=await fetch(appURL(url),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
   let value;
   try{value=await response.json()}
   catch{throw new Error(response.ok?'本地服务返回了无效响应。':`本地后端请求失败（HTTP ${response.status}），请检查服务与端口。`)}
@@ -45,7 +56,7 @@ $('reset-camera').addEventListener('click',()=>scene?.resetCamera());
 $('clear-log').addEventListener('click',()=>{$('activity-log').replaceChildren();});
 window.addEventListener('keydown',e=>{if(e.key==='Escape')action('stop');});
 function connect(){
-  const ws=new WebSocket(`${location.protocol==='https:'?'wss':'ws'}://${location.host}/ws`);
+  const ws=createSocket('ws');
   ws.onopen=()=>{reconnectDelay=500;$('connection-label').textContent='本地工作台已连接';$('connection-dot').classList.remove('offline')};
   ws.onmessage=event=>{
     const data=JSON.parse(event.data);if(data.type!=='state')return;

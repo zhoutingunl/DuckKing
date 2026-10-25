@@ -20,7 +20,7 @@ class VoiceStatistics:
         self.rounds = deque(maxlen=capacity)
         self.started_at = datetime.now(UTC).isoformat(timespec="seconds")
         self.total_rounds = 0
-        self.service = {kind: Counter() for kind in ("preview", "robotd")}
+        self.service = {kind: Counter() for kind in ("preview", "robotd", "mujoco")}
         self.recovering = {}
         self.recoveries = {kind: deque(maxlen=capacity) for kind in self.service}
 
@@ -49,6 +49,8 @@ class VoiceStatistics:
                 "turn": turn, "time": entry["time"], "backend": backend,
                 "status": "listening", "text": "", "timings": {}, "actions": [],
                 "uplink_frames": 0, "downlink_frames": 0,
+                "mode": entry.get("mode", "cloud"), "route": "pending"
+                if entry.get("mode") == "local_first" else "cloud",
             })
         row = next((row for row in reversed(self.rounds) if row["turn"] == turn), None)
         if row is None:
@@ -70,8 +72,19 @@ class VoiceStatistics:
             row["status"] = "waiting"
         elif event == "stt":
             row["text"] = entry.get("text", "")
+            if entry.get("source") == "local":
+                row["local_text"] = row["text"]
             if row["text"].strip():
                 timings.setdefault("stt", elapsed)
+        elif event == "local_asr":
+            row["asr_ms"] = entry.get("asr_ms")
+        elif event == "voice_route":
+            row["route"] = entry.get("route", "pending")
+            row["route_reason"] = entry.get("reason")
+            timings["route"] = elapsed
+        elif event == "local_end":
+            row["status"] = "completed" if entry.get("result") == "ok" else "error"
+            timings["local_end"] = elapsed
         elif event == "action_start":
             row["actions"].append({
                 "call": entry["call"], "tool": entry["tool"], "at_ms": elapsed,
@@ -87,7 +100,7 @@ class VoiceStatistics:
             row.update(status="timeout", reason=entry.get("reason"))
         elif event in {"connection_error", "command_error"}:
             row["status"] = "error"
-        elif event == "reset" or (event == "state" and state == "disconnected"):
+        elif event in {"reset", "interrupt"} or (event == "state" and state == "disconnected"):
             row["status"] = "interrupted"
 
     def snapshot(self, backend=None):
@@ -95,7 +108,7 @@ class VoiceStatistics:
         submitted = [r for r in rows if "listen_stop" in r["timings"]]
         closed = [r for r in submitted if r["status"] not in {"listening", "waiting"}]
         latencies = {}
-        for name in ("stt", "action_start", "first_audio", "reply_end"):
+        for name in ("stt", "action_start", "first_audio", "reply_end", "local_end"):
             latencies[name] = distribution([
                 r["timings"][name] - r["timings"]["listen_stop"] for r in submitted
                 if name in r["timings"] and r["timings"][name] >= r["timings"]["listen_stop"]
@@ -108,6 +121,11 @@ class VoiceStatistics:
         kinds = [backend] if backend else list(self.service)
         counts = sum((self.service[k] for k in kinds), Counter())
         latencies["recovery"] = distribution([v for k in kinds for v in self.recoveries[k]])
+        latencies["local_asr"] = distribution([r["asr_ms"] for r in rows
+                                                if isinstance(r.get("asr_ms"), int)])
+        local_rows = [r for r in submitted if r["mode"] == "local_first"]
+        decided = [r for r in local_rows if r["route"] != "pending"]
+        cloud_closed = [r for r in closed if r["route"] in {"cloud", "cloud_fallback"}]
         return {
             "started_at": self.started_at, "capacity": self.rounds.maxlen,
             "total_rounds": self.total_rounds, "backend": backend or "all",
@@ -115,7 +133,8 @@ class VoiceStatistics:
                 "rounds": len(rows), "submitted": len(submitted), "closed": len(closed),
                 "pending": sum(r["status"] in {"listening", "waiting"} for r in rows),
                 "recognized": sum("stt" in r["timings"] for r in closed),
-                "replied": sum(r["status"] == "completed" for r in closed),
+                "replied": sum(r["status"] == "completed" for r in cloud_closed),
+                "cloud_closed": len(cloud_closed),
                 "timeouts": sum(r["status"] == "timeout" for r in rows),
                 "interrupted": sum(r["status"] == "interrupted" for r in rows),
                 "errors": sum(r["status"] == "error" for r in rows),
@@ -123,5 +142,15 @@ class VoiceStatistics:
                 "completed_actions": sum(a["result"] == "completed" for a in finished_actions),
             },
             "service": dict(counts), "latencies": latencies,
+            "routing": {"submitted": len(local_rows), "decided": len(decided),
+                        "local": sum(r["route"] == "local" for r in decided),
+                        "fallback": sum(r["route"] == "cloud_fallback" for r in decided),
+                        "reasons": dict(Counter(r.get("route_reason") for r in decided)),
+                        "action_latency": {route: distribution([
+                            r["timings"]["action_start"] - r["timings"]["listen_stop"]
+                            for r in submitted if r["route"] == route
+                            and "action_start" in r["timings"]
+                            and r["timings"]["action_start"] >= r["timings"]["listen_stop"]
+                        ]) for route in ("local", "cloud", "cloud_fallback")}},
             "rounds": list(reversed(rows)),
         }

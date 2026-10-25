@@ -23,7 +23,7 @@ test('push-to-talk captures framed PCM, receives playback, and releases micropho
       if(data.type==='disconnect')send({type:'voice_status',state:'disconnected'});
     });
   });
-  await page.goto('/');
+  await page.goto('/?room=1');
   await page.locator('#connect-voice').click();
   await expect(page.locator('#talk-button')).toBeEnabled();
   await page.locator('#talk-button').dispatchEvent('pointerdown',{pointerId:1});
@@ -45,7 +45,7 @@ test('activation and connection failure stay explicit instead of faking a reply'
       socket.send(JSON.stringify(count===1?{type:'voice_status',state:'awaiting_binding',activation_code:'123456'}:{type:'voice_status',state:'error',error:'协议测试：账号尚未绑定'}));
     }
   }));
-  await page.goto('/');
+  await page.goto('/?room=1');
   await page.locator('#connect-voice').click();
   await expect(page.locator('#activation')).toContainText('123456');
   await expect(page.locator('#talk-button')).toBeDisabled();
@@ -61,7 +61,7 @@ test('a rejected local voice connection gives actionable feedback and can be ret
     if(++attempts===1)socket.close({code:1008,reason:'Local protocol test rejection'});
     else socket.send(JSON.stringify({type:'voice_status',state:'ready'}));
   }));
-  await page.goto('/');
+  await page.goto('/?room=1');
   await page.locator('#connect-voice').click();
   await expect(page.locator('#voice-badge')).toHaveText('连接异常');
   await expect(page.locator('#notice')).toContainText('本地语音通道连接失败');
@@ -85,7 +85,7 @@ test('stalled thinking can be reset and recovery never starts recording automati
       if(state)socket.send(JSON.stringify({type:'voice_status',state}));
     });
   });
-  await page.goto('/');
+  await page.goto('/?room=1');
   await page.locator('#connect-voice').click();
   await expect(page.locator('#talk-button')).toBeEnabled();
   await page.locator('#talk-button').dispatchEvent('pointerdown',{pointerId:1});
@@ -100,7 +100,7 @@ test('stalled thinking can be reset and recovery never starts recording automati
   await expect(page.locator('#talk-button')).toBeEnabled();
   expect(commands.filter(type=>type==='listen_start')).toHaveLength(1);
   await expect(page.locator('#activity-log')).toContainText('正在恢复连接');
-  await expect(page.getByRole('link',{name:'连接诊断'})).toHaveAttribute('href','/api/voice/diagnostics');
+  await expect(page.getByRole('link',{name:'连接诊断'})).toHaveJSProperty('href',new URL('/api/voice/diagnostics?room=1',page.url()).href);
   const diagnostic=await page.request.get('/api/voice/diagnostics');
   expect(diagnostic.ok()).toBe(true);
   expect((await diagnostic.json()).events).toBeInstanceOf(Array);

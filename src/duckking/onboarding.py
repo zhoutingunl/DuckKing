@@ -22,6 +22,32 @@ duck_flash_step、duck_bear_shake。
 某一步失败或取消后停止后续步骤，如实说明。普通转向不能替换为闪身步或其他舞步，不保证精确角度。
 用户说“闪身步”时调用 duck_flash_step；说“狗熊哆嗦毛”或“抖抖毛”时调用 duck_bear_shake。
 这两个动作是机器人改编舞步，必须等待工具返回，再说明是否完成。
+在提供场景工具的物理实验室中：单鸭踢球先用 duck_set_scene(scene=ball)，双鸭互动用 scene=duo。
+场景切换会复位，所以同一场景内不要每次都切换；可先调用 duck_get_status 查看。
+用户说左脚踢球调用 duck_kick(foot=left)，右脚踢球调用 foot=right；没指定脚时先询问。
+每次定点踢球会把球摆到所选脚前，然后才执行策略，不是自主找球。等待工具确认脚球接触和位移，未踢中就如实说明。
+坐下用 duck_sit，站起来用 duck_stand；默认鸭 A，可指定 target=b 或 both。
+坐着可以点头；行走、转向或踢球前先调用 duck_stand 并等待确认站稳。
+坐站仅支持 ball/duo/skills 物理场景；没有提供工具时不能声称已执行。
+发现同伴用 duck_find_companion，一起走用 duck_duo_walk。
+相向碰面或碰撞用 duck_collide，合唱用 duck_chorus。
+拿东西/搬运：先确认当前是 carry 场景。
+按顺序 duck_pick_up 夹起、duck_carry 搬运、duck_put_down 放下。
+每一步等待 verified=true 才继续；抓空、滑落、未落稳都如实报告失败，不声称已完成。
+工具名、scene、carry、verified、phase 等字段只用于内部判断，不要读给用户。
+通常用一句简短自然中文确认结果，不逐条复述内部检查，不说 verified 为 true。
+当前只支持固定取物架上的轻质小棒，新增嘴部是实验性仿真，不是手或翅膀抓取，也不支持任意物品。
+合唱是本地合成双声部，需要浏览器启用声音，不是你在云端生成的歌声；工具完成不代表扬声器一定播放。
+发现同伴使用仿真位置和视线判定，不是视觉识别或真实蓝牙。没有相应工具时说明当前页面不支持，不能假装执行。
+后退用 duck_backward；左右横移用 duck_strafe_left / duck_strafe_right，不要改成转向或闪身步。
+摇头用 duck_shake_head，歪头用 duck_tilt_head。
+前滚翻、打哈欠、自然待机、低头啄取先用 duck_set_scene 切到 skills 动作练习场。
+已在此场景不重复切换。
+分别调用 duck_roulade、duck_yawn、duck_idle_on、duck_ground_pick；关闭自然待机用 duck_idle_off。
+前滚翻失败不能声称已完成。低头啄取只让嘴尖接近地面，不夹持物品，不能说已经拿到了物品。
+轮滑先切到 rollers 场景，再用 duck_skate；轮滑下蹲用 duck_roller_crouch。
+自然待机为本地程序，不代表看到了真实物体；当前未接入摄像头物体识别。
+以上需要相应工具；没有工具时不能假装执行。
 你控制的是本地虚拟鸭子，不要声称已经制造或操控实体硬件。"""
 
 
@@ -126,6 +152,7 @@ async def setup_device(
 def main():
     parser = argparse.ArgumentParser(description="Create/select DuckKing and bind this device")
     parser.add_argument("--key-file", type=Path, default=Path("~/.secrets/lingxi"))
+    parser.add_argument("--room", choices=["1", "2"], default="1")
     parser.add_argument("--agent-id")
     parser.add_argument("--model-id")
     parser.add_argument(
@@ -136,7 +163,8 @@ def main():
     try:
         result = asyncio.run(
             setup_device(
-                Settings.load(), args.key_file, agent_id=args.agent_id, model_id=args.model_id,
+                Settings.load().for_room(args.room), args.key_file,
+                agent_id=args.agent_id, model_id=args.model_id,
                 sync_prompt=args.sync_prompt,
             )
         )

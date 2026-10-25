@@ -11,26 +11,151 @@ from typing import Literal, Protocol
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from .choreography import CHOREOGRAPHIES, DEFAULT_DURATION, MIN_DURATION, sample
+from .motion_catalog import SKILL_DURATIONS, TRANSLATIONS
+
+SCENE_ACTIONS = {
+    *SKILL_DURATIONS,
+    "scene_skills",
+    "scene_rollers",
+    "sit",
+    "stand",
+    "scene_seated",
+    "seated_show",
+    "scene_table",
+    "table_show",
+    "scene_ball",
+    "scene_duo",
+    "scene_carry",
+    "pick_up",
+    "carry",
+    "put_down",
+    "kick_left",
+    "kick_right",
+    "find_companion",
+    "duo_walk",
+    "collide",
+    "chorus",
+}
 
 
 class Action(BaseModel):
     model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
     name: Literal[
-        "nod", "walk", "turn_left", "turn_right", "stop", "reset", "flash_step", "bear_shake"
+        "roulade",
+        "ground_pick",
+        "skate",
+        "roller_crouch",
+        "yawn",
+        "idle_on",
+        "idle_off",
+        "scene_skills",
+        "scene_rollers",
+        "backward",
+        "strafe_left",
+        "strafe_right",
+        "shake_head",
+        "tilt_head",
+        "sit",
+        "stand",
+        "scene_seated",
+        "seated_show",
+        "scene_table",
+        "table_show",
+        "nod",
+        "walk",
+        "turn_left",
+        "turn_right",
+        "stop",
+        "reset",
+        "flash_step",
+        "bear_shake",
+        "scene_ball",
+        "scene_duo",
+        "scene_carry",
+        "pick_up",
+        "carry",
+        "put_down",
+        "kick_left",
+        "kick_right",
+        "find_companion",
+        "duo_walk",
+        "collide",
+        "chorus",
     ]
-    duration: float = Field(default=1.2, ge=0.2, le=3.0)
+    duration: float = Field(default=1.2, ge=0.2, le=44)
     speed: float | None = Field(default=None, ge=0.02, le=0.4)
+    target: Literal["a", "b", "both"] = "a"
     request_id: str = Field(default_factory=lambda: str(uuid.uuid4()), min_length=1, max_length=100)
 
     @model_validator(mode="before")
     @classmethod
     def choreography_defaults(cls, data):
+        fixed = {
+            **SKILL_DURATIONS,
+            "scene_skills": 0.2,
+            "scene_rollers": 0.2,
+            "sit": 3,
+            "stand": 3,
+            "scene_seated": 0.2,
+            "seated_show": 44,
+            "scene_table": 0.2,
+            "table_show": 36,
+            "kick_left": 2,
+            "kick_right": 2,
+            "chorus": 3,
+            "duo_walk": 3,
+            "collide": 3,
+            "find_companion": 0.6,
+            "scene_ball": 0.2,
+            "scene_duo": 0.2,
+            "scene_carry": 0.2,
+            "pick_up": 2.2,
+            "carry": 3,
+            "put_down": 4.5,
+        }
+        if isinstance(data, dict) and data.get("name") in fixed and "duration" not in data:
+            return data | {"duration": fixed[data["name"]]}
         if isinstance(data, dict) and data.get("name") in CHOREOGRAPHIES and "duration" not in data:
             return data | {"duration": DEFAULT_DURATION}
         return data
 
     @model_validator(mode="after")
     def choreography_timing(self):
+        if (
+            self.name in {"table_show", "scene_table", "seated_show", "scene_seated"}
+            and self.target != "a"
+        ):
+            raise ValueError("桌上编排统一控制四只鸭，不接受单独指定成员")
+        if (
+            self.name not in {"put_down", "table_show", "seated_show", *SKILL_DURATIONS}
+            and self.duration > 3
+        ):
+            raise ValueError("此动作最长为 3 秒")
+        if self.name in SCENE_ACTIONS and self.speed is not None:
+            raise ValueError("场景动作使用固定策略速度，不接受 speed 参数")
+        fixed = {
+            **SKILL_DURATIONS,
+            "scene_skills": 0.2,
+            "scene_rollers": 0.2,
+            "sit": 3,
+            "stand": 3,
+            "scene_seated": 0.2,
+            "seated_show": 44,
+            "scene_table": 0.2,
+            "table_show": 36,
+            "kick_left": 2,
+            "kick_right": 2,
+            "chorus": 3,
+            "find_companion": 0.6,
+            "scene_ball": 0.2,
+            "scene_duo": 0.2,
+            "scene_carry": 0.2,
+            "pick_up": 2.2,
+            "carry": 3,
+            "put_down": 4.5,
+        }
+        if self.name in fixed and self.duration != fixed[self.name]:
+            raise ValueError("此场景动作使用固定时长")
         if self.name in CHOREOGRAPHIES and self.duration < MIN_DURATION:
             raise ValueError("组合动作至少需要 2.4 秒，不能压缩成高速抖动")
         if self.name in CHOREOGRAPHIES and self.speed is not None:
@@ -176,7 +301,17 @@ class MotionController:
 
     async def _run(self, action: Action, record: dict):
         try:
-            if action.name == "reset":
+            if self.backend.kind == "mujoco":
+                await self.backend.prepare(action)
+            elif action.name in SCENE_ACTIONS or action.target != "a":
+                raise ValueError("此动作需要官方 MuJoCo 场景，不会退回动画预览")
+            if action.name in SCENE_ACTIONS or (
+                self.backend.kind == "mujoco" and action.name in TRANSLATIONS
+            ):
+                record["outcome"] = await self.backend.perform(action)
+                if record["outcome"].get("verified") is False:
+                    raise ValueError(record["outcome"]["message"])
+            elif action.name == "reset":
                 await self.backend.reset()
             elif action.name == "stop":
                 await self.backend.stop()
@@ -197,17 +332,31 @@ class MotionController:
                         )
                         await self.backend.head(frame.head_pitch, frame.head_yaw, frame.head_roll)
                         await self.backend.move(frame.forward, frame.turn, frame.lateral)
-                    elif action.name == "nod":
+                    elif action.name in {"nod", "shake_head", "tilt_head"}:
                         # Smooth, bounded head trajectory, not a new learned motion policy.
-                        pitch = 0.18 * math.sin(elapsed / action.duration * math.tau * 2)
-                        await self.backend.head(pitch)
+                        phase = elapsed / action.duration
+                        if action.name == "nod":
+                            await self.backend.head(0.18 * math.sin(phase * math.tau * 2))
+                        elif action.name == "shake_head":
+                            await self.backend.head(0, 0.30 * math.sin(phase * math.tau * 2))
+                        else:
+                            await self.backend.head(0, 0, 0.20 * math.sin(phase * math.pi) ** 2)
                     else:
                         speed = (
                             action.speed if action.speed is not None else self.backend.default_speed
                         )
-                        vx = speed if action.name == "walk" else 0.0
+                        vx = (
+                            speed
+                            if action.name == "walk"
+                            else -min(speed, 0.20)
+                            if action.name == "backward"
+                            else 0.0
+                        )
+                        lateral = min(speed, 0.15) * {"strafe_left": 1, "strafe_right": -1}.get(
+                            action.name, 0
+                        )
                         yaw = {"turn_left": 0.6, "turn_right": -0.6}.get(action.name, 0.0)
-                        await self.backend.move(vx, yaw)
+                        await self.backend.move(vx, yaw, lateral)
                     await asyncio.sleep(0.05)
             record["status"] = "completed"
         except asyncio.CancelledError:

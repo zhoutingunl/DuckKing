@@ -1,0 +1,396 @@
+{
+  "source": "macOS synthetic voices, distinct human / duck personas",
+  "sample_rate": 16000,
+  "lines": [
+    {
+      "id": "identity-intro",
+      "text": "欢迎来到鸭王入职第一天。先让今天的主角签个到。",
+      "role": "旁白",
+      "bytes": 152432,
+      "voice": "Tingting",
+      "persona": "narrator",
+      "rate": 185,
+      "processing": "none"
+    },
+    {
+      "id": "identity-command",
+      "text": "请读取当前状态，告诉我你在什么场景，然后点头打个招呼。",
+      "role": "预录指令",
+      "bytes": 177158,
+      "voice": "Tingting",
+      "persona": "human",
+      "rate": 205,
+      "processing": "none"
+    },
+    {
+      "id": "identity-end",
+      "text": "我的身体在物理仿真里。成绩看现场，不拿历史记录冒充今天。",
+      "role": "鸭子",
+      "bytes": 171182,
+      "voice": "Eddy (中文（中国大陆）)",
+      "persona": "duck",
+      "rate": 210,
+      "processing": "pitch +14%, light tremolo"
+    },
+    {
+      "id": "interview-intro",
+      "text": "面试开始。让本鸭向大家问好，但不许说点头两个字。",
+      "role": "鸭子",
+      "bytes": 154260,
+      "voice": "Eddy (中文（中国大陆）)",
+      "persona": "duck",
+      "rate": 210,
+      "processing": "pitch +14%, light tremolo"
+    },
+    {
+      "id": "interview-command",
+      "text": "请向在场的评委打个招呼，表示一下认可。",
+      "role": "预录指令",
+      "bytes": 116972,
+      "voice": "Tingting",
+      "persona": "human",
+      "rate": 205,
+      "processing": "none"
+    },
+    {
+      "id": "interview-joke",
+      "text": "恭喜录用，工资是每天两句夸奖。",
+      "role": "鸭子",
+      "bytes": 93202,
+      "voice": "Eddy (中文（中国大陆）)",
+      "persona": "duck",
+      "rate": 210,
+      "processing": "pitch +14%, light tremolo"
+    },
+    {
+      "id": "interview-shake",
+      "text": "明天就要交付了，请抖抖毛，表演一下紧张。",
+      "role": "预录指令",
+      "bytes": 131794,
+      "voice": "Tingting",
+      "persona": "human",
+      "rate": 205,
+      "processing": "none"
+    },
+    {
+      "id": "interview-end",
+      "text": "能不能不加班？这道题超出了面试范围。",
+      "role": "鸭子",
+      "bytes": 108726,
+      "voice": "Eddy (中文（中国大陆）)",
+      "persona": "duck",
+      "rate": 210,
+      "processing": "pitch +14%, light tremolo"
+    },
+    {
+      "id": "interrupt-intro",
+      "text": "这只鸭话很多，但你永远拥有最后的控制权。",
+      "role": "旁白",
+      "bytes": 136404,
+      "voice": "Tingting",
+      "persona": "narrator",
+      "rate": 185,
+      "processing": "none"
+    },
+    {
+      "id": "interrupt-old",
+      "text": "请先表演闪身步，再用一段长话介绍你自己。",
+      "role": "预录指令",
+      "bytes": 129974,
+      "voice": "Tingting",
+      "persona": "human",
+      "rate": 205,
+      "processing": "none"
+    },
+    {
+      "id": "interrupt-new",
+      "text": "停止旧任务。现在只点头一次。",
+      "role": "预录指令",
+      "bytes": 87576,
+      "voice": "Tingting",
+      "persona": "human",
+      "rate": 205,
+      "processing": "none"
+    },
+    {
+      "id": "interrupt-end",
+      "text": "旧回复已经停下。现在，轮到新需求说了算。",
+      "role": "鸭子",
+      "bytes": 136220,
+      "voice": "Eddy (中文（中国大陆）)",
+      "persona": "duck",
+      "rate": 210,
+      "processing": "pitch +14%, light tremolo"
+    },
+    {
+      "id": "change-intro",
+      "text": "原需求：跳舞，抖毛，最后点头。客户的消息刚刚来了。",
+      "role": "旁白",
+      "bytes": 180360,
+      "voice": "Tingting",
+      "persona": "narrator",
+      "rate": 185,
+      "processing": "none"
+    },
+    {
+      "id": "change-old",
+      "text": "请依次表演闪身步，狗熊哆嗦毛，最后点头。",
+      "role": "预录指令",
+      "bytes": 136290,
+      "voice": "Tingting",
+      "persona": "human",
+      "rate": 205,
+      "processing": "none"
+    },
+    {
+      "id": "change-new",
+      "text": "取消刚才整套任务。只向左转一下，不要抖毛，也不要点头。",
+      "role": "预录指令",
+      "bytes": 179802,
+      "voice": "Tingting",
+      "persona": "human",
+      "rate": 205,
+      "processing": "none"
+    },
+    {
+      "id": "change-end",
+      "text": "舞蹈已撤回。刚才取消的工作，记得算工时。",
+      "role": "鸭子",
+      "bytes": 130232,
+      "voice": "Eddy (中文（中国大陆）)",
+      "persona": "duck",
+      "rate": 210,
+      "processing": "pitch +14%, light tremolo"
+    },
+    {
+      "id": "football-intro",
+      "text": "欢迎来到鸭界世界杯。球可以踢偏，成绩不能瞎编。",
+      "role": "旁白",
+      "bytes": 160234,
+      "voice": "Tingting",
+      "persona": "narrator",
+      "rate": 185,
+      "processing": "none"
+    },
+    {
+      "id": "football-left",
+      "text": "请用左脚踢球。",
+      "role": "预录指令",
+      "bytes": 46010,
+      "voice": "Tingting",
+      "persona": "human",
+      "rate": 205,
+      "processing": "none"
+    },
+    {
+      "id": "football-right",
+      "text": "现在请用右脚踢球。",
+      "role": "预录指令",
+      "bytes": 61942,
+      "voice": "Tingting",
+      "persona": "human",
+      "rate": 205,
+      "processing": "none"
+    },
+    {
+      "id": "football-end",
+      "text": "战术是教练的，脚法是本鸭的。实际位移，请看裁判的数据。",
+      "role": "鸭子",
+      "bytes": 169426,
+      "voice": "Eddy (中文（中国大陆）)",
+      "persona": "duck",
+      "rate": 210,
+      "processing": "pitch +14%, light tremolo"
+    },
+    {
+      "id": "delivery-intro",
+      "text": "这根小棒，是项目最后一根救命稻草。接下来，这活我用嘴干。",
+      "role": "鸭子",
+      "bytes": 175100,
+      "voice": "Eddy (中文（中国大陆）)",
+      "persona": "duck",
+      "rate": 210,
+      "processing": "pitch +14%, light tremolo"
+    },
+    {
+      "id": "delivery-command",
+      "text": "请用嘴夹起小棒，搬过去，再放下。每一步成功后再继续。",
+      "role": "预录指令",
+      "bytes": 174186,
+      "voice": "Tingting",
+      "persona": "human",
+      "rate": 205,
+      "processing": "none"
+    },
+    {
+      "id": "delivery-end",
+      "text": "确认放稳，才算交付。需求终于落地了。",
+      "role": "鸭子",
+      "bytes": 120290,
+      "voice": "Eddy (中文（中国大陆）)",
+      "persona": "duck",
+      "rate": 210,
+      "processing": "pitch +14%, light tremolo"
+    },
+    {
+      "id": "duel-intro",
+      "text": "左边闪身步，右边抖抖毛。两个房间，各跳各的，不串台。",
+      "role": "旁白",
+      "bytes": 187886,
+      "voice": "Tingting",
+      "persona": "narrator",
+      "rate": 185,
+      "processing": "none"
+    },
+    {
+      "id": "duel-left",
+      "text": "请表演闪身步。",
+      "role": "预录指令",
+      "bytes": 42668,
+      "voice": "Tingting",
+      "persona": "human",
+      "rate": 205,
+      "processing": "none"
+    },
+    {
+      "id": "duel-right",
+      "text": "请表演狗熊哆嗦毛。",
+      "role": "预录指令",
+      "bytes": 59014,
+      "voice": "Tingting",
+      "persona": "human",
+      "rate": 205,
+      "processing": "none"
+    },
+    {
+      "id": "duel-end",
+      "text": "两份动作记录，两套物理世界。谁也没有抢走谁的身体。",
+      "role": "鸭子",
+      "bytes": 154264,
+      "voice": "Eddy (中文（中国大陆）)",
+      "persona": "duck",
+      "rate": 210,
+      "processing": "pitch +14%, light tremolo"
+    },
+    {
+      "id": "lonely-intro",
+      "text": "同伴就在附近，但背对着对方，可不算看见。",
+      "role": "旁白",
+      "bytes": 144718,
+      "voice": "Tingting",
+      "persona": "narrator",
+      "rate": 185,
+      "processing": "none"
+    },
+    {
+      "id": "lonely-turn",
+      "text": "没有发现，就调整方向。不能把希望当作检测结果。",
+      "role": "鸭子",
+      "bytes": 144542,
+      "voice": "Eddy (中文（中国大陆）)",
+      "persona": "duck",
+      "rate": 210,
+      "processing": "pitch +14%, light tremolo"
+    },
+    {
+      "id": "lonely-find",
+      "text": "请发现同伴。",
+      "role": "预录指令",
+      "bytes": 38210,
+      "voice": "Tingting",
+      "persona": "human",
+      "rate": 205,
+      "processing": "none"
+    },
+    {
+      "id": "lonely-end",
+      "text": "原来同伴一直在附近。这一次，我们是真的看见了。",
+      "role": "鸭子",
+      "bytes": 135816,
+      "voice": "Eddy (中文（中国大陆）)",
+      "persona": "duck",
+      "rate": 210,
+      "processing": "pitch +14%, light tremolo"
+    },
+    {
+      "id": "debut-intro",
+      "text": "一个鸭是打工，两个鸭就是创业团队。请两位成员见面。",
+      "role": "旁白",
+      "bytes": 170748,
+      "voice": "Tingting",
+      "persona": "narrator",
+      "rate": 185,
+      "processing": "none"
+    },
+    {
+      "id": "debut-meet",
+      "text": "请发现同伴，然后相向碰面。",
+      "role": "预录指令",
+      "bytes": 92450,
+      "voice": "Tingting",
+      "persona": "human",
+      "rate": 205,
+      "processing": "none"
+    },
+    {
+      "id": "debut-chorus",
+      "text": "你们的团名叫鸭力山大。请来一段同步合唱。",
+      "role": "预录指令",
+      "bytes": 116246,
+      "voice": "Tingting",
+      "persona": "human",
+      "rate": 205,
+      "processing": "none"
+    },
+    {
+      "id": "debut-end",
+      "text": "我们的第一张专辑，叫明天一定交付。",
+      "role": "鸭子",
+      "bytes": 101526,
+      "voice": "Eddy (中文（中国大陆）)",
+      "persona": "duck",
+      "rate": 210,
+      "processing": "pitch +14%, light tremolo"
+    },
+    {
+      "id": "chorale-intro",
+      "text": "这次不是两只鸭唱同一个音。低音和高音先开场，中音和次中音依次加入。",
+      "role": "旁白",
+      "bytes": 222968,
+      "voice": "Tingting",
+      "persona": "narrator",
+      "rate": 185,
+      "processing": "none"
+    },
+    {
+      "id": "chorale-end",
+      "text": "有人加入，其他成员不换声部。有人离开，留住他的席位。这就是合唱团的默契。",
+      "role": "鸭子",
+      "bytes": 225904,
+      "voice": "Eddy (中文（中国大陆）)",
+      "persona": "duck",
+      "rate": 210,
+      "processing": "pitch +14%, light tremolo"
+    },
+    {
+      "id": "table-intro",
+      "text": "四位歌手，一张桌子。请把掌声留到最后，桌子的面积有限。",
+      "role": "旁白",
+      "bytes": 184812,
+      "voice": "Tingting",
+      "persona": "narrator",
+      "rate": 185,
+      "processing": "none"
+    },
+    {
+      "id": "table-end",
+      "text": "我没掉队，只是把低音部，搬到了楼下。",
+      "role": "鸭子",
+      "bytes": 99454,
+      "voice": "Eddy (中文（中国大陆）)",
+      "persona": "duck",
+      "rate": 210,
+      "processing": "pitch +14%, light tremolo"
+    }
+  ]
+}

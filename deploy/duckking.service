@@ -1,0 +1,36 @@
+[Unit]
+Description=DuckKing independent voice and MuJoCo service
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+Group=root
+StateDirectory=duckking
+StateDirectoryMode=0700
+WorkingDirectory=/root/zt_dir/hackathon_base/DuckKing/current
+Environment=DUCKKING_BIND_HOST=127.0.0.1
+Environment=DUCKKING_LOCAL_ASR=1
+Environment=DUCKKING_DATA_DIR=/var/lib/duckking
+Environment=DUCKKING_RELEASE_FILE=/root/zt_dir/hackathon_base/DuckKing/current/release.json
+Environment=DUCKKING_DEPLOY_HISTORY=/var/lib/duckking/deployments.jsonl
+Environment=DUCKKING_SECRETS_FILE=/var/lib/duckking/voice.env
+Environment=OPENBLAS_NUM_THREADS=1
+Environment=OMP_NUM_THREADS=1
+EnvironmentFile=-/etc/duckking/runtime.env
+ExecStart=/root/zt_dir/hackathon_base/DuckKing/current/.venv/bin/duckking --host ${DUCKKING_BIND_HOST} --port 8765 --allowed-host ztmonitor.qbox.net --root-path /duckking
+Restart=on-failure
+RestartSec=3
+TimeoutStopSec=20
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=read-only
+ProtectSystem=strict
+CPUQuota=150%
+MemoryMax=4G
+TasksMax=128
+
+[Install]
+WantedBy=multi-user.target

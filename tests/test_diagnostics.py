@@ -68,3 +68,33 @@ def test_stt_logging_redacts_known_secrets_and_identifiers_before_truncation(tmp
     journal.record("tts_sentence", text="回复不落盘")
     assert "text" not in journal.events[-1]
     assert [journal.next_turn(), journal.next_turn()] == [1, 2]
+
+def test_browser_audio_is_allowlisted_throttled_and_separate_from_cloud(tmp_path, monkeypatch):
+    import pytest
+
+    now = [100.0]
+    monkeypatch.setattr('duckking.diagnostics.time.monotonic', lambda: now[0])
+    journal = VoiceDiagnostics(tmp_path / 'voice.jsonl')
+    journal.update_playback({
+        'output_state': 'interrupted', 'received_frames': 10, 'scheduled_frames': 0,
+        'queued_ms': 600, 'signal_peak_milli': 200, 'ended_frames': True,
+        'dropped_frames': -1, 'output_sample_rate': 2**40,
+        'token': 'secret', 'text': 'private', 'user_agent': 'private-device',
+    })
+    assert journal.playback == {
+        'output_state': 'interrupted', 'received_frames': 10, 'scheduled_frames': 0,
+        'queued_ms': 600, 'signal_peak_milli': 200,
+    }
+    journal.update_playback({'output_state': 'interrupted', 'received_frames': 11})
+    assert len(journal.events) == 1 and journal.playback['received_frames'] == 11
+    now[0] += 1
+    journal.update_playback({'output_state': 'interrupted', 'received_frames': 12})
+    journal.update_playback({'output_state': 'running', 'ended_frames': 12})
+    assert len(journal.events) == 3
+    assert all(event['event'] == 'browser_audio' for event in journal.events)
+    for state in [[], {}, None, 'secret']:
+        with pytest.raises(ValueError):
+            journal.update_playback({'output_state': state})
+    assert journal.snapshot()['browser_audio']['output_state'] == 'running'
+    text = journal.path.read_text() + json.dumps(journal.snapshot())
+    assert 'secret' not in text and 'private' not in text

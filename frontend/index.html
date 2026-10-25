@@ -5,13 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#f6f7f2" />
     <title>DuckKing · 语音与动作工作台</title>
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
   </head>
   <body>
-    <header class="topbar">
-      <a class="brand" href="/" aria-label="DuckKing 首页"><span class="brand-mark">dk<span>●</span></span>DuckKing</a>
-      <div class="top-label">VOICE × MOTION LAB <span> / 001</span></div>
-      <nav class="home-nav" aria-label="工作台导航"><a href="/statistics.html" target="_blank" rel="noopener" title="新标签页打开，保留语音连接">交互统计</a><a class="repo-link" href="https://github.com/zhoutingunl/DuckKing" target="_blank" rel="noopener">源代码 <span>↗</span></a></nav>
+    <header class="topbar home-topbar">
+      <a class="brand" href="./" aria-label="DuckKing 首页"><span class="brand-mark">dk<span>●</span></span>DuckKing</a>
+      <nav class="home-nav" aria-label="工作台导航"><a href="./scenarios.html" target="_blank" rel="noopener">物理实验室</a><a href="./deploys.html" target="_blank" rel="noopener">部署记录</a><a href="./statistics.html" target="_blank" rel="noopener" title="新标签页打开，保留语音连接">交互统计</a><a href="./demos.html">演示场景</a></nav>
+      <a class="repo-link" href="https://github.com/zhoutingunl/DuckKing" target="_blank" rel="noopener">源代码 <span aria-hidden="true">↗</span></a>
     </header>
     <main>
       <section class="intro">
@@ -33,11 +33,16 @@
         <aside class="controls">
           <section class="voice-card">
             <div class="section-heading"><h2>和小鸭聊聊</h2><span id="voice-badge" class="tag neutral">未连接灵矽</span></div>
-            <p class="muted">连接灵矽后，按住说话，松开等待回答。</p>
+            <p id="voice-intro" class="muted">连接灵矽后，按住说话，松开等待回答。</p>
             <button id="talk-button" class="talk-button" disabled aria-label="按住说话"><svg viewBox="0 0 24 24" width="25" height="25" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="8" y="2" width="8" height="13" rx="4"/><path d="M5 10v2a7 7 0 0 0 14 0v-2M12 19v3M8 22h8"/></svg><span>按住说话</span><span class="key-hint">SPACE</span></button>
             <div class="voice-caption" id="voice-caption">当前可以先用下方按钮探索动作。</div>
-            <div class="voice-setup"><button id="connect-voice" class="text-button" disabled>连接灵矽 <span>↗</span></button><span id="voice-connection-hint">接入模块准备中</span></div>
-            <div class="voice-setup"><button id="reset-voice" class="text-button" disabled>重置语音 ↻</button><a class="text-button" href="/api/voice/diagnostics" target="_blank" rel="noopener">连接诊断 ↗</a></div>
+            <div class="voice-mode-row"><label for="voice-mode">识别方式</label><select id="voice-mode" disabled><option value="local_first">本地优先</option><option value="cloud" selected>灵矽云端</option></select></div>
+            <p id="voice-route" class="voice-caption" role="status">灵矽负责识别和回复。</p>
+            <div class="voice-setup"><button id="connect-voice" class="connect-button" disabled aria-label="连接灵矽"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M5 11a7 7 0 0 1 14 0"/><path d="M8.5 11a3.5 3.5 0 0 1 7 0"/><circle cx="12" cy="12" r="1.1" fill="currentColor" stroke="none"/><path d="M12 13v6M9 19h6"/></svg><span id="connect-label">连接灵矽</span><span class="key-hint connect-hint">↗</span></button><span id="voice-connection-hint">接入模块准备中</span></div>
+            <div class="voice-setup"><button id="enable-sound" class="text-button">启用 / 测试声音 ♪</button></div>
+            <p id="audio-status" class="voice-caption" role="status">可先播放本地提示音，检查手机声音。</p>
+            <details class="audio-details"><summary>声音诊断</summary><pre id="audio-diagnostics">尚未初始化声音</pre></details>
+            <div class="voice-setup"><button id="reset-voice" class="text-button" disabled>重置语音 ↻</button><a class="text-button" href="./api/voice/diagnostics" target="_blank" rel="noopener">连接诊断 ↗</a></div>
             <div id="activation" class="activation" hidden></div>
           </section>
           <section class="action-card">
@@ -47,6 +52,11 @@
               <button data-action="walk"><span class="action-icon">↑</span><span>向前走<small>走一小段，自动停</small></span><span class="arrow">↗</span></button>
               <button data-action="turn_left"><span class="action-icon">↶</span><span>向左转<small>换个方向看看</small></span><span class="arrow">↗</span></button>
               <button data-action="turn_right"><span class="action-icon">↷</span><span>向右转<small>再看看另一边</small></span><span class="arrow">↗</span></button>
+              <button data-action="backward"><span class="action-icon">↓</span><span>向后退<small>后退一小段</small></span><span class="arrow">↗</span></button>
+              <button data-action="strafe_left"><span class="action-icon">←</span><span>向左挪<small>横移，不转身</small></span><span class="arrow">↗</span></button>
+              <button data-action="strafe_right"><span class="action-icon">→</span><span>向右挪<small>横移，不转身</small></span><span class="arrow">↗</span></button>
+              <button data-action="shake_head"><span class="action-icon">↔</span><span>摇摇头<small>轻轻说声不</small></span><span class="arrow">↗</span></button>
+              <button data-action="tilt_head"><span class="action-icon">◡</span><span>歪歪头<small>好奇地想一想</small></span><span class="arrow">↗</span></button>
               <button class="choreography" data-action="flash_step"><span class="action-icon">↔</span><span>闪身步<small>左闪回闪，利落收势</small></span><span class="arrow">↗</span></button>
               <button class="choreography" data-action="bear_shake"><span class="action-icon">≈</span><span>狗熊哆嗦毛<small>四拍抖毛，轻轻收势</small></span><span class="arrow">↗</span></button>
             </div>
@@ -61,7 +71,7 @@
         <div id="activity-log" class="activity-log" role="log" aria-live="polite"><div class="empty-log">小鸭已经准备好了。试着让它点点头吧。</div></div>
       </section>
       <div id="notice" class="notice" role="alert" hidden></div>
-      <footer><span id="scope-note">动画预览为原创示意形象，不进行物理计算。灵矽语音尚未连接。</span><span>BUILT TO LISTEN. READY TO MOVE. <b>✳</b></span></footer>
+      <footer><span id="scope-note">使用官方 MicroDuck 外观的动画预览，不进行物理计算。灵矽语音尚未连接。</span><span>模型 © <a href="https://github.com/pollen-robotics/microduck_rl" target="_blank" rel="noopener">Pollen Robotics</a> · <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank" rel="noopener">CC BY-NC-SA 4.0</a></span></footer>
     </main>
     <script type="module" src="/src/main.js"></script>
   </body>

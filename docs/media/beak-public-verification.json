@@ -1,0 +1,148 @@
+{
+  "version": "deploy-yzh737-20261024T135948Z",
+  "commit": "7bfc2ec0f87662a2c4218c8c6493358510f97e58",
+  "tested_at": "2026-10-24T14:14:05.029Z",
+  "input": "macOS Tingting synthesized Chinese through Chrome fake microphone",
+  "browser": "Desktop Chrome 390x844 mobile viewport; not a physical iPhone or speaker test",
+  "transport": "Public HTTPS gateway to real Linx",
+  "page_errors": [],
+  "passed": true,
+  "room": "1",
+  "home_official": true,
+  "actions": [
+    {
+      "name": "pick_up",
+      "status": "completed",
+      "outcome": {
+        "phase": "holding",
+        "held": true,
+        "carried": false,
+        "position": [
+          0.06599942611965766,
+          0.000443683340689423,
+          0.22739199942749222
+        ],
+        "mouth_angle_deg": 1.6411444114835347,
+        "normal_force_n": {
+          "upper": 0.4426949521507685,
+          "lower": 0.48153381470501455,
+          "source": 0,
+          "destination": 0,
+          "floor": 0
+        },
+        "contact_samples": {
+          "upper": 1296,
+          "lower": 305
+        },
+        "bilateral_s": 1.3749999999999927,
+        "max_bilateral_s": 1.3749999999999927,
+        "peak_normal_force_n": 0.49619308766932524,
+        "lift_clearance_m": 0.016773485577285557,
+        "max_lift_clearance_m": 0.016958675974094284,
+        "carry_distance_m": 0,
+        "robot_distance_m": 0,
+        "max_slip_m": 0,
+        "released_stable_s": 0,
+        "linear_speed_mps": 0.0176685522997514,
+        "angular_speed_radps": 0.09381451320332275,
+        "error": null,
+        "model": "experimental_beak_contact_v1",
+        "verified": true,
+        "message": "已验证双侧接触、持续夹持和物品离架"
+      }
+    },
+    {
+      "name": "carry",
+      "status": "completed",
+      "outcome": {
+        "phase": "carried",
+        "held": true,
+        "carried": true,
+        "position": [
+          0.2926587073594735,
+          0.035907509387993995,
+          0.2100696318975918
+        ],
+        "mouth_angle_deg": 1.6012583502855064,
+        "normal_force_n": {
+          "upper": 0.4331164297894934,
+          "lower": 0.4897448341686006,
+          "source": 0,
+          "destination": 0,
+          "floor": 0
+        },
+        "contact_samples": {
+          "upper": 2460,
+          "lower": 1469
+        },
+        "bilateral_s": 7.194999999999869,
+        "max_bilateral_s": 7.194999999999869,
+        "peak_normal_force_n": 0.7193020340732253,
+        "lift_clearance_m": -0.0018241245542809648,
+        "max_lift_clearance_m": 0.016958675974094284,
+        "carry_distance_m": 0.22928162194868057,
+        "robot_distance_m": 0.2287633302318757,
+        "max_slip_m": 0.0015365508903359554,
+        "released_stable_s": 0,
+        "linear_speed_mps": 0.1903702882202325,
+        "angular_speed_radps": 1.1678245967860497,
+        "error": null,
+        "model": "experimental_beak_contact_v1",
+        "verified": true,
+        "message": "已夹持搬运到接物台上方"
+      }
+    },
+    {
+      "name": "put_down",
+      "status": "completed",
+      "outcome": {
+        "phase": "released",
+        "held": false,
+        "carried": true,
+        "position": [
+          0.2768584772767606,
+          0.041672149293388916,
+          0.18578448915956747
+        ],
+        "mouth_angle_deg": 30.050431766293023,
+        "normal_force_n": {
+          "upper": 0,
+          "lower": 0,
+          "source": 0,
+          "destination": 0.03924000000000001,
+          "floor": 0
+        },
+        "contact_samples": {
+          "upper": 2699,
+          "lower": 1863
+        },
+        "bilateral_s": 0,
+        "max_bilateral_s": 8.37499999999991,
+        "peak_normal_force_n": 0.7193020340732253,
+        "lift_clearance_m": -0.02821551084043253,
+        "max_lift_clearance_m": 0.016958675974094284,
+        "carry_distance_m": 0.22928162194868057,
+        "robot_distance_m": 0.2287633302318757,
+        "max_slip_m": 0.0017346056392726127,
+        "released_stable_s": 3.4549999999999486,
+        "linear_speed_mps": 2.3811631196435888e-15,
+        "angular_speed_radps": 2.7618499719385593e-14,
+        "error": null,
+        "model": "experimental_beak_contact_v1",
+        "verified": true,
+        "message": "已脱离嘴部并在接物台稳定落下"
+      }
+    }
+  ],
+  "audio": {
+    "output_state": "running",
+    "queued_ms": 0,
+    "signal_peak_milli": 814,
+    "dropped_frames": 0,
+    "output_sample_rate": 48000,
+    "scheduled_frames": 340,
+    "ended_frames": 340,
+    "received_frames": 340
+  },
+  "text": "22:14:38物理动作开始动作 · 嘴部搬运22:14:38执行结果嘴部搬运 · 完成22:15:10声音测试已提交本地测试提示音；若听不到，请检查手机媒体音量、静音开关和蓝牙输出。22:15:11语音状态未连接灵矽22:15:11语音状态正在连接22:15:11语音状态灵矽已连接22:15:12语音状态正在聆听22:15:17语音状态正在思考22:15:17你说请用嘴夹起小棒，翻过去，再放下。22:15:20语音状态正在回答22:15:20灵矽我先确认当前场景是否支持搬运当前是 carry 场景，22:15:21物理动作开始动作 · 用嘴夹起22:15:23执行结果用嘴夹起 · 完成22:15:26灵矽我先夹起小棒。22:15:26物理动作开始动作 · 夹持搬运22:15:28灵矽已夹起小棒，接下来夹持搬运过去。22:15:29执行结果夹持搬运 · 完成22:15:30物理动作开始动作 · 放下物品22:15:31灵矽已搬运到接物台上方，现在放下。22:15:34执行结果放下物品 · 完成22:15:36灵矽已完成，小棒已夹起、搬运并稳稳放到接物台上。22:15:41语音状态灵矽已连接"
+}

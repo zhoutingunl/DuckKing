@@ -1,5 +1,9 @@
 # 演示媒体来源
 
+- `scene-ball.png`、`scene-duo.png`：物理实验室实际浏览器截图，显示来自 MuJoCo 的官方模型与姿态；模型来源为 Pollen Robotics，截图中的模型展示遵循下述 CC BY-NC-SA 4.0，不使用仓库 MIT 许可替代。
+- `physics-scenes.json`：`scripts/verify_scenarios.py` 在本机实际执行的接触、球位移和双鸭动作记录；没有真实云端调用。合唱条目仅验证控制编排，不证明扬声器输出。
+- `scene-voice-verification.json`：左右脚语音踢球的真实灵矽 STT / MCP / TTS 记录。输入为系统合成中文录音，动作来自 MuJoCo CPU + 官方 ONNX，不经过 robotd；不含设备身份或凭证。
+
 - `workbench.png`、`local-preview.mp4`：DuckKing 原创界面与程序化鸭子形象，由真实本地应用录制。没有灵矽云端对话。
 - `official-simulation.mp4`：读取运行中的官方 MuJoCo body 状态，并用官方 Microduck 场景渲染。机械模型、纹理及场景来源于 [Pollen Robotics microduck_rl](https://github.com/pollen-robotics/microduck_rl)，固定提交 `b02fdea4902c2b93b7d34a83a6f05da4ececb7d3`。
 - `official-simulation.json`：本次本地仿真实测记录，不含账号、token 或设备身份。
@@ -13,3 +17,8 @@
 官方模型的许可证见上游 [LICENSE-MODELS.md](https://github.com/pollen-robotics/microduck_rl/blob/b02fdea4902c2b93b7d34a83a6f05da4ececb7d3/LICENSE-MODELS.md)，标注为 CC BY-NC-SA 4.0。官方模型演示视频遵循该许可，不由仓库根目录的原创代码 MIT 许可替代。
 
 媒体录制工具位于 `frontend/scripts/record-demo.mjs`、`frontend/scripts/record-live-voice.mjs` 和 `scripts/record_physics.py`。官方视频是基于实时物理状态的渲染，没有替换成预设走路动画；它也不是实体机器人的录像。云端生成的语音标明其服务来源，不将其描述为真实人物录音。
+
+- `official-home.png`：当前首页的实际 Chrome 截图，使用官方模型网格和本项目脚本动画，不是 MuJoCo 物理画面。
+- `beak-holding.png`、`beak-released.png`：当前物理实验室的真实 Chrome 截图；嘴部为 DuckKing 在官方网格上增加的实验性铰链和接触垫，图片中的模型及改编遵循 CC BY-NC-SA 4.0。
+- `beak-physics.json`：本机运行当前 `scripts/verify_scenarios.py` 的 11 个实际动作记录，包括三步接触搬运，不是实体硬件结果。
+- `beak-voice-verification.json`：系统合成中文单句命令经真实灵矽 STT / MCP / TTS，依次完成夹起、搬运、放下。仅验证后端和云端链路；不是人声录音或手机扬声器实听。此轮回复出现内部字段名，随后提示词增加了禁止口述内部字段的要求；本文件保留本轮原始事实。

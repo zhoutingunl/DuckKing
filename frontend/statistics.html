@@ -5,17 +5,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#f6f7f2" />
     <title>DuckKing · 交互统计</title>
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
   </head>
   <body class="statistics-page">
     <header class="topbar">
-      <a class="brand" href="/" aria-label="DuckKing 首页"><span class="brand-mark">dk<span>●</span></span>DuckKing</a>
-      <a class="repo-link" href="/">返回工作台</a>
+      <a class="brand" href="./" aria-label="DuckKing 首页"><span class="brand-mark">dk<span>●</span></span>DuckKing</a>
+      <a class="repo-link" href="./">返回工作台</a>
     </header>
     <main>
       <section class="intro">
         <div><h1>一句话，花了多久？</h1><p class="subtitle">从听清指令到小鸭行动，逐轮查看真实交互。</p></div>
-        <div class="stats-controls"><label for="backend-filter">动作后端</label><select id="backend-filter"><option value="all">全部后端</option><option value="preview">动画预览</option><option value="robotd">官方 robotd 仿真</option></select><button id="refresh-stats" class="stats-button">刷新</button></div>
+        <div class="stats-controls"><label for="backend-filter">动作后端</label><select id="backend-filter"><option value="all">全部后端</option><option value="preview">动画预览</option><option value="robotd">官方 robotd 仿真</option><option value="mujoco">MuJoCo 物理实验室</option></select><button id="refresh-stats" class="stats-button">刷新</button></div>
       </section>
       <div class="stats-meta"><span id="stats-scope">正在读取本地统计…</span><span id="stats-updated" role="status">每 5 秒更新</span></div>
       <p id="stats-error" class="notice" role="alert" hidden></p>
@@ -34,6 +34,12 @@
         <div><span>超时轮次</span><strong id="timeout-count">—</strong><small id="round-summary">等待统计</small></div>
       </section>
 
+      <section class="quality-strip" aria-label="本地识别与转交">
+        <div><span>本地命中率</span><strong id="local-hit-rate">—</strong><small id="local-hit-count">等待本地优先样本</small></div>
+        <div><span>转交灵矽</span><strong id="fallback-count">—</strong><small id="fallback-reasons">等待记录</small></div>
+        <div><span>本地识别 P50</span><strong id="local-asr-time">—</strong><small>包含本地工作进程排队与返回</small></div>
+      </section>
+      <section class="latency-panel"><h2>不同路径的动作响应</h2><div class="table-scroll"><table class="stats-table"><thead><tr><th>处理路径</th><th>P50</th><th>P95</th><th>样本</th></tr></thead><tbody id="route-latency"></tbody></table></div><p class="stats-note">从结束录音到首个动作受理。仅比较实际发生的阶段，不能据此认定识别准确率或物理响应时间。</p></section>
       <div class="stats-columns">
         <section class="latency-panel" aria-labelledby="latency-heading">
           <div class="section-heading"><h2 id="latency-heading">响应延迟</h2><span class="stats-note">P50 典型值 / P95 慢请求</span></div>
@@ -55,7 +61,7 @@
       </section>
 
       <details class="metric-definitions"><summary>这些指标能说明什么？</summary><div>
-        <p>识别返回率 = 返回非空文字的已结束轮次 / 已结束且提交录音的轮次。回复结束率 = 收到云端正常回复结束事件的轮次 / 同一分母。进行中和录音未提交的轮次不进入这两个比率。</p>
+        <p>识别返回率 = 返回非空文字的已结束轮次 / 已结束且提交录音的轮次。回复结束率 = 收到云端正常回复结束事件的轮次 / 已结束且走云端的提交轮次。本地命中率 = 完整匹配并选择本地执行的轮次 / 已完成路径判定的本地优先轮次；不代表识别或意图准确率。本地提示音不计作云端回复。进行中和录音未提交的轮次不进入这两个比率。</p>
         <p>动作完成率只统计真正被控制器受理且已经结束的动作；重复 MCP 请求不重复计数。完成表示控制流程正常结束，不保证物理位移或转角达标。</p>
         <p>识别准确率（CER / WER）、意图正确率、动作顺序符合率，需要与人工标注的原话和目标动作比较。这里展示识别文字与实际动作，供核对，不自动给出准确率。</p>
         <p>延迟使用本地单调时钟。这里没有测量麦克风硬件、浏览器扬声器、画面呈现或 MuJoCo 物理反馈延迟；语音回复结束也不等于扬声器已经播完。结束录音之前返回的阶段只出现在时间线，不纳入非负延迟分布。</p>

@@ -75,6 +75,143 @@ TOOLS = [
     },
 ]
 
+# These are bounded commands on existing head/velocity interfaces, not new policies.
+BASIC_EXTRA = {
+    "duck_backward": ("backward", "向后退一小段，到时停止；不是转身。"),
+    "duck_strafe_left": ("strafe_left", "向身体左侧横移一小段，不是左转或闪身步。"),
+    "duck_strafe_right": ("strafe_right", "向身体右侧横移一小段，不是右转或闪身步。"),
+    "duck_shake_head": ("shake_head", "左右摇头，表达否定；约1.2秒。"),
+    "duck_tilt_head": ("tilt_head", "歪头表示好奇，然后回正；约1.2秒。"),
+}
+TOOLS += [
+    {
+        "name": name,
+        "description": description,
+        "inputSchema": {"type": "object", "properties": {}, "additionalProperties": False},
+    }
+    for name, (_, description) in BASIC_EXTRA.items()
+]
+SKILL_TOOLS = {
+    "duck_roulade": ("roulade", "动作练习场 skills：执行官方前滚翻，验证翻转并恢复站稳，最多6秒。"),
+    "duck_yawn": ("yawn", "动作练习场 skills：本地抬头张嘴打哈欠，约4.5秒，不生成声音。"),
+    "duck_idle_on": (
+        "idle_on",
+        "动作练习场 skills：开启本地自然待机，看四周、歪头和偶尔打哈欠。"
+        "新动作优先，停止会关闭待机。不是视觉识别。",
+    ),
+    "duck_idle_off": ("idle_off", "关闭自然待机表情。只用于 skills 场景。"),
+    "duck_ground_pick": (
+        "ground_pick",
+        "动作练习场 skills：官方低头啄取姿态，嘴尖接近地面后站起，"
+        "最多5秒。仅验证姿态，未夹持物品，不能声称捡到了东西。",
+    ),
+    "duck_skate": (
+        "skate",
+        "轮滑场景 rollers：穿被动轮滑脚向前滑行，验证位移与轮子转动，滑行3秒后收势，总计最多5秒。",
+    ),
+    "duck_roller_crouch": ("roller_crouch", "轮滑场景 rollers：官方轮滑下蹲再站起，最多6秒。"),
+}
+
+SCENE_TOOLS = [
+    *[
+        {
+            "name": name,
+            "description": description,
+            "inputSchema": {"type": "object", "properties": {}, "additionalProperties": False},
+        }
+        for name, (_, description) in SKILL_TOOLS.items()
+    ],
+    *[
+        {
+            "name": name,
+            "description": description,
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "target": {"type": "string", "enum": ["a", "b", "both"], "default": "a"}
+                },
+                "additionalProperties": False,
+            },
+        }
+        for name, description in [
+            (
+                "duck_sit",
+                "官方坐下策略，确认身体降下、双膝折起且接触支撑后保持坐姿。"
+                "只在 ball、duo 或 skills 场景使用；默认鸭 A，可选 b 或 both。"
+                "坐着可以点头；行走前先站起。",
+            ),
+            (
+                "duck_stand",
+                "官方站起策略，确认站稳后才完成。只在 ball、duo 或 skills 场景使用。"
+                "默认鸭 A，可选 b 或 both；失败时不能继续声称已站起或执行走路。",
+            ),
+        ]
+    ],
+    {
+        "name": "duck_set_scene",
+        "description": (
+            "切换官方 MuJoCo 物理场景并复位。ball 单鸭踢球，duo 双鸭互动，"
+            "carry 实验性嘴部搬运，skills 动作练习场，rollers 轮滑。"
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "scene": {"type": "string", "enum": ["ball", "duo", "carry", "skills", "rollers"]}
+            },
+            "required": ["scene"],
+            "additionalProperties": False,
+        },
+    },
+    {
+        "name": "duck_kick",
+        "description": (
+            "单鸭定点踢球，必须指定 left 左脚或 right 右脚。先把球摆到所选脚前，"
+            "再运行官方踢球策略；返回实际接触及位移。不能承诺距离。"
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {"foot": {"type": "string", "enum": ["left", "right"]}},
+            "required": ["foot"],
+            "additionalProperties": False,
+        },
+    },
+    *[
+        {
+            "name": name,
+            "description": description,
+            "inputSchema": {"type": "object", "properties": {}, "additionalProperties": False},
+        }
+        for name, description in [
+            (
+                "duck_pick_up",
+                "嘴部搬运场景：用嘴夹起取物架上的轻质小棒，验证上下嘴接触和离架；"
+                "失败不能声称拿到了。需先选择 carry 场景。",
+            ),
+            (
+                "duck_carry",
+                "已夹起物品后，夹持行走到接物台上方，最多3秒。返回真实位移和夹持结果；一次搬运后应放下。",
+            ),
+            (
+                "duck_put_down",
+                "成功搬运后，张嘴、低头、退开，将物品放到接物台；必须验证脱离嘴部并落稳，约4.5秒。",
+            ),
+            (
+                "duck_find_companion",
+                "双鸭场景中根据仿真位置、120度视野、1.2米距离和遮挡发现同伴；不是摄像头识别或真实蓝牙发现。",
+            ),
+            ("duck_duo_walk", "双鸭一起向各自前方行走最多3秒，处在同一物理世界。"),
+            (
+                "duck_collide",
+                "双鸭向各自前方行走最多3秒，检查是否发生真实物理接触。初始相向站位时可碰面；不自动重置位置。",
+            ),
+            (
+                "duck_chorus",
+                "双鸭同步合唱3秒：本地合成两个声部、同步点头。需要浏览器启用合唱声音，不是灵矽生成的歌声，也不保证浏览器已播放。",
+            ),
+        ]
+    ],
+]
+
 
 class DeviceMCP:
     def __init__(self, motion: MotionController, session_key: str):
@@ -119,23 +256,42 @@ class DeviceMCP:
                 }
             }
         if method == "tools/list":
-            return response | {"result": {"tools": TOOLS}}
+            tools = TOOLS
+            if self.motion.backend.kind == "mujoco":
+                tools = TOOLS + SCENE_TOOLS
+            return response | {"result": {"tools": tools}}
         if method != "tools/call":
             return response | {"error": {"code": -32601, "message": "Method not found"}}
         try:
             name, arguments = params.get("name"), params.get("arguments", {})
             if not isinstance(arguments, dict):
                 raise ValueError("工具参数必须为对象")
-            allowed = {"duration"} if name in {
-                "duck_walk_short", "duck_turn_left", "duck_turn_right"
-            } else set()
+            allowed = (
+                {"duration"}
+                if name in {"duck_walk_short", "duck_turn_left", "duck_turn_right"}
+                else set()
+            )
+            if self.motion.backend.kind == "mujoco":
+                allowed = (
+                    {"target"}
+                    if name in {"duck_sit", "duck_stand"}
+                    else {"scene"}
+                    if name == "duck_set_scene"
+                    else {"foot"}
+                    if name == "duck_kick"
+                    else allowed
+                )
             if set(arguments) - allowed:
                 raise ValueError("工具包含不支持的参数")
             if name == "duck_get_status":
                 state = await self.motion.snapshot()
-                result = {"backend": state["backend"], "action": state["action"]}
+                result = {
+                    "backend": {k: v for k, v in state["backend"].items() if k != "geoms"},
+                    "action": state["action"],
+                }
             else:
                 kind = {
+                    **{key: value[0] for key, value in BASIC_EXTRA.items()},
                     "duck_nod": "nod",
                     "duck_walk_short": "walk",
                     "duck_turn_left": "turn_left",
@@ -144,6 +300,34 @@ class DeviceMCP:
                     "duck_flash_step": "flash_step",
                     "duck_bear_shake": "bear_shake",
                 }.get(name)
+                if self.motion.backend.kind == "mujoco":
+                    if name == "duck_set_scene":
+                        if arguments.get("scene") not in {
+                            "ball",
+                            "duo",
+                            "carry",
+                            "skills",
+                            "rollers",
+                        }:
+                            raise ValueError("场景必须为 ball、duo、carry、skills 或 rollers")
+                        kind, arguments = "scene_" + arguments["scene"], {}
+                    elif name == "duck_kick":
+                        if arguments.get("foot") not in {"left", "right"}:
+                            raise ValueError("踢球必须明确指定 left 左脚或 right 右脚")
+                        kind, arguments = "kick_" + arguments["foot"], {}
+                    else:
+                        kind = {
+                            **{key: value[0] for key, value in SKILL_TOOLS.items()},
+                            "duck_sit": "sit",
+                            "duck_stand": "stand",
+                            "duck_find_companion": "find_companion",
+                            "duck_duo_walk": "duo_walk",
+                            "duck_collide": "collide",
+                            "duck_chorus": "chorus",
+                            "duck_pick_up": "pick_up",
+                            "duck_carry": "carry",
+                            "duck_put_down": "put_down",
+                        }.get(name, kind)
                 if not kind:
                     raise ValueError("未知工具")
                 action = Action(
