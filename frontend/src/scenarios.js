@@ -1,5 +1,6 @@
 import './style.css';
 import './scenarios.css';
+import { createPhysicsModelLoader } from './model-loader.js';
 import { physicsView } from './physics-view.js';
 import { createChorus } from './chorus.js';
 import { setupVoice } from './voice.js';
@@ -13,6 +14,8 @@ const $=id=>document.getElementById(id);
 const names={scene_skills:'动作练习场',scene_rollers:'轮滑小鸭',roulade:'前滚翻',ground_pick:'低头啄取',skate:'向前滑行',roller_crouch:'轮滑下蹲',yawn:'打个哈欠',idle_on:'开启自然待机',idle_off:'关闭自然待机',backward:'后退',strafe_left:'左横移',strafe_right:'右横移',shake_head:'摇头',tilt_head:'歪头',sit:'坐下',stand:'站起来',scene_ball:'单鸭踢球',scene_duo:'双鸭互动',scene_carry:'嘴部搬运',pick_up:'用嘴夹起',carry:'夹持搬运',put_down:'放下物品',kick_left:'左脚踢球',kick_right:'右脚踢球',find_companion:'发现同伴',duo_walk:'双鸭一起走',collide:'相向碰面',chorus:'同步合唱',walk:'前进',turn_left:'左转',turn_right:'右转',stop:'停止',reset:'重置场景',nod:'点头'};
 const graspPhases={ready:'待夹取',closing:'正在合嘴',lifting:'正在抬起',holding:'夹持中',carrying:'正在搬运',carried:'已到接物台',lowering:'正在低头',opening:'正在张嘴',retreating:'正在退开',released:'已放稳',interrupted:'已停止',dropped:'夹持丢失',failed:'未通过验证'};
 const statuses={completed:'完成',failed:'未完成',cancelled:'已取消',running:'进行中'};
+const loadPhysicsModel=createPhysicsModelLoader();
+let sceneRequestedAt=null;
 let viewer,scene=null,revision=null,loadingModel=false,changing=false,seen=0,latest=null,online=false;
 try{viewer=physicsView($('physics-viewport'));}catch{$('canvas-fallback').hidden=false;}
 let noticeOwner=null;
@@ -33,7 +36,7 @@ function action(name){
   requests=requests.then(()=>post('/api/scenes/actions',{name,target,request_id:requestId()})).catch(e=>notify(e.message));return requests;
 }
 for(const button of document.querySelectorAll('[data-scene]'))button.addEventListener('click',async()=>{
-  changing=true;buttons();chorus.stop();$('sim-status').textContent='正在加载官方模型…';$('notice').hidden=true;
+  sceneRequestedAt=performance.now();changing=true;buttons();chorus.stop();$('sim-status').textContent='正在加载官方模型…';$('notice').hidden=true;
   try{await post('/api/scenes/start',{name:`scene_${button.dataset.scene}`,request_id:requestId()});}
   catch(e){notify(e.message);$('sim-status').textContent='物理场景启动失败';}
   finally{changing=false;buttons();}
@@ -44,8 +47,27 @@ $('reset-scene').addEventListener('click',()=>action('reset'));$('stop-scene').a
 window.addEventListener('keydown',e=>{if(e.key==='Escape'&&scene)action('stop');});
 async function loadModel(state){
   if(loadingModel||revision===state.revision)return;loadingModel=true;
-  try{const response=await fetch(appURL('/api/scenes/model'),{cache:'no-store',signal:AbortSignal.timeout(60000)});if(!response.ok)throw new Error('模型加载失败');const model=await response.json();if(latest?.revision!==model.revision)return;viewer?.load(model);viewer?.frameScene(latest.scene);revision=model.revision;if(latest?.revision===revision)viewer?.update(latest);$('scene-placeholder').hidden=true;}
-  catch(e){notify(e.message);}finally{loadingModel=false;}
+  const started=sceneRequestedAt??performance.now();sceneRequestedAt=null;
+  const metrics={view:'scenario',scene:state.scene,cache:'unknown',manifest_ms:0,asset_ms:0,parse_ms:0,assemble_ms:0,first_frame_ms:0};
+  let result='failed';
+  try{
+    const model=await loadPhysicsModel(appURL('/api/scenes/model.dkm.gz'),state.revision,{signal:AbortSignal.timeout(60000),metrics});
+    if(latest?.revision!==model.revision)return;
+    if(!viewer)throw new Error('浏览器无法绘制官方模型，请检查 WebGL 支持');
+    const assembling=performance.now();viewer.load(model);viewer.frameScene(latest.scene);revision=model.revision;viewer.update(latest);
+    metrics.assemble_ms=performance.now()-assembling;
+    const drawing=performance.now();viewer.renderNow();metrics.first_frame_ms=performance.now()-drawing;
+    $('scene-placeholder').hidden=true;result='ready';
+    appendLog(`场景外观已显示 · ${((performance.now()-started)/1000).toFixed(2)} 秒 · ${metrics.cache==='memory'?'复用模型':metrics.cache==='persistent'?'读取缓存':'压缩下载'}`,'加载');
+  }catch(e){notify(e.message);}
+  finally{
+    loadingModel=false;
+    const timing={...metrics,result,elapsed_ms:performance.now()-started,navigation_ms:performance.now()};
+    for(const key of Object.keys(timing))if(typeof timing[key]==='number')timing[key]=Math.round(timing[key]);
+    $('physics-viewport').dataset.modelTiming=JSON.stringify(timing);
+    console.info('[DuckKing:scene-load]',timing);
+    fetch(appURL('api/models/load-metrics'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(timing),keepalive:true}).catch(()=>{});
+  }
 }
 function update(data){
   const state=data.backend;latest=state;online=true;scene=state.scene;buttons();

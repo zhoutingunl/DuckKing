@@ -10,6 +10,8 @@ def distribution(values):
     values = sorted(values)
     return {
         "count": len(values),
+        "mean_ms": round(sum(values) / len(values), 1) if values else None,
+        "p90_ms": values[math.ceil(len(values) * .90) - 1] if values else None,
         "p50_ms": values[math.ceil(len(values) * .50) - 1] if values else None,
         "p95_ms": values[math.ceil(len(values) * .95) - 1] if values else None,
     }
@@ -76,6 +78,8 @@ class VoiceStatistics:
                 row["local_text"] = row["text"]
             if row["text"].strip():
                 timings.setdefault("stt", elapsed)
+                source = "local_stt" if entry.get("source") == "local" else "cloud_stt"
+                timings.setdefault(source, elapsed)
         elif event == "local_asr":
             row["asr_ms"] = entry.get("asr_ms")
         elif event == "voice_route":
@@ -146,6 +150,11 @@ class VoiceStatistics:
                         "local": sum(r["route"] == "local" for r in decided),
                         "fallback": sum(r["route"] == "cloud_fallback" for r in decided),
                         "reasons": dict(Counter(r.get("route_reason") for r in decided)),
+                        "recognition_latency": {source: distribution([
+                            r["timings"][source + "_stt"] - r["timings"]["listen_stop"]
+                            for r in submitted if source + "_stt" in r["timings"]
+                            and r["timings"][source + "_stt"] >= r["timings"]["listen_stop"]
+                        ]) for source in ("local", "cloud")},
                         "action_latency": {route: distribution([
                             r["timings"]["action_start"] - r["timings"]["listen_stop"]
                             for r in submitted if r["route"] == route

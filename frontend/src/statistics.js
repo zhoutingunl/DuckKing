@@ -72,9 +72,15 @@ function render() {
   $('fallback-count').textContent=routing.fallback;
   $('fallback-reasons').textContent=Object.entries(routing.reasons).filter(([k])=>k!=='matched').map(([k,n])=>`${routeReasons[k]??k} ${n}`).join(' · ')||'尚无转交或未识别记录';
   $('local-asr-time').textContent=duration(data.latencies.local_asr?.p50_ms);
+  $('recognition-latency').replaceChildren();
+  for(const [label,values] of [['本地识别返回',routing.recognition_latency?.local],['灵矽识别返回（含转交）',routing.recognition_latency?.cloud],['本地 ASR 工作进程',data.latencies.local_asr]]){
+    const v=values??{count:0},tr=element('tr');
+    for(const text of [label,duration(v.mean_ms),duration(v.p50_ms),duration(v.p90_ms),duration(v.p95_ms),v.count])tr.append(element('td',text));
+    $('recognition-latency').append(tr);
+  }
   $('route-latency').replaceChildren();
   for(const [key,values] of Object.entries(routing.action_latency??{})){
-    const tr=element('tr');for(const text of [routeNames[key],duration(values.p50_ms),duration(values.p95_ms),values.count])tr.append(element('td',text));$('route-latency').append(tr);
+    const tr=element('tr');for(const text of [routeNames[key],duration(values.mean_ms),duration(values.p50_ms),duration(values.p90_ms),duration(values.p95_ms),values.count])tr.append(element('td',text));$('route-latency').append(tr);
   }
   $('action-rate').textContent = rate(c.completed_actions,c.finished_actions);
   $('action-summary').textContent = `${c.completed_actions} / ${c.finished_actions} 个已结束动作`;
@@ -83,7 +89,7 @@ function render() {
   $('latency-rows').replaceChildren();
   for (const [key,label] of [['stt','结束录音 → 识别返回'],['action_start','结束录音 → 首个动作受理'],['first_audio','结束录音 → 首段语音'],['reply_end','结束录音 → 回复结束'],['action_duration','动作受理 → 执行结束']]) {
     const values = data.latencies[key], tr = element('tr');
-    for (const text of [label,duration(values.p50_ms),duration(values.p95_ms),values.count]) tr.append(element('td',text));
+    for (const text of [label,duration(values.mean_ms),duration(values.p50_ms),duration(values.p90_ms),duration(values.p95_ms),values.count]) tr.append(element('td',text));
     $('latency-rows').append(tr);
   }
   const service = data.service;

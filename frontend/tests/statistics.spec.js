@@ -33,6 +33,7 @@ test('statistics renders labelled protocol fixtures, filters, selects rounds, an
     {turn:1,time:'2026-10-23T14:59:00Z',backend:'preview',status:'completed',text:'协议测试：前进再左转 <img src=x onerror=alert(1)>',timings:{listen_stop:1000,stt:1200,action_start:1500,first_audio:3300,reply_end:5000},actions:[{call:1,tool:'duck_walk_short',at_ms:1500,result:'completed',duration_ms:1200},{call:2,tool:'duck_turn_left',at_ms:2800,result:'completed',duration_ms:1200}]}];
   fixture.counts = {...fixture.counts,rounds:2,submitted:2,closed:2,cloud_closed:2,recognized:2,replied:1,timeouts:1,actions:2,finished_actions:2,completed_actions:2};
   fixture.latencies.stt = {count:1,p50_ms:200,p95_ms:200};
+  fixture.routing.recognition_latency={local:{count:2,mean_ms:300,p50_ms:200,p90_ms:400,p95_ms:400},cloud:{count:1,mean_ms:800,p50_ms:800,p90_ms:800,p95_ms:800}};
   let failure = false;
   const queries = [];
   await page.route('**/api/voice/statistics?*',async route=>{
@@ -43,6 +44,8 @@ test('statistics renders labelled protocol fixtures, filters, selects rounds, an
   });
   await page.goto('/statistics.html');
   await expect(page.locator('#reply-rate')).toHaveText('50.0%');
+  await expect(page.locator('#recognition-latency')).toContainText('300 ms');
+  await expect(page.locator('#recognition-latency')).toContainText('800 ms');
   await expect(page.locator('#round-label')).toContainText('第 2 轮');
   await expect(page.locator('#latency-rows')).toContainText('200 ms');
   await page.getByRole('button',{name:'查看第 1 轮时间线'}).click();

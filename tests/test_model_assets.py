@@ -91,9 +91,13 @@ def test_browser_timings_are_bounded_and_never_accept_device_or_url_fields(caplo
     with TestClient(create_app()) as client, caplog.at_level(logging.INFO, logger="uvicorn.error"):
         assert client.post("/api/models/load-metrics?room=2", json=body).status_code == 204
         assert "official_model_load source=browser_reported room=2" in caplog.text
+        assert client.post("/api/models/load-metrics", json=body | {
+            "view": "scenario", "scene": "rollers", "cache": "memory",
+        }).status_code == 204
         assert client.post("/api/models/load-metrics?room=3", json=body).status_code == 404
         for changes in [{"token": "not-a-real-token"}, {"elapsed_ms": -1}, {"cache": "invented"},
-                        {"transfer_bytes": 100_000_000}, {"url": "https://invalid.example"}]:
+                        {"transfer_bytes": 100_000_000}, {"url": "https://invalid.example"},
+                        {"scene": "untrusted-free-text"}]:
             assert client.post("/api/models/load-metrics", json=body | changes).status_code == 422
         response = client.post(
             "/api/models/load-metrics", content=json.dumps(body | {"elapsed_ms": float("nan")}),

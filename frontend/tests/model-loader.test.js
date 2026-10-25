@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {unpackVisualModel} from '../src/model-loader.js';
+import {unpackVisualModel,createPhysicsModelLoader} from '../src/model-loader.js';
 
 function packet(bytes=2,change=()=>{}){
   const model={source:'official_microduck_visuals',physics:false,bodies:[],geoms:[],meshes:{0:{
@@ -37,4 +37,17 @@ test('DKM1 rejects unsupported framing and invalid geometry views',()=>{
   for(const patch of [{source:'unverified'},{physics:true},{bodies:null},{meshes:{}},{geoms:null}]){
     assert.throws(()=>unpackVisualModel(packet(2,m=>Object.assign(m,patch))));
   }
+});
+
+const physicsPacket=revision=>packet(2,m=>{m.source='official_microduck_physics';m.physics=true;m.revision=revision;});
+test('physics model cache is bounded, revision-specific and rejects stale or failed replies',async()=>{
+  let revision='a',calls=0,fail=false;
+  const load=createPhysicsModelLoader({capacity:2,fetcher:async()=>{calls++;return new Response(fail?'failed':physicsPacket(revision),{status:fail?503:200});}});
+  const url=new URL('http://localhost/api/scenes/model.dkm.gz');
+  const first=await load(url,'a'),metrics={};
+  assert.equal(await load(url,'a',{metrics}),first);assert.equal(metrics.cache,'memory');assert.equal(calls,1);
+  revision='b';await assert.rejects(()=>load(url,'c'),/场景已切换/);
+  fail=true;await assert.rejects(()=>load(url,'b'),/模型加载失败/);
+  fail=false;await load(url,'b');revision='c';await load(url,'c');
+  revision='a';await load(url,'a');assert.equal(calls,6);
 });

@@ -3,7 +3,7 @@ import { test, expect } from '@playwright/test';
 test('real MuJoCo left/right contacts, duo discovery/collision, chorus and stop',async({page})=>{
   test.setTimeout(90000);
   const errors=[];page.on('pageerror',e=>errors.push(e.message));
-  let modelRequests=0;page.on('request',r=>{if(new URL(r.url()).pathname.endsWith('/api/scenes/model'))modelRequests++;});
+  let modelRequests=0;page.on('request',r=>{if(new URL(r.url()).pathname.endsWith('/api/scenes/model.dkm.gz'))modelRequests++;});
   await page.goto('/scenarios.html?room=1');
   await page.getByRole('button',{name:'单鸭定点踢球'}).click();
   await expect(page.locator('#sim-status')).toHaveText('MuJoCo 物理运行中',{timeout:45000});
@@ -12,6 +12,7 @@ test('real MuJoCo left/right contacts, duo discovery/collision, chorus and stop'
   await expect(page.locator('#action-result')).toContainText('左脚踢球 · 完成',{timeout:15000});
   await expect(page.locator('#ball-contact')).toHaveText('左脚');
   expect(parseFloat(await page.locator('#ball-distance').textContent())).toBeGreaterThan(.02);
+  expect(modelRequests).toBeGreaterThan(0);
   const requestsBeforeReset=modelRequests;
   await page.getByRole('button',{name:'重置场景',exact:true}).click();
   await expect(page.locator('#action-result')).toContainText('重置场景 · 完成');
@@ -32,6 +33,10 @@ test('real MuJoCo left/right contacts, duo discovery/collision, chorus and stop'
   await expect(page.locator('#action-result')).toContainText('停止 · 完成');
   const state=await (await page.request.get('/api/scenes/state')).json();
   expect(state.backend.chorus).toBeNull();expect(state.backend.physics).toBe(true);
+  const requestsBeforeReload=modelRequests;
+  await page.reload();await expect(page.locator('#scene-placeholder')).toBeHidden({timeout:15000});
+  expect(modelRequests).toBe(requestsBeforeReload);
+  expect(JSON.parse(await page.locator('#physics-viewport').getAttribute('data-model-timing')).cache).toBe('persistent');
   expect(errors).toEqual([]);
   await page.setViewportSize({width:390,height:844});
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
@@ -80,13 +85,16 @@ test('a real origin rejection explains the local connection and recovers without
   await expect(page.locator('#notice')).toBeHidden();
 });
 
-test('scene recovery clears stale failures without hiding an unrelated voice error',async({page})=>{
+test('scene recovery clears stale failures without hiding an unrelated voice error',async({page,request})=>{
+  await request.post('/api/scenes/start',{data:{name:'scene_ball'}});
+  const actual=await (await request.get('/api/scenes/state')).json();
+  const geometry=await (await request.get('/api/scenes/model.dkm.gz')).body();
   // Protocol fixtures reproduce failed discovery followed by success. These are
   // display/lifecycle checks, not evidence of a physical discovery or cloud call.
-  const state={type:'state',action:null,error:null,events:[],backend:{scene:'duo',revision:'notice-fixture',
+  const state={type:'state',action:null,error:null,events:[],backend:{scene:'duo',revision:actual.backend.revision,
     ball:null,grasp:null,discovered:[],contacts:{ducks:0},real_time_factor:1,error:null,chorus:null,ducks:[],geoms:[]}};
   let channel;
-  await page.route('**/api/scenes/model?*',route=>route.fulfill({json:{revision:'notice-fixture',meshes:{},geoms:[]}}));
+  await page.route('**/api/scenes/model.dkm.gz?*',route=>route.fulfill({body:geometry,contentType:'application/octet-stream'}));
   await page.routeWebSocket('**/scene-ws',socket=>{channel=socket;socket.send(JSON.stringify(state))});
   await page.routeWebSocket('**/scene-voice',socket=>socket.onMessage(message=>{
     if(typeof message==='string'&&JSON.parse(message).type==='connect'){

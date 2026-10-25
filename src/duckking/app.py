@@ -255,6 +255,7 @@ def create_app(
 
     @app.get("/api/scenes/model.dkm.gz")
     async def compressed_scene_model(room: str = "1"):
+        started = time.perf_counter()
         # Export current physics geometry; compression never steps or modifies physics.
         backend = scene_controller(room).backend
         import gzip
@@ -269,8 +270,10 @@ def create_app(
             backend.packed_visual_cache[key] = await asyncio.to_thread(
                 lambda: gzip.compress(pack_visual_model(model), compresslevel=6, mtime=0)
             )
+        prepared_ms = (time.perf_counter() - started) * 1000
         return Response(backend.packed_visual_cache[key], media_type="application/octet-stream",
-                        headers={"Content-Encoding": "gzip", "Cache-Control": "no-store"})
+                        headers={"Content-Encoding": "gzip", "Cache-Control": "no-store",
+                                 "Server-Timing": f"model_prepare;dur={prepared_ms:.1f}"})
 
     async def load_visual_asset():
         try:

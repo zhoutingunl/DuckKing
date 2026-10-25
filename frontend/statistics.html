@@ -39,11 +39,12 @@
         <div><span>转交灵矽</span><strong id="fallback-count">—</strong><small id="fallback-reasons">等待记录</small></div>
         <div><span>本地识别 P50</span><strong id="local-asr-time">—</strong><small>包含本地工作进程排队与返回</small></div>
       </section>
-      <section class="latency-panel"><h2>不同路径的动作响应</h2><div class="table-scroll"><table class="stats-table"><thead><tr><th>处理路径</th><th>P50</th><th>P95</th><th>样本</th></tr></thead><tbody id="route-latency"></tbody></table></div><p class="stats-note">从结束录音到首个动作受理。仅比较实际发生的阶段，不能据此认定识别准确率或物理响应时间。</p></section>
+      <section class="latency-panel"><h2>本地与灵矽：识别延迟</h2><div class="table-scroll"><table class="stats-table"><thead><tr><th>识别路径</th><th>均值</th><th>P50</th><th>P90</th><th>P95</th><th>样本</th></tr></thead><tbody id="recognition-latency"></tbody></table></div><p class="stats-note">前两行从 DuckKing 收到结束录音，到该识别引擎返回首个非空文本；灵矽含网络与转交等待，不是云端纯推理耗时。第三行只测本地 ASR 工作进程排队、识别与返回。转交轮次可同时产生本地和云端样本，不混为一个识别结果。</p></section>
+      <section class="latency-panel"><h2>不同路径的动作响应</h2><div class="table-scroll"><table class="stats-table"><thead><tr><th>处理路径</th><th>均值</th><th>P50</th><th>P90</th><th>P95</th><th>样本</th></tr></thead><tbody id="route-latency"></tbody></table></div><p class="stats-note">从结束录音到首个动作受理。仅比较实际发生的阶段，不能据此认定识别准确率或物理响应时间。</p></section>
       <div class="stats-columns">
         <section class="latency-panel" aria-labelledby="latency-heading">
           <div class="section-heading"><h2 id="latency-heading">响应延迟</h2><span class="stats-note">P50 典型值 / P95 慢请求</span></div>
-          <div class="table-scroll"><table class="stats-table"><thead><tr><th scope="col">测量阶段</th><th scope="col">P50</th><th scope="col">P95</th><th scope="col">样本</th></tr></thead><tbody id="latency-rows"></tbody></table></div>
+          <div class="table-scroll"><table class="stats-table"><thead><tr><th scope="col">测量阶段</th><th scope="col">均值</th><th scope="col">P50</th><th scope="col">P90</th><th scope="col">P95</th><th scope="col">样本</th></tr></thead><tbody id="latency-rows"></tbody></table></div>
           <p class="stats-note">百分位采用最近秩法。缺失阶段不补零；少量样本的 P95 不代表稳定性能。</p>
         </section>
         <section class="recovery-panel" aria-labelledby="recovery-heading">
