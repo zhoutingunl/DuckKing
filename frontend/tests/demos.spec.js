@@ -7,17 +7,21 @@ function silentFixture(){
  const b=Buffer.alloc(44+3200);b.write('RIFF');b.writeUInt32LE(b.length-8,4);b.write('WAVE',8);b.write('fmt ',12);b.writeUInt32LE(16,16);b.writeUInt16LE(1,20);b.writeUInt16LE(1,22);b.writeUInt32LE(16000,24);b.writeUInt32LE(32000,28);b.writeUInt16LE(2,32);b.writeUInt16LE(16,34);b.write('data',36);b.writeUInt32LE(3200,40);return b;
 }
 test('all eleven automated scripts validate actual MuJoCo outcomes and chorale seats',async({page})=>{
- test.setTimeout(240000);
+ // Eleven real-time scenes plus model transfers can exceed four minutes on
+ // shared Linux runners. Each scene still has its own 90 s completion bound.
+ test.setTimeout(360000);
  await page.route('**/demo-audio/*.wav*',route=>route.fulfill({contentType:'audio/wav',body:silentFixture()}));
  const errors=[];page.on('pageerror',e=>errors.push(e.message));await page.goto('/demos.html?room=1');
  await expect(page.locator('.program-item')).toHaveCount(11);
  for(const demo of DEMOS){
+  await test.step(demo.id,async()=>{
   await page.locator(`[data-demo="${demo.id}"]`).click();
   await expect(page.locator('#show-status')).toHaveText('本幕完成 · 可重演或进入下一幕',{timeout:90000});
   const proof=await page.locator('#theatre-result').textContent();expect(JSON.parse(proof).scene).toBe(demo.id);
   expect(JSON.parse(proof).mode).toBe('scripted_rehearsal');
   if(demo.id==='tabletop')await expect(page.locator('#table-beat')).toHaveText('36 / 36 秒');await expect(page.locator('#demo-notice')).toBeHidden();
   await expect(page.locator('#demo-mode')).toBeEnabled({timeout:10000});
+  });
  }
  expect(errors).toEqual([]);
 });
@@ -60,7 +64,7 @@ for(const song of ['chorale','tabletop'])test(`suspended audio clock stops ${son
 test('table music failure is explicit and never substitutes another song or starts the fall',async({page})=>{
  test.setTimeout(60000);
  await page.route('**/demo-audio/*.wav*',route=>route.fulfill({contentType:'audio/wav',body:silentFixture()}));
- await page.route('**/demo-music/*.mp3',route=>route.fulfill({status:503,body:'unavailable'}));
+ await page.route('**/demo-music/*.mp3*',route=>route.fulfill({status:503,body:'unavailable'}));
  await page.goto('/demos.html?room=1');await page.locator('[data-demo="tabletop"]').click();
  await expect(page.locator('#show-status')).toHaveText('本幕未完成 · 点击节目重试',{timeout:45000});
  await expect(page.locator('#demo-notice')).toContainText('音源加载失败');
@@ -70,15 +74,24 @@ test('table music failure is explicit and never substitutes another song or star
 });
 
 test('stopping the table song silences every music node and cancels the real choreography',async({page})=>{
- test.setTimeout(60000);
- await page.addInitScript(()=>{const native=AudioBufferSourceNode.prototype.start;window.tablePlaying=0;AudioBufferSourceNode.prototype.start=function(...args){window.tablePlaying++;this.addEventListener('ended',()=>window.tablePlaying--,{once:true});return native.apply(this,args)}});
+ test.setTimeout(90000);
+ await page.addInitScript(()=>{
+  const native=AudioBufferSourceNode.prototype.start;window.tableMusic={started:0,ended:0,selectorDisabled:false};
+  AudioBufferSourceNode.prototype.start=function(...args){
+   const music=this.buffer?.duration>=35;
+   if(music){window.tableMusic.started++;this.addEventListener('ended',()=>window.tableMusic.ended++,{once:true})}
+   const result=native.apply(this,args);
+   // Press the actual stop button as soon as all four real music sources
+   // start. This avoids a driver round-trip racing a busy software renderer.
+   if(music&&window.tableMusic.started===4)queueMicrotask(()=>{window.tableMusic.selectorDisabled=document.querySelector('#table-song').disabled;document.querySelector('#stop-demo').click()});
+   return result;
+  };
+ });
  await page.route('**/demo-audio/*.wav*',route=>route.fulfill({contentType:'audio/wav',body:silentFixture()}));
  await page.goto('/demos.html?room=1');await page.locator('[data-demo="tabletop"]').click();
  await expect(page.locator('#table-panel')).toBeVisible({timeout:45000});
- await expect.poll(()=>page.evaluate(()=>window.tablePlaying)).toBe(4);
- await expect(page.locator('#table-song')).toBeDisabled();
- await page.locator('#stop-demo').click();await expect(page.locator('#show-status')).toHaveText('演示已停止');
- await expect.poll(()=>page.evaluate(()=>window.tablePlaying)).toBe(0);
+ await expect(page.locator('#show-status')).toHaveText('演示已停止',{timeout:15000});
+ await expect.poll(()=>page.evaluate(()=>window.tableMusic)).toEqual({started:4,ended:4,selectorDisabled:true});
  await expect(page.locator('#table-song')).toBeEnabled();
  const state=await (await page.request.get('/api/scenes/state?room=1')).json();
  expect(state.backend.tabletop.running).toBe(false);expect(state.backend.tabletop.dropped_at).toBeNull();
@@ -94,4 +107,19 @@ test('source link stays at the right edge with no navigation or viewport overlap
   expect(nav.y>=source.y+source.height||nav.x+nav.width<=source.x).toBe(true);
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
  }
+});
+
+for(const song of ['ode','tigers'])test(`stopping synthesized ${song} stops all oscillators and actual stepping`,async({page})=>{
+ test.setTimeout(90000);
+ await page.addInitScript(()=>{const native=OscillatorNode.prototype.start;window.scorePlaying=0;OscillatorNode.prototype.start=function(...args){window.scorePlaying++;this.addEventListener('ended',()=>window.scorePlaying--,{once:true});return native.apply(this,args)}});
+ await page.route('**/demo-audio/*.wav*',route=>route.fulfill({contentType:'audio/wav',body:silentFixture()}));
+ await page.goto('/demos.html?room=1');await page.locator(`[data-table-song="${song}"]`).click();
+ await expect(page.locator('#table-panel')).toBeVisible({timeout:45000});
+ await expect.poll(()=>page.evaluate(()=>window.scorePlaying),{timeout:15000}).toBeGreaterThan(0);
+ await expect(page.locator('#caption-role')).toContainText('本地合成');
+ if(song==='tigers')await expect(page.locator('.table-seat[data-duck=d]')).toContainText('等待入唱');
+ await page.locator('#stop-demo').click();await expect.poll(()=>page.evaluate(()=>window.scorePlaying)).toBe(0);
+ await expect(page.locator('#table-song')).toBeEnabled(); // Network stop finishes after local audio stops.
+ const state=await (await page.request.get('/api/scenes/state?room=1')).json();expect(state.backend.tabletop.running).toBe(false);
+ await expect(page.locator('#theatre-result')).toHaveCount(0);
 });

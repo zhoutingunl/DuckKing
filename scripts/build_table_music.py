@@ -24,7 +24,7 @@ def render(source, target, filters, channels=2):
             "-i",
             str(source),
             "-af",
-            filters,
+            filters + ",aresample=44100,asetpts=N/SR/TB,apad=whole_len=1587600,atrim=end_sample=1587600",
             "-t",
             "36",
             "-ar",
@@ -52,26 +52,34 @@ def main():
         "atrim=0:36,asetpts=PTS-STARTPTS,apad=whole_dur=36,atrim=0:36,"
         "loudnorm=I=-18:TP=-2:LRA=9,aresample=44100"
     )
-    fade = "afade=t=in:d=0.08,afade=t=out:st=35.1:d=0.9"
+    # The supplied vocal ends at 35.232 s; finish the fade before its hard end.
+    fade = "afade=t=in:d=0.08,afade=t=out:st=34.1:d=1.1"
     mono = "pan=mono|c0=0.5*c0+0.5*c1"
+    # Pitch shifting and filters attenuate these layers differently. Normalize
+    # their processed output so the duck voices actually sit above the lead.
+    duck_level = "loudnorm=I=-16:TP=-2:LRA=9,aresample=44100"
     layers = {
         "a": (
             f"{mono},asetrate=22050,aresample=44100,atempo=2,lowpass=f=900,"
-            "highpass=f=60,volume=.10",
+            f"highpass=f=60,{duck_level},volume=.30",
             1,
-            "octave below, quiet low-pass layer",
+            "octave below, prominent low-pass duck layer (gain .30)",
         ),
         "b": (
-            f"{mono},chorus=.6:.8:12:0.25:.3:1,highpass=f=170,lowpass=f=3500,volume=.12",
+            f"{mono},chorus=.6:.8:12:0.25:.3:1,highpass=f=170,lowpass=f=3500,{duck_level},volume=.28",
             1,
-            "unison chorus layer",
+            "prominent unison chorus layer (gain .28)",
         ),
-        "c": ("volume=.85", 2, "original lead mix"),
         "d": (
+            "volume=.42",
+            2,
+            "quieter original lead mix (gain .42); muted on actual fall, resumed after landing",
+        ),
+        "c": (
             f"{mono},asetrate=88200,aresample=44100,atempo=.5,highpass=f=800,"
-            "lowpass=f=5000,volume=.08",
+            f"lowpass=f=5000,{duck_level},volume=.28",
             1,
-            "octave above, quiet high-pass layer",
+            "octave above, prominent high-pass duck layer (gain .28)",
         ),
     }
     with tempfile.TemporaryDirectory() as temp:
@@ -112,6 +120,7 @@ def main():
         ),
         "duration": 36,
         "source_offset_seconds": 0,
+        "duck_layer_normalization": "After pitch/filter processing: I=-16 LUFS, TP=-2 dBTP, before layer gains",
         "vocal_sha256": hashlib.sha256(args.vocal.read_bytes()).hexdigest(),
         "instrumental_sha256": hashlib.sha256(args.instrumental.read_bytes()).hexdigest(),
         "layers": {k: v[2] for k, v in layers.items()},
@@ -128,7 +137,7 @@ def main():
         },
     }
     (output / "manifest.json").write_text(json.dumps(metadata, ensure_ascii=False, indent=2) + "\n")
-    print("Prepared supplied vocal mix, four gentle layers, and instrumental alternative")
+    print("Prepared supplied vocal mix, prominent duck layers, and instrumental alternative")
 
 
 if __name__ == "__main__":
