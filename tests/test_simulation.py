@@ -258,7 +258,7 @@ def test_scene_http_websocket_origin_model_and_missing_dependencies(monkeypatch)
         with client.websocket_connect("/scene-ws?room=1") as ws:
             assert ws.receive_json()["type"] == "not_started"
         with client.websocket_connect("/scene-voice?room=1") as ws:
-            assert ws.receive_json()["error"] == "请先启动物理场景再连接灵矽"
+            assert ws.receive_json()["error"] == "请先加载物理场景，再启用语音"
         with pytest.raises(WebSocketDisconnect):
             with client.websocket_connect("/scene-ws?room=1", headers={"Origin": "https://bad.example"}):
                 pass

@@ -4,17 +4,17 @@
 
 ## 外部可选仿真
 
-- [Pollen Robotics Microduck](https://github.com/pollen-robotics/microduck)，候选固定提交 `942e58e3aa6dbb28e7037203fff11866122c7567`。
-- [Microduck RL](https://github.com/pollen-robotics/microduck_rl)，候选固定提交 `b02fdea4902c2b93b7d34a83a6f05da4ececb7d3`。
+- [Pollen Robotics Microduck](https://github.com/pollen-robotics/microduck)，固定提交 `942e58e3aa6dbb28e7037203fff11866122c7567`。
+- [Microduck RL](https://github.com/pollen-robotics/microduck_rl)，固定提交 `b02fdea4902c2b93b7d34a83a6f05da4ececb7d3`。
 - 官方模型、机械文件和策略不进入本仓库的 Git 跟踪文件或 Python 包。本地开发通过脚本在外部目录获取；Linux 发布附件携带固定上游版本、来源清单及模型仓库原始许可，便于目标服务器离线加载。资源适用其上游许可；部分模型含非商业限制。本仓库 MIT 许可不会覆盖这些资源。
 
 ## 物理实验室的模型与策略
 
 - Microduck RL 固定为上述 `b02fdea...`。运行时加载官方 MJCF 和 STL；球场使用官方 `scene_ball.xml`，双鸭由官方 `robot_allcollisions.xml` 组合。踢球和双鸭保留机器人几何；首页也复用这些官方视觉网格。嘴部搬运场景的改编见下一条。STL 遵循上游 [CC BY-NC-SA 4.0 模型许可](https://github.com/pollen-robotics/microduck_rl/blob/b02fdea4902c2b93b7d34a83a6f05da4ececb7d3/LICENSE-MODELS.md)，MJCF 与推理参考代码遵循 Apache-2.0。网页注明 Pollen Robotics 和许可。
 - `grasp_model.py` 运行时将官方融合头部中的 `jaw` / `jaw_soft` / `bottom_head_shell` 分离到近似铰链，并增加显式接触垫、物品和支架；DuckKing 制作的机械外观改编继续遵循 CC BY-NC-SA 4.0。上游文件保持不变。角度边界参考固定 [官方控制代码](https://github.com/pollen-robotics/microduck/blob/942e58e3aa6dbb28e7037203fff11866122c7567/duck-control/src/model.rs) 的 mouth 开闭值；铰链位置、质量分配、惯量、接触参数不是官方实机标定。
-- [官方 microduck-policies](https://huggingface.co/pollen-robotics/microduck-policies/tree/665ae4eb20bfe13bca1ef4ea6d4bb6b4a096e448) 固定提交 `665ae4eb20bfe13bca1ef4ea6d4bb6b4a096e448`，使用 `velstand.onnx`、`ball_kick_left.onnx`、`ball_kick_right.onnx`，许可 Apache-2.0。SHA-256 在 `scripts/fetch_scene_assets.py` 中固定；不重新训练、不声明为原创策略。
+- [官方 microduck-policies](https://huggingface.co/pollen-robotics/microduck-policies/tree/665ae4eb20bfe13bca1ef4ea6d4bb6b4a096e448) 固定提交 `665ae4eb20bfe13bca1ef4ea6d4bb6b4a096e448`，当前共八个策略：`velstand.onnx`、`ball_kick_left.onnx`、`ball_kick_right.onnx`、`alpha_sitstand.onnx`、`roulade.onnx`、`alpha_ground_pick.onnx`、`roller.onnx`、`roller_crouch.onnx`，许可 Apache-2.0。SHA-256 在 `scripts/fetch_scene_assets.py` 中固定；不重新训练、不声明为原创策略。
 - `simulation.py` 的默认关节姿态、观测布局和推理时序参考官方 [`infer_policy.py`](https://github.com/pollen-robotics/microduck_rl/blob/b02fdea4902c2b93b7d34a83a6f05da4ececb7d3/scripts/infer_policy.py)，共享物理世界组合参考官方 `sim/body_server.py`。本项目自行实现动作编排、场景 API、接触验收和 Web 渲染接线，不声称复现完整硬件或电机数字孪生。
-- 本地合唱是本项目用 Web Audio 合成的双声部短旋律；没有复制曲目或官方 BLE 合唱实现，不是云端语音。
+- 双鸭互动按钮的合唱是本项目用 Web Audio 合成的双声部短旋律，不使用官方 BLE 实现，也不是云端语音。演示剧场另使用下述官方谱面、公共领域谱面和用户录音，其来源分别列明。
 
 ## 自动演示的对白与四声部乐谱
 
@@ -30,7 +30,7 @@
 
 协议适配自行实现；不复制示例中的身份、token 或关闭 TLS 验证的设置。
 
-依赖版本将记录在 `uv.lock` 和前端 `package-lock.json`。旧版程序化卡通预览保留在 Git 历史和旧演示视频中；当前首页使用官方模型网格，关节动画脚本仍由本项目实现，不是物理仿真结果。
+依赖版本记录在 `uv.lock` 和前端 `package-lock.json`。旧版程序化卡通预览保留在 Git 历史和旧演示视频中；当前首页使用官方模型网格，关节动画脚本仍由本项目实现，不是物理仿真结果。
 
 - 第十一幕的《夜空中最亮的星》人声与器乐录音由项目用户直接提供。`frontend/public/demo-music/manifest.json` 记录源文件摘要、裁剪/响度/叠唱处理和输出摘要；原录音与歌曲的权利仍归原权利方，不随本仓库 MIT 许可授予。叠唱是用户混音的八度/齐唱处理，包含伴奏，不是独立录制的四声部或音色克隆。另选“原创排练”时由 DuckKing 的原创和弦序列本地合成，不含该歌曲旋律。
 

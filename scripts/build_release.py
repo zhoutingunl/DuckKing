@@ -19,13 +19,35 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def build(ref: str, version: str, output: Path):
+def commit_history(commit: str):
+    output = subprocess.check_output(
+        ["git", "log", "--topo-order", "--max-count=2000", "--format=%H%x09%P%x09%s", commit],
+        cwd=ROOT, text=True,
+    )
+    rows = []
+    for line in output.splitlines():
+        sha, parents, subject = line.split("\t", 2)
+        rows.append({"commit": sha, "parents": parents.split(), "subject": subject[:300]})
+    return rows
+
+
+def build(ref: str, version: str, output: Path, coverage_summaries=()):
     if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{0,79}", version):
         raise ValueError("Invalid release version")
     commit = subprocess.check_output(
         ["git", "rev-parse", "--verify", ref + "^{commit}"], cwd=ROOT, text=True
     ).strip()
     source = subprocess.check_output(["git", "archive", commit], cwd=ROOT)
+    # Reports are supplied from completed CI artifacts; never guess from a stale
+    # local coverage.json or apply the current report to historical deployments.
+    from duckking.release_coverage import public_coverage
+
+    reports = []
+    for path in coverage_summaries:
+        report = public_coverage(json.loads(path.read_text()))
+        if report is None:
+            raise ValueError("Invalid coverage summary")
+        reports.append(report)
     metadata = dict(
         version=version,
         commit=commit,
@@ -83,6 +105,10 @@ def build(ref: str, version: str, output: Path):
         (tree / "release.json").write_text(
             json.dumps(metadata, ensure_ascii=False, indent=2) + "\n"
         )
+        (tree / "release-commits.json").write_text(
+            json.dumps(commit_history(commit), ensure_ascii=False) + "\n"
+        )
+        (tree / "release-coverage.json").write_text(json.dumps(reports) + "\n")
         with tarfile.open(artifact, "w:gz") as archive:
             # Only tracked sources, a freshly built frontend, and public release metadata.
             paths = (
@@ -97,6 +123,8 @@ def build(ref: str, version: str, output: Path):
             archive.add(tree / "frontend/dist", arcname="frontend/dist")
             archive.add(assets, arcname="external")
             archive.add(tree / "release.json", arcname="release.json")
+            archive.add(tree / "release-commits.json", arcname="release-commits.json")
+            archive.add(tree / "release-coverage.json", arcname="release-coverage.json")
     checksum = hashlib.sha256(artifact.read_bytes()).hexdigest()
     manifest = artifact.with_suffix(".sha256")
     manifest.write_text(f"{checksum}  {artifact.name}\n")
@@ -110,5 +138,6 @@ if __name__ == "__main__":
     parser.add_argument("--ref", required=True)
     parser.add_argument("--version", required=True)
     parser.add_argument("--output", type=Path, default=ROOT / ".duckking/releases")
+    parser.add_argument("--coverage-summary", type=Path, action="append", default=[])
     args = parser.parse_args()
-    build(args.ref, args.version, args.output)
+    build(args.ref, args.version, args.output, args.coverage_summary)
