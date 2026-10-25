@@ -39,13 +39,19 @@ def test_latency_denominators_failures_pending_and_nearest_rank():
         "timeouts": 1, "interrupted": 0, "errors": 0, "actions": 2, "finished_actions": 2,
         "completed_actions": 1,
     }
-    assert result["latencies"]["stt"] == {"count": 1, "p50_ms": 300, "p95_ms": 300}
+    assert result["latencies"]["stt"] == {
+        "count": 1, "mean_ms": 300.0, "p50_ms": 300, "p90_ms": 300, "p95_ms": 300
+    }
     assert result["latencies"]["action_start"]["p50_ms"] == 700
     assert result["latencies"]["first_audio"]["p50_ms"] == 1300
     assert result["latencies"]["reply_end"]["p50_ms"] == 3000
-    assert result["latencies"]["action_duration"] == {"count": 2, "p50_ms": 50, "p95_ms": 200}
+    assert result["latencies"]["action_duration"] == {
+        "count": 2, "mean_ms": 125.0, "p50_ms": 50, "p90_ms": 200, "p95_ms": 200
+    }
     assert result["rounds"][-1]["downlink_frames"] == 20
-    assert distribution(list(range(1, 21))) == {"count": 20, "p50_ms": 10, "p95_ms": 19}
+    assert distribution(list(range(1, 21))) == {
+        "count": 20, "mean_ms": 10.5, "p50_ms": 10, "p90_ms": 18, "p95_ms": 19
+    }
 
 
 def test_backend_isolation_bounded_samples_recovery_and_missing_observations():
@@ -137,3 +143,29 @@ def test_physics_posture_rounds_reach_statistics_and_stay_room_scoped(tmp_path):
         assert "secret" not in response.text
         assert client.get("/api/voice/statistics?room=2&backend=preview").json()["rounds"] == []
         assert client.get("/api/voice/statistics?room=1").json()["rounds"] == []
+
+
+def test_recognition_engine_timings_do_not_mix_fallback_local_and_cloud():
+    stats = VoiceStatistics()
+    feed(stats, "listen_start", mode="local_first")
+    feed(stats, "listen_stop", 1000)
+    feed(stats, "stt", 1200, source="local", text="未匹配的问题")
+    feed(stats, "voice_route", 1205, route="cloud_fallback", reason="unmatched")
+    feed(stats, "stt", 1800, text="云端识别的问题")
+    feed(stats, "stt", 1900, text="云端修订的问题")
+    feed(stats, "tts_stop", 2200, result="ok")
+    feed(stats, "listen_start", turn=2)
+    feed(stats, "stt", 500, turn=2, text="录音结束前返回")
+    feed(stats, "listen_stop", 1000, turn=2)
+    feed(stats, "listen_start", turn=3, backend="mujoco", mode="local_first")
+    feed(stats, "listen_stop", 1000, turn=3, backend="mujoco")
+    feed(stats, "stt", 1400, turn=3, backend="mujoco", source="local", text="点头")
+    result = stats.snapshot()["routing"]["recognition_latency"]
+    assert result["local"] == {
+        "count": 2, "mean_ms": 300.0, "p50_ms": 200, "p90_ms": 400, "p95_ms": 400
+    }
+    assert result["cloud"] == {
+        "count": 1, "mean_ms": 800.0, "p50_ms": 800, "p90_ms": 800, "p95_ms": 800
+    }
+    assert stats.snapshot("mujoco")["routing"]["recognition_latency"]["cloud"]["count"] == 0
+    assert all(value is None for key, value in distribution([]).items() if key != "count")

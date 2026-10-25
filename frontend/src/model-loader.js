@@ -1,6 +1,41 @@
 import { appURL } from './urls.js';
 
 export const MODEL_CACHE='duckking-official-model-v1';
+
+// Revisions identify immutable geometry, independently of its live poses.
+// Bounded page-local storage: server restarts issue fresh revisions.
+export function createPhysicsModelLoader({fetcher=fetch,capacity=6}={}){
+  const models=new Map();
+  return async function load(url,revision,{signal,metrics={}}={}){
+    if(models.has(revision)){metrics.cache='memory';return models.get(revision);}
+    metrics.cache='network';const began=performance.now();
+    let cache,cached;
+    const key=new URL(url);key.searchParams.set('revision',revision);
+    try{cache=await globalThis.caches?.open('duckking-physics-model-v1');cached=await cache?.match(key);}
+    catch{cache=null;}
+    if(cached)metrics.cache='persistent';
+    const response=cached??await fetcher(url,{signal,cache:'no-store'});
+    if(!response.ok)throw new Error('官方场景模型加载失败，请重新加载');
+    const buffer=await response.arrayBuffer();metrics.asset_ms=performance.now()-began;
+    metrics.encoded_bytes=Number(response.headers.get('content-length'))||0;
+    metrics.decoded_bytes=buffer.byteLength;
+    const parsing=performance.now();let model;
+    try{model=unpackVisualModel(buffer,{physics:true});}
+    catch(error){if(cached)await cache.delete(key).catch(()=>{});throw error;}
+    metrics.parse_ms=performance.now()-parsing;
+    if(model.revision!==revision){if(cached)await cache.delete(key).catch(()=>{});throw new Error('场景已切换，正在获取最新模型');}
+    models.set(revision,model);
+    if(models.size>capacity)models.delete(models.keys().next().value);
+    if(cache&&!cached){
+      try{
+        await cache.put(key,new Response(buffer));
+        const keys=await cache.keys();
+        for(const old of keys.slice(0,Math.max(0,keys.length-capacity)))await cache.delete(old);
+      }catch{/* Storage denial must not prevent displaying a validated model. */}
+    }
+    return model;
+  };
+}
 const sharedURL=path=>{const url=appURL(path);url.searchParams.delete('room');return url};
 const invalid=()=>new Error('官方模型数据无效，请重新加载');
 

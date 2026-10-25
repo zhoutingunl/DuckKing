@@ -82,7 +82,7 @@ test(`${secure?'HTTPS':'HTTP'} prefix serves pages, physical state, actions and 
     expect(requests.filter(url=>url.startsWith(origin)).every(url=>url.startsWith(prefix))).toBe(true);
     expect(sockets.length).toBeGreaterThanOrEqual(2);
     expect(sockets.every(url=>url.startsWith(prefix.replace(/^http/,'ws')))).toBe(true);
-    for(const path of ['ws','api/actions','scene-ws','api/scenes/start','api/scenes/model','capture-worklet.js','api/deployments'])expect(forwarded.map(url=>url.split('?')[0])).toContain('/duckking/'+path);
+    for(const path of ['ws','api/actions','scene-ws','api/scenes/start','api/scenes/model.dkm.gz','capture-worklet.js','api/deployments'])expect(forwarded.map(url=>url.split('?')[0])).toContain('/duckking/'+path);
   }finally{
     await page.close();for(const socket of connections)socket.destroy();await new Promise(resolve=>proxy.close(resolve));
     if(certificateDirectory)rmSync(certificateDirectory,{recursive:true,force:true});

@@ -15,7 +15,7 @@
 | [语音工作台](https://ztmonitor.qbox.net/duckking/) | 点头、摇头、歪头、前后移动、横移、左右转、两个舞步；连接语音或选择本地优先 |
 | [物理实验室](https://ztmonitor.qbox.net/duckking/scenarios.html) | 单鸭踢球、双鸭互动、嘴部搬运、动作练习场、轮滑；按钮无需启用语音 |
 | [演示场景](https://ztmonitor.qbox.net/duckking/demos.html) | 十二幕逐幕点播；预录对白本地编排与灵矽实连预录指令可现场切换 |
-| [交互统计](https://ztmonitor.qbox.net/duckking/statistics.html) | 识别文本、实际动作、逐轮时间线、P50/P95、本地命中与云端回退；按房间和后端查看 |
+| [交互统计](https://ztmonitor.qbox.net/duckking/statistics.html) | 识别文本、实际动作、逐轮时间线、本地/灵矽识别均值及 P50/P90/P95、本地命中与云端回退；按房间和后端查看 |
 | [部署记录](https://ztmonitor.qbox.net/duckking/deploys.html) | 版本、验收结果、变更提交与 GitHub 对比、对应提交的后端行／分支覆盖率 |
 
 页面可以切换房间 1 / 2。每个房间有独立物理世界、设备身份与语音会话，同房间只允许一个页面占用语音；这不是登录账户或私人空间。显式 robotd 后端只开放房间 1。

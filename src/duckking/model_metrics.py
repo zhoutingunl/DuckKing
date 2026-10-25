@@ -10,8 +10,10 @@ Milliseconds = Annotated[float, Field(ge=0, le=86400000, allow_inf_nan=False)]
 class ModelLoadMetrics(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
+    view: Literal["preview", "scenario", "demo"] = "preview"
+    scene: Literal["ball", "duo", "carry", "skills", "rollers", "table", "seated"] | None = None
     result: Literal["ready", "failed"]
-    cache: Literal["network", "http", "persistent", "unknown"]
+    cache: Literal["network", "http", "persistent", "memory", "unknown"]
     elapsed_ms: Milliseconds
     navigation_ms: Milliseconds
     manifest_ms: Milliseconds = 0
