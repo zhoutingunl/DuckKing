@@ -1,0 +1,1831 @@
+{
+  "release": {
+    "version": "deploy-yzh737-20261025T165552Z",
+    "commit": "894d2d9d65c79f5c2c99cb239820cf1a9a379e7f",
+    "ci_url": "https://github.com/zhoutingunl/DuckKing/actions/runs/40213189057"
+  },
+  "video": {
+    "file": "duckking-hackathon-20261026.mp4",
+    "sha256": "7427e82015f014b440e80e9dca405ee6f9e82cc440060ee7a79bd9970e1dfcef",
+    "bytes": 9786199,
+    "duration_seconds": 242.298042,
+    "streams": [
+      {
+        "codec_name": "h264",
+        "codec_type": "video",
+        "width": 1600,
+        "height": 1000,
+        "sample_rate": null,
+        "channels": null
+      },
+      {
+        "codec_name": "aac",
+        "codec_type": "audio",
+        "width": null,
+        "height": null,
+        "sample_rate": "48000",
+        "channels": 2
+      }
+    ],
+    "chapters": [
+      {
+        "file": "intro-card.mp4",
+        "start_seconds": 0,
+        "duration_seconds": 12.666667
+      },
+      {
+        "file": "cloud-card.mp4",
+        "start_seconds": 12.667,
+        "duration_seconds": 8.736
+      },
+      {
+        "file": "football-live.mp4",
+        "start_seconds": 21.403,
+        "duration_seconds": 46.833333
+      },
+      {
+        "file": "delivery-card.mp4",
+        "start_seconds": 68.236,
+        "duration_seconds": 9.333333
+      },
+      {
+        "file": "delivery.mp4",
+        "start_seconds": 77.569,
+        "duration_seconds": 26.8
+      },
+      {
+        "file": "tabletop-card.mp4",
+        "start_seconds": 104.369,
+        "duration_seconds": 8.971
+      },
+      {
+        "file": "tabletop.mp4",
+        "start_seconds": 113.34,
+        "duration_seconds": 46.9
+      },
+      {
+        "file": "seated-card.mp4",
+        "start_seconds": 160.24,
+        "duration_seconds": 8.133333
+      },
+      {
+        "file": "seated.mp4",
+        "start_seconds": 168.374,
+        "duration_seconds": 42.433333
+      },
+      {
+        "file": "metrics-card.mp4",
+        "start_seconds": 210.807,
+        "duration_seconds": 21.5
+      },
+      {
+        "file": "end-card.mp4",
+        "start_seconds": 232.307,
+        "duration_seconds": 9.97
+      }
+    ]
+  },
+  "segments": [
+    {
+      "name": "football-live",
+      "recorded_at": "2026-10-25T17:13:17.907Z",
+      "source_commit": "894d2d9d65c79f5c2c99cb239820cf1a9a379e7f",
+      "result": {
+        "scene": "football",
+        "mode": "live_linx",
+        "status": "completed",
+        "results": [
+          {
+            "id": "71e468f61128:3",
+            "name": "scene_ball",
+            "input": {
+              "name": "scene_ball",
+              "duration": 0.2,
+              "speed": null,
+              "target": "a"
+            },
+            "status": "completed",
+            "started_at": 1792948429.5693793,
+            "outcome": {
+              "scene": "ball",
+              "verified": true
+            },
+            "finished_at": 1792948429.6794796,
+            "room": "2"
+          },
+          {
+            "id": "71e468f61128:4",
+            "name": "kick_left",
+            "input": {
+              "name": "kick_left",
+              "duration": 2,
+              "speed": null,
+              "target": "a"
+            },
+            "status": "completed",
+            "started_at": 1792948430.8122447,
+            "outcome": {
+              "position": [
+                1.6338836093571238,
+                0.24806440397140617,
+                0.034632818157539845
+              ],
+              "displacement_m": 1.5577456714180895,
+              "contacts": 6,
+              "contact_feet": [
+                "left"
+              ],
+              "foot": "left",
+              "verified": true,
+              "message": "已确认脚球接触及球位移"
+            },
+            "finished_at": 1792948432.8354132,
+            "room": "2"
+          },
+          {
+            "id": "71e468f61128:5",
+            "name": "kick_right",
+            "input": {
+              "name": "kick_right",
+              "duration": 2,
+              "speed": null,
+              "target": "a"
+            },
+            "status": "completed",
+            "started_at": 1792948446.6727045,
+            "outcome": {
+              "position": [
+                0.9731263469303517,
+                -0.789761322875136,
+                0.034632818157539845
+              ],
+              "displacement_m": 1.1447184910521746,
+              "contacts": 6,
+              "contact_feet": [
+                "right"
+              ],
+              "foot": "right",
+              "verified": true,
+              "message": "已确认脚球接触及球位移"
+            },
+            "finished_at": 1792948448.6955662,
+            "room": "2"
+          }
+        ],
+        "cloud_audio_frames": 198
+      },
+      "video_sha256": "76eda499bf3f0403247e606377870e30400c10b895d5a1bfedb6b6f3e9bbb514",
+      "audio_capture": "Actual Web Audio mix captured by MediaRecorder, aligned to Playwright video by wall timestamps; not a physical microphone/speaker measurement"
+    },
+    {
+      "name": "delivery",
+      "recorded_at": "2026-10-25T16:07:29.051Z",
+      "source_commit": "c1a90175e4a77560b25ac0da05edcf9a857236cf",
+      "result": {
+        "scene": "delivery",
+        "mode": "scripted_rehearsal",
+        "status": "completed",
+        "results": [
+          {
+            "id": "70c62b65-e7ba-4b0d-86de-8a1fe758b973",
+            "name": "pick_up",
+            "input": {
+              "name": "pick_up",
+              "duration": 2.2,
+              "speed": null,
+              "target": "a"
+            },
+            "status": "completed",
+            "started_at": 1792944462.707309,
+            "outcome": {
+              "phase": "holding",
+              "held": true,
+              "carried": false,
+              "position": [
+                0.0650856446789934,
+                0.0006845512981083735,
+                0.22748939953822256
+              ],
+              "mouth_angle_deg": 1.6418629575794552,
+              "normal_force_n": {
+                "upper": 0.43829011754293856,
+                "lower": 0.47852040287797,
+                "source": 0,
+                "destination": 0,
+                "floor": 0
+              },
+              "contact_samples": {
+                "upper": 1321,
+                "lower": 316
+              },
+              "bilateral_s": 1.50499999999999,
+              "max_bilateral_s": 1.50499999999999,
+              "peak_normal_force_n": 0.49594497544539295,
+              "lift_clearance_m": 0.016910286549702336,
+              "max_lift_clearance_m": 0.017143161803838708,
+              "carry_distance_m": 0,
+              "robot_distance_m": 0,
+              "max_slip_m": 0,
+              "released_stable_s": 0,
+              "linear_speed_mps": 0.011585059548546292,
+              "angular_speed_radps": 0.07448074674802652,
+              "error": null,
+              "model": "experimental_beak_contact_v1",
+              "verified": true,
+              "message": "已验证双侧接触、持续夹持和物品离架"
+            },
+            "finished_at": 1792944464.968034,
+            "room": "1"
+          },
+          {
+            "id": "277261dd-7fa8-483a-a0ae-68ddc52f1150",
+            "name": "carry",
+            "input": {
+              "name": "carry",
+              "duration": 3,
+              "speed": null,
+              "target": "a"
+            },
+            "status": "completed",
+            "started_at": 1792944465.044118,
+            "outcome": {
+              "phase": "carried",
+              "held": true,
+              "carried": true,
+              "position": [
+                0.2882396084920312,
+                0.04635900877220511,
+                0.20553218290193995
+              ],
+              "mouth_angle_deg": 1.5932651019478787,
+              "normal_force_n": {
+                "upper": 0.4565324537708572,
+                "lower": 0.4967476344367855,
+                "source": 0,
+                "destination": 0,
+                "floor": 0
+              },
+              "contact_samples": {
+                "upper": 1945,
+                "lower": 940
+              },
+              "bilateral_s": 4.624999999999924,
+              "max_bilateral_s": 4.624999999999924,
+              "peak_normal_force_n": 2.2348614801816655,
+              "lift_clearance_m": -0.005848129289657583,
+              "max_lift_clearance_m": 0.017143161803838708,
+              "carry_distance_m": 0.22787270313566532,
+              "robot_distance_m": 0.22238642640949452,
+              "max_slip_m": 0.0019423865742584025,
+              "released_stable_s": 0,
+              "linear_speed_mps": 0.08426841043528921,
+              "angular_speed_radps": 0.4831396800335879,
+              "error": null,
+              "model": "experimental_beak_contact_v1",
+              "verified": true,
+              "message": "已夹持搬运到接物台上方"
+            },
+            "finished_at": 1792944468.092104,
+            "room": "1"
+          },
+          {
+            "id": "3d9b9f6a-e824-4360-93f9-6413a68c7b14",
+            "name": "put_down",
+            "input": {
+              "name": "put_down",
+              "duration": 4.5,
+              "speed": null,
+              "target": "a"
+            },
+            "status": "completed",
+            "started_at": 1792944468.096389,
+            "outcome": {
+              "phase": "released",
+              "held": false,
+              "carried": true,
+              "position": [
+                0.27082298460917137,
+                0.04390527644364417,
+                0.18578448915956747
+              ],
+              "mouth_angle_deg": 30.050495867328024,
+              "normal_force_n": {
+                "upper": 0,
+                "lower": 0,
+                "source": 0,
+                "destination": 0.03924000000000001,
+                "floor": 0
+              },
+              "contact_samples": {
+                "upper": 1976,
+                "lower": 1097
+              },
+              "bilateral_s": 0,
+              "max_bilateral_s": 4.764999999999921,
+              "peak_normal_force_n": 2.2348614801816655,
+              "lift_clearance_m": -0.028215510840432556,
+              "max_lift_clearance_m": 0.017143161803838708,
+              "carry_distance_m": 0.22787270313566532,
+              "robot_distance_m": 0.22238642640949452,
+              "max_slip_m": 0.0019423865742584025,
+              "released_stable_s": 3.619999999999945,
+              "linear_speed_mps": 2.437112665826401e-15,
+              "angular_speed_radps": 2.513938256656662e-14,
+              "error": null,
+              "model": "experimental_beak_contact_v1",
+              "verified": true,
+              "message": "已脱离嘴部并在接物台稳定落下"
+            },
+            "finished_at": 1792944472.683746,
+            "room": "1"
+          }
+        ],
+        "cloud_audio_frames": 0
+      },
+      "video_sha256": "3eceb199253dc1c1b99e9253e5e46b1bb147f70145c3c880734a47149535ac77",
+      "audio_capture": "Actual Web Audio mix captured by MediaRecorder, aligned to Playwright video by wall timestamps; not a physical microphone/speaker measurement"
+    },
+    {
+      "name": "tabletop",
+      "recorded_at": "2026-10-25T16:03:31.428Z",
+      "source_commit": "c1a90175e4a77560b25ac0da05edcf9a857236cf",
+      "result": {
+        "scene": "tabletop",
+        "mode": "scripted_rehearsal",
+        "status": "completed",
+        "results": [
+          {
+            "id": "9a6c9da5-c8f0-4a6e-991b-93c35ee08290",
+            "name": "table_show",
+            "input": {
+              "name": "table_show",
+              "duration": 36,
+              "speed": null,
+              "target": "a"
+            },
+            "status": "completed",
+            "started_at": 1792944219.3095329,
+            "outcome": {
+              "phase": "completed",
+              "elapsed": 36,
+              "duration": 36,
+              "tempo": 72,
+              "running": false,
+              "table_height_m": 0.4,
+              "falling_duck": "d",
+              "dropped_at": 17.872324352152646,
+              "landed_at": 17.976395505014807,
+              "table_contacts": [
+                14369,
+                14356,
+                14374,
+                8524
+              ],
+              "ground_contacts": [
+                0,
+                0,
+                0,
+                10568
+              ],
+              "supported": [
+                true,
+                true,
+                true,
+                false
+              ],
+              "min_root_height_m": [
+                0.5117862674710798,
+                0.5118292869506679,
+                0.5117379951124353,
+                0.057496251235249145
+              ],
+              "knee_excursion_deg": [
+                [
+                  47.43056652574495,
+                  43.56193471968836
+                ],
+                [
+                  46.92485078607396,
+                  40.88908293589743
+                ],
+                [
+                  47.832300069246436,
+                  43.76176340327794
+                ],
+                [
+                  47.63502410099843,
+                  40.16713558283034
+                ]
+              ],
+              "ankle_vertical_excursion_m": [
+                [
+                  0.02382347611057939,
+                  0.022489117141856196
+                ],
+                [
+                  0.02374019230809049,
+                  0.02208502268926027
+                ],
+                [
+                  0.025048441062775317,
+                  0.0228160962825264
+                ],
+                [
+                  0.02409549549445511,
+                  0.02233575105593988
+                ]
+              ],
+              "dance_max_drift_m": [
+                0.05681728402024237,
+                0.05751022751348113,
+                0.059126766440370286,
+                0.04987698821948321
+              ],
+              "floor_dance": {
+                "started_at": 19.58644301001914,
+                "knee_excursion_deg": [
+                  47.65033277249895,
+                  41.45668178123042
+                ],
+                "ankle_vertical_excursion_m": [
+                  0.02428867207107714,
+                  0.021405618550333273
+                ],
+                "max_drift_m": 0.057121979254814936
+              },
+              "source": "scripted_gait_real_contacts_gravity",
+              "verified": true,
+              "message": "鸭 D 已真实落地并恢复踏步，其余三只留在桌上"
+            },
+            "finished_at": 1792944255.3239648,
+            "room": "1"
+          },
+          {
+            "name": "table_music",
+            "status": "completed",
+            "outcome": {
+              "source": "public_domain_ode_satb",
+              "parts": 4,
+              "duration": 36,
+              "physical_ducks": 4,
+              "fall_cue": true,
+              "ble": false
+            }
+          }
+        ],
+        "cloud_audio_frames": 0
+      },
+      "video_sha256": "2e684ecbcf6003e00f4f82d2ed3ec20ca7fbeb0d46b25a3a2e2a7ebab13634b3",
+      "audio_capture": "Actual Web Audio mix captured by MediaRecorder, aligned to Playwright video by wall timestamps; not a physical microphone/speaker measurement"
+    },
+    {
+      "name": "seated",
+      "recorded_at": "2026-10-25T16:05:53.345Z",
+      "source_commit": "c1a90175e4a77560b25ac0da05edcf9a857236cf",
+      "result": {
+        "scene": "seated",
+        "mode": "scripted_rehearsal",
+        "status": "completed",
+        "results": [
+          {
+            "id": "7c01858b-b8d5-4a00-80e2-68b582fcf29d",
+            "name": "seated_show",
+            "input": {
+              "name": "seated_show",
+              "duration": 44,
+              "speed": null,
+              "target": "a"
+            },
+            "status": "completed",
+            "started_at": 1792944355.31373,
+            "outcome": {
+              "phase": "completed",
+              "error": null,
+              "elapsed": 40,
+              "duration": 40,
+              "running": false,
+              "music_started": true,
+              "solo": null,
+              "postures": [
+                {
+                  "target": "sit",
+                  "observed": "sit",
+                  "supported": true,
+                  "height_m": 0.06178215224564243,
+                  "upright": 0.99727135706911,
+                  "knee_deg": [
+                    74.67331137755662,
+                    75.37309373084801
+                  ]
+                },
+                {
+                  "target": "sit",
+                  "observed": "sit",
+                  "supported": true,
+                  "height_m": 0.06178215867066428,
+                  "upright": 0.99727134533236,
+                  "knee_deg": [
+                    74.67330272168945,
+                    75.37311959894551
+                  ]
+                },
+                {
+                  "target": "sit",
+                  "observed": "sit",
+                  "supported": true,
+                  "height_m": 0.06178236173517587,
+                  "upright": 0.9972709990352256,
+                  "knee_deg": [
+                    74.67327387886881,
+                    75.37378385605071
+                  ]
+                },
+                {
+                  "target": "sit",
+                  "observed": "sit",
+                  "supported": true,
+                  "height_m": 0.061791350884221885,
+                  "upright": 0.9972538015708038,
+                  "knee_deg": [
+                    74.68375072342582,
+                    75.39128160876572
+                  ]
+                }
+              ],
+              "standing_confirmations": [
+                {
+                  "at": 4.632674701977521,
+                  "target": "stand",
+                  "observed": "stand",
+                  "supported": true,
+                  "height_m": 0.11615964081457997,
+                  "upright": 0.9978716449425991,
+                  "knee_deg": [
+                    1.2465795164407503,
+                    1.1524478184081954
+                  ]
+                },
+                {
+                  "at": 12.514720259932801,
+                  "target": "stand",
+                  "observed": "stand",
+                  "supported": true,
+                  "height_m": 0.11618167093587584,
+                  "upright": 0.9985422534733851,
+                  "knee_deg": [
+                    1.554579233394862,
+                    2.0444465221714534
+                  ]
+                },
+                {
+                  "at": 20.543649257859215,
+                  "target": "stand",
+                  "observed": "stand",
+                  "supported": true,
+                  "height_m": 0.11611221011863304,
+                  "upright": 0.9980494552082123,
+                  "knee_deg": [
+                    1.7083465465648175,
+                    1.691430784962502
+                  ]
+                },
+                {
+                  "at": 28.55827646004036,
+                  "target": "stand",
+                  "observed": "stand",
+                  "supported": true,
+                  "height_m": 0.11611427247003081,
+                  "upright": 0.997932330740094,
+                  "knee_deg": [
+                    1.6657991875202156,
+                    1.5478745398866578
+                  ]
+                }
+              ],
+              "seated_returns": [
+                {
+                  "at": 10.944304439006373,
+                  "target": "sit",
+                  "observed": "sit",
+                  "supported": true,
+                  "height_m": 0.06205202121746034,
+                  "upright": 0.9962742382947885,
+                  "knee_deg": [
+                    74.87842646443889,
+                    75.42557039054978
+                  ]
+                },
+                {
+                  "at": 18.9401536679361,
+                  "target": "sit",
+                  "observed": "sit",
+                  "supported": true,
+                  "height_m": 0.06201900542484473,
+                  "upright": 0.9962585067471992,
+                  "knee_deg": [
+                    74.89698769418503,
+                    75.44601749007167
+                  ]
+                },
+                {
+                  "at": 26.93917555687949,
+                  "target": "sit",
+                  "observed": "sit",
+                  "supported": true,
+                  "height_m": 0.06202618476904703,
+                  "upright": 0.9962386107809187,
+                  "knee_deg": [
+                    74.86913850103625,
+                    75.43997218357651
+                  ]
+                },
+                {
+                  "at": 34.917791039915755,
+                  "target": "sit",
+                  "observed": "sit",
+                  "supported": true,
+                  "height_m": 0.06205977360980036,
+                  "upright": 0.9962493240310074,
+                  "knee_deg": [
+                    74.87646466518513,
+                    75.45654889143154
+                  ]
+                }
+              ],
+              "completed_solos": [
+                "a",
+                "b",
+                "c",
+                "d"
+              ],
+              "max_drift_m": [
+                0.09261658744304148,
+                0.09208164877177621,
+                0.09011851143433879,
+                0.09044912596213078
+              ],
+              "floor_contacts": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "table_contacts": [
+                43188,
+                43198,
+                43193,
+                43203
+              ],
+              "source": "scripted_solos_official_sitstand_real_contacts",
+              "verified": true,
+              "message": "四位歌手均已站稳独唱并坐回原位"
+            },
+            "finished_at": 1792944396.246229,
+            "room": "1"
+          },
+          {
+            "name": "seated_music",
+            "status": "completed",
+            "outcome": {
+              "source": "public_domain_ode_seated_solos",
+              "parts": 4,
+              "solos": [
+                "a",
+                "b",
+                "c",
+                "d"
+              ],
+              "duration": 40,
+              "physical_ducks": 4,
+              "ble": false
+            }
+          }
+        ],
+        "cloud_audio_frames": 0
+      },
+      "video_sha256": "130cc31d5bba722713a2f4909297dd812ec66b7140e9b30065cea2546be3c36c",
+      "audio_capture": "Actual Web Audio mix captured by MediaRecorder, aligned to Playwright video by wall timestamps; not a physical microphone/speaker measurement"
+    }
+  ],
+  "latency": {
+    "source_release": {
+      "version": "deploy-yzh737-20261025T165552Z",
+      "commit": "894d2d9d65c79f5c2c99cb239820cf1a9a379e7f",
+      "built_at": "2026-10-25T16:55:53.207720+00:00",
+      "operator": "zhouting",
+      "git_ref": "894d2d9d65c79f5c2c99cb239820cf1a9a379e7f",
+      "target": "yzh737"
+    },
+    "samples": [
+      {
+        "route": "local",
+        "phase": "stt",
+        "n": 10,
+        "mean_ms": 284.3,
+        "p50_ms": 261,
+        "p90_ms": 329,
+        "p95_ms": 443
+      },
+      {
+        "route": "local",
+        "phase": "action_start",
+        "n": 10,
+        "mean_ms": 285.7,
+        "p50_ms": 262,
+        "p90_ms": 330,
+        "p95_ms": 446
+      },
+      {
+        "route": "cloud",
+        "phase": "stt",
+        "n": 10,
+        "mean_ms": 426.9,
+        "p50_ms": 406,
+        "p90_ms": 470,
+        "p95_ms": 588
+      },
+      {
+        "route": "cloud",
+        "phase": "action_start",
+        "n": 10,
+        "mean_ms": 1660.4,
+        "p50_ms": 1664,
+        "p90_ms": 1813,
+        "p95_ms": 1879
+      }
+    ],
+    "definition": "Server monotonic clock, listen_stop to first nonempty engine STT; no microphone/speaker latency; repeated command, not accuracy benchmark",
+    "input": "macOS Tingting, 请点点头。, 16kHz mono PCM16; identical recording at real-time 60ms framing",
+    "at": "2026-10-25T17:10:19.564Z"
+  },
+  "latency_rounds": [
+    {
+      "turn": 2,
+      "time": "2026-10-25T17:10:22.104+00:00",
+      "backend": "preview",
+      "status": "completed",
+      "text": "请点点头。",
+      "timings": {
+        "listen_stop": 1232,
+        "stt": 1675,
+        "local_stt": 1675,
+        "route": 1678,
+        "action_start": 1678,
+        "local_end": 2884
+      },
+      "actions": [
+        {
+          "call": 35,
+          "tool": "duck_nod",
+          "at_ms": 1678,
+          "result": "completed",
+          "duration_ms": 1206
+        }
+      ],
+      "uplink_frames": 0,
+      "downlink_frames": 0,
+      "mode": "local_first",
+      "route": "local",
+      "asr_ms": 442,
+      "local_text": "请点点头。",
+      "route_reason": "matched"
+    },
+    {
+      "turn": 3,
+      "time": "2026-10-25T17:10:26.208+00:00",
+      "backend": "preview",
+      "status": "completed",
+      "text": "请点点头。",
+      "timings": {
+        "listen_stop": 1441,
+        "stt": 1703,
+        "local_stt": 1703,
+        "route": 1705,
+        "action_start": 1706,
+        "local_end": 2910
+      },
+      "actions": [
+        {
+          "call": 46,
+          "tool": "duck_nod",
+          "at_ms": 1706,
+          "result": "completed",
+          "duration_ms": 1204
+        }
+      ],
+      "uplink_frames": 0,
+      "downlink_frames": 0,
+      "mode": "local_first",
+      "route": "local",
+      "asr_ms": 260,
+      "local_text": "请点点头。",
+      "route_reason": "matched"
+    },
+    {
+      "turn": 4,
+      "time": "2026-10-25T17:10:30.626+00:00",
+      "backend": "preview",
+      "status": "completed",
+      "text": "请点点头。",
+      "timings": {
+        "listen_stop": 1172,
+        "stt": 1428,
+        "local_stt": 1428,
+        "route": 1429,
+        "action_start": 1429,
+        "local_end": 2641
+      },
+      "actions": [
+        {
+          "call": 57,
+          "tool": "duck_nod",
+          "at_ms": 1429,
+          "result": "completed",
+          "duration_ms": 1212
+        }
+      ],
+      "uplink_frames": 0,
+      "downlink_frames": 0,
+      "mode": "local_first",
+      "route": "local",
+      "asr_ms": 255,
+      "local_text": "请点点头。",
+      "route_reason": "matched"
+    },
+    {
+      "turn": 5,
+      "time": "2026-10-25T17:10:34.053+00:00",
+      "backend": "preview",
+      "status": "completed",
+      "text": "请点点头。",
+      "timings": {
+        "listen_stop": 1312,
+        "stt": 1586,
+        "local_stt": 1586,
+        "route": 1587,
+        "action_start": 1587,
+        "local_end": 2797
+      },
+      "actions": [
+        {
+          "call": 68,
+          "tool": "duck_nod",
+          "at_ms": 1587,
+          "result": "completed",
+          "duration_ms": 1209
+        }
+      ],
+      "uplink_frames": 0,
+      "downlink_frames": 0,
+      "mode": "local_first",
+      "route": "local",
+      "asr_ms": 273,
+      "local_text": "请点点头。",
+      "route_reason": "matched"
+    },
+    {
+      "turn": 6,
+      "time": "2026-10-25T17:10:37.514+00:00",
+      "backend": "preview",
+      "status": "completed",
+      "text": "请点点头。",
+      "timings": {
+        "listen_stop": 1238,
+        "stt": 1501,
+        "local_stt": 1501,
+        "route": 1502,
+        "action_start": 1502,
+        "local_end": 2713
+      },
+      "actions": [
+        {
+          "call": 79,
+          "tool": "duck_nod",
+          "at_ms": 1502,
+          "result": "completed",
+          "duration_ms": 1210
+        }
+      ],
+      "uplink_frames": 0,
+      "downlink_frames": 0,
+      "mode": "local_first",
+      "route": "local",
+      "asr_ms": 262,
+      "local_text": "请点点头。",
+      "route_reason": "matched"
+    },
+    {
+      "turn": 7,
+      "time": "2026-10-25T17:10:42.031+00:00",
+      "backend": "preview",
+      "status": "completed",
+      "text": "请点点头",
+      "timings": {
+        "listen_stop": 1223,
+        "stt": 1693,
+        "cloud_stt": 1693,
+        "action_start": 3102,
+        "first_audio": 5455,
+        "reply_end": 11270
+      },
+      "actions": [
+        {
+          "call": 97,
+          "tool": "duck_nod",
+          "at_ms": 3102,
+          "result": "completed",
+          "duration_ms": 1216
+        }
+      ],
+      "uplink_frames": 18,
+      "downlink_frames": 97,
+      "mode": "cloud",
+      "route": "cloud"
+    },
+    {
+      "turn": 8,
+      "time": "2026-10-25T17:10:54.218+00:00",
+      "backend": "preview",
+      "status": "completed",
+      "text": "请点点头",
+      "timings": {
+        "listen_stop": 1195,
+        "stt": 1608,
+        "cloud_stt": 1608,
+        "action_start": 2859,
+        "first_audio": 5430,
+        "reply_end": 10650
+      },
+      "actions": [
+        {
+          "call": 114,
+          "tool": "duck_nod",
+          "at_ms": 2859,
+          "result": "completed",
+          "duration_ms": 1209
+        }
+      ],
+      "uplink_frames": 18,
+      "downlink_frames": 87,
+      "mode": "cloud",
+      "route": "cloud"
+    },
+    {
+      "turn": 9,
+      "time": "2026-10-25T17:11:05.491+00:00",
+      "backend": "preview",
+      "status": "completed",
+      "text": "请点点头",
+      "timings": {
+        "listen_stop": 1316,
+        "stt": 1722,
+        "cloud_stt": 1722,
+        "action_start": 3035,
+        "first_audio": 6354,
+        "reply_end": 11215
+      },
+      "actions": [
+        {
+          "call": 131,
+          "tool": "duck_nod",
+          "at_ms": 3035,
+          "result": "completed",
+          "duration_ms": 1220
+        }
+      ],
+      "uplink_frames": 18,
+      "downlink_frames": 81,
+      "mode": "cloud",
+      "route": "cloud"
+    },
+    {
+      "turn": 10,
+      "time": "2026-10-25T17:11:18.112+00:00",
+      "backend": "preview",
+      "status": "completed",
+      "text": "请点点头",
+      "timings": {
+        "listen_stop": 1279,
+        "stt": 1867,
+        "cloud_stt": 1867,
+        "action_start": 2996,
+        "first_audio": 5577,
+        "reply_end": 11397
+      },
+      "actions": [
+        {
+          "call": 148,
+          "tool": "duck_nod",
+          "at_ms": 2996,
+          "result": "completed",
+          "duration_ms": 1208
+        }
+      ],
+      "uplink_frames": 18,
+      "downlink_frames": 97,
+      "mode": "cloud",
+      "route": "cloud"
+    },
+    {
+      "turn": 11,
+      "time": "2026-10-25T17:11:30.105+00:00",
+      "backend": "preview",
+      "status": "completed",
+      "text": "请点点头",
+      "timings": {
+        "listen_stop": 1255,
+        "stt": 1622,
+        "cloud_stt": 1622,
+        "action_start": 2903,
+        "first_audio": 5248,
+        "reply_end": 10467
+      },
+      "actions": [
+        {
+          "call": 165,
+          "tool": "duck_nod",
+          "at_ms": 2903,
+          "result": "completed",
+          "duration_ms": 1209
+        }
+      ],
+      "uplink_frames": 18,
+      "downlink_frames": 87,
+      "mode": "cloud",
+      "route": "cloud"
+    },
+    {
+      "turn": 12,
+      "time": "2026-10-25T17:11:42.056+00:00",
+      "backend": "preview",
+      "status": "completed",
+      "text": "请点点头",
+      "timings": {
+        "listen_stop": 1376,
+        "stt": 1731,
+        "cloud_stt": 1731,
+        "action_start": 3189,
+        "first_audio": 5655,
+        "reply_end": 7872
+      },
+      "actions": [
+        {
+          "call": 190,
+          "tool": "duck_nod",
+          "at_ms": 3189,
+          "result": "completed",
+          "duration_ms": 1231
+        }
+      ],
+      "uplink_frames": 18,
+      "downlink_frames": 37,
+      "mode": "cloud",
+      "route": "cloud"
+    },
+    {
+      "turn": 13,
+      "time": "2026-10-25T17:11:51.066+00:00",
+      "backend": "preview",
+      "status": "completed",
+      "text": "请点点头",
+      "timings": {
+        "listen_stop": 1226,
+        "stt": 1689,
+        "cloud_stt": 1689,
+        "action_start": 2898,
+        "first_audio": 5490,
+        "reply_end": 7891
+      },
+      "actions": [
+        {
+          "call": 206,
+          "tool": "duck_nod",
+          "at_ms": 2898,
+          "result": "completed",
+          "duration_ms": 1206
+        }
+      ],
+      "uplink_frames": 18,
+      "downlink_frames": 40,
+      "mode": "cloud",
+      "route": "cloud"
+    },
+    {
+      "turn": 14,
+      "time": "2026-10-25T17:11:59.656+00:00",
+      "backend": "preview",
+      "status": "completed",
+      "text": "请点点头",
+      "timings": {
+        "listen_stop": 1240,
+        "stt": 1643,
+        "cloud_stt": 1643,
+        "action_start": 2783,
+        "first_audio": 5381,
+        "reply_end": 7781
+      },
+      "actions": [
+        {
+          "call": 222,
+          "tool": "duck_nod",
+          "at_ms": 2783,
+          "result": "completed",
+          "duration_ms": 1211
+        }
+      ],
+      "uplink_frames": 18,
+      "downlink_frames": 40,
+      "mode": "cloud",
+      "route": "cloud"
+    },
+    {
+      "turn": 15,
+      "time": "2026-10-25T17:12:07.707+00:00",
+      "backend": "preview",
+      "status": "completed",
+      "text": "请点点头",
+      "timings": {
+        "listen_stop": 1221,
+        "stt": 1650,
+        "cloud_stt": 1650,
+        "action_start": 2852,
+        "first_audio": 5375,
+        "reply_end": 7595
+      },
+      "actions": [
+        {
+          "call": 238,
+          "tool": "duck_nod",
+          "at_ms": 2852,
+          "result": "completed",
+          "duration_ms": 1212
+        }
+      ],
+      "uplink_frames": 18,
+      "downlink_frames": 37,
+      "mode": "cloud",
+      "route": "cloud"
+    },
+    {
+      "turn": 16,
+      "time": "2026-10-25T17:12:15.587+00:00",
+      "backend": "preview",
+      "status": "completed",
+      "text": "请点点头",
+      "timings": {
+        "listen_stop": 1378,
+        "stt": 1753,
+        "cloud_stt": 1753,
+        "action_start": 2696,
+        "first_audio": 5244,
+        "reply_end": 7649
+      },
+      "actions": [
+        {
+          "call": 254,
+          "tool": "duck_nod",
+          "at_ms": 2696,
+          "result": "completed",
+          "duration_ms": 1221
+        }
+      ],
+      "uplink_frames": 18,
+      "downlink_frames": 40,
+      "mode": "cloud",
+      "route": "cloud"
+    },
+    {
+      "turn": 17,
+      "time": "2026-10-25T17:12:24.060+00:00",
+      "backend": "preview",
+      "status": "completed",
+      "text": "请点点头。",
+      "timings": {
+        "listen_stop": 1300,
+        "stt": 1560,
+        "local_stt": 1560,
+        "route": 1560,
+        "action_start": 1561,
+        "local_end": 2771
+      },
+      "actions": [
+        {
+          "call": 275,
+          "tool": "duck_nod",
+          "at_ms": 1561,
+          "result": "completed",
+          "duration_ms": 1209
+        }
+      ],
+      "uplink_frames": 0,
+      "downlink_frames": 0,
+      "mode": "local_first",
+      "route": "local",
+      "asr_ms": 259,
+      "local_text": "请点点头。",
+      "route_reason": "matched"
+    },
+    {
+      "turn": 18,
+      "time": "2026-10-25T17:12:27.561+00:00",
+      "backend": "preview",
+      "status": "completed",
+      "text": "请点点头。",
+      "timings": {
+        "listen_stop": 1204,
+        "stt": 1465,
+        "local_stt": 1465,
+        "route": 1465,
+        "action_start": 1466,
+        "local_end": 2668
+      },
+      "actions": [
+        {
+          "call": 286,
+          "tool": "duck_nod",
+          "at_ms": 1466,
+          "result": "completed",
+          "duration_ms": 1202
+        }
+      ],
+      "uplink_frames": 0,
+      "downlink_frames": 0,
+      "mode": "local_first",
+      "route": "local",
+      "asr_ms": 259,
+      "local_text": "请点点头。",
+      "route_reason": "matched"
+    },
+    {
+      "turn": 19,
+      "time": "2026-10-25T17:12:30.938+00:00",
+      "backend": "preview",
+      "status": "completed",
+      "text": "请点点头。",
+      "timings": {
+        "listen_stop": 1228,
+        "stt": 1481,
+        "local_stt": 1481,
+        "route": 1482,
+        "action_start": 1482,
+        "local_end": 2688
+      },
+      "actions": [
+        {
+          "call": 297,
+          "tool": "duck_nod",
+          "at_ms": 1482,
+          "result": "completed",
+          "duration_ms": 1206
+        }
+      ],
+      "uplink_frames": 0,
+      "downlink_frames": 0,
+      "mode": "local_first",
+      "route": "local",
+      "asr_ms": 253,
+      "local_text": "请点点头。",
+      "route_reason": "matched"
+    },
+    {
+      "turn": 20,
+      "time": "2026-10-25T17:12:34.620+00:00",
+      "backend": "preview",
+      "status": "completed",
+      "text": "请点点头。",
+      "timings": {
+        "listen_stop": 1323,
+        "stt": 1565,
+        "local_stt": 1565,
+        "route": 1565,
+        "action_start": 1566,
+        "local_end": 2781
+      },
+      "actions": [
+        {
+          "call": 308,
+          "tool": "duck_nod",
+          "at_ms": 1566,
+          "result": "completed",
+          "duration_ms": 1215
+        }
+      ],
+      "uplink_frames": 0,
+      "downlink_frames": 0,
+      "mode": "local_first",
+      "route": "local",
+      "asr_ms": 241,
+      "local_text": "请点点头。",
+      "route_reason": "matched"
+    },
+    {
+      "turn": 21,
+      "time": "2026-10-25T17:12:38.158+00:00",
+      "backend": "preview",
+      "status": "completed",
+      "text": "请点点头。",
+      "timings": {
+        "listen_stop": 1200,
+        "stt": 1529,
+        "local_stt": 1529,
+        "route": 1530,
+        "action_start": 1530,
+        "local_end": 2732
+      },
+      "actions": [
+        {
+          "call": 319,
+          "tool": "duck_nod",
+          "at_ms": 1530,
+          "result": "completed",
+          "duration_ms": 1201
+        }
+      ],
+      "uplink_frames": 0,
+      "downlink_frames": 0,
+      "mode": "local_first",
+      "route": "local",
+      "asr_ms": 329,
+      "local_text": "请点点头。",
+      "route_reason": "matched"
+    }
+  ],
+  "ten_cloud_rooms": {
+    "at": "2026-10-25T17:06:55.085Z",
+    "scope": "Ten independent browser network contexts, real HTTPS gateway and Linx STT/MCP/TTS; identical prerecorded PCM input; no speaker/audibility claim",
+    "rooms": [
+      {
+        "room": "1",
+        "baseline": 0,
+        "result": {
+          "turn": 1,
+          "time": "2026-10-25T17:07:29.884+00:00",
+          "backend": "preview",
+          "status": "completed",
+          "text": "请点点头",
+          "timings": {
+            "listen_stop": 1454,
+            "stt": 1879,
+            "cloud_stt": 1879,
+            "action_start": 3084,
+            "first_audio": 5485,
+            "reply_end": 9925
+          },
+          "actions": [
+            {
+              "call": 17,
+              "tool": "duck_nod",
+              "at_ms": 3084,
+              "result": "completed",
+              "duration_ms": 1209
+            }
+          ],
+          "uplink_frames": 18,
+          "downlink_frames": 74,
+          "mode": "cloud",
+          "route": "cloud"
+        }
+      },
+      {
+        "room": "2",
+        "baseline": 0,
+        "result": {
+          "turn": 1,
+          "time": "2026-10-25T17:07:29.879+00:00",
+          "backend": "preview",
+          "status": "completed",
+          "text": "请点点头",
+          "timings": {
+            "listen_stop": 1458,
+            "stt": 1902,
+            "cloud_stt": 1902,
+            "action_start": 3252,
+            "first_audio": 5727,
+            "reply_end": 8127
+          },
+          "actions": [
+            {
+              "call": 14,
+              "tool": "duck_nod",
+              "at_ms": 3252,
+              "result": "completed",
+              "duration_ms": 1210
+            }
+          ],
+          "uplink_frames": 18,
+          "downlink_frames": 40,
+          "mode": "cloud",
+          "route": "cloud"
+        }
+      },
+      {
+        "room": "3",
+        "baseline": 0,
+        "result": {
+          "turn": 1,
+          "time": "2026-10-25T17:07:29.889+00:00",
+          "backend": "preview",
+          "status": "completed",
+          "text": "请点点头",
+          "timings": {
+            "listen_stop": 1457,
+            "stt": 1912,
+            "cloud_stt": 1912,
+            "action_start": 3230,
+            "first_audio": 5849,
+            "reply_end": 8488
+          },
+          "actions": [
+            {
+              "call": 14,
+              "tool": "duck_nod",
+              "at_ms": 3230,
+              "result": "completed",
+              "duration_ms": 1208
+            }
+          ],
+          "uplink_frames": 18,
+          "downlink_frames": 44,
+          "mode": "cloud",
+          "route": "cloud"
+        }
+      },
+      {
+        "room": "4",
+        "baseline": 0,
+        "result": {
+          "turn": 1,
+          "time": "2026-10-25T17:07:29.882+00:00",
+          "backend": "preview",
+          "status": "completed",
+          "text": "请点点头",
+          "timings": {
+            "listen_stop": 1456,
+            "stt": 1839,
+            "cloud_stt": 1839,
+            "action_start": 3078,
+            "first_audio": 5336,
+            "reply_end": 8756
+          },
+          "actions": [
+            {
+              "call": 14,
+              "tool": "duck_nod",
+              "at_ms": 3078,
+              "result": "completed",
+              "duration_ms": 1217
+            }
+          ],
+          "uplink_frames": 18,
+          "downlink_frames": 57,
+          "mode": "cloud",
+          "route": "cloud"
+        }
+      },
+      {
+        "room": "5",
+        "baseline": 0,
+        "result": {
+          "turn": 1,
+          "time": "2026-10-25T17:07:29.888+00:00",
+          "backend": "preview",
+          "status": "completed",
+          "text": "请点点头",
+          "timings": {
+            "listen_stop": 1461,
+            "stt": 1861,
+            "cloud_stt": 1861,
+            "action_start": 3010,
+            "first_audio": 5957,
+            "reply_end": 9557
+          },
+          "actions": [
+            {
+              "call": 14,
+              "tool": "duck_nod",
+              "at_ms": 3010,
+              "result": "completed",
+              "duration_ms": 1204
+            }
+          ],
+          "uplink_frames": 18,
+          "downlink_frames": 60,
+          "mode": "cloud",
+          "route": "cloud"
+        }
+      },
+      {
+        "room": "6",
+        "baseline": 0,
+        "result": {
+          "turn": 1,
+          "time": "2026-10-25T17:07:29.894+00:00",
+          "backend": "preview",
+          "status": "completed",
+          "text": "请点点头",
+          "timings": {
+            "listen_stop": 1456,
+            "stt": 1863,
+            "cloud_stt": 1863,
+            "action_start": 3004,
+            "first_audio": 5514,
+            "reply_end": 9354
+          },
+          "actions": [
+            {
+              "call": 14,
+              "tool": "duck_nod",
+              "at_ms": 3004,
+              "result": "completed",
+              "duration_ms": 1203
+            }
+          ],
+          "uplink_frames": 18,
+          "downlink_frames": 64,
+          "mode": "cloud",
+          "route": "cloud"
+        }
+      },
+      {
+        "room": "7",
+        "baseline": 0,
+        "result": {
+          "turn": 1,
+          "time": "2026-10-25T17:07:29.890+00:00",
+          "backend": "preview",
+          "status": "completed",
+          "text": "请点点头",
+          "timings": {
+            "listen_stop": 1454,
+            "stt": 1853,
+            "cloud_stt": 1853,
+            "action_start": 2995,
+            "first_audio": 5521,
+            "reply_end": 9180
+          },
+          "actions": [
+            {
+              "call": 14,
+              "tool": "duck_nod",
+              "at_ms": 2995,
+              "result": "completed",
+              "duration_ms": 1211
+            }
+          ],
+          "uplink_frames": 18,
+          "downlink_frames": 61,
+          "mode": "cloud",
+          "route": "cloud"
+        }
+      },
+      {
+        "room": "8",
+        "baseline": 0,
+        "result": {
+          "turn": 1,
+          "time": "2026-10-25T17:07:29.898+00:00",
+          "backend": "preview",
+          "status": "completed",
+          "text": "请点点头",
+          "timings": {
+            "listen_stop": 1445,
+            "stt": 1869,
+            "cloud_stt": 1869,
+            "action_start": 3181,
+            "first_audio": 5961,
+            "reply_end": 9381
+          },
+          "actions": [
+            {
+              "call": 14,
+              "tool": "duck_nod",
+              "at_ms": 3181,
+              "result": "completed",
+              "duration_ms": 1213
+            }
+          ],
+          "uplink_frames": 18,
+          "downlink_frames": 57,
+          "mode": "cloud",
+          "route": "cloud"
+        }
+      },
+      {
+        "room": "9",
+        "baseline": 0,
+        "result": {
+          "turn": 1,
+          "time": "2026-10-25T17:07:29.886+00:00",
+          "backend": "preview",
+          "status": "completed",
+          "text": "请点点头",
+          "timings": {
+            "listen_stop": 1409,
+            "stt": 1897,
+            "cloud_stt": 1897,
+            "action_start": 3073,
+            "first_audio": 3093,
+            "reply_end": 7595
+          },
+          "actions": [
+            {
+              "call": 17,
+              "tool": "duck_nod",
+              "at_ms": 3073,
+              "result": "completed",
+              "duration_ms": 1202
+            }
+          ],
+          "uplink_frames": 18,
+          "downlink_frames": 73,
+          "mode": "cloud",
+          "route": "cloud"
+        }
+      },
+      {
+        "room": "10",
+        "baseline": 0,
+        "result": {
+          "turn": 1,
+          "time": "2026-10-25T17:07:29.887+00:00",
+          "backend": "preview",
+          "status": "completed",
+          "text": "请点点头",
+          "timings": {
+            "listen_stop": 1461,
+            "stt": 1882,
+            "cloud_stt": 1882,
+            "action_start": 3399,
+            "first_audio": 5803,
+            "reply_end": 10243
+          },
+          "actions": [
+            {
+              "call": 14,
+              "tool": "duck_nod",
+              "at_ms": 3399,
+              "result": "completed",
+              "duration_ms": 1210
+            }
+          ],
+          "uplink_frames": 18,
+          "downlink_frames": 74,
+          "mode": "cloud",
+          "route": "cloud"
+        }
+      }
+    ],
+    "passed": true,
+    "release": {
+      "version": "deploy-yzh737-20261025T165552Z",
+      "commit": "894d2d9d65c79f5c2c99cb239820cf1a9a379e7f",
+      "built_at": "2026-10-25T16:55:53.207720+00:00",
+      "operator": "zhouting",
+      "git_ref": "894d2d9d65c79f5c2c99cb239820cf1a9a379e7f",
+      "target": "yzh737"
+    },
+    "simultaneous_cloud_ready": 10,
+    "simultaneous_voice_owners": 10
+  },
+  "scene_load": {
+    "before_rollers_room1": {
+      "at": "2026-10-25T15:54:37.800Z",
+      "samples": [
+        {
+          "visit": "fresh_context",
+          "navigation_to_visible_ms": 37375.60000014305,
+          "model_timing": null,
+          "resources": [
+            {
+              "duration_ms": 32468.5,
+              "transfer_bytes": 9379166,
+              "decoded_bytes": 9378866
+            }
+          ]
+        },
+        {
+          "visit": "same_context_reload",
+          "navigation_to_visible_ms": 30674.10000014305,
+          "model_timing": null,
+          "resources": [
+            {
+              "duration_ms": 28382.199999809265,
+              "transfer_bytes": 9379166,
+              "decoded_bytes": 9378866
+            }
+          ]
+        }
+      ]
+    },
+    "after_duo_room1": {
+      "at": "2026-10-25T17:10:17.290Z",
+      "samples": [
+        {
+          "visit": "fresh_context",
+          "navigation_to_visible_ms": 20048.900000095367,
+          "model_timing": {
+            "view": "scenario",
+            "scene": "duo",
+            "cache": "network",
+            "manifest_ms": 0,
+            "asset_ms": 16437,
+            "parse_ms": 1,
+            "assemble_ms": 79,
+            "first_frame_ms": 79,
+            "encoded_bytes": 3592102,
+            "decoded_bytes": 5230876,
+            "result": "ready",
+            "elapsed_ms": 16652,
+            "navigation_ms": 19905
+          },
+          "resources": [
+            {
+              "duration_ms": 16385,
+              "transfer_bytes": 3592402,
+              "decoded_bytes": 5230876
+            }
+          ]
+        },
+        {
+          "visit": "same_context_reload",
+          "navigation_to_visible_ms": 861.2000000476837,
+          "model_timing": {
+            "view": "scenario",
+            "scene": "duo",
+            "cache": "persistent",
+            "manifest_ms": 0,
+            "asset_ms": 16,
+            "parse_ms": 0,
+            "assemble_ms": 64,
+            "first_frame_ms": 44,
+            "encoded_bytes": 0,
+            "decoded_bytes": 5230876,
+            "result": "ready",
+            "elapsed_ms": 125,
+            "navigation_ms": 774
+          },
+          "resources": []
+        }
+      ]
+    },
+    "after_matched_rollers_room2": {
+      "at": "2026-10-25T17:13:15.693Z",
+      "samples": [
+        {
+          "visit": "fresh_context",
+          "navigation_to_visible_ms": 20319,
+          "model_timing": {
+            "view": "scenario",
+            "scene": "rollers",
+            "cache": "network",
+            "manifest_ms": 0,
+            "asset_ms": 16669,
+            "parse_ms": 1,
+            "assemble_ms": 63,
+            "first_frame_ms": 47,
+            "encoded_bytes": 3169956,
+            "decoded_bytes": 4703560,
+            "result": "ready",
+            "elapsed_ms": 16820,
+            "navigation_ms": 20019
+          },
+          "resources": [
+            {
+              "duration_ms": 16627.900000095367,
+              "transfer_bytes": 3170256,
+              "decoded_bytes": 4703560
+            }
+          ]
+        },
+        {
+          "visit": "same_context_reload",
+          "navigation_to_visible_ms": 863.2999999523163,
+          "model_timing": {
+            "view": "scenario",
+            "scene": "rollers",
+            "cache": "persistent",
+            "manifest_ms": 0,
+            "asset_ms": 14,
+            "parse_ms": 1,
+            "assemble_ms": 62,
+            "first_frame_ms": 32,
+            "encoded_bytes": 0,
+            "decoded_bytes": 4703560,
+            "result": "ready",
+            "elapsed_ms": 110,
+            "navigation_ms": 853
+          },
+          "resources": []
+        }
+      ]
+    },
+    "note": "Room 1 was changed by its user from rollers to duo before deployment. Same-scene comparison therefore uses an independent room 2; each condition has one fresh-context visit and one reload, not a percentile study."
+  },
+  "boundaries": [
+    "Official meshes and real in-process MuJoCo CPU/ONNX; no physical robot acceptance",
+    "Cloud football: prerecorded instructions, actual Linx STT/MCP/TTS",
+    "Delivery and choir: local scripted actions and recorded dialogue",
+    "Ode to Joy: public-domain tune, locally synthesized four parts; no BLE timing claim",
+    "Only loading and inter-segment waits are trimmed; completed action sequences are not sped up"
+  ]
+}
