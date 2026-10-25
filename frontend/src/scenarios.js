@@ -15,7 +15,12 @@ const graspPhases={ready:'待夹取',closing:'正在合嘴',lifting:'正在抬�
 const statuses={completed:'完成',failed:'未完成',cancelled:'已取消',running:'进行中'};
 let viewer,scene=null,revision=null,loadingModel=false,changing=false,seen=0,latest=null,online=false;
 try{viewer=physicsView($('physics-viewport'));}catch{$('canvas-fallback').hidden=false;}
-function notify(text){$('notice').textContent=text;$('notice').hidden=false;}
+let noticeOwner=null;
+function notify(text,owner='other'){noticeOwner=owner;$('notice').textContent=text;$('notice').hidden=false;}
+function syncSceneError(error){
+  if(error)notify(error,'scene');
+  else if(noticeOwner==='scene'){$('notice').hidden=true;noticeOwner=null;}
+}
 function appendLog(text,label='场景',error=false){const row=document.createElement('div');row.className=`log-line${error?' error':''}`;for(const [value,cls] of [[new Date().toLocaleTimeString('zh-CN',{hour12:false}),'log-time'],[label,'log-label'],[text,'']]){const span=document.createElement('span');span.textContent=value;span.className=cls;row.append(span);}$('activity-log').append(row);while($('activity-log').children.length>80)$('activity-log').firstChild.remove();$('activity-log').scrollTop=$('activity-log').scrollHeight;}
 const chorus=createChorus(text=>$('chorus-status').textContent=text);
 function buttons(){document.querySelectorAll('[data-sim-action]').forEach(b=>b.disabled=!online||!scene||changing||(['pick_up','carry','put_down'].includes(b.dataset.simAction)&&latest?.grasp?.phase!==({pick_up:'ready',carry:'holding',put_down:'carried'}[b.dataset.simAction])));$('stop-scene').disabled=$('reset-scene').disabled=!online||!scene;document.querySelectorAll('[data-scene]').forEach(b=>{b.disabled=changing||!online;b.setAttribute('aria-pressed',String(b.dataset.scene===scene));});}
@@ -55,14 +60,14 @@ function update(data){
   $('duck-contact').textContent=scene==='duo'?state.contacts.ducks:'—';$('sim-speed').textContent=`${state.real_time_factor.toFixed(2)}×`;
   if(state.discovered.length)$('peer-status').textContent=state.discovered.map(p=>`鸭 ${p.observer.toUpperCase()} 发现鸭 ${p.peer.toUpperCase()}，相距 ${p.distance_m.toFixed(2)} m`).join('；');
   else $('peer-status').textContent='未记录发现结果。检测范围 1.2 m / 120°，考虑遮挡。';
-  if(state.error)notify(state.error);
   chorus.update(state.chorus);loadModel(state);viewer?.update(state);
   if(data.action)$('action-result').textContent=`${names[data.action.name]??data.action.name} · 进行中`;
   for(const event of data.events){if(event.id<=seen)continue;seen=event.id;const text=event.text.replace(/scene_ball|scene_duo|scene_carry|pick_up|put_down|carry|kick_left|kick_right|find_companion|duo_walk|collide|chorus|turn_left|turn_right|walk|stop|reset|nod/g,k=>names[k]??k).replace(/completed|failed|cancelled/g,k=>statuses[k]);appendLog(text,event.kind==='result'?'执行结果':'物理动作',event.status==='failed');if(event.kind==='result')$('action-result').textContent=text;}
-  if(data.error)notify(data.error);
+  syncSceneError(state.error||data.error);
 }
 let socket,connectionNotice=null,retryDelay=1000;
 function notStarted(){
+  syncSceneError(null);
   scene=revision=latest=null;seen=0;viewer?.clear();chorus.stop();buttons();
   $('scene-placeholder').hidden=false;$('sim-status').textContent='选择场景开始';$('scene-title').textContent='等待启动';$('actions-heading').textContent='选择场景后开始';
   $('ball-controls').hidden=$('duo-controls').hidden=$('carry-controls').hidden=$('grasp-readouts').hidden=true;
