@@ -5,7 +5,7 @@ import {TABLE_SCORES} from './table-scores.js';
 export const TABLE_SECONDS=36, TABLE_TEMPO=72;
 export const TABLE_PARTS=['低音','次中音','中音','高音'];
 export const BUILTIN_SONGS={
-  choir:{title:'夜空中最亮的星 · 主唱与轻叠唱',files:['night-star-a.mp3','night-star-b.mp3','night-star-c.mp3','night-star-d.mp3'],source:'user_provided_octave_chorus_mix',parts:['低八度铺底','轻齐唱','高八度点缀','原人声主唱'],pans:[-.55,-.2,.55,0]},
+  choir:{title:'夜空中最亮的星 · 鸭声和声版',files:['night-star-a.mp3','night-star-b.mp3','night-star-c.mp3','night-star-d.mp3'],source:'user_provided_octave_chorus_mix',parts:['低八度鸭声','齐唱鸭声','高八度鸭声','轻声人声主唱'],pans:[-.55,-.2,.55,0]},
   vocal:{title:'夜空中最亮的星 · 原人声版',files:['night-star-vocal.mp3'],source:'user_provided_vocal_mix'},
   instrumental:{title:'夜空中最亮的星 · 器乐版',files:['night-star-instrumental.mp3'],source:'user_provided_instrumental_mix'},
 };
@@ -17,7 +17,7 @@ export async function loadBuiltinSong(name,ctx,signal){
   const info=BUILTIN_SONGS[name];if(!info)throw new Error('未知歌曲音源');
   if(musicCache.has(name))return musicCache.get(name);
   const buffers=await Promise.all(info.files.map(async file=>{
-    const url=appURL('demo-music/'+file);url.searchParams.set('v','lead-d-20261025');
+    const url=appURL('demo-music/'+file);url.searchParams.set('v','duck-forward-20261025');
     const response=await fetch(url,{signal:AbortSignal.any([signal,AbortSignal.timeout(30000)])});
     if(!response.ok)throw new Error('歌曲音源加载失败，请重演；不会自动替换曲目');
     return ctx.decodeAudioData(await response.arrayBuffer());
@@ -104,7 +104,7 @@ export async function playTableChoir(output,signal,readState,onFrame,{tracks=nul
         if(scheduled.has(id)||note.beat*seconds>elapsed+.08||(note.beat+note.duration)*seconds<=elapsed)continue;
         scheduled.add(id);hum(note,elapsed);
       }
-      onFrame({elapsed,phase:state.phase,dropped,landed:state.landed_at!==null,returning,parts:tracks?.buffers?.length??4,activeParts:(tracks?.entries??[0,0,0,0]).map((beat,i)=>elapsed>=beat*seconds&&!(i===3&&dropped&&!returning))});
+      onFrame({elapsed,phase:state.phase,dropped,landed:state.landed_at!==null,returning,floorDancing:state.floor_dance?.started_at!=null,parts:tracks?.buffers?.length??4,activeParts:(tracks?.entries??[0,0,0,0]).map((beat,i)=>elapsed>=beat*seconds&&!(i===3&&dropped&&!returning))});
       await pause(30,signal);
     }
     return {source:tracks?.source??(tracks?'user_selected_audio':'original_synth_harmony'),parts:tracks?.buffers?.length??4,duration:TABLE_SECONDS,physical_ducks:4,fall_cue:reacted,ble:false};

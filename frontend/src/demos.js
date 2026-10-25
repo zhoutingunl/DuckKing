@@ -31,7 +31,7 @@ $('table-tracks').addEventListener('change',async event=>{
   catch(e){if(epoch===trackEpoch){trackError=e.message;$('track-note').textContent=e.message+'；请重新选择或恢复内置音源。'}}
   finally{if(epoch===trackEpoch)trackLoading=false}
 });
-function resetTracks(){trackEpoch++;tableTracks=null;trackError=null;trackLoading=false;$('table-tracks').value='';$('table-offset').value='0';const name=$('table-song').value;$('track-note').textContent=TABLE_SCORES[name]?.description??(name==='original'?'独立原创练声曲《桌边的星光》，与《夜空中最亮的星》的旋律无关。':'《夜空中最亮的星》使用你提供的录音。叠唱版由鸭 D 主唱，其余三层轻声陪衬；不是独立人声分轨。')}
+function resetTracks(){trackEpoch++;tableTracks=null;trackError=null;trackLoading=false;$('table-tracks').value='';$('table-offset').value='0';const name=$('table-song').value;$('track-note').textContent=TABLE_SCORES[name]?.description??(name==='original'?'独立原创练声曲《桌边的星光》，与《夜空中最亮的星》的旋律无关。':'《夜空中最亮的星》使用你提供的录音。叠唱版由鸭 D 轻声主唱，三层鸭声和声突出；不是独立人声分轨。')}
 $('clear-tracks').addEventListener('click',resetTracks);$('table-song').addEventListener('change',resetTracks);
 for(const button of document.querySelectorAll('[data-table-song]'))button.addEventListener('click',()=>{$('table-song').value=button.dataset.tableSong;resetTracks();start(DEMOS.findIndex(d=>d.id==='tabletop'))});
 for(const [button,id,text,role] of [['preview-human','football-left','请用左脚踢球。','人类指令 · 试听'],['preview-duck','interview-joke','恭喜录用，工资是每天两句夸奖。','小鸭台词 · 试听']]){
@@ -199,8 +199,8 @@ async function runStep(run,step){
     const movement=perform(run,currentRoom,'table_show');
     const music=playTableChoir(output,run.signal,()=>stages.get(currentRoom)?.latest?.backend.tabletop,frame=>{
       $('table-beat').textContent=`${Math.min(TABLE_SECONDS,Math.floor(frame.elapsed))} / ${TABLE_SECONDS} 秒`;
-      $('table-cue').textContent=frame.returning?'楼下那位，继续唱。':frame.landed?'已确认落地，另外三只仍在桌上。':frame.dropped?'等一下，怎么少了一个声部？':tracks?.description??'四只鸭交替踏步、点头、摇摆。';
-      $('table-seats').replaceChildren(...(tracks?.parts??TABLE_PARTS).map((part,i)=>{const seat=document.createElement('div');seat.className='table-seat';seat.dataset.duck='abcd'[i];seat.dataset.fallen=String(i===3&&frame.dropped);seat.dataset.active=String(frame.activeParts[i]);const name=document.createElement('strong');name.textContent='鸭 '+'ABCD'[i];const label=document.createElement('span');label.textContent=i===3&&frame.dropped?(frame.returning?'楼下继续':'暂离桌面'):!frame.activeParts[i]?'等待入唱':tracks?.buffers?.length===1?'歌曲混音':part;seat.append(name,label);return seat}));
+      $('table-cue').textContent=frame.returning?(frame.floorDancing?'楼下那位，继续踏步、继续唱。':'楼下那位，站稳后继续踏步。'):frame.landed?'已确认落地，另外三只仍在桌上。':frame.dropped?'等一下，怎么少了一个声部？':tracks?.description??'四只鸭交替踏步、点头、摇摆。';
+      $('table-seats').replaceChildren(...(tracks?.parts??TABLE_PARTS).map((part,i)=>{const seat=document.createElement('div');seat.className='table-seat';seat.dataset.duck='abcd'[i];seat.dataset.fallen=String(i===3&&frame.dropped);seat.dataset.active=String(frame.activeParts[i]);const name=document.createElement('strong');name.textContent='鸭 '+'ABCD'[i];const label=document.createElement('span');label.textContent=i===3&&frame.dropped?(frame.returning?(frame.floorDancing?'楼下踏步':'楼下站稳'):'暂离桌面'):!frame.activeParts[i]?'等待入唱':tracks?.buffers?.length===1?'歌曲混音':part;seat.append(name,label);return seat}));
     },{tracks,offset});
     const [result,audio]=await Promise.all([movement,music]);
     run.results.push({name:'table_music',status:'completed',outcome:audio});

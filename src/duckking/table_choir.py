@@ -16,14 +16,14 @@ TEMPO = 72
 SPAWNS = [(-0.05, -0.33), (-0.05, -0.11), (-0.05, 0.11), (0.30, 0.33)]
 
 
-def dance_command(driver, data, index, elapsed):
+def dance_command(driver, data, index, elapsed, *, anchor=None, heading=0.0):
     """Alternate four beats of real stepping with four beats of standing sway.
 
     Feedback is a bounded velocity request to the official policy, never a
     correction to qpos. Standing body poses must be zero during walking.
     """
     position, yaw = driver.pose(data)
-    x, y = SPAWNS[index]
+    x, y = SPAWNS[index] if anchor is None else anchor
     if math.hypot(position[0] - x, position[1] - y) > 0.14:
         raise ValueError("踏步偏离站位过远，表演已停止，请重置场景")
     beat = elapsed * TEMPO / 60 * math.tau
@@ -33,10 +33,14 @@ def dance_command(driver, data, index, elapsed):
         driver.command[10] = 0.17 * math.sin(beat / 2)
         driver.command[11] = 0.10 * math.cos(beat / 2)
         return
-    vx = max(-0.4, min(0.4, (x + 0.04 * math.sin(beat / 2) - position[0]) * 8))
+    dx, dy = position[0] - x, position[1] - y
+    forward = math.cos(heading) * dx + math.sin(heading) * dy
+    sideways = -math.sin(heading) * dx + math.cos(heading) * dy
+    vx = max(-0.4, min(0.4, (0.04 * math.sin(beat / 2) - forward) * 8))
     if abs(vx) >= 0.05:
         vx = math.copysign(max(0.26, abs(vx)), vx)
-    vy = max(-0.22, min(0.22, (y - position[1]) * 4))
+    vy = max(-0.22, min(0.22, -sideways * 4))
+    yaw = math.atan2(math.sin(yaw - heading), math.cos(yaw - heading))
     driver.command[:3] = (
         math.cos(yaw) * vx + math.sin(yaw) * vy,
         -math.sin(yaw) * vx + math.cos(yaw) * vy,
@@ -89,6 +93,13 @@ class TableChoir:
         self.motion_min = [[float("inf")] * 4 for _ in range(4)]
         self.motion_max = [[float("-inf")] * 4 for _ in range(4)]
         self.max_drift = [0.0] * 4
+        self.floor_anchor = None
+        self.floor_heading = 0.0
+        self.floor_dance_at = None
+        self.floor_stable_since = None
+        self.floor_min = [float("inf")] * 4
+        self.floor_max = [float("-inf")] * 4
+        self.floor_drift = 0.0
 
     def update(self):
         b = self.backend
@@ -122,6 +133,15 @@ class TableChoir:
                     self.max_drift[i], math.hypot(pos[0] - SPAWNS[i][0], pos[1] - SPAWNS[i][1])
                 )
             if self.running and i == 3:
+                if self.floor_dance_at is not None:
+                    values = [float(b.data.qpos[driver.q[j]]) for j in (3, 12)] + [
+                        float(b.data.xpos[j, 2]) for j in self.feet[i]
+                    ]
+                    for j, value in enumerate(values):
+                        self.floor_min[j] = min(self.floor_min[j], value)
+                        self.floor_max[j] = max(self.floor_max[j], value)
+                    pos, _ = driver.pose(b.data)
+                    self.floor_drift = max(self.floor_drift, math.dist(pos[:2], self.floor_anchor))
                 if self.dropped_at is None and z < TABLE_HEIGHT - 0.06 and not self.supported[i]:
                     self.dropped_at = self.elapsed
                 if (
@@ -160,6 +180,16 @@ class TableChoir:
                 for low, high in zip(self.motion_min, self.motion_max, strict=True)
             ],
             "dance_max_drift_m": self.max_drift.copy(),
+            "floor_dance": {
+                "started_at": self.floor_dance_at,
+                "knee_excursion_deg": [
+                    math.degrees(max(0, self.floor_max[j] - self.floor_min[j])) for j in (0, 1)
+                ],
+                "ankle_vertical_excursion_m": [
+                    max(0, self.floor_max[j] - self.floor_min[j]) for j in (2, 3)
+                ],
+                "max_drift_m": self.floor_drift,
+            },
             "source": "scripted_gait_real_contacts_gravity",
         }
 
@@ -190,7 +220,26 @@ class TableChoir:
                     driver.command[:] = 0
                     if i == 3 and self.dropped_at is not None:
                         if self.landed_at is not None and elapsed - self.landed_at > 1.2:
-                            driver.command[4] = 0.10 * math.sin(elapsed * TEMPO / 60 * math.tau)
+                            position, yaw = driver.pose(b.data)
+                            upright = position[2] > 0.10 and b.data.xmat[driver.body, 8] > 0.85
+                            if self.floor_dance_at is None:
+                                if not upright:
+                                    self.floor_stable_since = None
+                                elif self.floor_stable_since is None:
+                                    self.floor_stable_since = elapsed
+                                elif elapsed - self.floor_stable_since >= 0.4:
+                                    self.floor_anchor = tuple(position[:2])
+                                    self.floor_heading = yaw
+                                    self.floor_dance_at = elapsed
+                            if self.floor_dance_at is not None:
+                                dance_command(
+                                    driver,
+                                    b.data,
+                                    i,
+                                    elapsed,
+                                    anchor=self.floor_anchor,
+                                    heading=self.floor_heading,
+                                )
                         continue
                     if not reaction:
                         if i < 3 or elapsed < 16:
@@ -210,13 +259,15 @@ class TableChoir:
                 and all(self.supported[:3])
                 and self.ground_samples[3] > 0
                 and not any(self.ground_samples[:3])
+                and self.floor_dance_at is not None
+                and min(self.floor_max[j] - self.floor_min[j] for j in (0, 1)) > math.radians(25)
             )
             self.phase = "completed" if verified else "failed"
             self.running = False
             return {
                 **self.snapshot(),
                 "verified": verified,
-                "message": "鸭 D 已真实离桌落地，其余三只留在桌上"
+                "message": "鸭 D 已真实落地并恢复踏步，其余三只留在桌上"
                 if verified
                 else "未确认单鸭离桌落地或其余成员留在桌上，请重演",
             }

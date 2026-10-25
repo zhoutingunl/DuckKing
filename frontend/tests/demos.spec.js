@@ -74,12 +74,14 @@ test('table music failure is explicit and never substitutes another song or star
 });
 
 test('stopping the table song silences every music node and cancels the real choreography',async({page})=>{
- test.setTimeout(60000);
+ test.setTimeout(90000);
  await page.addInitScript(()=>{const native=AudioBufferSourceNode.prototype.start;window.tablePlaying=0;AudioBufferSourceNode.prototype.start=function(...args){window.tablePlaying++;this.addEventListener('ended',()=>window.tablePlaying--,{once:true});return native.apply(this,args)}});
  await page.route('**/demo-audio/*.wav*',route=>route.fulfill({contentType:'audio/wav',body:silentFixture()}));
  await page.goto('/demos.html?room=1');await page.locator('[data-demo="tabletop"]').click();
  await expect(page.locator('#table-panel')).toBeVisible({timeout:45000});
- await expect.poll(()=>page.evaluate(()=>window.tablePlaying)).toBe(4);
+ // The panel opens before the action/state handshake starts music (bounded
+ // to 10 s in the app). Include failure context instead of a 5 s race.
+ await expect.poll(async()=>({playing:await page.evaluate(()=>window.tablePlaying),status:await page.locator('#show-status').textContent(),error:await page.locator('#demo-notice').isVisible()?await page.locator('#demo-notice').textContent():null}),{timeout:15000}).toMatchObject({playing:4,error:null});
  await expect(page.locator('#table-song')).toBeDisabled();
  await page.locator('#stop-demo').click();await expect(page.locator('#show-status')).toHaveText('演示已停止');
  await expect.poll(()=>page.evaluate(()=>window.tablePlaying)).toBe(0);
@@ -101,12 +103,12 @@ test('source link stays at the right edge with no navigation or viewport overlap
 });
 
 for(const song of ['ode','tigers'])test(`stopping synthesized ${song} stops all oscillators and actual stepping`,async({page})=>{
- test.setTimeout(60000);
+ test.setTimeout(90000);
  await page.addInitScript(()=>{const native=OscillatorNode.prototype.start;window.scorePlaying=0;OscillatorNode.prototype.start=function(...args){window.scorePlaying++;this.addEventListener('ended',()=>window.scorePlaying--,{once:true});return native.apply(this,args)}});
  await page.route('**/demo-audio/*.wav*',route=>route.fulfill({contentType:'audio/wav',body:silentFixture()}));
  await page.goto('/demos.html?room=1');await page.locator(`[data-table-song="${song}"]`).click();
  await expect(page.locator('#table-panel')).toBeVisible({timeout:45000});
- await expect.poll(()=>page.evaluate(()=>window.scorePlaying)).toBeGreaterThan(0);
+ await expect.poll(()=>page.evaluate(()=>window.scorePlaying),{timeout:15000}).toBeGreaterThan(0);
  await expect(page.locator('#caption-role')).toContainText('本地合成');
  if(song==='tigers')await expect(page.locator('.table-seat[data-duck=d]')).toContainText('等待入唱');
  await page.locator('#stop-demo').click();await expect.poll(()=>page.evaluate(()=>window.scorePlaying)).toBe(0);

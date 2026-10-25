@@ -4,35 +4,36 @@
   "rights": "User-supplied music; original rights retained. Not covered by the repository MIT license.",
   "duration": 36,
   "source_offset_seconds": 0,
+  "duck_layer_normalization": "After pitch/filter processing: I=-16 LUFS, TP=-2 dBTP, before layer gains",
   "vocal_sha256": "95cad936e6ee2a30e1c1d0c1fd9c1dfaf3431b64c5039cf092f1cfe6f371b646",
   "instrumental_sha256": "1abb0edc460bbfb8b27c9b4a5e1846bd67b267713832a462091e5521776af9f0",
   "layers": {
-    "a": "octave below, quiet low-pass layer",
-    "b": "unison chorus layer",
-    "d": "original lead mix; muted on the actual fall and resumed after landing",
-    "c": "octave above, quiet high-pass layer"
+    "a": "octave below, prominent low-pass duck layer (gain .30)",
+    "b": "prominent unison chorus layer (gain .28)",
+    "d": "quieter original lead mix (gain .42); muted on actual fall, resumed after landing",
+    "c": "octave above, prominent high-pass duck layer (gain .28)"
   },
   "limitation": "Processed original mix, including its accompaniment; not isolated vocal stems or independent SATB arrangements.",
   "files": {
     "night-star-a.mp3": {
       "bytes": 577245,
-      "sha256": "9d22c6fc74c80a15440ceac3cba45b263a2cf557b30e170ed1b73374083f3fde"
+      "sha256": "cde96f2c3e141f496650f0f61f39ce03732bd0109589ce58035ccea03bebb112"
     },
     "night-star-b.mp3": {
       "bytes": 577245,
-      "sha256": "9886dd9fd23fd3193fbf29713de9d9485259cd64eda4906798624b069e16355f"
+      "sha256": "a832f6d49895a28c7af0c319656350be7223bb7359de26037774cc30f322617d"
     },
     "night-star-c.mp3": {
       "bytes": 577245,
-      "sha256": "a716c9f77b137fd7c793809af1e493ef58a87923cb77c36db9d38ec5aa5d3806"
+      "sha256": "abe47cf64740f4cb0035f21e733b73a88a216012bb3cc2a99d74c0c83ccfbb7f"
     },
     "night-star-d.mp3": {
       "bytes": 577245,
-      "sha256": "03b3a018137c8068a15c21949514c0b5bfe5668c07f239612ae9077ab9b064e4"
+      "sha256": "fe2b7ed2c59babd5ef7863b23297bbc8208254fc2677881be1da3e290ab27b02"
     },
     "night-star-instrumental.mp3": {
       "bytes": 577245,
-      "sha256": "fd1ed1c3f48c9d8fb192fb93efe24eed2ab51da19036cd189da542c6fbccc4d4"
+      "sha256": "2d63c3ce828557ba747ae52e0019ae72c1076f7a8d1b7095f094a4374333e723"
     },
     "night-star-vocal.mp3": {
       "bytes": 577245,

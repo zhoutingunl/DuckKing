@@ -45,6 +45,11 @@ async def test_four_ducks_sing_and_only_one_really_leaves_the_table_and_lands(ba
     assert all(min(pair) > 25 for pair in out["knee_excursion_deg"])
     assert all(min(pair) > 0.012 for pair in out["ankle_vertical_excursion_m"])
     assert max(out["dance_max_drift_m"]) < 0.14
+    floor = out["floor_dance"]
+    assert out["landed_at"] + 1.5 < floor["started_at"] < SHOW_DURATION - 5
+    assert min(floor["knee_excursion_deg"]) > 25
+    assert min(floor["ankle_vertical_excursion_m"]) > 0.012
+    assert floor["max_drift_m"] < 0.14
     final = [driver.pose(backend.data)[0].copy() for driver in backend.drivers]
     # Ground impacts may bounce the root back under the table edge. Actual
     # loss of table support, height loss and floor contacts prove the fall.
