@@ -42,7 +42,10 @@ class RoomRegistry:
     @staticmethod
     def busy(room):
         return (room.viewers or room.voice is not None or room.motion.current is not None
-                or (room.scene_motion is not None and room.scene_motion.current is not None))
+                or (room.scene_motion is not None and (room.scene_motion.current is not None
+                    or (room.scene_motion.studio is not None
+                        and room.scene_motion.studio.task is not None
+                        and not room.scene_motion.studio.task.done()))))
 
     def snapshot(self):
         return {"rooms": [{"id": number, "viewers": room.viewers,

@@ -31,6 +31,9 @@ class BeakGrasp:
         self.start = np.array([0.062, -0.002, 0.208])
         self.grip_relative = None
         self.carry_distance = self.robot_distance = 0.0
+        self.carry_remaining = 0.0
+        self.carry_origin = self.robot_origin = None
+        self.interrupted_from = None
 
     def position(self):
         return self.data.xpos[self.object].copy()
@@ -121,6 +124,7 @@ class BeakGrasp:
     def stop(self):
         # Stop translation immediately. A secured object stays clamped; opening is explicit.
         if self.phase in {"closing", "lifting", "carrying", "lowering", "opening", "retreating"}:
+            self.interrupted_from = self.phase
             self.phase = "interrupted"
             if not self.held:
                 self.data.ctrl[self.mouth] = self.data.qpos[self.mouth_q]
@@ -162,14 +166,36 @@ class BeakGrasp:
                     else "未形成稳定夹持或物品未离架"
                 )
             elif name == "carry":
-                if not self.held or self.carried or self.phase != "holding":
+                if not self.held or self.carried or not (
+                    self.phase == "holding" or
+                    (self.phase == "interrupted" and self.interrupted_from == "carrying")
+                ):
                     raise ValueError("请先成功夹起物品，再执行一次搬运")
+                resuming = self.phase == "interrupted"
                 self.phase = "carrying"
-                obj, robot = self.position(), self.driver.pose(self.data)[0]
+                if not resuming:
+                    self.carry_remaining = 2.8
+                    self.carry_origin = self.position()
+                    self.robot_origin = self.driver.pose(self.data)[0]
+                obj, robot = self.carry_origin, self.robot_origin
                 # The official policy gates head pose to standing. Clear it for walking.
                 self.driver.command[:] = 0
                 self.driver.command[0] = 0.25
-                await self.ramp(2.8)
+                previous = float(self.data.time)
+                try:
+                    while self.carry_remaining > 0.001:
+                        self.check()
+                        if time.monotonic() > self.deadline:
+                            raise ValueError("搬运推进超时，已停止")
+                        await asyncio.sleep(0.01)
+                        now = float(self.data.time)
+                        self.carry_remaining = max(0, self.carry_remaining - (now - previous))
+                        previous = now
+                finally:
+                    # Count even the final partial interval before cancellation. The next
+                    # explicit carry continues only the remaining simulated walking time.
+                    self.carry_remaining = max(
+                        0, self.carry_remaining - (float(self.data.time) - previous))
                 self.driver.command[:3] = 0
                 await self.ramp(0.2)
                 self.carry_distance = float(np.linalg.norm(self.position()[:2] - obj[:2]))
@@ -233,6 +259,8 @@ class BeakGrasp:
             "phase": self.phase,
             "held": self.held,
             "carried": self.carried,
+            "carry_remaining_s": self.carry_remaining,
+            "interrupted_from": self.interrupted_from,
             "position": self.position().tolist(),
             "mouth_angle_deg": float(np.degrees(self.data.qpos[self.mouth_q])),
             "normal_force_n": dict(self.forces),

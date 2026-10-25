@@ -1,0 +1,25 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>DuckKing · 现场互动</title><link rel="icon" href="./favicon.svg"></head><body class="scenarios-page">
+<header class="topbar"><a class="brand" href="./">DuckKing</a><nav class="home-nav"><a href="./demos.html">自动剧场</a><a href="./scenarios.html">动作练习场</a><a href="./statistics.html">交互统计</a></nav></header>
+<main><section class="intro"><div><h1>这次，由你来改剧情。</h1><p class="subtitle">现场说一句，鸭子做一段。随时打断、修改，再看实际结果。</p></div><span id="sim-status" class="connection-pill" role="status">选择节目开始</span></section>
+<div id="studio-list" class="studio-list" aria-label="现场互动节目"></div><p id="notice" class="notice" role="alert" hidden></p>
+<div class="scene-layout"><section class="scene-stage"><div class="stage-toolbar"><strong id="scene-title">等待开演</strong><button id="reset-camera" class="subtle-button">复位视角</button></div><div id="physics-viewport"><p id="scene-placeholder">选择一个节目，准备真实 MuJoCo 舞台。</p></div><div class="studio-caption"><p id="studio-prompt">自动剧场仍可使用预录对白或预录指令。这里使用真人麦克风。</p><p id="task-status" role="status">尚未开始</p><p id="studio-detail"></p></div><p class="scene-footnote">官方模型 · MuJoCo 仿真；语音来源单独标识。音乐为本地合成。</p></section>
+<aside class="scene-controls"><section class="scene-actions"><h2>先排练，再即兴</h2><p class="muted">按钮调用本地任务，便于排练；语音理解与回复由灵矽完成。</p><div id="studio-controls" class="duo-buttons"></div><div id="voice-lab" hidden><p>以下是合成声线试听，不是克隆后的实时回复。</p>
+<label>轻鼻音 · 清晰优先<audio controls preload="none" data-voice-sample="nasal"></audio></label>
+<label>轻沙哑＋鼻音 · 推荐<audio controls preload="none" data-voice-sample="raspy"></audio></label>
+<label>鼻音更重 · 对照<audio controls preload="none" data-voice-sample="strong"></audio></label>
+<label>实时回复音色<select id="voice-profile"><option value="">正在读取可用音色</option></select></label>
+<label>音调 <input id="voice-pitch" type="range" min="0.8" max="1.2" step="0.02" value="1"></label><button id="apply-voice">下一句用这个声音</button>
+<div id="persona-settings" hidden><label>角色<select id="voice-persona"><option value="default">默认鸭王</option></select></label><button id="apply-persona">切换角色并重连</button><p>切换会结束旧会话。音色切换只改变声音，角色切换改变回答方式。</p></div></div><button id="stop-studio" class="stop-button" disabled>■ 停止全部任务</button></section><section class="voice-card">
+            <div class="section-heading"><h2>和小鸭聊聊</h2><span id="voice-badge" class="tag neutral">未连接灵矽</span></div>
+            <p id="voice-intro" class="muted">连接灵矽后，按住说话，松开等待回答。</p>
+            <button id="talk-button" class="talk-button" disabled aria-label="按住说话"><svg viewBox="0 0 24 24" width="25" height="25" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="8" y="2" width="8" height="13" rx="4"/><path d="M5 10v2a7 7 0 0 0 14 0v-2M12 19v3M8 22h8"/></svg><span>按住说话</span><span class="key-hint">SPACE</span></button>
+            <div class="voice-caption" id="voice-caption">当前可以先用下方按钮探索动作。</div>
+            <div class="voice-mode-row"><label for="voice-mode">识别方式</label><select id="voice-mode" disabled><option value="local_first">本地优先</option><option value="cloud" selected>灵矽云端</option></select></div>
+            <p id="voice-route" class="voice-caption" role="status">灵矽负责识别和回复。</p>
+            <div class="voice-setup"><button id="connect-voice" class="connect-button" disabled aria-label="连接灵矽"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M5 11a7 7 0 0 1 14 0"/><path d="M8.5 11a3.5 3.5 0 0 1 7 0"/><circle cx="12" cy="12" r="1.1" fill="currentColor" stroke="none"/><path d="M12 13v6M9 19h6"/></svg><span id="connect-label">连接灵矽</span><span class="key-hint connect-hint">↗</span></button><span id="voice-connection-hint">接入模块准备中</span></div>
+            <div class="voice-setup"><button id="enable-sound" class="text-button">启用 / 测试声音 ♪</button></div>
+            <p id="audio-status" class="voice-caption" role="status">可先播放本地提示音，检查手机声音。</p>
+            <details class="audio-details"><summary>声音诊断</summary><pre id="audio-diagnostics">尚未初始化声音</pre></details>
+            <div class="voice-setup"><button id="reset-voice" class="text-button" disabled>重置语音 ↻</button><a class="text-button" href="./api/voice/diagnostics" target="_blank" rel="noopener">连接诊断 ↗</a></div>
+            <div id="activation" class="activation" hidden></div>
+          </section></aside></div><section class="activity-card"><div class="section-heading"><h2>这次发生了什么</h2><button id="clear-log" class="subtle-button">清空显示</button></div><div id="activity-log" class="activity-log" role="log" aria-live="polite"></div></section></main><script type="module" src="./src/studio.js"></script></body></html>
