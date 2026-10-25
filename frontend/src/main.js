@@ -11,7 +11,9 @@ const $ = (id) => document.getElementById(id);
 const names = {nod:'点头',walk:'前进',turn_left:'左转',turn_right:'右转',stop:'停止',reset:'回到起点',flash_step:'闪身步',bear_shake:'狗熊哆嗦毛'};
 const actionNames = new RegExp(Object.keys(names).join('|'),'g');
 let scene;
-try { scene = createDuckScene($('viewport')); }
+try { scene = createDuckScene($('viewport'),{onLoad:timing=>appendLog(
+  `官方外观${timing.result==='ready'?'已显示':'加载失败'} · ${(timing.elapsed_ms/1000).toFixed(1)} 秒${['persistent','http'].includes(timing.cache)?' · 使用缓存':''}`,
+  '模型加载',timing.result!=='ready')}); }
 catch { $('canvas-fallback').hidden = false; }
 let seen=0, completed=new Set(), reconnectDelay=500;
 let backendKind='preview',voiceState='disconnected';

@@ -158,6 +158,12 @@ Three.js 渲染官方几何，不会用预设踢球动画替换实际关节结�
 
 `model_assets.py` 从固定官方 MJCF 导出 70 个视觉 geom、复用的 STL 网格和 14 个关节的局部轴 / 枢轴 / 默认角度。`GET /api/models/microduck` 只编译模型，不做物理推进；浏览器用 Three.js 关节树播放既有预览状态。没有翅膀或手部关节。API 与首页均标识 `physics=false`；依赖缺失返回 503，页面可显式重试。该外观接口不依赖房间物理场景，首次加载不会启动场景或云端语音。
 
+首页现通过 `/api/models/microduck/manifest` 查询内容版本，再获取 `assets/<sha256>.dkm.gz`，旧 JSON 接口保留兼容。DKM1 为 4 字节魔数、uint32 小端 JSON 头长度、4 字节对齐的 JSON 头及网格缓冲；坐标保留 float32，索引仅在所有值均可表示时无损改存 uint16。没有减面或改变模型。显式 `.gz` 地址始终返回 gzip 表示及 `Content-Encoding: gzip`，浏览器自动解压；现有 ai_gateway 虽向上游发送 `Accept-Encoding: identity`，仍会原样转发这些压缩字节和响应头，无需修改或重启网关。
+
+服务端在工作线程中构建并缓存压缩包，同一进程用锁避免两房间同时重复构建。内容哈希决定资源 URL，资源使用 immutable 缓存，清单每次重新验证。浏览器 CacheStorage `duckking-official-model-v1` 只保存一份经过验证的公开模型，URL 不含房间参数；缓存失效或模型版本变化时获取新包，存储不可用时仍请求真实模型。损坏缓存被删除并明确提示重试。模型加载不会启用物理或语音。
+
+页面交互记录显示总耗时；控制台 `[DuckKing:model-load]` 和 `POST /api/models/load-metrics` 上报查询版本、读取资源、解析、组装、首帧提交耗时及缓存来源。`elapsed_ms` 从加载开始计时，`navigation_ms` 从导航开始计时；首帧计时到 Three.js 提交绘制后的下一帧，不是显示屏出光测量。`encoded_bytes/decoded_bytes` 是清单声明的模型规格，`transfer_bytes` 来自资源计时或为持久缓存读取的零。服务器以 `official_model_load source=browser_reported` 打印白名单数值，资源首次构建另打印 `official_model_asset_built`。不上报 URL、设备标识、音频或自由文本；客户端计时不冒充服务端测量。
+
 `grasp_model.py` 构造 `carry` 场景：原 14 个 ONNX 策略执行器按名称选择，观测仍为 61 维，输出仍为 14 维；新增第 15 个 mouth 执行器独立控制。嘴部角度范围 −5° 至 30°，力矩限制 ±0.025 N·m；上下接触垫的尺寸不同，以允许张嘴时物品脱离下垫。质量 / 惯量拆分和接触垫是实验性近似。小棒为 20×130×8 mm、4 g 的自由刚体；只在场景加载/重置时采用初始状态，动作过程中不写它的位姿，不加焊接、吸附或外力搬运。物品碰撞使用显式嘴垫、地面和支架，不能据此证明完整头部 CAD 的所有接触都准确。
 
 `grasp.py` 每个 5 ms 物理步汇总 `mj_contactForce` 的真实法向力。夹起需要上下垫均超过 0.01 N、持续至少 0.2 秒、物品最低角点高于原支架 8 mm 且没有支架接触。搬运需要物品水平位移 >10 cm、躯干位移 >8 cm、保持夹持且到达接物台范围。夹持丢失超过 0.12 秒、相对嘴部滑移 >18 mm 或跌倒会明确失败，并停止移动。步态期间头部意图清零，遵循原策略的站立/行走输入约定。

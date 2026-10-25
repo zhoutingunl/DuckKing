@@ -1,10 +1,81 @@
 """Official visual meshes and a kinematic rig; exporting never steps physics."""
 
 import base64
+import gzip
+import hashlib
+import json
+import logging
+import struct
+import threading
+import time
+from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
 
 import mujoco
+import numpy as np
+
+
+@dataclass(frozen=True)
+class VisualAsset:
+    version: str
+    compressed: bytes
+    decoded_bytes: int
+
+    def manifest(self):
+        return {
+            "format": "dkm1", "version": self.version,
+            "encoded_bytes": len(self.compressed), "decoded_bytes": self.decoded_bytes,
+            "source": "official_microduck_visuals", "physics": False,
+        }
+
+
+def pack_visual_model(model):
+    """DKM1: uint32 JSON length, aligned JSON header, aligned typed mesh buffers.
+
+    Positions remain exact float32 values. Indices narrow to uint16 only when
+    every value fits; this changes storage, never topology or physical geometry.
+    """
+    payload, meshes = bytearray(), {}
+    for key, mesh in model["meshes"].items():
+        arrays = {}
+        for name, dtype in (("vertices", "<f4"), ("faces", "<u4")):
+            values = np.frombuffer(base64.b64decode(mesh[name]), dtype=dtype)
+            if name == "faces" and values.size and values.max() < 65536:
+                values = values.astype("<u2")
+            payload.extend(b"\0" * (-len(payload) % 4))
+            arrays[name] = {
+                "offset": len(payload), "count": values.size, "bytes": values.dtype.itemsize,
+            }
+            payload.extend(values.tobytes())
+        meshes[key] = arrays
+    metadata = json.dumps({**model, "meshes": meshes}, separators=(",", ":")).encode()
+    return (
+        b"DKM1" + struct.pack("<I", len(metadata)) + metadata
+        + b"\0" * (-len(metadata) % 4) + payload
+    )
+
+
+_asset_lock = threading.Lock()
+
+
+@lru_cache(maxsize=2)
+def _visual_asset(assets):
+    started = time.perf_counter()
+    raw = pack_visual_model(official_preview(assets))
+    compressed = gzip.compress(raw, compresslevel=6, mtime=0)
+    asset = VisualAsset(hashlib.sha256(compressed).hexdigest(), compressed, len(raw))
+    logging.getLogger("uvicorn.error").info(
+        "official_model_asset_built prepare_ms=%.1f decoded_bytes=%d encoded_bytes=%d",
+        (time.perf_counter() - started) * 1000, len(raw), len(compressed),
+    )
+    return asset
+
+
+def visual_asset(assets):
+    # lru_cache alone can run the expensive first build twice for two rooms.
+    with _asset_lock:
+        return _visual_asset(assets)
 
 
 def geometry(model, ids):

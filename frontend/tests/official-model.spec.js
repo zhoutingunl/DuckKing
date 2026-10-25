@@ -14,13 +14,45 @@ test('homepage loads the official rig and still labels scripted motion as previe
 });
 
 test('missing official visuals report failure and can be retried explicitly',async({page})=>{
-  await page.route('**/api/models/microduck?*',route=>route.fulfill({status:503,json:{detail:'模型未安装'}}));
+  await page.route('**/api/models/microduck/manifest',route=>route.fulfill({status:503,json:{detail:'模型未安装'}}));
   await page.goto('/?room=1');
   await expect(page.locator('#viewport')).toHaveAttribute('data-model','failed');
   await expect(page.locator('.model-status')).toContainText('官方模型加载失败');
-  await page.unroute('**/api/models/microduck?*');
+  await page.unroute('**/api/models/microduck/manifest');
   await page.getByRole('button',{name:'重新加载模型'}).click();
   await expect(page.locator('#viewport')).toHaveAttribute('data-model','official',{timeout:45000});
+});
+
+test('official model cache is shared by rooms and load timings reach the server',async({page})=>{
+  test.setTimeout(60000);
+  const timings=[];page.on('response',r=>{if(new URL(r.url()).pathname==='/api/models/load-metrics')timings.push(r.status())});
+  await page.goto('/?room=1');await expect(page.locator('#viewport')).toHaveAttribute('data-model','official');
+  const first=await page.locator('#viewport').evaluate(el=>JSON.parse(el.dataset.modelTiming));
+  expect(first.result).toBe('ready');expect(first.encoded_bytes).toBeLessThan(4000000);
+  await expect(page.locator('#activity-log')).toContainText('官方外观已显示');
+  await page.goto('/?room=2');await expect(page.locator('#viewport')).toHaveAttribute('data-model','official');
+  const second=await page.locator('#viewport').evaluate(el=>JSON.parse(el.dataset.modelTiming));
+  expect(second.cache).toBe('persistent');expect(second.transfer_bytes).toBe(0);
+  await expect.poll(()=>timings).toEqual([204,204]);
+  const resources=await page.evaluate(()=>performance.getEntriesByType('resource').filter(r=>r.name.includes('.dkm.gz')).length);
+  expect(resources).toBe(0);
+});
+
+test('corrupt cached geometry fails explicitly, is evicted, and retries the real model',async({page})=>{
+  test.setTimeout(60000);
+  await page.goto('/?room=1');await expect(page.locator('#viewport')).toHaveAttribute('data-model','official');
+  await page.evaluate(async()=>{const cache=await caches.open('duckking-official-model-v1');for(const key of await cache.keys())await cache.put(key,new Response('invalid cached asset'))});
+  await page.reload();await expect(page.locator('#viewport')).toHaveAttribute('data-model','failed');
+  await expect(page.locator('#activity-log')).toContainText('官方外观加载失败');
+  await page.getByRole('button',{name:'重新加载模型'}).click();
+  await expect(page.locator('#viewport')).toHaveAttribute('data-model','official');
+  expect(await page.locator('#viewport').evaluate(el=>JSON.parse(el.dataset.modelTiming).cache)).not.toBe('persistent');
+});
+
+test('unavailable persistent storage still loads the actual official asset',async({page})=>{
+  await page.addInitScript(()=>{Object.defineProperty(window,'caches',{value:{open:()=>Promise.reject(new Error('Protocol fixture: storage denied'))}})});
+  await page.goto('/?room=1');await expect(page.locator('#viewport')).toHaveAttribute('data-model','official');
+  expect(await page.locator('#viewport').evaluate(el=>JSON.parse(el.dataset.modelTiming).result)).toBe('ready');
 });
 
 test('real beak contact, carry, release and scene controls',async({page},testInfo)=>{

@@ -14,13 +14,14 @@ from types import SimpleNamespace
 import anyio
 import uvicorn
 from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from .config import Settings
 from .deployment import DeploymentStatus
 from .diagnostics import VoiceDiagnostics
+from .model_metrics import ModelLoadMetrics
 from .motion import Action, MotionController, PreviewBackend
 from .robotd import RobotdBackend
 from .voice import VoiceSession
@@ -243,6 +244,56 @@ def create_app(
         return JSONResponse(
             scene_controller(room).backend.geometry(), headers={"Cache-Control": "no-store"}
         )
+
+    async def load_visual_asset():
+        try:
+            from .model_assets import visual_asset
+
+            assets = Path(os.environ.get("DUCKKING_SIM_DIR", ROOT / "external"))
+            return await asyncio.to_thread(visual_asset, assets)
+        except Exception as exc:
+            raise HTTPException(
+                503, "官方外观模型未就绪，请运行 scripts/setup_scenarios.sh 并重启服务"
+            ) from exc
+
+    @app.get("/api/models/microduck/manifest")
+    async def visual_manifest(request: Request):
+        started = time.perf_counter()
+        asset = await load_visual_asset()
+        headers = {
+            "Cache-Control": "no-cache", "ETag": f'"{asset.version}"',
+            "Server-Timing": f"model_prepare;dur={(time.perf_counter() - started) * 1000:.1f}",
+        }
+        if request.headers.get("if-none-match") == headers["ETag"]:
+            return Response(status_code=304, headers=headers)
+        return JSONResponse(asset.manifest(), headers=headers)
+
+    @app.get("/api/models/microduck/assets/{version}.dkm.gz")
+    async def visual_mesh(version: str, request: Request):
+        if not re.fullmatch(r"[a-f0-9]{64}", version):
+            raise HTTPException(404, "未知模型版本")
+        asset = await load_visual_asset()
+        if version != asset.version:
+            raise HTTPException(404, "模型版本已更新，请刷新页面")
+        headers = {"Cache-Control": "public, max-age=31536000, immutable", "ETag": f'"{version}"'}
+        if request.headers.get("if-none-match") == headers["ETag"]:
+            return Response(status_code=304, headers=headers)
+        # This explicit .gz representation is always gzip. The HTTPS bridge
+        # sends Accept-Encoding: identity but forwards encoded bytes unchanged.
+        return Response(asset.compressed, media_type="application/octet-stream",
+                        headers={**headers, "Content-Encoding": "gzip"})
+
+    @app.post("/api/models/load-metrics", status_code=204)
+    async def model_load_metrics(request: Request, room: str = "1"):
+        get_room(room)
+        try:
+            body = ModelLoadMetrics.model_validate(await request.json())
+        except ValueError as exc:
+            raise HTTPException(422, "模型加载耗时格式无效") from exc
+        logging.getLogger("uvicorn.error").info(
+            "official_model_load source=browser_reported room=%s %s", room, body.model_dump_json()
+        )
+        return Response(status_code=204)
 
     @app.get("/api/scenes/state")
     async def scene_state(room: str = "1"):

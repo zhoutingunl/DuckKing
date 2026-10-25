@@ -10,6 +10,8 @@
 
 场景几何模型约 10 MB，公网实测下载约 21 秒，因此模型请求单独允许 60 秒；此超时不改变语音看门狗或场景状态确认期限。首次画面加载可能需要几十秒，模型只在场景版本改变时重新获取。
 
+首页官方外观采用独立的无损压缩资源，约 3.6 MB，两个房间共享浏览器持久缓存。页面“交互记录”的“模型加载”行显示本次耗时；浏览器控制台搜索 `DuckKing:model-load` 可查看分阶段时间和缓存来源。Linux 服务日志可用 `journalctl -u duckking.service --since '10 minutes ago' | rg 'official_model_(load|asset_built)'` 查看客户端上报与服务端准备时间。浏览器存储受限时仍能正常加载，但后续访问可能重新下载。强制刷新页面不一定清除 CacheStorage；内容版本更新会自动更换模型，开发排障可在浏览器应用面板删除 `duckking-official-model-v1` 缓存。
+
 ## 安装和运行 demo
 
 需要 `uv`、Node.js 22.12+ 和 npm。仓库的 `.python-version` 固定默认 Python 为 3.12，uv 可以下载该解释器，不必更换系统 Python。
