@@ -22,6 +22,10 @@ test('all twelve automated scripts validate actual MuJoCo outcomes and chorale s
   if(demo.id==='seated'){const result=JSON.parse(proof);expect(result.results.find(r=>r.name==='seated_show').outcome.completed_solos).toEqual(['a','b','c','d']);expect(result.results.find(r=>r.name==='seated_music').outcome.solos).toEqual(['a','b','c','d']);}
   if(demo.id==='tabletop')await expect(page.locator('#table-beat')).toHaveText('36 / 36 秒');await expect(page.locator('#demo-notice')).toBeHidden();
   await expect(page.locator('#demo-mode')).toBeEnabled({timeout:10000});
+  if(demo.steps.some(step=>step.kind==='duel')){
+   const rooms=await (await page.request.get('/api/rooms')).json();
+   expect(rooms.rooms.filter(room=>room.physics).map(room=>room.id)).toEqual(['1']);
+  }
   });
  }
  expect(errors).toEqual([]);

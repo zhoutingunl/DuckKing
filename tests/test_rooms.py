@@ -5,7 +5,7 @@ from starlette.websockets import WebSocketDisconnect
 
 from duckking.app import create_app
 from duckking.config import Settings
-from duckking.motion import MotionController
+from duckking.motion import Action, MotionController
 from duckking.robotd import RobotdBackend
 
 
@@ -274,3 +274,22 @@ def test_room_settings_reject_invalid_paths_and_limits(tmp_path):
                    {'room_idle_seconds': 0}]:
         with pytest.raises(ValueError):
             Settings(**kwargs)
+
+
+def test_unused_scene_cleanup_preserves_a_new_viewer_or_action(tmp_path):
+    from duckking.motion import PreviewBackend
+
+    app = create_app(settings=Settings(data_dir=tmp_path))
+    controller = MotionController(PreviewBackend())
+    app.state.rooms['2'].scene_motion = controller
+    with TestClient(app) as client:
+        with join(client, '2') as viewer:
+            viewer.receive_json()
+            assert client.post('/api/scenes/close?room=2&if_unused=true').status_code == 409
+            assert app.state.rooms['2'].scene_motion is controller
+        action = client.portal.call(controller.submit, Action(name='walk', duration=3))
+        assert client.post('/api/scenes/close?room=2&if_unused=true').status_code == 409
+        client.portal.call(controller.submit, Action(name='stop'))
+        assert controller.records[action['id']]['status'] == 'cancelled'
+        assert client.post('/api/scenes/close?room=2&if_unused=true').status_code == 204
+        assert app.state.rooms['2'].scene_motion is None

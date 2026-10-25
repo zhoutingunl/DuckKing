@@ -234,6 +234,14 @@ function cleanup(run){
     }
   }
   for(const [room,stage] of stages)if(room!==currentRoom){stages.delete(room);stage.socket.close();stage.viewer.dispose();}
+  // A borrowed second world should not keep simulating through the remaining
+  // program. Let its viewer disconnect settle; preserve it if someone joined.
+  for(const room of run.rooms)if(room!==currentRoom){
+    for(let attempt=0;attempt<5;attempt++){
+      try{await api('api/scenes/close?if_unused=true',room,{body:{},signal:AbortSignal.timeout(2000)});break}
+      catch{await pause(100)}
+    }
+  }
   })();
 }
 function stop(reason='演示已停止'){

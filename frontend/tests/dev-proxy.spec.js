@@ -52,8 +52,8 @@ test('unavailable API returns a proxy error and actionable feedback', async ({ r
     expect(response.status()).toBe(502);
     expect(await response.text()).not.toContain('"backend":"preview"');
     await page.goto(server.resolvedUrls.local[0]+'?room=1');
-    await page.locator('[data-action="nod"]').click();
-    await expect(page.locator('#notice')).toHaveText('本地后端请求失败（HTTP 502），请检查服务与端口。');
+    await expect(page.locator('#room-label')).toHaveText('本地后端请求失败（HTTP 502），请检查服务与端口并刷新。');
+    await expect(page.locator('[data-action="nod"]')).toBeDisabled();
   } finally {
     await page.close();
     await server.close();

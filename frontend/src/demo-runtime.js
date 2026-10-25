@@ -17,7 +17,7 @@ export async function api(path,room,{body,signal}={}){
   const url=appURL(path);url.searchParams.set('room',room);
   const response=await fetch(url,{method:body?'POST':'GET',headers:body?{'Content-Type':'application/json'}:{},
     body:body?JSON.stringify(body):undefined,signal:signal?AbortSignal.any([signal,AbortSignal.timeout(60000)]):AbortSignal.timeout(60000),cache:'no-store'});
-  const data=await response.json();if(!response.ok)throw new Error(typeof data.detail==='string'?data.detail:'演示请求失败');return data;
+  const data=response.status===204?null:await response.json();if(!response.ok)throw new Error(typeof data.detail==='string'?data.detail:'演示请求失败');return data;
 }
 export function pcmWave(buffer){
   const v=new DataView(buffer),str=(i,n)=>String.fromCharCode(...new Uint8Array(buffer,i,n));

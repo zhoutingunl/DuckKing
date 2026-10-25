@@ -11,6 +11,7 @@ export async function setupRoom({claim=true}={}){
   const urlFor=id=>{const url=new URL(location.href);url.searchParams.set('room',id);return url};
   async function request(path,method='GET'){
     const response=await fetch(appURL(path),{method,cache:'no-store',signal:AbortSignal.timeout(10000)});
+    if(response.status>=500)throw new Error(`本地后端请求失败（HTTP ${response.status}），请检查服务与端口并刷新。`);
     const data=await response.json();if(!response.ok)throw new Error(data.detail||'房间请求失败');return data;
   }
   function render(data){

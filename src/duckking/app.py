@@ -238,9 +238,11 @@ def create_app(
                 raise HTTPException(409, str(exc)) from exc
 
     @app.post("/api/scenes/close", status_code=204)
-    async def close_scene(room: str = "1"):
+    async def close_scene(room: str = "1", if_unused: bool = False):
         selected = get_room(room)
         async with selected.scene_lock:
+            if if_unused and app.state.room_registry.busy(selected):
+                raise HTTPException(409, "房间仍有人使用，保留物理场景")
             if selected.voice is not None:
                 raise HTTPException(409, "请先断开本房间语音，再释放物理场景")
             controller, selected.scene_motion = selected.scene_motion, None
