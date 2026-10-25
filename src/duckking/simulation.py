@@ -410,7 +410,7 @@ class MuJoCoBackend:
             if any(d.rest_posture == "sit" for d in drivers):
                 raise ValueError("请先让小鸭站起来，再执行行走、转向或踢球")
             for d in drivers:
-                if d.policy == "sitstand":
+                if d.policy == "sitstand" and not action.name.startswith("kick_"):
                     d.policy = "walk"
 
     async def move(self, vx, vyaw, vy=0):
@@ -585,10 +585,18 @@ class MuJoCoBackend:
             if self.scene != "ball" or action.target != "a":
                 raise ValueError("请先切换到单鸭踢球场景，选择鸭 A")
             foot = action.name.removeprefix("kick_")
-            self.place_ball(foot)
             driver = self.drivers[0]
+            # Sitstand finishes with nearly straight knees; the kick policy was
+            # trained from the walking stance. Let that policy establish its pose
+            # before placing the ball. Keep the entire action within two sim seconds.
+            settle = 0.4 if driver.policy == "sitstand" else 0.0
+            if settle:
+                driver.policy = driver.base_policy
+                driver.command[:] = 0
+                await self.wait_sim(settle)
+            self.place_ball(foot)
             driver.policy, driver.until = action.name, float(self.data.time) + 0.5
-            await self.wait_sim(2)
+            await self.wait_sim(action.duration - settle)
             result = self.ball_state()
             verified = foot in self.ball_feet and result["displacement_m"] > 0.02
             return {

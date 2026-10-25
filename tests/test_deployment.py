@@ -99,3 +99,34 @@ def test_cli_configures_proxy_prefix_without_changing_loopback_binding(monkeypat
     monkeypatch.setattr("duckking.app.uvicorn.run", lambda app, **kw: captured.update(kw))
     main()
     assert captured == {"host": "127.0.0.1", "port": 8765, "root_path": "/duckking"}
+
+
+async def test_physics_release_failure_preserves_partial_evidence(tmp_path, monkeypatch):
+    import runpy
+    from pathlib import Path
+
+    verify = runpy.run_path('scripts/verify_scenarios.py')['verify']
+    closed = []
+
+    class Motion:
+        def __init__(self, backend):
+            pass
+
+        async def submit(self, action):
+            pass
+
+        async def wait(self, request):
+            return {'name': 'sit', 'status': 'failed', 'outcome': {'verified': False},
+                    'error': 'test: no physical support'}
+
+        async def close(self):
+            closed.append(True)
+
+    monkeypatch.setitem(verify.__globals__, 'MuJoCoBackend', lambda path: None)
+    monkeypatch.setitem(verify.__globals__, 'MotionController', Motion)
+    output = Path(tmp_path) / 'verification/failed.json'
+    with pytest.raises(RuntimeError, match='no physical support'):
+        await verify(output)
+    report = json.loads(output.read_text())
+    assert report['passed'] is False and report['results'][0]['status'] == 'failed'
+    assert closed == [True]
