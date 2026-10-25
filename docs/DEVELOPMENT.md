@@ -78,7 +78,7 @@ npm run test:e2e:dev
 | 5173 页面能打开，但动作报错 / 状态持续重连 | 确认后端正在运行，且 `DUCKKING_API_PORT` 与后端端口相同 |
 | 修改前端后 demo 未变化 | 使用 5173 开发页面，或重新构建后刷新 8765 页面 |
 | 语音提示缺少 libopus | macOS：`brew install opus`；Ubuntu：`sudo apt-get install libopus0` |
-| 工作台持续重连 / 本地语音通道连接失败 | 用 Chrome 无痕窗口直接打开本地地址；检查是否有扩展或代理改写 `Origin` 请求头，同源检查不会自动放宽 |
+| 工作台持续重连 / 场景连接未建立 / 本地语音通道连接失败 | 用 Chrome 无痕窗口直接打开本地地址；检查是否有扩展或代理改写 `Origin` 请求头，同源检查不会自动放宽。场景加载和按钮操作无需连接灵矽 |
 | 灵矽显示等待绑定 | 本机设备身份与其他机器不同，需按 README 绑定本机设备；已有平台 Key 可显式运行 `uv run duckking-setup` |
 | 浏览器测试缺少 Chromium | 执行 `npx playwright install chromium`，或配置上述浏览器可执行路径 |
 
@@ -89,6 +89,8 @@ npm run test:e2e:dev
 ## 语音诊断与恢复
 
 页面「交互记录」显示当前页的语音状态、转写和动作；页面记录不跨刷新保留。识别文本同时脱敏写入后端日志，并可从「交互统计」查看。「连接诊断」打开 `/api/voice/diagnostics`，显示当前语音状态、停留秒数、上/下行帧数和本进程最近 200 条诊断事件。关闭页面后，诊断事件仍留在后端。
+
+场景握手被同源校验拒绝时，后端日志标记 `scene_ws_rejected: origin_mismatch`（HTTP 403）；30 秒未收到状态确认时标记 `scene_ws_closed: acknowledgement_timeout`。两者不同，延长确认超时不能解决握手被拒绝。日志不输出原始请求头。页面在收到有效状态前禁用场景操作，提示本地服务、地址与浏览器扩展检查；重试间隔逐步延长至 10 秒，恢复后清理连接提示并启用操作。
 
 跨重启查看事件与识别文本日志：
 
@@ -133,3 +135,22 @@ P50/P95 使用最近秩法；缺失数据不补零，结束录音前出现的识
 识别 CER/WER、意图正确率、动作顺序符合率需要人工标注原话和目标动作，当前不自动打分。页面可核对识别文字和实际动作。这里不测量麦克风、扬声器、浏览器画面呈现、MuJoCo 首次物理响应延迟；动画预览与官方 robotd 样本明确区分。
 
 左右转工具新增后，已有 DuckKing 可执行 `uv run duckking-setup --sync-prompt` 同步串行动作约束。只更新提示词，原文备份为数据目录下 `prompt-backup-*.txt`（0600）。同步后断开旧语音连接再重连以重新发现工具。
+
+## 本地物理实验室
+
+运行 `scripts/setup_scenarios.sh` 安装锁定的 `simulation` 可选依赖、获取官方模型与策略并构建前端，然后运行 `scripts/run_local.sh`。已有服务需要重启以加载新增后端路由；页面入口 `/scenarios.html`。依赖就绪时在 CPU 推理，不安装 CUDA 训练环境。普通 `setup_local.sh` 只保证基础预览与语音依赖，若执行后物理依赖缺失，请重新运行场景安装脚本。
+
+`scripts/fetch_scene_assets.py` 固定 Microduck RL 提交与 Hugging Face 策略提交，并校验策略 SHA-256；拒绝覆盖修改过的上游目录。`DUCKKING_SIM_DIR` 可替换默认 `external/`，下设 `microduck_rl/` 和 `policies/`。上游模型及许可证保持原样，不提交到本仓库。
+
+全量后端测试需要先安装场景依赖和资产；CI 自动执行。只复测场景：
+
+```bash
+uv run --frozen --no-sync pytest tests/test_simulation.py
+uv run --frozen --no-sync python scripts/verify_scenarios.py
+cd frontend
+npx playwright test scenarios.spec.js
+```
+
+实测脚本默认输出 `.duckking/physics-scenes.json`，包含实际脚球接触、位移、双鸭接触与感知结果，不调用灵矽。真实云端验收需另行连接灵矽；现有证据标明使用系统合成录音，不是人工麦克风录音。
+
+浏览器若显示“物理场景未就绪”，检查安装与资产目录后重启服务；不会自动回退。动作返回“未确认所选脚踢中球”时检查姿态并重置场景。运行速度低于 1× 表示物理时间慢于墙钟时间，不要把仿真耗时当作真人交互的完整端到端延迟。场景物理保持运行，动作限时；停止仅清零意图，不停止重力和惯性。灵矽等待超时也会取消场景动作。

@@ -12,25 +12,76 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from .choreography import CHOREOGRAPHIES, DEFAULT_DURATION, MIN_DURATION, sample
 
+SCENE_ACTIONS = {
+    "scene_ball",
+    "scene_duo",
+    "kick_left",
+    "kick_right",
+    "find_companion",
+    "duo_walk",
+    "collide",
+    "chorus",
+}
+
 
 class Action(BaseModel):
     model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
     name: Literal[
-        "nod", "walk", "turn_left", "turn_right", "stop", "reset", "flash_step", "bear_shake"
+        "nod",
+        "walk",
+        "turn_left",
+        "turn_right",
+        "stop",
+        "reset",
+        "flash_step",
+        "bear_shake",
+        "scene_ball",
+        "scene_duo",
+        "kick_left",
+        "kick_right",
+        "find_companion",
+        "duo_walk",
+        "collide",
+        "chorus",
     ]
     duration: float = Field(default=1.2, ge=0.2, le=3.0)
     speed: float | None = Field(default=None, ge=0.02, le=0.4)
+    target: Literal["a", "b", "both"] = "a"
     request_id: str = Field(default_factory=lambda: str(uuid.uuid4()), min_length=1, max_length=100)
 
     @model_validator(mode="before")
     @classmethod
     def choreography_defaults(cls, data):
+        fixed = {
+            "kick_left": 2,
+            "kick_right": 2,
+            "chorus": 3,
+            "duo_walk": 3,
+            "collide": 3,
+            "find_companion": 0.6,
+            "scene_ball": 0.2,
+            "scene_duo": 0.2,
+        }
+        if isinstance(data, dict) and data.get("name") in fixed and "duration" not in data:
+            return data | {"duration": fixed[data["name"]]}
         if isinstance(data, dict) and data.get("name") in CHOREOGRAPHIES and "duration" not in data:
             return data | {"duration": DEFAULT_DURATION}
         return data
 
     @model_validator(mode="after")
     def choreography_timing(self):
+        if self.name in SCENE_ACTIONS and self.speed is not None:
+            raise ValueError("场景动作使用固定策略速度，不接受 speed 参数")
+        fixed = {
+            "kick_left": 2,
+            "kick_right": 2,
+            "chorus": 3,
+            "find_companion": 0.6,
+            "scene_ball": 0.2,
+            "scene_duo": 0.2,
+        }
+        if self.name in fixed and self.duration != fixed[self.name]:
+            raise ValueError("此场景动作使用固定时长")
         if self.name in CHOREOGRAPHIES and self.duration < MIN_DURATION:
             raise ValueError("组合动作至少需要 2.4 秒，不能压缩成高速抖动")
         if self.name in CHOREOGRAPHIES and self.speed is not None:
@@ -176,7 +227,15 @@ class MotionController:
 
     async def _run(self, action: Action, record: dict):
         try:
-            if action.name == "reset":
+            if self.backend.kind == "mujoco":
+                await self.backend.prepare(action)
+            elif action.name in SCENE_ACTIONS or action.target != "a":
+                raise ValueError("此动作需要官方 MuJoCo 场景，不会退回动画预览")
+            if action.name in SCENE_ACTIONS:
+                record["outcome"] = await self.backend.perform(action)
+                if record["outcome"].get("verified") is False:
+                    raise ValueError(record["outcome"]["message"])
+            elif action.name == "reset":
                 await self.backend.reset()
             elif action.name == "stop":
                 await self.backend.stop()

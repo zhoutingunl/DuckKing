@@ -75,6 +75,54 @@ TOOLS = [
     },
 ]
 
+SCENE_TOOLS = [
+    {
+        "name": "duck_set_scene",
+        "description": "切换官方 MuJoCo 物理场景并复位。ball 单鸭踢球，duo 双鸭互动。",
+        "inputSchema": {
+            "type": "object",
+            "properties": {"scene": {"type": "string", "enum": ["ball", "duo"]}},
+            "required": ["scene"],
+            "additionalProperties": False,
+        },
+    },
+    {
+        "name": "duck_kick",
+        "description": (
+            "单鸭定点踢球，必须指定 left 左脚或 right 右脚。先把球摆到所选脚前，"
+            "再运行官方踢球策略；返回实际接触及位移。不能承诺距离。"
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {"foot": {"type": "string", "enum": ["left", "right"]}},
+            "required": ["foot"],
+            "additionalProperties": False,
+        },
+    },
+    *[
+        {
+            "name": name,
+            "description": description,
+            "inputSchema": {"type": "object", "properties": {}, "additionalProperties": False},
+        }
+        for name, description in [
+            (
+                "duck_find_companion",
+                "双鸭场景中根据仿真位置、120度视野、1.2米距离和遮挡发现同伴；不是摄像头识别或真实蓝牙发现。",
+            ),
+            ("duck_duo_walk", "双鸭一起向各自前方行走最多3秒，处在同一物理世界。"),
+            (
+                "duck_collide",
+                "双鸭向各自前方行走最多3秒，检查是否发生真实物理接触。初始相向站位时可碰面；不自动重置位置。",
+            ),
+            (
+                "duck_chorus",
+                "双鸭同步合唱3秒：本地合成两个声部、同步点头。需要浏览器启用合唱声音，不是灵矽生成的歌声，也不保证浏览器已播放。",
+            ),
+        ]
+    ],
+]
+
 
 class DeviceMCP:
     def __init__(self, motion: MotionController, session_key: str):
@@ -119,21 +167,37 @@ class DeviceMCP:
                 }
             }
         if method == "tools/list":
-            return response | {"result": {"tools": TOOLS}}
+            tools = TOOLS
+            if self.motion.backend.kind == "mujoco":
+                tools = TOOLS + SCENE_TOOLS
+            return response | {"result": {"tools": tools}}
         if method != "tools/call":
             return response | {"error": {"code": -32601, "message": "Method not found"}}
         try:
             name, arguments = params.get("name"), params.get("arguments", {})
             if not isinstance(arguments, dict):
                 raise ValueError("工具参数必须为对象")
-            allowed = {"duration"} if name in {
-                "duck_walk_short", "duck_turn_left", "duck_turn_right"
-            } else set()
+            allowed = (
+                {"duration"}
+                if name in {"duck_walk_short", "duck_turn_left", "duck_turn_right"}
+                else set()
+            )
+            if self.motion.backend.kind == "mujoco":
+                allowed = (
+                    {"scene"}
+                    if name == "duck_set_scene"
+                    else {"foot"}
+                    if name == "duck_kick"
+                    else allowed
+                )
             if set(arguments) - allowed:
                 raise ValueError("工具包含不支持的参数")
             if name == "duck_get_status":
                 state = await self.motion.snapshot()
-                result = {"backend": state["backend"], "action": state["action"]}
+                result = {
+                    "backend": {k: v for k, v in state["backend"].items() if k != "geoms"},
+                    "action": state["action"],
+                }
             else:
                 kind = {
                     "duck_nod": "nod",
@@ -144,6 +208,22 @@ class DeviceMCP:
                     "duck_flash_step": "flash_step",
                     "duck_bear_shake": "bear_shake",
                 }.get(name)
+                if self.motion.backend.kind == "mujoco":
+                    if name == "duck_set_scene":
+                        if arguments.get("scene") not in {"ball", "duo"}:
+                            raise ValueError("场景必须为 ball 或 duo")
+                        kind, arguments = "scene_" + arguments["scene"], {}
+                    elif name == "duck_kick":
+                        if arguments.get("foot") not in {"left", "right"}:
+                            raise ValueError("踢球必须明确指定 left 左脚或 right 右脚")
+                        kind, arguments = "kick_" + arguments["foot"], {}
+                    else:
+                        kind = {
+                            "duck_find_companion": "find_companion",
+                            "duck_duo_walk": "duo_walk",
+                            "duck_collide": "collide",
+                            "duck_chorus": "chorus",
+                        }.get(name, kind)
                 if not kind:
                     raise ValueError("未知工具")
                 action = Action(
