@@ -6,7 +6,7 @@ DuckKing 与 ai_gateway 使用不同目录、虚拟环境、端口和 systemd �
 - 官方模型：每个版本包的 `external/`，从固定上游 Git commit 导出，策略校验 SHA-256。
 - 私有状态与部署流水：`/var/lib/duckking`，不在静态目录中。
 - 可选语音配置：`/var/lib/duckking/voice.env`，0600，所有者跟随状态目录；禁止提交密钥或设备身份。
-- 运行进程：`duckking.service`，root 用户，CPUQuota=150%、MemoryMax=4G、TasksMax=128。无需修改系统账户文件。
+- 运行进程：`duckking.service`，root 用户，CPUQuota=400%、MemoryMax=8G、TasksMax=128。无需修改系统账户文件。
 - 初始监听：`127.0.0.1:8765`。默认只完成本机暂存部署，不会自动开放网络入口。
 
 ## 版本与发布包
@@ -59,4 +59,9 @@ python scripts/release_smoke.py --url https://ztmonitor.qbox.net/duckking/ --com
 
 发布包包含校验过的 SenseVoiceSmall INT8 权重、模型许可和两个合成回归录音。安装器先做真实 ASR 推理及物理自检，再安装 `duckking-asr.service`；仅监听 127.0.0.1:8768，单线程、CPUQuota=100%、MemoryMax=1G、最多两个未完成任务。DuckKing 主服务保留自己的 CPU/内存额度，通过 `DUCKKING_LOCAL_ASR=1` 开启模式选择。无新增公网端口，不改 ai_gateway 路由，不重启 ai_gateway。
 
-worker 健康检查通过后才重启 DuckKing 主服务。部署失败恢复旧链接与两个服务配置；首次增加 worker 的回滚会停止、禁用并移除新增 worker 单元。`/var/lib/duckking/verification/asr-<version>.json` 保存真实推理结果与实测耗时，不包含用户录音。最终公网验收还需检查本地命中、真实灵矽回退、打断与两个房间隔离。
+worker 健康检查通过后才重启 DuckKing 主服务。部署失败恢复旧链接与两个服务配置；首次增加 worker 的回滚会停止、禁用并移除新增 worker 单元。`/var/lib/duckking/verification/asr-<version>.json` 保存真实推理结果与实测耗时，不包含用户录音。最终公网验收还需检查本地命中、真实灵矽回退、打断与动态房间隔离。
+
+
+## 动态房间容量
+
+默认最多 10 个房间、4 个同时加载的物理世界，空闲 300 秒后回收。管理员先为房间 3–10 独立绑定设备，例如在发布目录以 `DUCKKING_DATA_DIR=/var/lib/duckking` 运行 `duckking-setup --room 3`；管理 Key 只供初始化读取，页面不触发绑定。不要复制其他房间的身份或 token。配置变量见 `.env.example`。容量验证应包含多房间真实云端连接和独立动作；仅创建十个空房间不能当作十路云端或物理性能验收。

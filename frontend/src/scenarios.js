@@ -26,7 +26,7 @@ function syncSceneError(error){
 }
 function appendLog(text,label='场景',error=false){const row=document.createElement('div');row.className=`log-line${error?' error':''}`;for(const [value,cls] of [[new Date().toLocaleTimeString('zh-CN',{hour12:false}),'log-time'],[label,'log-label'],[text,'']]){const span=document.createElement('span');span.textContent=value;span.className=cls;row.append(span);}$('activity-log').append(row);while($('activity-log').children.length>80)$('activity-log').firstChild.remove();$('activity-log').scrollTop=$('activity-log').scrollHeight;}
 const chorus=createChorus(text=>$('chorus-status').textContent=text);
-function buttons(){document.querySelectorAll('[data-sim-action]').forEach(b=>b.disabled=!online||!scene||changing||(['pick_up','carry','put_down'].includes(b.dataset.simAction)&&latest?.grasp?.phase!==({pick_up:'ready',carry:'holding',put_down:'carried'}[b.dataset.simAction])));$('stop-scene').disabled=$('reset-scene').disabled=!online||!scene;document.querySelectorAll('[data-scene]').forEach(b=>{b.disabled=changing||!online;b.setAttribute('aria-pressed',String(b.dataset.scene===scene));});}
+function buttons(){document.querySelectorAll('[data-sim-action]').forEach(b=>b.disabled=!online||!scene||changing||(['pick_up','carry','put_down'].includes(b.dataset.simAction)&&latest?.grasp?.phase!==({pick_up:'ready',carry:'holding',put_down:'carried'}[b.dataset.simAction])));$('release-scene').disabled=$('stop-scene').disabled=$('reset-scene').disabled=!online||!scene;document.querySelectorAll('[data-scene]').forEach(b=>{b.disabled=changing||!online;b.setAttribute('aria-pressed',String(b.dataset.scene===scene));});}
 async function post(url,body){const response=await fetch(appURL(url),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body),signal:AbortSignal.timeout(45000)});const data=await response.json();if(!response.ok)throw new Error(typeof data.detail==='string'?data.detail:'场景指令未被接受');return data;}
 const requestId=()=>Array.from(crypto.getRandomValues(new Uint8Array(16)),v=>v.toString(16).padStart(2,'0')).join('');
 let requests=Promise.resolve();
@@ -43,6 +43,12 @@ for(const button of document.querySelectorAll('[data-scene]'))button.addEventLis
 });
 for(const button of document.querySelectorAll('[data-sim-action]'))button.addEventListener('click',async()=>{if(button.dataset.simAction==='chorus')await chorus.enable();await action(button.dataset.simAction);});
 $('enable-chorus').addEventListener('click',()=>chorus.enable().catch(e=>notify(e.message)));
+$('release-scene').addEventListener('click',async()=>{
+  try{const response=await fetch(appURL('api/scenes/close'),{method:'POST',signal:AbortSignal.timeout(15000)});
+    if(!response.ok){const data=await response.json();throw new Error(data.detail||'场景释放失败');}
+    chorus.stop();appendLog('物理场景已释放，其他房间可以使用空出的名额。','场景');
+  }catch(e){notify(e.message);}
+});
 $('reset-scene').addEventListener('click',()=>action('reset'));$('stop-scene').addEventListener('click',()=>action('stop'));$('reset-camera').addEventListener('click',()=>viewer?.reset());$('clear-log').addEventListener('click',()=>$('activity-log').replaceChildren());
 window.addEventListener('keydown',e=>{if(e.key==='Escape'&&scene)action('stop');});
 async function loadModel(state){

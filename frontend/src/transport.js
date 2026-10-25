@@ -93,7 +93,7 @@ export class DuckSocket extends EventTarget {
         const batch=[];let size=0;
         // Bound the base64 JSON request as well as each individual frame.
         while(this.queue.length&&batch.length<MAX_BATCH&&size+this.queue[0].size<=512*1024){const frame=this.queue.shift();size+=frame.size;batch.push(frame)}
-        const ack=await this.request(this.channel,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sequence:this.sequence,frames:batch.map(({binary,data})=>({binary,data}))})},7000);
+        const ack=await this.request(this.channel,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sequence:this.sequence,frames:batch.map(({binary,data})=>({binary,data}))})},this.endpoint==='scene-ws'?20000:7000);
         if(this.closed)return;
         if(ack.sequence!==this.sequence+1)throw new Error('invalid_sequence');
         this.sequence++;this.bufferedAmount-=size;

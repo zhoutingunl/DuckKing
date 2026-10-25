@@ -14,7 +14,7 @@ def join(client, room, endpoint="ws"):
 
 
 def test_rooms_allocate_atomically_and_release_viewers(tmp_path):
-    with TestClient(create_app(settings=Settings(data_dir=tmp_path))) as client:
+    with TestClient(create_app(settings=Settings(data_dir=tmp_path, max_rooms=2))) as client:
         assert client.post('/api/rooms/claim').json() == {"room": "1"}
         assert client.post('/api/rooms/claim').json() == {"room": "2"}
         assert client.post('/api/rooms/claim').status_code == 409
@@ -72,7 +72,7 @@ def test_independent_identities_and_diagnostics_without_exposing_device_data(tmp
     assert second.identity() == two_id
     assert settings.for_room('1') is settings
     with pytest.raises(ValueError):
-        settings.for_room('3')
+        settings.for_room('11')
     (second.data_dir / 'linx.env').write_text('LINX_WS_TOKEN=second-private-token\n')
     assert settings.for_room('2').ws_token == 'second-private-token'
     app = create_app(settings=settings)
@@ -155,3 +155,122 @@ def test_browser_audio_reports_stay_in_owner_room_and_survive_disconnect(tmp_pat
         with join(client, '1', 'voice') as next_browser:
             assert next_browser.receive_json()['state'] == 'disconnected'
             assert client.get('/api/voice/diagnostics?room=1').json()['browser_audio'] is None
+
+
+def test_dynamic_room_claims_are_bounded_and_concurrent(tmp_path):
+    import asyncio
+
+    app = create_app(settings=Settings(data_dir=tmp_path))
+    with TestClient(app) as client:
+        async def claims():
+            return await asyncio.gather(*(app.state.room_registry.claim() for _ in range(12)),
+                                        return_exceptions=True)
+        results = client.portal.call(claims)
+        assert {r['room'] for r in results if isinstance(r, dict)} == {str(i) for i in range(1, 11)}
+        assert sum(getattr(r, 'status_code', None) == 409 for r in results) == 2
+        assert client.post('/api/rooms').status_code == 409
+        data = client.get('/api/rooms').json()
+        assert data['capacity'] == 10 and len(data['rooms']) == 10
+        assert data['physics_active'] == 0 and data['physics_capacity'] == 4
+        with join(client, '10') as ws:
+            assert ws.receive_json()['type'] == 'state'
+        assert client.post('/api/rooms/claim').json() == {'room': '10'}
+        denied = client.post('/api/rooms', headers={'Origin': 'https://elsewhere.invalid'})
+        assert denied.status_code == 403
+
+
+def test_dynamic_rooms_keep_ten_voice_owners_and_device_identities_separate(tmp_path):
+    from contextlib import ExitStack
+
+    app = create_app(settings=Settings(data_dir=tmp_path))
+    with TestClient(app) as client, ExitStack() as stack:
+        for _ in range(8):
+            assert client.post('/api/rooms').status_code == 201
+        identities = [room.settings.identity() for room in app.state.rooms.values()]
+        assert len({identity['device_id'] for identity in identities}) == 10
+        assert len({identity['client_id'] for identity in identities}) == 10
+        sockets = [stack.enter_context(join(client, str(i), 'voice')) for i in range(1, 11)]
+        assert all(ws.receive_json()['state'] == 'disconnected' for ws in sockets)
+        sockets[0].send_json({'type': 'disconnect'})
+        assert sockets[0].receive_json()['state'] == 'disconnected'
+        for ws in sockets[1:]:
+            ws.send_json({'type': 'ping'})
+            assert ws.receive_json() == {'type': 'pong'}
+        public = client.get('/api/rooms').text
+        assert all(value not in public for identity in identities for value in identity.values())
+        assert sum(r['voice_busy'] for r in client.get('/api/rooms').json()['rooms']) == 9
+
+
+def test_idle_reaping_preserves_viewers_voice_and_actions_and_closes_worlds(tmp_path):
+    from duckking.motion import PreviewBackend
+
+    app = create_app(settings=Settings(data_dir=tmp_path, room_idle_seconds=30))
+    with TestClient(app) as client:
+        for _ in range(3):
+            assert client.post('/api/rooms').status_code == 201
+        registry = app.state.room_registry
+        for room in app.state.rooms.values():
+            room.last_used -= 31
+            room.reserved_until = 0
+        # A viewer and a reserved voice must both prevent reclamation.
+        with join(client, '3') as viewer, join(client, '4', 'voice') as voice:
+            viewer.receive_json()
+            voice.receive_json()
+            for room in (app.state.rooms['3'], app.state.rooms['4']):
+                room.last_used -= 31
+            idle = app.state.rooms['5']
+            idle.scene_motion = MotionController(PreviewBackend())
+            closed = []
+            original_close = idle.scene_motion.close
+            async def observed_close():
+                closed.append(True)
+                await original_close()
+            idle.scene_motion.close = observed_close
+            client.portal.call(registry.reap)
+            assert {'3', '4'} <= app.state.rooms.keys()
+            assert '5' not in app.state.rooms and closed == [True]
+        # Closing a viewer updates last_used, so it is not immediately recycled.
+        client.portal.call(registry.reap)
+        assert '3' in app.state.rooms
+        action = client.post('/api/actions?room=3', json={'name': 'walk', 'duration': 3}).json()
+        app.state.rooms['3'].last_used -= 31
+        client.portal.call(registry.reap)
+        assert '3' in app.state.rooms
+        client.post('/api/actions?room=3', json={'name': 'stop'})
+        assert client.get('/api/actions/'+action['id']+'?room=3').json()['status'] == 'cancelled'
+        app.state.rooms['3'].last_used -= 31
+        client.portal.call(registry.reap)
+        assert client.get('/api/state?room=3').status_code == 404
+        assert client.post('/api/rooms').json() == {'room': '3'}
+        assert client.get('/api/voice/statistics?room=3').json()['counts']['rounds'] == 0
+
+
+def test_physics_capacity_is_released_without_changing_another_room(tmp_path):
+    app = create_app(settings=Settings(data_dir=tmp_path, max_physics_rooms=1))
+    with TestClient(app) as client:
+        start = client.post('/api/scenes/start?room=1', json={'name': 'scene_ball'})
+        assert start.status_code == 202
+        client.portal.call(app.state.scene_motion.wait, start.json()['id'])
+        denied = client.post('/api/scenes/start?room=2', json={'name': 'scene_ball'})
+        assert denied.status_code == 409 and '上限' in denied.json()['detail']
+        assert client.get('/api/scenes/state?room=2').status_code == 503
+        assert client.post('/api/actions?room=2', json={'name': 'nod'}).status_code == 202
+        with join(client, '1', 'scene-voice') as ws:
+            ws.receive_json()
+            assert client.post('/api/scenes/close?room=1').status_code == 409
+        assert client.post('/api/scenes/close?room=1').status_code == 204
+        assert client.get('/api/scenes/state?room=1').status_code == 503
+        started = client.post('/api/scenes/start?room=2', json={'name': 'scene_duo'})
+        assert started.status_code == 202
+        assert client.get('/api/rooms').json()['physics_active'] == 1
+
+
+def test_room_settings_reject_invalid_paths_and_limits(tmp_path):
+    settings = Settings(data_dir=tmp_path)
+    for bad in ['../secret', '0', '01', '-1', '', '11', [], None]:
+        with pytest.raises(ValueError):
+            settings.for_room(bad)
+    for kwargs in [{'max_rooms': 0}, {'max_rooms': 33}, {'max_physics_rooms': 0},
+                   {'room_idle_seconds': 0}]:
+        with pytest.raises(ValueError):
+            Settings(**kwargs)

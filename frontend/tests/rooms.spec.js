@@ -90,3 +90,20 @@ test('interrupt mutes queued speech, ignores stale generations, and captures new
   expect(await page.evaluate(()=>audioAudit.active)).toBe(0);
   await expect(page.locator('#activity-log')).not.toContainText('不应出现的旧回复');
 });
+
+test('a new room keeps existing room actions isolated and navigation carries its id',async({page,request})=>{
+  await page.goto('/?room=1');await expect(page.locator('#connection-label')).toContainText('已连接');
+  const before=await (await request.post('/api/actions?room=1',{data:{name:'walk',duration:3}})).json();
+  const existing=(await (await request.get('/api/rooms')).json()).rooms.map(r=>r.id);
+  await page.locator('#create-room').click();
+  await expect.poll(()=>new URL(page.url()).searchParams.get('room')).not.toBe('1');
+  const created=new URL(page.url()).searchParams.get('room');expect(existing).not.toContain(created);
+  await expect(page.locator('#room-label')).toContainText('房间 '+created);
+  await expect(page.locator('#connection-label')).toContainText('已连接');
+  expect((await request.get(`/api/actions/${before.id}?room=${created}`)).status()).toBe(404);
+  await expect.poll(async()=>(await (await request.get(`/api/actions/${before.id}?room=1`)).json()).status).toBe('completed');
+  expect(new URL(await page.getByRole('link',{name:'交互统计'}).getAttribute('href')).searchParams.get('room')).toBe(created);
+  await expect(page.locator('#room-capacity')).toContainText('/ 10 个房间');
+  await page.setViewportSize({width:390,height:844});
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+});

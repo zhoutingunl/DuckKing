@@ -7,15 +7,16 @@ const until=async predicate=>{for(let i=0;i<100;i++){if(predicate())return;await
 const json=value=>({ok:true,status:200,json:async()=>value});
 const identifier='a'.repeat(32);
 
-function fixture({openGate,sendGate,failSend=false}={}){
+function fixture({openGate,sendGate,failSend=false,endpoint="voice"}={}){
   const calls=[],batches=[],polls=[];
   const fetch=async(url,options={})=>{
     const path=new URL(url).pathname,method=options.method??'GET';calls.push({path,method});
     if(path.endsWith('capabilities'))return json({protocol:1,transport:'https-poll'});
-    if(path.endsWith('/channels')){assert.equal(JSON.parse(options.body).endpoint,'voice');await openGate;return json({id:identifier})}
+    if(path.endsWith('/channels')){assert.equal(JSON.parse(options.body).endpoint,endpoint);await openGate;return json({id:identifier})}
     if(method==='DELETE')return {ok:true,status:204};
     if(method==='POST'){
-      const body=JSON.parse(options.body);batches.push(body);await sendGate;
+      const body=JSON.parse(options.body);batches.push(body);
+      await Promise.race([sendGate,new Promise((_,reject)=>options.signal.addEventListener('abort',()=>reject(new Error('abort')),{once:true}))]);
       if(failSend)throw new Error('offline');
       return json({sequence:body.sequence+1});
     }
@@ -24,7 +25,7 @@ function fixture({openGate,sendGate,failSend=false}={}){
       options.signal.addEventListener('abort',()=>reject(new Error('abort')),{once:true});
     });
   };
-  const socket=new DuckSocket('/voice',{url:'https://test.local/duckking/voice',fetch,WebSocket:class{constructor(){assert.fail('unexpected native socket')}}});
+  const socket=new DuckSocket(endpoint,{url:'https://test.local/duckking/'+endpoint,fetch,WebSocket:class{constructor(){assert.fail('unexpected native socket')}}});
   return {socket,calls,batches,polls};
 }
 
@@ -85,4 +86,20 @@ test('local pages use native WebSocket; cancelling before setup opens nothing',a
   const socket=new DuckSocket('voice',options);await tick();
   assert.equal(native[0].url,'ws://127.0.0.1:8765/voice');native[0].onopen();socket.send('hi');assert.equal(native[0].data,'hi');
   socket.close();assert(native[0].closed);
+});
+
+
+test('a scene ACK can survive model-download contention while voice still fails promptly',async()=>{
+  const nativeTimeout=globalThis.setTimeout;let scene,voice,releaseScene,releaseVoice;
+  // Compress only transport deadlines; retain the relative 7s / 20s boundary.
+  globalThis.setTimeout=(callback,ms,...args)=>nativeTimeout(callback,ms>=1000?ms/100:ms,...args);
+  try{
+    const first=fixture({endpoint:'scene-ws',sendGate:new Promise(r=>releaseScene=r)});scene=first.socket;
+    await until(()=>scene.readyState===1);scene.send('next');await until(()=>first.batches.length===1);
+    await new Promise(r=>nativeTimeout(r,90));assert.equal(scene.readyState,1);
+    releaseScene();await until(()=>scene.bufferedAmount===0);assert.equal(first.batches.length,1);scene.close();
+    const second=fixture({sendGate:new Promise(r=>releaseVoice=r)});voice=second.socket;
+    await until(()=>voice.readyState===1);voice.send('listen_stop');
+    await until(()=>voice.readyState===3);assert.equal(second.batches.length,1);
+  }finally{scene?.close();voice?.close();releaseScene?.();releaseVoice?.();globalThis.setTimeout=nativeTimeout;}
 });

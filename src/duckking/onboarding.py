@@ -152,7 +152,7 @@ async def setup_device(
 def main():
     parser = argparse.ArgumentParser(description="Create/select DuckKing and bind this device")
     parser.add_argument("--key-file", type=Path, default=Path("~/.secrets/lingxi"))
-    parser.add_argument("--room", choices=["1", "2"], default="1")
+    parser.add_argument("--room", default="1", help="房间编号，不能超过 DUCKKING_MAX_ROOMS")
     parser.add_argument("--agent-id")
     parser.add_argument("--model-id")
     parser.add_argument(
