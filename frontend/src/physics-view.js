@@ -24,7 +24,7 @@ export function physicsView(container) {
     clear();const meshes=new Map();
     const decode=value=>Uint8Array.from(atob(value),char=>char.charCodeAt(0)).buffer;
     for(const [id,value] of Object.entries(model.meshes)){
-      const geometry=new THREE.BufferGeometry();geometry.setAttribute('position',new THREE.BufferAttribute(new Float32Array(decode(value.vertices)),3));geometry.setIndex(new THREE.BufferAttribute(new Uint32Array(decode(value.faces)),1));geometry.computeVertexNormals();meshes.set(Number(id),geometry);geometries.push(geometry);
+      const geometry=new THREE.BufferGeometry();geometry.setAttribute('position',new THREE.BufferAttribute(value.positions??new Float32Array(decode(value.vertices)),3));geometry.setIndex(new THREE.BufferAttribute(value.indices??new Uint32Array(decode(value.faces)),1));geometry.computeVertexNormals();meshes.set(Number(id),geometry);geometries.push(geometry);
     }
     for(const geom of model.geoms){
       let geometry=geom.type===7?meshes.get(geom.mesh):null;
@@ -59,5 +59,5 @@ export function physicsView(container) {
     // voice audio or the stream of physical state. Physics remains at 200 Hz.
     timer=setTimeout(()=>{frame=requestAnimationFrame(animate);},reduced?100:33);
   }animate();
-  return {load,update,clear,reset(){controls.reset();},dispose(){clearTimeout(timer);cancelAnimationFrame(frame);observer.disconnect();clear();controls.dispose();renderer.dispose();}};
+  return {load,update,clear,frameScene(scene){const close=scene==='carry';camera.position.set(...(close?[.6,.4,.65]:[.85,.62,.95]));controls.target.set(close ? .12 : 0,.13,0);controls.update();controls.saveState();},reset(){controls.reset();},dispose(){clearTimeout(timer);cancelAnimationFrame(frame);observer.disconnect();clear();controls.dispose();renderer.dispose();}};
 }

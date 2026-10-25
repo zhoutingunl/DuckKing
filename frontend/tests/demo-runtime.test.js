@@ -1,0 +1,65 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {DEMOS,AUDIO_LINES} from '../src/demo-catalog.js';
+import {pcmWave,pause,DemoVoice,matchesCloudActions} from '../src/demo-runtime.js';
+import {ChoraleRoster,openingScore} from '../src/chorale-demo.js';
+
+test('all ten scripts have real bounded PCM audio, with no microphone requirement',()=>{
+  assert.equal(DEMOS.length,10);assert.equal(new Set(DEMOS.map(d=>d.id)).size,10);
+  assert.equal(new Set(AUDIO_LINES.map(d=>d.id)).size,AUDIO_LINES.length);
+  for(const line of AUDIO_LINES){
+    const bytes=readFileSync(new URL('../public/demo-audio/'+line.id+'.wav',import.meta.url));
+    const pcm=pcmWave(bytes.buffer.slice(bytes.byteOffset,bytes.byteOffset+bytes.byteLength));
+    assert.ok(pcm.some(v=>Math.abs(v)>100));assert.ok(pcm.length<=15*16000);
+  }
+  assert.throws(()=>pcmWave(new ArrayBuffer(50)));
+});
+test('cancel stops a waiting timeline and prevents subsequent steps',async()=>{
+  const controller=new AbortController();let progressed=false;
+  const pending=pause(200,controller.signal).then(()=>{progressed=true});controller.abort();
+  await assert.rejects(pending,{name:'AbortError'});assert.equal(progressed,false);
+  await assert.rejects(pause(1,controller.signal),{name:'AbortError'});
+});
+test('cloud may prepare the current scene before its required actions, but cannot replace or reset them',()=>{
+  const completed=(...names)=>names.map(name=>({name,status:'completed'}));
+  assert.equal(matchesCloudActions(completed('scene_ball','kick_left'),['kick_left'],'ball'),true);
+  assert.equal(matchesCloudActions(completed('kick_left'),['kick_left'],'ball'),true);
+  assert.equal(matchesCloudActions(completed('scene_ball'),[],'ball'),true);
+  assert.equal(matchesCloudActions(completed('stop','scene_ball','nod'),['nod'],'ball'),true);
+  assert.equal(matchesCloudActions(completed('stop','scene_carry','pick_up','carry','put_down'),['pick_up','carry','put_down'],'carry'),true);
+  for(const names of [['scene_duo','kick_left'],['scene_ball'],['scene_ball','kick_right'],['kick_left','scene_ball'],['scene_ball','scene_ball','kick_left'],['kick_left','nod']]){
+    assert.equal(matchesCloudActions(completed(...names),['kick_left'],'ball'),false,names.join(','));
+  }
+  assert.equal(matchesCloudActions(completed('pick_up','scene_carry','carry','put_down'),['pick_up','carry','put_down'],'carry'),false);
+  assert.equal(matchesCloudActions([{name:'scene_ball',status:'failed'},...completed('kick_left')],['kick_left'],'ball'),false);
+  assert.equal(matchesCloudActions([{name:'kick_left',status:'cancelled'}],['kick_left'],'ball'),false);
+});
+test('recorded commands use 1920 byte frames, pad the tail, and abort bounds uplink',async()=>{
+  const voice=new DemoVoice('1',{},()=>{});voice.state='ready';const frames=[];
+  voice.send=value=>{if(value.type==='listen_start')voice.state='listening';frames.push(value)};
+  await voice.input(new Int16Array(1000).fill(123),new AbortController().signal);
+  const pcm=frames.filter(x=>x instanceof ArrayBuffer);
+  assert.equal(pcm.length,2);assert.ok(pcm.every(x=>x.byteLength===1920));
+  assert.equal(new Int16Array(pcm[1])[39],123);assert.equal(new Int16Array(pcm[1])[40],0);
+  assert.equal(frames.at(-1).type,'listen_stop');
+  const controller=new AbortController();voice.state='ready';frames.length=0;
+  const pending=voice.input(new Int16Array(16000),controller.signal);setTimeout(()=>controller.abort(),80);
+  await assert.rejects(pending,{name:'AbortError'});assert.ok(frames.filter(x=>x instanceof ArrayBuffer).length<=2);
+});
+test('chorale preserves seats on late join, departure and return',()=>{
+  const choir=new ChoraleRoster([{id:42,pitch:330},{id:7,pitch:160}]);
+  assert.equal(choir.conductor,7);assert.deepEqual(choir.seats.map(s=>s.part),['bass','soprano']);
+  assert.equal(choir.join({id:64,pitch:100}).part,'alto');
+  assert.equal(choir.join({id:100,pitch:440}).part,'tenor');
+  choir.leave(64);assert.equal(choir.seats[2].part,'alto');assert.equal(choir.seats[2].active,false);
+  assert.throws(()=>choir.join({id:200,pitch:500}));
+  assert.equal(choir.join({id:64,pitch:100}).part,'alto');assert.equal(choir.seats.length,4);
+});
+test('official score opening is sixteen beats with four different harmonic lines',()=>{
+  const text=readFileSync(new URL('../public/scores/wistful.duckscore',import.meta.url),'utf8');
+  const score=openingScore(text);assert.equal(score.bpm,58);assert.equal(score.beats,16);
+  assert.deepEqual(score.notes.slice(0,4).map(n=>n.midi),[48,55,60,64]);
+  assert.deepEqual(score.notes.slice(0,4).map(n=>n.beat),[0,.75,1.5,2.25]);
+  assert.throws(()=>openingScore('bpm: 120'));
+});

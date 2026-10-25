@@ -16,6 +16,11 @@
 - `simulation.py` 的默认关节姿态、观测布局和推理时序参考官方 [`infer_policy.py`](https://github.com/pollen-robotics/microduck_rl/blob/b02fdea4902c2b93b7d34a83a6f05da4ececb7d3/scripts/infer_policy.py)，共享物理世界组合参考官方 `sim/body_server.py`。本项目自行实现动作编排、场景 API、接触验收和 Web 渲染接线，不声称复现完整硬件或电机数字孪生。
 - 本地合唱是本项目用 Web Audio 合成的双声部短旋律；没有复制曲目或官方 BLE 合唱实现，不是云端语音。
 
+## 自动演示的对白与四声部乐谱
+
+- 演示场景的角色文案与自动编排由 DuckKing 编写；预录中文使用 macOS Tingting 系统语音生成，未克隆真人或官方鸭子音色。生成工具为 `scripts/build_demo_audio.py`，生成结果和逐句文本清单位于 `frontend/public/demo-audio/`。实时灵矽模式中的识别、工具调用与回复另由真实云端会话产生。
+- 第十幕使用 Pollen Robotics Microduck 固定提交 `942e58e3aa6dbb28e7037203fff11866122c7567` 的原创 `sounds/scores/wistful.duckscore` 开头 16 拍。原谱与 Apache-2.0 许可保存在 `frontend/public/scores/`；声部编队规则参考同提交 `sounds/src/chorale/mod.rs`。DuckKing 自行编写浏览器合成与节目调度，不宣称官方音色、BLE 传输或硬件时钟同步。
+
 ## 协议参考
 
 - [灵矽 OTA](https://linx.qiniu.com/docs/xrobot/platform/OTA)

@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="theme-color" content="#f6f7f2"><title>DuckKing · 演示场景</title><link rel="icon" href="./favicon.svg"></head>
+<body>
+ <header class="topbar"><a class="brand" href="./"><span class="brand-mark">dk<span>●</span></span>DuckKing</a><nav class="home-nav" aria-label="工作台导航"><a href="./">语音工作台</a><a href="./scenarios.html">物理实验室</a><a href="./statistics.html">交互统计</a><a href="./deploys.html">部署记录</a></nav></header>
+ <main class="theatre">
+  <section class="theatre-heading"><div><h1>鸭王，开演。</h1><p>入职第一天，从面试人类到组团出道。点选一幕，自动完成对白与动作。</p></div><div class="mode-field"><label for="demo-mode">演出方式</label><select id="demo-mode"><option value="rehearsal">自动演示 · 预录对白</option><option value="live">灵矽实连 · 预录指令</option></select><small id="mode-note">本地编排 + 实时物理仿真；不使用麦克风。</small></div></section>
+  <div id="demo-notice" role="alert" hidden></div>
+  <div class="theatre-layout">
+   <section class="theatre-stage" aria-label="演出舞台">
+    <div class="show-heading"><div><span id="show-number">开场前</span><h2 id="show-title">选一个节目，认识这只鸭。</h2></div><button id="reset-camera" class="subtle-button">复位视角</button></div>
+    <div class="source-strip"><span>官方模型 · MuJoCo 实时仿真</span><span id="voice-source">预录台词 · 本地编排</span></div>
+    <div class="stage-worlds"><div id="demo-viewport" class="demo-viewport"><div id="stage-placeholder">点选节目，舞台会自动准备。</div></div><div id="demo-second" class="demo-viewport" hidden></div></div>
+    <div id="chorale-panel" hidden><div class="chorale-heading"><strong>《wistful》开头 16 拍</strong><span id="chorale-beat">准备入场</span></div><div id="chorale-seats"></div><p>官方乐谱 · 本地合成音色。鸭 A / B 有物理实例；C / D 为附加虚拟声部。此处展示分声部与留席规则，不模拟 BLE 无线时钟。</p></div>
+    <div class="dialogue" aria-live="polite"><span id="caption-role">舞台提示</span><p id="caption">每幕独立开演，可以停止、重演或接着看下一幕。</p></div>
+    <div class="playback-bar"><span id="show-status" role="status">等待开演</span><div><button id="stop-demo" disabled>■ 停止演示 <kbd>Esc</kbd></button><button id="next-demo" disabled>下一幕</button></div></div>
+   </section>
+   <aside class="program"><div class="program-heading"><h2>今日节目单</h2><span>10 幕</span></div><div id="demo-list"></div></aside>
+  </div>
+  <section class="show-results"><div><h2>这一幕，发生了什么</h2><p id="result-summary">动作结果来自本次运行，尚未开始。</p></div><ol id="demo-timeline" aria-live="polite"></ol></section>
+  <details class="show-notes"><summary>演示来源与实际边界</summary><p>预录语音由 macOS Tingting 合成，不是评委现场讲话。自动演示按固定剧本调用本地动作；灵矽实连将预录指令作为音频发送，识别、工具选择和回复来自当次云端会话。任何模式失败都会停止并显示原因。</p><p>当前为软件仿真复刻，没有实体机器人验收。嘴部搬运限固定轻棒布置；双鸭发现使用仿真位置、视野和遮挡；合唱音频在本机合成，不是灵矽生成歌声。四声部节目使用官方谱面的节选，不宣称复现官方音色或 BLE 同步精度。</p><p>模型：Pollen Robotics，CC BY-NC-SA 4.0。<a href="https://github.com/pollen-robotics/microduck/blob/942e58e3aa6dbb28e7037203fff11866122c7567/sounds/scores/wistful.duckscore" target="_blank" rel="noopener">官方乐谱及编队规则</a>：Apache-2.0。</p></details>
+ </main><script type="module" src="./src/demos.js"></script>
+</body></html>

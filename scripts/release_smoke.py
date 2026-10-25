@@ -65,7 +65,7 @@ async def verify(base, commit):
         response = await client.get(urljoin(base, "api/health"))
         response.raise_for_status()
         assert response.json()["release"]["commit"] == commit, "Wrong running release"
-        for page in ["", "scenarios.html", "statistics.html", "deploys.html"]:
+        for page in ["", "scenarios.html", "demos.html", "statistics.html", "deploys.html"]:
             response = await client.get(urljoin(base, page))
             response.raise_for_status()
             assert "DuckKing" in response.text and "<html" in response.text
@@ -74,6 +74,12 @@ async def verify(base, commit):
                 assert url.startswith(base), "An asset escaped the deployment prefix"
                 (await client.get(url)).raise_for_status()
         (await client.get(urljoin(base, "capture-worklet.js"))).raise_for_status()
+        speech = await client.get(urljoin(base, "demo-audio/identity-command.wav"))
+        speech.raise_for_status()
+        assert speech.content[:4] == b"RIFF" and speech.content[8:12] == b"WAVE"
+        score = await client.get(urljoin(base, "scores/wistful.duckscore"))
+        score.raise_for_status()
+        assert "name: wistful" in score.text
         manifest = await client.get(urljoin(base, "api/models/microduck/manifest"), timeout=60)
         manifest.raise_for_status()
         info = manifest.json()

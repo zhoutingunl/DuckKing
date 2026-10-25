@@ -245,6 +245,25 @@ def create_app(
             scene_controller(room).backend.geometry(), headers={"Cache-Control": "no-store"}
         )
 
+    @app.get("/api/scenes/model.dkm.gz")
+    async def compressed_scene_model(room: str = "1"):
+        # Export current physics geometry; compression never steps or modifies physics.
+        backend = scene_controller(room).backend
+        import gzip
+
+        from .model_assets import pack_visual_model
+
+        if not hasattr(backend, "packed_visual_cache"):
+            backend.packed_visual_cache = {}
+        key = backend.revision
+        if key not in backend.packed_visual_cache:
+            model = {**backend.geometry(), "source": "official_microduck_physics", "physics": True}
+            backend.packed_visual_cache[key] = await asyncio.to_thread(
+                lambda: gzip.compress(pack_visual_model(model), compresslevel=6, mtime=0)
+            )
+        return Response(backend.packed_visual_cache[key], media_type="application/octet-stream",
+                        headers={"Content-Encoding": "gzip", "Cache-Control": "no-store"})
+
     async def load_visual_asset():
         try:
             from .model_assets import visual_asset

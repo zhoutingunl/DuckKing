@@ -100,3 +100,31 @@ def test_browser_timings_are_bounded_and_never_accept_device_or_url_fields(caplo
             headers={"Content-Type": "application/json"},
         )
         assert response.status_code == 422
+
+
+def test_compressed_scene_geometry_matches_real_world_and_survives_reset():
+    with TestClient(create_app()) as client:
+        assert client.get("/api/scenes/model.dkm.gz").status_code == 503
+        started = client.post("/api/scenes/start", json={"name": "scene_ball"})
+        assert started.status_code == 202
+        original = client.get("/api/scenes/model").json()
+        response = client.get("/api/scenes/model.dkm.gz", headers={"Accept-Encoding": "identity"})
+        assert response.status_code == 200 and response.headers["content-encoding"] == "gzip"
+        raw = response.content
+        assert raw[:4] == b"DKM1"
+        size = struct.unpack_from("<I", raw, 4)[0]
+        model = json.loads(raw[8:8 + size])
+        assert model["physics"] and model["source"] == "official_microduck_physics"
+        assert model["revision"] == original["revision"]
+        assert model["geoms"] == original["geoms"]
+        start = 8 + (size + 3) // 4 * 4
+        for key, mesh in model["meshes"].items():
+            for name, dtype in (("vertices", "<f4"), ("faces", "<u4")):
+                info = mesh[name]
+                expected = np.frombuffer(base64.b64decode(original["meshes"][key][name]), dtype)
+                actual = np.frombuffer(raw, dtype if name == "vertices" else f"<u{info['bytes']}",
+                                       info["count"], start + info["offset"])
+                np.testing.assert_array_equal(actual, expected)
+        # A reset changes state, not the exported geometry or model revision.
+        client.post("/api/scenes/actions", json={"name": "reset"})
+        assert client.get("/api/scenes/model.dkm.gz").content == raw
