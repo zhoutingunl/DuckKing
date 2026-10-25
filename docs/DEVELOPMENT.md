@@ -201,3 +201,9 @@ npx playwright test scenarios.spec.js
 HTTP API 用 `room=1|2` 查询参数选择房间（省略时兼容房间 1）。四个 WebSocket 的首帧为 `{"type":"join_room","room":"2"}`，须在 5 秒内发送；本地协议客户端也可显式使用 `?room=2`。因此无需修改 ai_gateway 的固定端点白名单或重启网关。旧浏览器页面需刷新以使用此握手。
 
 嘴部搬运专项：`uv run --frozen --no-sync pytest tests/test_grasp.py`。包含实际接触、不同等待时间的完整流程、抓空、执行器意外张嘴后的滑落、取消、推进超时、无接物台和非法参数；不是用预设轨迹替代刚体接触。浏览器验收在 `frontend/tests/official-model.spec.js`，同时检查首页官方网格加载 / 失败重试与真实搬运按钮。
+
+## 可选服务器离线语音
+
+运行 `scripts/setup_local_asr.sh` 安装固定版本 sherpa-onnx 和校验过的 SenseVoiceSmall INT8 权重。在一个终端运行 `uv run --frozen --no-sync duckking-asr`，另一个运行 `DUCKKING_LOCAL_ASR=1 scripts/run_local.sh`，页面选择“本地优先”。worker 仅监听 127.0.0.1:8767；模型只需首次下载，日常识别不联网。未匹配的指令仍需已配置的灵矽设备和网络。
+
+`uv run --extra local-asr python scripts/verify_local_asr.py` 对披露来源的合成录音做真实推理验证。可说“向前走再向左转再向右转”“后退两秒然后点头”。“不要前进”“前进然后去火星”整句交云端。复杂物理动作先在对应实验场景中启用语音，例如动作练习场中的“前滚翻”。本地确认是提示音和文字，聊天回复由灵矽提供。

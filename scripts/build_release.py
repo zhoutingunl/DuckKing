@@ -74,6 +74,12 @@ def build(ref: str, version: str, output: Path):
             )
             + "\n"
         )
+        asr_fetcher = tree / "scripts/fetch_asr_assets.py"
+        subprocess.run(
+            [sys.executable, str(asr_fetcher)], check=True,
+            env=os.environ | {"DUCKKING_ASR_MODEL_DIR": str(cache / "asr")},
+        )
+        shutil.copytree(cache / "asr", assets / "asr", ignore=shutil.ignore_patterns('test_wavs'))
         (tree / "release.json").write_text(
             json.dumps(metadata, ensure_ascii=False, indent=2) + "\n"
         )

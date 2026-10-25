@@ -22,6 +22,12 @@ previous=$(readlink -f "$base/current" || true)
 switched=0
 unit_changed=0
 unit_backup=$base/previous-duckking.service
+asr_backup=$base/previous-duckking-asr.service
+asr_existed=0
+if [[ -e /etc/systemd/system/duckking-asr.service ]]; then
+  cp /etc/systemd/system/duckking-asr.service "$asr_backup"
+  asr_existed=1
+fi
 if [[ -e /etc/systemd/system/duckking.service ]]; then
   cp /etc/systemd/system/duckking.service "$unit_backup"
 elif [[ -e $unit_backup ]]; then
@@ -48,8 +54,15 @@ failed() {
   status=${1:-$?}
   trap - ERR HUP INT TERM
   rollback=unchanged
-  if [[ $unit_changed == 1 && -f $unit_backup ]]; then
-    cp "$unit_backup" /etc/systemd/system/duckking.service
+  if [[ $unit_changed == 1 ]]; then
+    [[ ! -f $unit_backup ]] || cp "$unit_backup" /etc/systemd/system/duckking.service
+    if [[ $asr_existed == 1 ]]; then
+      cp "$asr_backup" /etc/systemd/system/duckking-asr.service
+    else
+      systemctl stop duckking-asr || true
+      systemctl disable duckking-asr || true
+      rm -f /etc/systemd/system/duckking-asr.service
+    fi
     systemctl daemon-reload || true
   fi
   if [[ $switched == 1 ]]; then
@@ -57,6 +70,7 @@ failed() {
       ln -sfn "$previous" "$base/current.next"
       mv -Tf "$base/current.next" "$base/current"
       rollback=failed
+      if [[ $asr_existed == 1 ]]; then systemctl restart duckking-asr || true; fi
       if systemctl restart duckking; then
         for attempt in {1..20}; do
           if "$python" - "$previous/release.json" <<'PY'
@@ -70,8 +84,8 @@ PY
         done
       fi
     else
-      systemctl stop duckking || true
-      systemctl disable duckking || true
+      systemctl stop duckking duckking-asr || true
+      systemctl disable duckking duckking-asr || true
       rollback=not_available
     fi
   fi
@@ -95,7 +109,7 @@ assert metadata['version']==sys.argv[3] and metadata['commit']==sys.argv[4]
 PY
 export UV_CACHE_DIR=$base/cache UV_CONCURRENT_DOWNLOADS=2 UV_CONCURRENT_INSTALLS=2
 export DUCKKING_SIM_DIR=$release/external OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1
-"$uv_binary" sync --project "$release" --frozen --no-dev --extra simulation --python "$python" --no-managed-python
+"$uv_binary" sync --project "$release" --frozen --no-dev --extra simulation --extra local-asr --python "$python" --no-managed-python
 "$python" - "$release" <<'PY'
 import hashlib,json,runpy,sys
 from pathlib import Path
@@ -105,20 +119,31 @@ sources=json.loads((release/'external/sources.json').read_text())
 assert sources=={'model_commit':upstream['REVISION'],'policy_commit':upstream['POLICIES']}
 for name,expected in upstream['CHECKSUMS'].items():
     assert hashlib.sha256((release/'external/policies'/name).read_bytes()).hexdigest()==expected
+asr=runpy.run_path(str(release/'scripts/fetch_asr_assets.py'))
+assert asr['valid'](release/'external/asr')
 PY
+nice -n 10 "$release/.venv/bin/python" "$release/scripts/verify_local_asr.py" > "/var/lib/duckking/verification/asr-$version.json"
 nice -n 10 "$release/.venv/bin/python" "$release/scripts/verify_scenarios.py" --output "/var/lib/duckking/verification/physics-$version.json"
 chown --reference=/var/lib/duckking "/var/lib/duckking/verification/physics-$version.json"
 if [[ ! -e /etc/duckking/runtime.env ]]; then
   printf 'DUCKKING_BIND_HOST=127.0.0.1\n' > /etc/duckking/runtime.env
   chmod 600 /etc/duckking/runtime.env
 fi
-install -m 644 "$release/deploy/duckking.service" /etc/systemd/system/duckking.service
 unit_changed=1
+install -m 644 "$release/deploy/duckking.service" /etc/systemd/system/duckking.service
+install -m 644 "$release/deploy/duckking-asr.service" /etc/systemd/system/duckking-asr.service
 ln -sfn "$release" "$base/current.next"
 mv -Tf "$base/current.next" "$base/current"
 switched=1
 systemctl daemon-reload
-systemctl enable duckking
+systemctl enable duckking duckking-asr
+systemctl restart duckking-asr
+asr_ready=0
+for attempt in {1..30}; do
+  if curl -fsS http://127.0.0.1:8767/health >/dev/null; then asr_ready=1; break; fi
+  sleep 1
+done
+[[ $asr_ready == 1 ]]
 systemctl restart duckking
 ready=0
 for attempt in {1..30}; do

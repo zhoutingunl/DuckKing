@@ -31,7 +31,7 @@ test('statistics renders labelled protocol fixtures, filters, selects rounds, an
   const fixture = structuredClone(empty);
   fixture.rounds = [{turn:2,time:'2026-10-23T15:00:00Z',backend:'preview',status:'timeout',text:'协议测试：没有回复',timings:{listen_stop:1000},actions:[]},
     {turn:1,time:'2026-10-23T14:59:00Z',backend:'preview',status:'completed',text:'协议测试：前进再左转 <img src=x onerror=alert(1)>',timings:{listen_stop:1000,stt:1200,action_start:1500,first_audio:3300,reply_end:5000},actions:[{call:1,tool:'duck_walk_short',at_ms:1500,result:'completed',duration_ms:1200},{call:2,tool:'duck_turn_left',at_ms:2800,result:'completed',duration_ms:1200}]}];
-  fixture.counts = {...fixture.counts,rounds:2,submitted:2,closed:2,recognized:2,replied:1,timeouts:1,actions:2,finished_actions:2,completed_actions:2};
+  fixture.counts = {...fixture.counts,rounds:2,submitted:2,closed:2,cloud_closed:2,recognized:2,replied:1,timeouts:1,actions:2,finished_actions:2,completed_actions:2};
   fixture.latencies.stt = {count:1,p50_ms:200,p95_ms:200};
   let failure = false;
   const queries = [];

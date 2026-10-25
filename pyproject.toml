@@ -21,12 +21,17 @@ dependencies = [
 [project.scripts]
 duckking = "duckking.app:main"
 duckking-setup = "duckking.onboarding:main"
+duckking-asr = "duckking.asr_service:main"
 
 [project.optional-dependencies]
 simulation = [
     "mujoco==3.3.7",
     "numpy>=2,<3",
     "onnxruntime==1.19.2",
+]
+local-asr = [
+    "numpy>=2.0",
+    "sherpa-onnx==2.0.0",
 ]
 
 [dependency-groups]

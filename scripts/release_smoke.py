@@ -66,6 +66,9 @@ async def verify(base, commit):
         response = await client.get(urljoin(base, "api/health"))
         response.raise_for_status()
         assert response.json()["release"]["commit"] == commit, "Wrong running release"
+        modes = await client.get(urljoin(base, "api/voice/modes"))
+        modes.raise_for_status()
+        assert modes.json()["local_first"] is True and modes.json()["available"] is True
         for page in ["", "scenarios.html", "demos.html", "statistics.html", "deploys.html"]:
             response = await client.get(urljoin(base, page))
             response.raise_for_status()
