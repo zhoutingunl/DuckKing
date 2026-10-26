@@ -44,6 +44,7 @@ ENUMS = {
         "duck_skate", "duck_roller_crouch", "duck_yawn", "duck_idle_on", "duck_idle_off",
         "duck_direct", "duck_deliver", "duck_conduct", "duck_recipe", "duck_coach",
         "duck_game", "duck_discuss", "duck_focus", "duck_task",
+        "duck_stage_gather", "duck_stage_roll", "duck_stage_dance",
     },
     "method": {"initialize", "tools/list", "tools/call", "notifications/initialized"},
     "result": {"ok", "error", "ignored", "completed", "failed", "cancelled", "aborted"},

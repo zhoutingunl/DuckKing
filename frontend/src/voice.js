@@ -9,6 +9,7 @@ export function setupVoice({appendLog,notify,endpoint='/voice',cloudOnly=false,b
   let ws=null,state='disconnected',pressed=false,recording=null,timeout=null,heartbeat=null,closingTimer=null,voiceNotice=null;
   function voiceError(text){voiceNotice=text;notify(text)}
   let generation=0,minGeneration=0,captureId=0,audioReportTimer=null;
+  let microphone=null,micPreparing=null,micEpoch=0;
   let mode='cloud',route='cloud',modesReady=false;
   const experience=new VoiceExperience();
   const modeSelect=$('voice-mode');
@@ -31,7 +32,7 @@ export function setupVoice({appendLog,notify,endpoint='/voice',cloudOnly=false,b
     $('voice-intro').textContent=mode==='local_first'?'启用语音后，按住说话；常用动作本地执行，未匹配时交给灵矽。':'连接灵矽后，按住说话，松开等待回答。';
     if(modeSelect)modeSelect.disabled=!modesReady||!['disconnected','error','busy','awaiting_binding'].includes(state);
     const canInterrupt=['thinking','speaking'].includes(state)||output.busy;
-    talk.disabled=!['ready','listening','thinking','speaking'].includes(state)&&!pressed;
+    talk.disabled=(!['ready','listening','thinking','speaking'].includes(state)||!microphone||recording?.released)&&!pressed;
     talk.querySelector('span:not(.key-hint)').textContent=canInterrupt?'打断并说话':'按住说话';
     talk.setAttribute('aria-label',canInterrupt?'打断并说话':'按住说话');
     talk.classList.toggle('recording',state==='listening');
@@ -53,6 +54,8 @@ export function setupVoice({appendLog,notify,endpoint='/voice',cloudOnly=false,b
     if(state==='busy')$('voice-caption').textContent='每个房间一次只供一个页面使用语音。可在顶部选择另一个房间，或在本房间的原页面断开后重试。';
     if(state==='interrupting')$('voice-caption').textContent=pressed?'旧回复已停止，正在接收新命令；松开后发送。':'旧回复已停止，正在建立新一轮语音。';
     if(state==='disconnecting')$('voice-caption').textContent='正在关闭语音会话并释放占用，完成后可切换到其他设备。';
+    if(['ready','thinking','speaking'].includes(state)&&!microphone)$('voice-caption').textContent='正在准备麦克风，请允许权限；按钮可用后再按住说话。';
+    if(state==='ready'&&microphone)$('voice-caption').textContent='麦克风已待命；仅按住时发送语音，松开即静音，断开连接释放麦克风。';
     window.dispatchEvent(new CustomEvent('duckking-voice-state',{detail:{state,mode,route}}));
   }
   modeSelect?.addEventListener('change',()=>{
@@ -71,14 +74,64 @@ export function setupVoice({appendLog,notify,endpoint='/voice',cloudOnly=false,b
   function send(data){if(ws?.readyState===WebSocket.OPEN)ws.send(typeof data==='object'&&!(data instanceof ArrayBuffer)?JSON.stringify(data):data)}
   function playback(data){output.enqueue(data)}
   function clearPlayback(){output.clear()}
+  function muteMicrophone(){microphone?.stream.getAudioTracks().forEach(track=>{track.enabled=false})}
+  function closeMicrophone(){
+    micEpoch++;micPreparing=null;
+    if(microphone){const {stream,source,node}=microphone;microphone=null;node.port.onmessage=null;source.disconnect();node.disconnect();stream.getTracks().forEach(track=>track.stop())}
+  }
+  function prepareMicrophone(){
+    if(microphone)return Promise.resolve();
+    if(micPreparing)return micPreparing;
+    const epoch=micEpoch,channel=ws;
+    let pending;
+    pending=(async()=>{
+      let stream,source,node;
+      try{
+        const context=output.context();
+        await output.captureWorklet(appURL('capture-worklet.js'));
+        if(epoch!==micEpoch||ws!==channel)return;
+        stream=await navigator.mediaDevices.getUserMedia({audio:{channelCount:1,echoCancellation:true,noiseSuppression:true}});
+        if(epoch!==micEpoch||ws!==channel){stream.getTracks().forEach(track=>track.stop());return}
+        stream.getAudioTracks().forEach(track=>{track.enabled=false});
+        source=context.createMediaStreamSource(stream);node=new AudioWorkletNode(context,'duck-capture');
+        node.port.onmessage=event=>{
+          const turn=recording;if(!turn||turn.released)return;
+          for(const frame of turn.framer.push(event.data))queueFrame(turn,frame);
+        };
+        source.connect(node);node.connect(context.destination);
+        microphone={stream,source,node,context};
+        for(const track of stream.getAudioTracks())track.onended=()=>{
+          if(microphone?.stream!==stream)return;
+          void release();closeMicrophone();notify('麦克风已断开，请重新连接语音。');update();
+        };
+        update();
+      }catch(error){
+        source?.disconnect();node?.disconnect();stream?.getTracks().forEach(track=>track.stop());
+        if(epoch===micEpoch&&ws===channel)notify(`无法准备麦克风：${error.message}。请允许权限后重新连接。`);
+      }finally{if(micPreparing===pending)micPreparing=null;update()}
+    })();
+    micPreparing=pending;return pending;
+  }
+  function queueFrame(turn,frame){
+    if(turn.sent)send(frame);
+    else if(turn.frames.length<250)turn.frames.push(frame);
+    else{void release(false);notify('录音准备超时，请重试。')}
+  }
+  function finishRecording(turn){
+    experience.stop();send({type:'listen_stop'});
+    if(recording===turn)recording=null;
+    captureId++;update();
+  }
   async function release(sendStop=true){
-    pressed=false;captureId++;clearTimeout(timeout);
+    pressed=false;clearTimeout(timeout);muteMicrophone();
     if(recording){
-      const {stream,node,source,framer}=recording;recording=null;
-      node.port.onmessage=null;source.disconnect();node.disconnect();
-      stream.getTracks().forEach(track=>track.stop());
-      if(sendStop){experience.stop();framer.flush().forEach(frame=>send(frame));send({type:'listen_stop'})}
-    }
+      const turn=recording;
+      if(!sendStop){recording=null;captureId++}
+      else if(!turn.released){
+        turn.released=true;turn.framer.flush().forEach(frame=>queueFrame(turn,frame));
+        if(turn.sent)finishRecording(turn);
+      }
+    }else captureId++;
     output.setCapture(false);
     if(output.ctx)void output.resume({gesture:true});
     update();
@@ -90,24 +143,22 @@ export function setupVoice({appendLog,notify,endpoint='/voice',cloudOnly=false,b
       experience.finish('cancelled');minGeneration=generation+1;state='interrupting';send({type:'interrupt'});
     }
     clearPlayback();
-    let stream,context;
+    // Capture starts synchronously at the press. Scene-selection requests may
+    // finish later; retain these first frames and send listen_start before them.
+    const turn={framer:new PCMFramer(microphone.context.sampleRate),frames:[],sent:false,released:false};
+    recording=turn;microphone.stream.getAudioTracks().forEach(track=>{track.enabled=true});
+    timeout=setTimeout(()=>release(),15000);
+    let gateTimer;
     try{
       output.setCapture(true);void output.resume({gesture:true});
-      stream=await navigator.mediaDevices.getUserMedia({audio:{channelCount:1,echoCancellation:true,noiseSuppression:true}});
-      if(!pressed||ws!==channel||attempt!==captureId){stream.getTracks().forEach(track=>track.stop());return}
-      context=output.context();if(!await output.resume())throw new Error('音频通道未就绪，请先点启用 / 测试声音');
-      await output.captureWorklet(appURL('capture-worklet.js'));
-      if(!pressed||ws!==channel||attempt!==captureId){stream.getTracks().forEach(track=>track.stop());return}
-      const source=context.createMediaStreamSource(stream),node=new AudioWorkletNode(context,'duck-capture');
-      const framer=new PCMFramer(context.sampleRate);
-      if(beforeListen)await beforeListen();
-      if(!pressed||ws!==channel||attempt!==captureId){source.disconnect();node.disconnect();stream.getTracks().forEach(track=>track.stop());return}
-      recording={stream,node,source,context,framer};
+      if(!await output.resume())throw new Error('音频通道未就绪，请先点启用 / 测试声音');
+      if(beforeListen)await Promise.race([beforeListen(),new Promise((_,reject)=>{gateTimer=setTimeout(()=>reject(Error('场景选择同步超时')),8000)})]);
+      if(ws!==channel||attempt!==captureId||recording!==turn)return;
       send({type:'listen_start',experience:experience.start(mode,ws?.transport)});
-      node.port.onmessage=event=>{if(pressed)framer.push(event.data).forEach(frame=>send(frame))};
-      source.connect(node);node.connect(context.destination);
-      timeout=setTimeout(()=>release(),15000);
-    }catch(error){if(attempt===captureId)await release(false);stream?.getTracks().forEach(track=>track.stop());notify(`无法开始录音：${error.message}`)}
+      turn.sent=true;for(const frame of turn.frames)send(frame);turn.frames=[];
+      if(turn.released)finishRecording(turn);
+    }catch(error){if(attempt===captureId){await release(false);notify(`无法开始录音：${error.message}`)}}
+    finally{clearTimeout(gateTimer)}
   }
   $('enable-sound').addEventListener('click',async()=>{
     if(pressed)return;
@@ -122,7 +173,7 @@ export function setupVoice({appendLog,notify,endpoint='/voice',cloudOnly=false,b
       if(ws?.readyState===WebSocket.CONNECTING){ws.close();return}
       state='disconnecting';update();
       const closing=ws;
-      await release(false);if(ws!==closing)return;
+      await release(false);closeMicrophone();if(ws!==closing)return;
       send({type:'disconnect'});clearPlayback();
       closingTimer=setTimeout(()=>closing?.close(),7000);return;
     }
@@ -138,6 +189,7 @@ export function setupVoice({appendLog,notify,endpoint='/voice',cloudOnly=false,b
     channel.onopen=()=>{
       if(ws!==channel)return;
       send({type:'connect',mode});send({type:'playback_status',...output.snapshot()});
+      void prepareMicrophone();
       heartbeat=setInterval(()=>{if(ws===channel&&channel.readyState===WebSocket.OPEN)send({type:'ping'})},10000);
     };
     channel.onmessage=async(event)=>{
@@ -152,6 +204,8 @@ export function setupVoice({appendLog,notify,endpoint='/voice',cloudOnly=false,b
         if(data.mode)mode=data.mode;if(data.route)route=data.route;
         if(state!==data.state)appendLog(stateLabel(data.state),'语音状态',data.state==='error');
         state=data.state;if(state==='busy')owner=false;
+        if(['disconnected','disconnecting','error','awaiting_binding','busy'].includes(state))closeMicrophone();
+        else if(state==='ready')void prepareMicrophone();
         $('activation').hidden=!data.activation_code;
         $('activation').textContent=data.activation_code?`激活码：${data.activation_code}。请在灵矽控制台添加设备，再点击重新连接。`:'';
         if(data.error)voiceError(data.error);
@@ -172,7 +226,7 @@ export function setupVoice({appendLog,notify,endpoint='/voice',cloudOnly=false,b
     channel.onclose=async()=>{
       if(ws!==channel)return;
       experience.finish('abandoned');ws=null;clearInterval(heartbeat);clearTimeout(closingTimer);
-      await release(false);if(ws!==null)return;clearPlayback();
+      await release(false);closeMicrophone();if(ws!==null)return;clearPlayback();
       state=owner?(['error','awaiting_binding'].includes(state)?state:receivedStatus?'disconnected':'error'):'busy';
       if(owner&&!receivedStatus)voiceError('本地语音通道连接失败，请检查页面地址、代理或修改请求头的浏览器扩展。');
       update();
@@ -191,8 +245,8 @@ export function setupVoice({appendLog,notify,endpoint='/voice',cloudOnly=false,b
   document.addEventListener('visibilitychange',()=>{if(!document.hidden&&output.ctx)void output.resume()});
   // A history-cache restore reuses a document whose microphone and audio were closed.
   window.addEventListener('pageshow',event=>{if(event.persisted)window.location.reload()});
-  window.addEventListener('pagehide',()=>{clearInterval(heartbeat);clearTimeout(closingTimer);release(false);ws?.close();output.close();clearTimeout(audioReportTimer)});
-  return {send, disconnect(){if(ws?.readyState===WebSocket.OPEN)send({type:'disconnect'});else ws?.close();clearPlayback()}, get state(){return state}, clearPlayback, interrupt(){
+  window.addEventListener('pagehide',()=>{clearInterval(heartbeat);clearTimeout(closingTimer);release(false);closeMicrophone();ws?.close();output.close();clearTimeout(audioReportTimer)});
+  return {send, disconnect(){void release(false);closeMicrophone();if(ws?.readyState===WebSocket.OPEN)send({type:'disconnect'});else ws?.close();clearPlayback()}, get state(){return state}, clearPlayback, interrupt(){
     clearPlayback();
     if(['ready','thinking','speaking'].includes(state)){
       experience.finish('cancelled');minGeneration=generation+1;state='interrupting';send({type:'interrupt'});update();

@@ -101,6 +101,8 @@ class TableChoir:
         self.floor_max = [float("-inf")] * 4
         self.floor_drift = 0.0
         self.sim_start = None
+        self.departure_stable_since = None
+        self.departure_ready = False
 
     def update(self):
         b = self.backend
@@ -192,6 +194,7 @@ class TableChoir:
                 "max_drift_m": self.floor_drift,
             },
             "source": "scripted_gait_real_contacts_gravity",
+            "departure_stable": self.departure_ready,
         }
 
     def step(self):
@@ -241,9 +244,25 @@ class TableChoir:
                     dance_command(driver, b.data, i, elapsed)
             else:
                 driver.command[5] = 0.30
+            if i == 3 and 14 <= elapsed < 16:
+                # End the alternating gait before walking off the edge. Entering
+                # from a swing phase can tip the duck onto its side on landing.
+                driver.command[:] = 0
+                position, _ = driver.pose(b.data)
+                standing = (self.supported[i] and position[2] > TABLE_HEIGHT + 0.10
+                            and b.data.xmat[driver.body, 8] > 0.98)
+                if standing:
+                    if self.departure_stable_since is None:
+                        self.departure_stable_since = elapsed
+                    self.departure_ready = elapsed - self.departure_stable_since >= 0.4
+                else:
+                    self.departure_stable_since = None
+                    self.departure_ready = False
             # A bounded forward gait crosses the real table edge. No
             # force impulse, root teleport, or moving floor is applied.
             if i == 3 and 16 <= elapsed < 19:
+                if not self.departure_ready:
+                    raise ValueError("离桌前未确认站稳，表演已停止，请重置场景")
                 driver.command[:] = 0
                 driver.command[0] = 0.35
 
