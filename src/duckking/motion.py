@@ -17,6 +17,12 @@ STAGE_DURATIONS = {"stage_gather": 44, "stage_roll": 28, "stage_dance": 12, "sta
 
 SCENE_ACTIONS = {
     *STAGE_DURATIONS,
+    "scene_turntable",
+    "spin_slow",
+    "spin_medium",
+    "spin_fast",
+    "spin_stop",
+    "escape_mode",
     "scene_stage",
     *SKILL_DURATIONS,
     "scene_skills",
@@ -51,6 +57,12 @@ SCENE_ACTIONS = {
 class Action(BaseModel):
     model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
     name: Literal[
+        "scene_turntable",
+        "spin_slow",
+        "spin_medium",
+        "spin_fast",
+        "spin_stop",
+        "escape_mode",
         "scene_stage",
         "stage_gather",
         "stage_roll",
@@ -112,7 +124,8 @@ class Action(BaseModel):
     target: Literal["a", "b", "c", "d", "both"] = "a"
     member: Literal["a", "b", "c", "d", "selected", "leftmost"] = "selected"
     members: list[Literal["a", "b", "c", "d"]] | None = Field(
-        default=None, min_length=1, max_length=4)
+        default=None, min_length=1, max_length=4
+    )
     request_id: str = Field(default_factory=lambda: str(uuid.uuid4()), min_length=1, max_length=100)
 
     @model_validator(mode="before")
@@ -120,6 +133,12 @@ class Action(BaseModel):
     def choreography_defaults(cls, data):
         fixed = {
             **STAGE_DURATIONS,
+            "scene_turntable": 0.2,
+            "spin_slow": 0.2,
+            "spin_medium": 0.2,
+            "spin_fast": 0.2,
+            "spin_stop": 0.2,
+            "escape_mode": 0.2,
             "scene_stage": 0.2,
             **SKILL_DURATIONS,
             "scene_skills": 0.2,
@@ -158,8 +177,10 @@ class Action(BaseModel):
     @model_validator(mode="after")
     def choreography_timing(self):
         if self.members is not None:
-            if (self.name not in {"stage_gather", "stage_roll", "stage_dance"}
-                    or self.member != "selected"):
+            if (
+                self.name not in {"stage_gather", "stage_roll", "stage_dance"}
+                or self.member != "selected"
+            ):
                 raise ValueError("members 仅用于四鸭发布会群体动作，不能同时指定 member")
             if len(set(self.members)) != len(self.members):
                 raise ValueError("翻滚成员不能重复")
@@ -167,8 +188,8 @@ class Action(BaseModel):
             raise ValueError("member 仅用于四鸭发布会")
         if self.name.startswith("stage_") and self.target != "a":
             raise ValueError("四鸭发布会使用 member 指定成员")
-        if self.target in {"c", "d"} and self.name != "seated_solo":
-            raise ValueError("鸭 C / D 仅用于语音独唱")
+        if self.target in {"c", "d"} and self.name not in {"seated_solo", "sit", "stand"}:
+            raise ValueError("鸭 C / D 仅用于语音独唱或转盘坐站")
         if self.name == "seated_solo" and self.target == "both":
             raise ValueError("一次只能指定一位独唱者")
         if (
@@ -193,6 +214,12 @@ class Action(BaseModel):
             raise ValueError("场景动作使用固定策略速度，不接受 speed 参数")
         fixed = {
             **STAGE_DURATIONS,
+            "scene_turntable": 0.2,
+            "spin_slow": 0.2,
+            "spin_medium": 0.2,
+            "spin_fast": 0.2,
+            "spin_stop": 0.2,
+            "escape_mode": 0.2,
             "scene_stage": 0.2,
             **SKILL_DURATIONS,
             "scene_skills": 0.2,
@@ -402,8 +429,12 @@ class MotionController:
                         await self.backend.head(frame.head_pitch, frame.head_yaw, frame.head_roll)
                         await self.backend.move(frame.forward, frame.turn, frame.lateral)
                     elif action.name.startswith("look_"):
-                        pitch, yaw = {"look_left": (0, 0.35), "look_right": (0, -0.35),
-                                      "look_forward": (0, 0), "look_down": (0.18, 0)}[action.name]
+                        pitch, yaw = {
+                            "look_left": (0, 0.35),
+                            "look_right": (0, -0.35),
+                            "look_forward": (0, 0),
+                            "look_down": (0.18, 0),
+                        }[action.name]
                         blend = min(1, elapsed / 0.3)
                         await self.backend.head(pitch * blend, yaw * blend)
                     elif action.name in {"nod", "shake_head", "tilt_head"}:
@@ -441,7 +472,8 @@ class MotionController:
             self.failure = str(exc)
         finally:
             try:
-                await self.backend.stop()
+                if action.name not in {"spin_slow", "spin_medium", "spin_fast", "escape_mode"}:
+                    await self.backend.stop()
             except Exception as exc:
                 record["status"] = "failed"
                 record["error"] = f"停止确认失败：{exc}"

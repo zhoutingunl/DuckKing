@@ -13,8 +13,11 @@ def request_posture(driver, target):
 
 def measure_posture(backend, driver):
     data = backend.data
-    surface = backend.model.geom("table_top" if backend.scene == "seated" else "floor").id
-    height = float(data.qpos[driver.root + 2]) - (0.4 if backend.scene == "seated" else 0)
+    surface = backend.model.geom(
+        "table_top" if backend.scene == "seated"
+        else "disk" if backend.scene == "turntable" else "floor").id
+    surface_z = 0.4 if backend.scene == "seated" else 0.04 if backend.scene == "turntable" else 0
+    height = float(data.qpos[driver.root + 2]) - surface_z
     upright = float(data.xmat[driver.body, 8])
     knees = [abs(float(data.qpos[driver.q[j]])) for j in (3, 12)]
     supported = any(

@@ -42,12 +42,25 @@ ALIASES = {
     "scene_ball": "踢球场景|进入踢球场景|切换到踢球场景",
     "scene_duo": "双鸭场景|进入双鸭场景|切换到双鸭场景",
     "scene_carry": "搬运场景|进入搬运场景|切换到搬运场景",
+    "scene_turntable": "转盘场景|大逃鸭|转盘大逃鸭|旋转餐桌",
+    "spin_slow": "慢速|慢一点|转慢点",
+    "spin_medium": "中速|中等速度",
+    "spin_fast": "加速|快点|转快一点|全速|最快",
+    "spin_stop": "停止转动|转盘停下|别转了|停下转盘",
+    "escape_mode": "逆盘倒走|逃生模式|别被甩下去|开始倒走",
 }
 LOOKUP = {word: name for name, words in ALIASES.items() for word in words.split("|")}
 NUMBER = {"一": 1, "二": 2, "两": 2, "三": 3}
 BOUNDED_DURATION = {
-    "walk", "backward", "turn_left", "turn_right", "strafe_left", "strafe_right",
-    "nod", "shake_head", "tilt_head",
+    "walk",
+    "backward",
+    "turn_left",
+    "turn_right",
+    "strafe_left",
+    "strafe_right",
+    "nod",
+    "shake_head",
+    "tilt_head",
 }
 
 
@@ -77,7 +90,7 @@ def parse_commands(text: str, *, physical: bool, scene: str | None = None) -> Co
         # Keep whole aliases such as “双鸭一起走” intact.
         if member and part not in LOOKUP:
             target = {"鸭a": "a", "鸭b": "b"}.get(member[1], "both")
-            part = part[member.end():]
+            part = part[member.end() :]
         duration = None
         timed = re.fullmatch(r"(.+?)([一二两三]|[0-9]+(?:\.[0-9]+)?)秒", part)
         if timed:
@@ -94,11 +107,16 @@ def parse_commands(text: str, *, physical: bool, scene: str | None = None) -> Co
         if target != "a" and current != "duo":
             return CommandPlan(reason="unsupported_context")
         required = (
-            "skills" if name in {"roulade", "ground_pick", "yawn", "idle_on", "idle_off"}
-            else "rollers" if name in {"skate", "roller_crouch"}
-            else "carry" if name in {"pick_up", "carry", "put_down"}
-            else "ball" if name in {"kick_left", "kick_right"}
-            else "duo" if name in {"find_companion", "duo_walk", "collide", "chorus"}
+            "skills"
+            if name in {"roulade", "ground_pick", "yawn", "idle_on", "idle_off"}
+            else "rollers"
+            if name in {"skate", "roller_crouch"}
+            else "carry"
+            if name in {"pick_up", "carry", "put_down"}
+            else "ball"
+            if name in {"kick_left", "kick_right"}
+            else "duo"
+            if name in {"find_companion", "duo_walk", "collide", "chorus"}
             else None
         )
         if required and current != required:
@@ -108,12 +126,17 @@ def parse_commands(text: str, *, physical: bool, scene: str | None = None) -> Co
         elif current in {"table", "seated", "carry"} and name != "stop" and required != current:
             return CommandPlan(reason="unsupported_context")
         elif current == "rollers" and name not in {
-            "skate", "roller_crouch", "nod", "shake_head", "tilt_head", "stop",
+            "skate",
+            "roller_crouch",
+            "nod",
+            "shake_head",
+            "tilt_head",
+            "stop",
         }:
             return CommandPlan(reason="unsupported_context")
-        actions.append(Action(
-            name=name, target=target, **({"duration": duration} if duration else {})
-        ))
+        actions.append(
+            Action(name=name, target=target, **({"duration": duration} if duration else {}))
+        )
     if sum(a.duration for a in actions) > 20:
         return CommandPlan(reason="plan_limit")
     return CommandPlan(tuple(actions), "matched")

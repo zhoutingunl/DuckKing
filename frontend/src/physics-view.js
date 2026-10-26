@@ -14,7 +14,7 @@ export function physicsView(container) {
   container.append(renderer.domElement);renderer.domElement.setAttribute('aria-label','官方 MicroDuck 模型，位置与关节姿态来自 MuJoCo');
   const camera=new THREE.PerspectiveCamera(38,1,.01,30);camera.position.set(.85,.62,.95);
   const controls=new OrbitControls(camera,renderer.domElement);controls.target.set(0,.13,0);controls.minDistance=.35;controls.maxDistance=6;controls.maxPolarAngle=Math.PI/2.02;controls.enableDamping=true;controls.update();controls.saveState();
-  let manualView=false,floorFramed=false,seatedView=false;controls.addEventListener('start',()=>{manualView=true});
+  let diskView=null,watermark=null,manualView=false,floorFramed=false,seatedView=false;controls.addEventListener('start',()=>{manualView=true});
   scene.add(new THREE.HemisphereLight(0xffffff,0x71815a,2.4));
   const sun=new THREE.DirectionalLight(0xfff6df,3);sun.position.set(1,2,1);sun.castShadow=true;sun.shadow.mapSize.set(1024,1024);sun.shadow.camera.left=-2;sun.shadow.camera.right=2;sun.shadow.camera.top=2;sun.shadow.camera.bottom=-2;sun.shadow.bias=-.0001;sun.shadow.normalBias=.001;scene.add(sun);
   const floor=new THREE.Mesh(new THREE.PlaneGeometry(20,20),new THREE.MeshStandardMaterial({color:'#edf0e5',roughness:1}));floor.rotation.x=-Math.PI/2;floor.receiveShadow=true;scene.add(floor);
@@ -23,7 +23,7 @@ export function physicsView(container) {
   let objects=new Map(),labels=new Map(),textures=[],geometries=[],materials=[],frame,timer,revision=null,slowFrames=0,lastFrame=performance.now(),pixelBudget=reduced?320:640,drawCost=0,drawPause=0;
   const instanceMatrix=new THREE.Matrix4();
   const visibility=new IntersectionObserver(entries=>{visible=entries[0]?.isIntersecting??true});visibility.observe(renderer.domElement);
-  function clear(){world.clear();geometries.forEach(g=>g.dispose());materials.forEach(m=>m.dispose());textures.forEach(t=>t.dispose());geometries=[];materials=[];textures=[];objects.clear();labels.clear();}
+  function clear(){diskView=null;world.clear();geometries.forEach(g=>g.dispose());materials.forEach(m=>m.dispose());textures.forEach(t=>t.dispose());geometries=[];materials=[];textures=[];objects.clear();labels.clear();}
   function load(model){
     clear();const meshes=new Map(),shared=new Map();
     const decode=value=>Uint8Array.from(atob(value),char=>char.charCodeAt(0)).buffer;
@@ -57,12 +57,27 @@ export function physicsView(container) {
   }
   function update(state){
     latest=state;
+    if(state.turntable&&state.scene==='turntable'){
+      if(!diskView){
+        diskView=new THREE.Group();
+        const wood=new THREE.MeshStandardMaterial({color:'#b8863f',roughness:.85});
+        const plate=new THREE.Mesh(new THREE.CylinderGeometry(1.05,1.05,.04,48),wood);
+        plate.position.y=.04;diskView.add(plate);
+        for(let i=0;i<6;i++){const bar=new THREE.Mesh(new THREE.BoxGeometry(.86,.012,.14),
+          new THREE.MeshStandardMaterial({color:i%2?'#d24a3a':'#faf4e6',roughness:.6}));
+          const holder=new THREE.Group();bar.position.x=.48;holder.add(bar);
+          holder.rotation.y=i*Math.PI/3;holder.position.y=.062;diskView.add(holder);}
+        const wm=document.createElement('canvas');wm.width=640;wm.height=96;const wc=wm.getContext('2d');wc.fillStyle='#f4e6cc';wc.fillRect(0,0,640,96);wc.fillStyle='#2b170d';wc.font='bold 54px sans-serif';wc.textAlign='center';wc.textBaseline='middle';wc.fillText('转 盘 大 逃 鸭',320,50);const wt=new THREE.CanvasTexture(wm);textures.push(wt);const wmMat=new THREE.MeshBasicMaterial({map:wt,transparent:true,side:THREE.DoubleSide,depthWrite:false});materials.push(wmMat);watermark=new THREE.Mesh(new THREE.PlaneGeometry(1.35,.20),wmMat);watermark.rotation.x=-Math.PI/2;watermark.position.y=.063;diskView.add(watermark);geometries.push(watermark.geometry);
+        world.add(diskView);geometries.push(plate.geometry);
+      }
+      diskView.rotation.y=-state.turntable.angle;
+    } else if(diskView){diskView.visible=state.scene==='turntable';}
     if(state.stage&&(selection?.instance!==state.stage.instance||state.stage.selection_version>=selection.selection_version))selection=state.stage;
     if(state.revision!==revision)return;
     for(const duck of state.ducks){
       if(!labels.has(duck.id)){
-        const canvas=document.createElement('canvas');canvas.width=192;canvas.height=72;const context=canvas.getContext('2d');context.fillStyle=({a:'#526d32',b:'#3f6580',c:'#987033',d:'#865872'}[duck.id]??'#526d32');context.fillRect(0,0,192,72);context.font='40px sans-serif';context.textAlign='center';context.fillStyle='#fff';context.fillText(`鸭 ${duck.id.toUpperCase()}`,96,51);
-        const texture=new THREE.CanvasTexture(canvas);textures.push(texture);const material=new THREE.SpriteMaterial({map:texture,depthTest:false});materials.push(material);const sprite=new THREE.Sprite(material);sprite.scale.set(.105,.04,1);world.add(sprite);labels.set(duck.id,sprite);
+        const canvas=document.createElement('canvas');canvas.width=96;canvas.height=96;const context=canvas.getContext('2d');context.fillStyle='#050505';context.beginPath();context.arc(48,48,44,0,Math.PI*2);context.fill();context.font='bold 58px sans-serif';context.textAlign='center';context.textBaseline='middle';context.fillStyle='#fff';context.fillText(duck.number??duck.id.toUpperCase(),48,49);
+        const texture=new THREE.CanvasTexture(canvas);textures.push(texture);const material=new THREE.SpriteMaterial({map:texture,depthTest:false});materials.push(material);const sprite=new THREE.Sprite(material);sprite.scale.set(.07,.07,1);world.add(sprite);labels.set(duck.id,sprite);
       }
       const [x,y,z]=duck.position;labels.get(duck.id).position.set(x,y,z+.20);
     }
@@ -129,5 +144,5 @@ export function physicsView(container) {
     drawPause=reduced?Math.max(100,Math.min(2000,drawCost*2)):seatedView?66:33;
     timer=setTimeout(()=>{frame=requestAnimationFrame(animate);},drawPause);
   }animate();
-  return {load,update,clear,screenOrder,selection(value){selection=value},interaction(callback,mode="select"){interaction=callback;interactionMode=mode;if(!callback){stick.visible=false;for(const ring of rings.values())ring.visible=false}},renderNow(){controls.update();renderer.render(scene,camera);},frameScene(scene){manualView=false;floorFramed=false;seatedView=scene==='seated';resize();const close=scene==='carry',seated=scene==='seated',table=scene==='table';camera.position.set(...(scene==='stage'?[2.7,2.1,0]:seated?[1.05,.90,-1.05]:table?[1.35,.98,-1.35]:close?[.6,.4,.65]:[.85,.62,.95]));controls.target.set(close ? .12 : table ? .20 : 0,seated ? .52 : table ? .25 : .13,table ? -.10 : 0);controls.update();controls.saveState();},reset(){manualView=false;floorFramed=false;controls.reset();},dispose(){clearTimeout(timer);cancelAnimationFrame(frame);observer.disconnect();visibility.disconnect();clear();controls.dispose();renderer.dispose();ringGeometry.dispose();ringMaterial.dispose();stick.geometry.dispose();stick.material.dispose();}};
+  return {load,update,clear,screenOrder,selection(value){selection=value},interaction(callback,mode="select"){interaction=callback;interactionMode=mode;if(!callback){stick.visible=false;for(const ring of rings.values())ring.visible=false}},renderNow(){controls.update();renderer.render(scene,camera);},frameScene(scene){manualView=false;floorFramed=false;seatedView=scene==='seated';resize();const close=scene==='carry',seated=scene==='seated',table=scene==='table';camera.position.set(...(scene==='stage'||scene==='turntable'?[2.7,2.1,0]:seated?[1.05,.90,-1.05]:table?[1.35,.98,-1.35]:close?[.6,.4,.65]:[.85,.62,.95]));controls.target.set(close ? .12 : table ? .20 : 0,seated ? .52 : table ? .25 : .13,table ? -.10 : 0);controls.update();controls.saveState();},reset(){manualView=false;floorFramed=false;controls.reset();},dispose(){clearTimeout(timer);cancelAnimationFrame(frame);observer.disconnect();visibility.disconnect();clear();controls.dispose();renderer.dispose();ringGeometry.dispose();ringMaterial.dispose();stick.geometry.dispose();stick.material.dispose();}};
 }

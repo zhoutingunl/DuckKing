@@ -12,7 +12,7 @@ import { setupRoom } from './room.js';
 await setupRoom();
 
 const $=id=>document.getElementById(id);
-const names={scene_skills:'动作练习场',scene_rollers:'轮滑小鸭',roulade:'前滚翻',ground_pick:'低头啄取',skate:'向前滑行',roller_crouch:'轮滑下蹲',yawn:'打个哈欠',idle_on:'开启自然待机',idle_off:'关闭自然待机',backward:'后退',strafe_left:'左横移',strafe_right:'右横移',shake_head:'摇头',tilt_head:'歪头',sit:'坐下',stand:'站起来',scene_ball:'单鸭踢球',scene_duo:'双鸭互动',scene_carry:'嘴部搬运',pick_up:'用嘴夹起',carry:'夹持搬运',put_down:'放下物品',kick_left:'左脚踢球',kick_right:'右脚踢球',find_companion:'发现同伴',duo_walk:'双鸭一起走',collide:'相向碰面',chorus:'同步合唱',walk:'前进',turn_left:'左转',turn_right:'右转',stop:'停止',reset:'重置场景',nod:'点头'};
+const names={scene_skills:'动作练习场',scene_rollers:'轮滑小鸭',escape_mode:'逆盘倒走',spin_slow:'转盘慢速',spin_medium:'转盘中速',spin_fast:'转盘全速',spin_stop:'转盘停止',roulade:'前滚翻',ground_pick:'低头啄取',skate:'向前滑行',roller_crouch:'轮滑下蹲',yawn:'打个哈欠',idle_on:'开启自然待机',idle_off:'关闭自然待机',backward:'后退',strafe_left:'左横移',strafe_right:'右横移',shake_head:'摇头',tilt_head:'歪头',sit:'坐下',stand:'站起来',scene_ball:'单鸭踢球',scene_duo:'双鸭互动',scene_carry:'嘴部搬运',pick_up:'用嘴夹起',carry:'夹持搬运',put_down:'放下物品',kick_left:'左脚踢球',kick_right:'右脚踢球',find_companion:'发现同伴',duo_walk:'双鸭一起走',collide:'相向碰面',chorus:'同步合唱',walk:'前进',turn_left:'左转',turn_right:'右转',stop:'停止',reset:'重置场景',nod:'点头'};
 const graspPhases={ready:'待夹取',closing:'正在合嘴',lifting:'正在抬起',holding:'夹持中',carrying:'正在搬运',carried:'已到接物台',lowering:'正在低头',opening:'正在张嘴',retreating:'正在退开',released:'已放稳',interrupted:'已停止',dropped:'夹持丢失',failed:'未通过验证'};
 const statuses={completed:'完成',failed:'未完成',cancelled:'已取消',running:'进行中'};
 const loadPhysicsModel=createPhysicsModelLoader();
@@ -32,7 +32,7 @@ async function post(url,body){const response=await fetch(appURL(url),{method:'PO
 const requestId=()=>Array.from(crypto.getRandomValues(new Uint8Array(16)),v=>v.toString(16).padStart(2,'0')).join('');
 let requests=Promise.resolve();
 function action(name){
-  const target=scene==='duo'&&['sit','stand','walk','backward','strafe_left','strafe_right','turn_left','turn_right','nod','shake_head','tilt_head'].includes(name)?$('duck-target').value:'a';
+  const target=['duo','turntable'].includes(scene)&&['sit','stand','walk','backward','strafe_left','strafe_right','turn_left','turn_right','nod','shake_head','tilt_head'].includes(name)?$(scene==='duo'?'duck-target':'turntable-target').value:'a';
   if(name==='stop'||name==='reset')chorus.stop();
   requests=requests.then(()=>post('/api/scenes/actions',{name,target,request_id:requestId()})).catch(e=>notify(e.message));return requests;
 }
@@ -89,6 +89,8 @@ function update(data){
   $('ball-controls').hidden=scene!=='ball';$('duo-controls').hidden=scene!=='duo';$('carry-controls').hidden=$('grasp-readouts').hidden=scene!=='carry';
   $('posture-controls').hidden=!['ball','duo','skills'].includes(scene);
   $('skills-controls').hidden=scene!=='skills';$('rollers-controls').hidden=scene!=='rollers';
+  $('turntable-controls').hidden=scene!=='turntable';
+  if(scene==='turntable'&&state.turntable){const t=state.turntable,out=t.ducks.filter(d=>d.out).map(d=>'鸭 '+d.number);$('turntable-status').textContent=`转速 ${t.omega.toFixed(1)} 弧度/秒 · 台上 ${t.remaining} 只${t.escape_mode?' · 逆盘倒走':''}${out.length?' · 已出局：'+out.join('、'):''}`;$('turntable-narration').textContent=t.events?.at(-1)?.text??'等待旁白。';}
   $('basic-controls').hidden=!['ball','duo','skills','rollers'].includes(scene);$('floor-moves').hidden=scene==='rollers';
   $('skill-readouts').hidden=!['skills','rollers'].includes(scene)||!state.skill;
   if(state.idle)$('idle-status').textContent=state.idle.enabled?`自然待机已开启 · ${{off:'等待',waiting:'等待安静下来',paused:'当前动作优先',look_around:'看看四周',yawn:'打哈欠'}[state.idle.phase]??'等待'}`:'自然待机已关闭';
@@ -112,7 +114,7 @@ function notStarted(){
   syncSceneError(null);
   scene=revision=latest=null;seen=0;viewer?.clear();chorus.stop();buttons();
   $('scene-placeholder').hidden=false;$('sim-status').textContent='选择场景开始';$('scene-title').textContent='等待启动';$('actions-heading').textContent='选择场景后开始';
-  for(const id of ['posture-controls','skills-controls','rollers-controls','skill-readouts','basic-controls'])$(id).hidden=true;
+  for(const id of ['posture-controls','skills-controls','rollers-controls','turntable-controls','skill-readouts','basic-controls'])$(id).hidden=true;
   $('ball-controls').hidden=$('duo-controls').hidden=$('carry-controls').hidden=$('grasp-readouts').hidden=true;
   for(const id of ['ball-distance','ball-motion','ball-contact','duck-contact','sim-speed'])$(id).textContent='—';
 }

@@ -206,6 +206,7 @@ def create_app(
                 "table",
                 "seated",
                 "stage",
+                "turntable",
                 "unknown",
             },
         }
@@ -290,6 +291,7 @@ def create_app(
                 "scene_skills",
                 "scene_rollers",
                 "scene_stage",
+                "scene_turntable",
             }
             or body.target != "a"
         ):

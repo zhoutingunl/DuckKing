@@ -113,11 +113,11 @@ test('source link stays at the right edge with no navigation or viewport overlap
 
 for(const song of ['ode','tigers'])test(`stopping synthesized ${song} stops all oscillators and actual stepping`,async({page})=>{
  test.setTimeout(90000);
- await page.addInitScript(()=>{const native=OscillatorNode.prototype.start;window.scorePlaying=0;OscillatorNode.prototype.start=function(...args){window.scorePlaying++;this.addEventListener('ended',()=>window.scorePlaying--,{once:true});return native.apply(this,args)}});
+ await page.addInitScript(()=>{const native=OscillatorNode.prototype.start;window.scorePlaying=0;window.scoreStarted=0;OscillatorNode.prototype.start=function(...args){window.scoreStarted++;window.scorePlaying++;this.addEventListener('ended',()=>window.scorePlaying--,{once:true});return native.apply(this,args)}});
  await page.route('**/demo-audio/*.wav*',route=>route.fulfill({contentType:'audio/wav',body:silentFixture()}));
  await page.goto('/demos.html?room=1');await page.locator(`[data-table-song="${song}"]`).click();
  await expect(page.locator('#table-panel')).toBeVisible({timeout:45000});
- await expect.poll(()=>page.evaluate(()=>window.scorePlaying),{timeout:15000}).toBeGreaterThan(0);
+ await expect.poll(()=>page.evaluate(()=>window.scoreStarted),{timeout:15000}).toBeGreaterThan(0);
  await expect(page.locator('#caption-role')).toContainText('本地合成');
  if(song==='tigers')await expect(page.locator('.table-seat[data-duck=d]')).toContainText('等待入唱');
  await page.locator('#stop-demo').click();await expect.poll(()=>page.evaluate(()=>window.scorePlaying)).toBe(0);
@@ -173,10 +173,10 @@ test('physics page can sit, keep the pose and stand again',async({page})=>{
  test.setTimeout(60000);await page.goto('/scenarios.html?room=1');
  await page.locator('[data-scene="ball"]').click();
  await expect(page.locator('#posture-controls')).toBeVisible({timeout:30000});
- await page.locator('[data-sim-action="sit"]').click();
+ await page.locator('#posture-controls [data-sim-action="sit"]').click();
  await expect(page.locator('#posture-status')).toContainText('已坐稳',{timeout:10000});
  await expect(page.locator('#action-result')).toContainText('坐下 · 完成');
- await page.locator('[data-sim-action="stand"]').click();
+ await page.locator('#posture-controls [data-sim-action="stand"]').click();
  await expect(page.locator('#action-result')).toContainText('站起来 · 完成');
  await expect(page.locator('#posture-status')).toContainText('站立');
 });
