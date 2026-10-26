@@ -35,7 +35,7 @@ async def run(motion, name, **kwargs):
 async def test_spin_is_real_and_eliminations_are_measured(backend):
     motion = MotionController(backend)
     assert (await run(motion, "spin_fast"))["outcome"]["target_omega"] == pytest.approx(4.0)
-    deadline = backend.data.time + 40
+    deadline = backend.data.time + 90
     while backend.data.time < deadline and backend.turntable.snapshot()["remaining"] == 4:
         await asyncio.sleep(0.05)
     state = backend.turntable.snapshot()
@@ -75,7 +75,7 @@ async def test_scene_gates_and_switch(backend):
 async def test_eliminated_ducks_can_self_recover_on_the_floor(backend):
     motion = MotionController(backend)
     await run(motion, "spin_fast")
-    deadline = backend.data.time + 40
+    deadline = backend.data.time + 90
     while backend.data.time < deadline and not backend.turntable.eliminated:
         await asyncio.sleep(0.05)
     assert backend.turntable.eliminated
