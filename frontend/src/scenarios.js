@@ -32,7 +32,7 @@ async function post(url,body){const response=await fetch(appURL(url),{method:'PO
 const requestId=()=>Array.from(crypto.getRandomValues(new Uint8Array(16)),v=>v.toString(16).padStart(2,'0')).join('');
 let requests=Promise.resolve();
 function action(name){
-  const target=scene==='duo'&&['sit','stand','walk','backward','strafe_left','strafe_right','turn_left','turn_right','nod','shake_head','tilt_head'].includes(name)?$('duck-target').value:'a';
+  const target=['duo','turntable'].includes(scene)&&['sit','stand','walk','backward','strafe_left','strafe_right','turn_left','turn_right','nod','shake_head','tilt_head'].includes(name)?$(scene==='duo'?'duck-target':'turntable-target').value:'a';
   if(name==='stop'||name==='reset')chorus.stop();
   requests=requests.then(()=>post('/api/scenes/actions',{name,target,request_id:requestId()})).catch(e=>notify(e.message));return requests;
 }
