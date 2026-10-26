@@ -19,6 +19,15 @@ ROOT = Path(__file__).resolve().parents[1]
 async def verify(output: Path):
     backend = MuJoCoBackend(Path(os.environ.get("DUCKKING_SIM_DIR", ROOT / "external")))
     motion = MotionController(backend)
+    async def accelerated_loop():
+        # Installation self-test uses the same MuJoCo timestep and ONNX policy
+        # cadence, but removes wall-clock sleep. This keeps a slow target host
+        # from changing an authored 36-second tabletop timeline.
+        while True:
+            for _ in range(4):
+                backend.tick()
+            await asyncio.sleep(0.001)
+    backend._loop = accelerated_loop
     results = []
     try:
         for name in [

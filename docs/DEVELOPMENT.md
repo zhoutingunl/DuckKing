@@ -226,3 +226,5 @@ HTTP API 用 `room=<房间编号>` 查询参数选择房间（省略时兼容房
 ## 持续统计的运维
 
 [使用体验页面](EXPERIENCE_METRICS.md)使用数据目录下 `experience.sqlite3`，与发布包分离，普通重启和升级保留。备份使用 SQLite backup API；恢复时先停止 DuckKing，保留文件 0600 权限及服务用户所有权。页面会报告写盘错误和本次启动丢弃量。自动化验收使用 `measurement=verification`（Playwright 自动标记），旧脚本无上下文则进入“未标记的调用”；不要向日常分组灌入固定合成口令基准。
+
+安装器的 `verify_scenarios.py` 使用相同 MuJoCo timestep 和 ONNX 推理频率，但在独立自检中移除墙钟 sleep；这样目标机慢速 CPU 不会改变桌上36秒编排的仿真时间线。离桌、触地、恢复踏步和三只留桌验收条件不变。浏览器公网演示仍使用真实墙钟。
