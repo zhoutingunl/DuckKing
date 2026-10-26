@@ -1,6 +1,6 @@
 # DuckKing
 
-通过语音和按钮控制 MicroDuck，在浏览器中完成踢球、搬运、前滚翻、轮滑与四鸭合唱。支持服务器离线识别优先、真实灵矽语音、动态独立房间和十三幕自动演示。
+让用户在购买硬件之前，先在浏览器里了解 MicroDuck、体验灵矽语音交互。通过语音和按钮控制仿真小鸭，完成踢球、搬运、前滚翻、轮滑与四鸭合唱。支持服务器离线识别优先、真实灵矽语音、动态独立房间和十三幕自动演示。
 
 [在线体验](https://ztmonitor.qbox.net/duckking/) · [演示场景](https://ztmonitor.qbox.net/duckking/demos.html) · [物理实验室](https://ztmonitor.qbox.net/duckking/scenarios.html) · [部署记录](https://ztmonitor.qbox.net/duckking/deploys.html)
 
@@ -11,6 +11,14 @@
 当前工作台使用官方模型外观，动作由本项目脚本驱动，属于**动画预览**。物理实验室与演示剧场使用**真实 MuJoCo CPU + 官方 ONNX 策略**；另有独立的官方 **robotd / MuJoCo** 适配。三条路径分别标识，连接失败会明确报错。项目目前是软件仿真，没有实体机器人验收。
 
 **竞赛演示视频：** [观看 4 分 02 秒实录](https://github.com/zhoutingunl/DuckKing/releases/download/deploy-yzh737-20261025T165552Z/duckking-hackathon-20261026.mp4) · [章节、量化数据与来源](docs/DEMO_VIDEO.md)
+
+## 商业价值与产品设计
+
+**先体验，再决定是否购买。** MicroDuck 官方预售价为 399 美元，未含税费和运费（2026-10-27 查阅[官方商店](https://store.pollen-robotics.com/products/microduck)）。DuckKing 为有兴趣但尚未购买硬件的用户提供体验窗口：不用先采购、组装或部署开发环境，就能尝试中文语音指挥、临场改令和多鸭演出，判断自己想用它做什么。
+
+产品设计围绕“看一幕 → 亲口指挥 → 改变结果 → 了解能力边界”：自动演示负责引起兴趣，真实灵矽与物理场景负责让用户亲手尝试，源码和说明帮助开发者继续探索。官方已有仿真器；本项目增加语音接入、场景编排和体验统计，没有完成实体硬件复刻，也不表示官方购买后即可获得同样的全部玩法。
+
+商业价值首先是降低了解与试用成本、减少购买预期偏差；对硬件和灵矽生态的转化贡献仍需用户验证，当前没有销售合作、支付或购买归因。完整的目标用户、体验路径、功能边界、验证指标和后续优先级见 [商业价值与产品设计](docs/PRODUCT_DESIGN.md)。
 
 ## 从哪里开始
 
@@ -180,7 +188,7 @@ CI 要求后端总体行覆盖率 ≥90%、分支覆盖率 ≥85%。后端、前
 
 [验证记录](docs/VALIDATION.md) 提供绑定具体提交的测试数量和覆盖率；前端当前覆盖门槛只统计 `audio-codec.js`，不能作为全前端覆盖率。部署页展示的是对应发布提交的 Python 后端覆盖率。安装器将 CI 报告独立保存在 `/var/lib/duckking/release-coverage.json`，自动汇入历史发布包的报告，升级或清理旧发布目录后仍保留；没有真实报告的版本继续显示“未记录”。
 
-- [架构与模块规格](docs/ARCHITECTURE.md)、[本地开发与排障](docs/DEVELOPMENT.md)
+- [商业价值与产品设计](docs/PRODUCT_DESIGN.md)、[架构与模块规格](docs/ARCHITECTURE.md)、[本地开发与排障](docs/DEVELOPMENT.md)
 - [AI 协作说明](docs/AI_COLLABORATION.md)、[工程经验与回归检查](docs/LESSONS_LEARNED.md)、[持续使用体验口径](docs/EXPERIENCE_METRICS.md)
 - [演示复现与历史视频](docs/DEMO.md)、[舞步编排](docs/CHOREOGRAPHY.md)、[媒体来源](docs/media/README.md)
 - [贡献指南](CONTRIBUTING.md)、[团队与分工](docs/TEAM.md)、[原创贡献](docs/CONTRIBUTION_SCOPE.md)、[安全说明](SECURITY.md)

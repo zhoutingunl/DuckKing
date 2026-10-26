@@ -6,6 +6,8 @@ DuckKing 是可本地运行或部署在 HTTPS 入口后的语音、动作与自�
 
 它没有完成实体硬件复刻或实机验收；物理结果仅对当前仿真配置成立。
 
+产品面向购买前希望了解 MicroDuck、试用灵矽语音交互的用户；目标用户、体验路径、商业假设与验证指标见 [商业价值与产品设计](PRODUCT_DESIGN.md)。
+
 本文是竞赛的架构设计入口：下面给出运行模块、部署、时序与接口规格；[TEAM.md](TEAM.md)用相同模块编号列出负责人、交付边界和验收入口；[CONTRIBUTION_SCOPE.md](CONTRIBUTION_SCOPE.md)区分自研接线与官方模型、策略、引擎。代码核对基线为 `2089d6e`（PR #36 合入后的 main），历史测试数据按 [VALIDATION.md](VALIDATION.md)各自的提交读取。
 
 ## 架构
