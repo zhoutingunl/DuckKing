@@ -113,11 +113,11 @@ test('source link stays at the right edge with no navigation or viewport overlap
 
 for(const song of ['ode','tigers'])test(`stopping synthesized ${song} stops all oscillators and actual stepping`,async({page})=>{
  test.setTimeout(90000);
- await page.addInitScript(()=>{const native=OscillatorNode.prototype.start;window.scorePlaying=0;OscillatorNode.prototype.start=function(...args){window.scorePlaying++;this.addEventListener('ended',()=>window.scorePlaying--,{once:true});return native.apply(this,args)}});
+ await page.addInitScript(()=>{const native=OscillatorNode.prototype.start;window.scorePlaying=0;window.scoreStarted=0;OscillatorNode.prototype.start=function(...args){window.scoreStarted++;window.scorePlaying++;this.addEventListener('ended',()=>window.scorePlaying--,{once:true});return native.apply(this,args)}});
  await page.route('**/demo-audio/*.wav*',route=>route.fulfill({contentType:'audio/wav',body:silentFixture()}));
  await page.goto('/demos.html?room=1');await page.locator(`[data-table-song="${song}"]`).click();
  await expect(page.locator('#table-panel')).toBeVisible({timeout:45000});
- await expect.poll(()=>page.evaluate(()=>window.scorePlaying),{timeout:15000}).toBeGreaterThan(0);
+ await expect.poll(()=>page.evaluate(()=>window.scoreStarted),{timeout:15000}).toBeGreaterThan(0);
  await expect(page.locator('#caption-role')).toContainText('本地合成');
  if(song==='tigers')await expect(page.locator('.table-seat[data-duck=d]')).toContainText('等待入唱');
  await page.locator('#stop-demo').click();await expect.poll(()=>page.evaluate(()=>window.scorePlaying)).toBe(0);
