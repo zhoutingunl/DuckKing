@@ -31,3 +31,11 @@ test('interactive stage selects ducks and stops without future actions',async({p
  await expect.poll(async()=>{const s=await(await page.request.get('/api/scenes/state?room=1')).json();return s.backend.stage.running}).toBe(false);
  await expect(page.locator('#theatre-result')).toHaveCount(0);
 });
+
+test('mobile thirteenth stage keeps touch controls within the viewport',async({page})=>{
+ test.setTimeout(45000);await page.setViewportSize({width:390,height:844});await page.goto('/demos.html?room=1');
+ await page.selectOption('#stage-play','interactive');await page.locator('[data-demo=stage]').click();
+ await expect(page.locator('#show-status')).toContainText('现场互动已就绪',{timeout:30000});
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+ await page.locator('#stop-demo').click();await expect(page.locator('#show-status')).toHaveText('演示已停止');
+});

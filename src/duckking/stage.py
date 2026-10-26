@@ -284,9 +284,10 @@ class FloorStage:
                     d.policy = "sitstand"
                     d.posture_target = d.rest_posture = "stand"
                 done.append(arrived)
-                if expressive:
+            if expressive:
+                for i, d in enumerate(self.b.drivers):
                     opening = elapsed - i * 0.7 - 1
-                    if 0 < opening < 4 and d.command[0] > 0:
+                    if 0 < opening < 4:
                         pitch, mouth = yawn_frame(opening)
                         d.command[4] = pitch * 0.45
                         self.b.data.ctrl[self.mouths[i]] = mouth
@@ -296,7 +297,7 @@ class FloorStage:
             supported = all(
                 measure_posture(self.b, self.b.drivers[i])["observed"] == "stand" for i in indices
             )
-            if all(done) and supported:
+            if all(done) and supported and (not expressive or elapsed >= 7.2):
                 stable = float(self.b.data.time) if stable is None else stable
                 if self.b.data.time - stable > 0.35:
                     break
@@ -399,11 +400,15 @@ class FloorStage:
             await asyncio.sleep(0.02)
         self.clear_commands()
         await self.delay(0.5)
+        postures = [measure_posture(self.b, d) for d in self.b.drivers]
+        if any(p["observed"] != "stand" for p in postures):
+            raise ValueError("齐舞后未确认四鸭全部站稳")
         self.last_dance = {
             "members": list(MEMBERS),
             "phases": phases,
             "clock": "shared_mujoco_sim_time",
             "stable": True,
+            "postures": postures,
         }
         self.phase = "completed"
         self.arrived = [False] * 4
