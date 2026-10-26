@@ -173,10 +173,10 @@ test('physics page can sit, keep the pose and stand again',async({page})=>{
  test.setTimeout(60000);await page.goto('/scenarios.html?room=1');
  await page.locator('[data-scene="ball"]').click();
  await expect(page.locator('#posture-controls')).toBeVisible({timeout:30000});
- await page.locator('[data-sim-action="sit"]').click();
+ await page.locator('#posture-controls [data-sim-action="sit"]').click();
  await expect(page.locator('#posture-status')).toContainText('已坐稳',{timeout:10000});
  await expect(page.locator('#action-result')).toContainText('坐下 · 完成');
- await page.locator('[data-sim-action="stand"]').click();
+ await page.locator('#posture-controls [data-sim-action="stand"]').click();
  await expect(page.locator('#action-result')).toContainText('站起来 · 完成');
  await expect(page.locator('#posture-status')).toContainText('站立');
 });

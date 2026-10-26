@@ -1,7 +1,6 @@
 """Interactive turntable scene: real motor spin, measured eliminations."""
 
 import asyncio
-import math
 from pathlib import Path
 
 import pytest
