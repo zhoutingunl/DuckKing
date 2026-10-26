@@ -42,6 +42,11 @@ ALIASES = {
     "scene_ball": "踢球场景|进入踢球场景|切换到踢球场景",
     "scene_duo": "双鸭场景|进入双鸭场景|切换到双鸭场景",
     "scene_carry": "搬运场景|进入搬运场景|切换到搬运场景",
+    "scene_turntable": "转盘场景|大逃鸭|转盘大逃鸭|旋转餐桌",
+    "spin_slow": "慢速|慢一点|转慢点",
+    "spin_medium": "中速|中等速度",
+    "spin_fast": "加速|快点|转快一点|全速|最快",
+    "spin_stop": "停止转动|转盘停下|别转了|停下转盘",
 }
 LOOKUP = {word: name for name, words in ALIASES.items() for word in words.split("|")}
 NUMBER = {"一": 1, "二": 2, "两": 2, "三": 3}

@@ -27,6 +27,8 @@ from .seated_choir import SEATED_SPAWNS, SeatedChoir
 from .skills_model import build_skills_model
 from .stage import FloorStage, build_stage_model, scatter
 from .table_choir import SPAWNS, TABLE_HEIGHT, TableChoir, build_table_model
+from .turntable import SPAWNS as SPAWNS_TURNTABLE
+from .turntable import TurntableGame, build_turntable_scene
 
 POLICY_JOINTS = (
     "left_hip_yaw",
@@ -154,6 +156,8 @@ class MuJoCoBackend:
             return build_skills_model(self.robot_dir, rollers=scene == "rollers")
         if scene == "stage":
             return build_stage_model(self.robot_dir)
+        if scene == "turntable":
+            return build_turntable_scene(self.robot_dir)
         if scene == "table":
             return build_table_model(self.robot_dir)
         if scene == "carry":
@@ -173,7 +177,7 @@ class MuJoCoBackend:
         return model
 
     def load(self, scene):
-        if scene in {"skills", "rollers", "stage"} and scene not in self.models:
+        if scene in {"skills", "rollers", "stage", "turntable"} and scene not in self.models:
             self.models[scene] = self._build(scene)
             self.revisions[scene] = uuid.uuid4().hex
         if scene in {"table", "seated"} and scene not in self.models:
@@ -188,7 +192,7 @@ class MuJoCoBackend:
         self.revision = self.revisions[scene]
         prefixes = (
             [c + "_" for c in "abcd"]
-            if scene in {"table", "seated", "stage"}
+            if scene in {"table", "seated", "stage", "turntable"}
             else ["a_", "b_"]
             if scene == "duo"
             else [""]
@@ -220,6 +224,9 @@ class MuJoCoBackend:
                     0,
                     0,
                 ]
+            if scene == "turntable":
+                x, y = SPAWNS_TURNTABLE[i]
+                self.data.qpos[driver.root: driver.root + 7] = [x, y, 0.157, 1, 0, 0, 0]
             if scene == "stage":
                 x, y, yaw = stage_spawns[i]
                 self.data.qpos[driver.root : driver.root + 7] = [
@@ -256,7 +263,14 @@ class MuJoCoBackend:
         self.idle = IdleBehaviour(self) if scene == "skills" else None
         self.skill_run = None
         self.stage = FloorStage(self, stage_seed) if scene == "stage" else None
+        self.turntable = TurntableGame(self) if scene == "turntable" else None
         mujoco.mj_forward(self.model, self.data)
+        if scene == "turntable":
+            # passengers by default: statue-stand so disk friction carries them
+            for driver in self.drivers:
+                driver.command[:] = 0
+                driver.policy = "sitstand"
+                driver.posture_target = driver.rest_posture = "stand"
         # Explicit initial settling, not a simulated successful action.
         for _ in range(200 if scene == "carry" else 60):
             self.tick()
@@ -282,6 +296,8 @@ class MuJoCoBackend:
                 self.tabletop.update()
             if self.seated:
                 self.seated.update()
+            if self.turntable:
+                self.turntable.tick()
             if self.stage:
                 self.stage.update_contacts()
             for contact in self.data.contact:
@@ -348,11 +364,20 @@ class MuJoCoBackend:
             "scene_skills",
             "scene_rollers",
             "scene_stage",
+            "scene_turntable",
             "stop",
         }:
             raise ValueError(self.error)
-        if action.target != "a" and self.scene not in {"duo", "table", "seated", "stage"}:
+        if action.target != "a" and self.scene not in {"duo", "table", "seated", "stage",
+                                                       "turntable"}:
             raise ValueError("当前场景只有鸭 A")
+        if self.turntable and action.name not in {
+            "spin_slow", "spin_medium", "spin_fast", "spin_stop",
+            "sit", "stand", "stop", "reset", "scene_turntable",
+            "scene_ball", "scene_duo", "scene_carry", "scene_table", "scene_seated",
+            "scene_skills", "scene_rollers", "scene_stage",
+        }:
+            raise ValueError("转盘场景请使用转速控制与坐站动作")
         if self.stage and not (
             action.name.startswith("stage_")
             or action.name.startswith("scene_")
@@ -373,6 +398,7 @@ class MuJoCoBackend:
             "scene_skills",
             "scene_rollers",
             "scene_stage",
+            "scene_turntable",
         }:
             raise ValueError("夹取场景请使用夹起、搬运、放下；其他动作会破坏夹持")
         if self.tabletop and action.name not in {
@@ -387,6 +413,7 @@ class MuJoCoBackend:
             "scene_skills",
             "scene_rollers",
             "scene_stage",
+            "scene_turntable",
         }:
             raise ValueError("桌上场景请使用完整合唱表演，避免单独行走破坏舞台布置")
         if self.seated and action.name not in {
@@ -402,6 +429,7 @@ class MuJoCoBackend:
             "scene_skills",
             "scene_rollers",
             "scene_stage",
+            "scene_turntable",
         }:
             raise ValueError("坐姿合唱舞台请使用完整轮唱节目")
         self.selected = action.target
@@ -617,7 +645,7 @@ class MuJoCoBackend:
                     raise
                 self.table_build_task = None
                 self.revisions["table"] = uuid.uuid4().hex
-            if action.name == "scene_stage" and "stage" not in self.models:
+            if action.name in {"scene_stage", "scene_turntable"} and "stage" not in self.models:
                 if self.stage_build_task is None:
                     self.stage_build_task = asyncio.create_task(
                         asyncio.to_thread(self._build, "stage"))
@@ -654,6 +682,10 @@ class MuJoCoBackend:
             if action.name == "seated_ready":
                 return await change_posture(self, self.drivers, "sit")
             return await self.seated.single(action.target)
+        if action.name.startswith("spin_"):
+            if not self.turntable:
+                raise ValueError("请先切换到转盘场景")
+            return self.turntable.set_spin(action.name)
         if action.name == "seated_show":
             if not self.seated:
                 raise ValueError("请先切换到坐姿合唱舞台")
@@ -823,6 +855,7 @@ class MuJoCoBackend:
             "ball": self.ball_state(),
             "grasp": self.grasp.snapshot() if self.grasp else None,
             "tabletop": self.tabletop.snapshot() if self.tabletop else None,
+            "turntable": self.turntable.snapshot() if self.turntable else None,
             "seated_choir": self.seated.snapshot() if self.seated else None,
             "idle": self.idle.snapshot() if self.idle else None,
             "stage": self.stage.snapshot() if self.stage else None,

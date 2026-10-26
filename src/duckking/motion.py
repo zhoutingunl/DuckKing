@@ -17,6 +17,11 @@ STAGE_DURATIONS = {"stage_gather": 44, "stage_roll": 28, "stage_dance": 12, "sta
 
 SCENE_ACTIONS = {
     *STAGE_DURATIONS,
+    "scene_turntable",
+    "spin_slow",
+    "spin_medium",
+    "spin_fast",
+    "spin_stop",
     "scene_stage",
     *SKILL_DURATIONS,
     "scene_skills",
@@ -51,6 +56,11 @@ SCENE_ACTIONS = {
 class Action(BaseModel):
     model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
     name: Literal[
+        "scene_turntable",
+        "spin_slow",
+        "spin_medium",
+        "spin_fast",
+        "spin_stop",
         "scene_stage",
         "stage_gather",
         "stage_roll",
@@ -120,6 +130,11 @@ class Action(BaseModel):
     def choreography_defaults(cls, data):
         fixed = {
             **STAGE_DURATIONS,
+            "scene_turntable": 0.2,
+            "spin_slow": 0.2,
+            "spin_medium": 0.2,
+            "spin_fast": 0.2,
+            "spin_stop": 0.2,
             "scene_stage": 0.2,
             **SKILL_DURATIONS,
             "scene_skills": 0.2,
@@ -193,6 +208,11 @@ class Action(BaseModel):
             raise ValueError("场景动作使用固定策略速度，不接受 speed 参数")
         fixed = {
             **STAGE_DURATIONS,
+            "scene_turntable": 0.2,
+            "spin_slow": 0.2,
+            "spin_medium": 0.2,
+            "spin_fast": 0.2,
+            "spin_stop": 0.2,
             "scene_stage": 0.2,
             **SKILL_DURATIONS,
             "scene_skills": 0.2,

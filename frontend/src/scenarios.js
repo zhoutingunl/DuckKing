@@ -89,6 +89,9 @@ function update(data){
   $('ball-controls').hidden=scene!=='ball';$('duo-controls').hidden=scene!=='duo';$('carry-controls').hidden=$('grasp-readouts').hidden=scene!=='carry';
   $('posture-controls').hidden=!['ball','duo','skills'].includes(scene);
   $('skills-controls').hidden=scene!=='skills';$('rollers-controls').hidden=scene!=='rollers';
+  $('turntable-controls').hidden=scene!=='turntable';
+  if(scene==='turntable'&&state.turntable){const t=state.turntable,out=t.ducks.filter(d=>d.out).map(d=>'鸭 '+d.member.toUpperCase());
+    $('turntable-status').textContent=`转速 ${t.omega.toFixed(1)} 弧度/秒（盘沿 ${t.rim_speed_mps.toFixed(1)} 米/秒）· 台上 ${t.remaining} 只${out.length?' · 已出局：'+out.join('、'):''}`;}
   $('basic-controls').hidden=!['ball','duo','skills','rollers'].includes(scene);$('floor-moves').hidden=scene==='rollers';
   $('skill-readouts').hidden=!['skills','rollers'].includes(scene)||!state.skill;
   if(state.idle)$('idle-status').textContent=state.idle.enabled?`自然待机已开启 · ${{off:'等待',waiting:'等待安静下来',paused:'当前动作优先',look_around:'看看四周',yawn:'打哈欠'}[state.idle.phase]??'等待'}`:'自然待机已关闭';
@@ -111,7 +114,7 @@ function notStarted(){
   syncSceneError(null);
   scene=revision=latest=null;seen=0;viewer?.clear();chorus.stop();buttons();
   $('scene-placeholder').hidden=false;$('sim-status').textContent='选择场景开始';$('scene-title').textContent='等待启动';$('actions-heading').textContent='选择场景后开始';
-  for(const id of ['posture-controls','skills-controls','rollers-controls','skill-readouts','basic-controls'])$(id).hidden=true;
+  for(const id of ['posture-controls','skills-controls','rollers-controls','turntable-controls','skill-readouts','basic-controls'])$(id).hidden=true;
   $('ball-controls').hidden=$('duo-controls').hidden=$('carry-controls').hidden=$('grasp-readouts').hidden=true;
   for(const id of ['ball-distance','ball-contact','duck-contact','sim-speed'])$(id).textContent='—';
 }

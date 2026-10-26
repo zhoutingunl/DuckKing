@@ -206,6 +206,7 @@ def create_app(
                 "table",
                 "seated",
                 "stage",
+                "turntable",
                 "unknown",
             },
         }

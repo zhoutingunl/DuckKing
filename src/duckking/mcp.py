@@ -151,6 +151,20 @@ STAGE_TOOLS = [
     ]
 ]
 
+TURNTABLE_TOOLS = [
+    {
+        "name": name,
+        "description": description,
+        "inputSchema": {"type": "object", "properties": {}, "additionalProperties": False},
+    }
+    for name, description in [
+        ("duck_spin_slow", "转盘大逃鸭：慢速转动（1.2 弧度/秒）。鸭鸭会被盘面带着转。"),
+        ("duck_spin_medium", "转盘大逃鸭：中速转动（2.4 弧度/秒），外圈鸭鸭开始危险。"),
+        ("duck_spin_fast", "转盘大逃鸭：高速转动（4.0 弧度/秒），会被真实离心力甩出局。"),
+        ("duck_spin_stop", "转盘大逃鸭：转盘停下。出局的鸭鸭会自己爬起来。"),
+    ]
+]
+
 SCENE_TOOLS = [
     *[
         {
@@ -303,6 +317,12 @@ class DeviceMCP:
                     tools = [
                         t for t in TOOLS if t["name"] in {"duck_stop", "duck_get_status"}
                     ] + STAGE_TOOLS
+                if self.motion.backend.scene == "turntable":
+                    tools = [
+                        t for t in TOOLS
+                        if t["name"] in {"duck_stop", "duck_get_status", "duck_sit",
+                                         "duck_stand"}
+                    ] + TURNTABLE_TOOLS
             if self.motion.studio:
                 if self.motion.studio.active not in {None, "voice", "persona"}:
                     tools = [t for t in tools if t["name"] in {"duck_stop", "duck_get_status"}]
@@ -322,6 +342,12 @@ class DeviceMCP:
                     and name not in {t["name"] for t in STAGE_TOOLS}
                     and name not in {"duck_stop", "duck_get_status"}):
                 raise ValueError("四鸭发布会请使用当前集结、翻滚和齐舞工具")
+            if (self.motion.backend.kind == "mujoco"
+                    and self.motion.backend.scene == "turntable"
+                    and name not in {t["name"] for t in TURNTABLE_TOOLS}
+                    and name not in {"duck_stop", "duck_get_status", "duck_sit",
+                                     "duck_stand"}):
+                raise ValueError("转盘大逃鸭请使用转速控制与坐站工具")
             if self.voice and name == "duck_voice_style":
                 result = await self.voice.set_style(arguments)
                 return response | {
@@ -402,6 +428,10 @@ class DeviceMCP:
                     "duck_stage_gather": "stage_gather",
                     "duck_stage_roll": "stage_roll",
                     "duck_stage_dance": "stage_dance",
+                    "duck_spin_slow": "spin_slow",
+                    "duck_spin_medium": "spin_medium",
+                    "duck_spin_fast": "spin_fast",
+                    "duck_spin_stop": "spin_stop",
                     "duck_nod": "nod",
                     "duck_walk_short": "walk",
                     "duck_turn_left": "turn_left",
