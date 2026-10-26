@@ -10,6 +10,7 @@ const apiURL=`http://127.0.0.1:${port}`;
 const baseURL=dev?`http://127.0.0.1:${devPort}`:apiURL;
 export default defineConfig({
   workers: 1,
+  fullyParallel: true,
   testDir: './tests',
   outputDir: `test-results/${dev?'development':'production'}`,
   testMatch: '**/*.spec.js',

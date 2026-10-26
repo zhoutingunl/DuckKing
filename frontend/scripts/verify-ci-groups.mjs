@@ -20,7 +20,8 @@ for(const dev of ['0','1']){
   const all=list(dev),groups={journey:['--grep','@journey'],stage:['--grep','@stage'],checks:['--grep-invert','@journey|@stage']};
   const collected=[];
   for(const [name,args] of Object.entries(groups)){
-    const expected=list(dev,args),shards=[1,2].flatMap(shard=>list(dev,[...args,`--shard=${shard}/2`]));
+    const expected=list(dev,args),parts=[1,2].map(shard=>list(dev,[...args,`--shard=${shard}/2`])),shards=parts.flat();
+    assert.ok(parts.every(part=>part.length>0),`${name}: empty shard`);
     assert.ok(expected.length>0);
     assert.equal(new Set(shards).size,shards.length,`${name}: duplicate shard test`);
     assert.deepEqual(shards.sort(),expected.sort(),`${name}: omitted shard test`);
