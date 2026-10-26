@@ -145,6 +145,8 @@ ai_gateway 可独立添加固定 loopback 路由；现有前置代理不透传 U
 
 `GET /api/deployments` 仅返回发布字段白名单与最近 100 条流水；当前进程启动时固定读取版本元数据，原子切换磁盘链接不会给旧进程贴上新版本。`staged` 代表独立后端本机自检通过，`success` 需要入口验收后确认。发布失败与回滚结果分别记录；`CommitHistory` 按目标的上次成功部署计算新增提交，暂存／失败不推进基准。覆盖率从 CI 摘要读取，只关联完全相同的 SHA，范围限定后端；旧版缺失报告时显示未记录。密钥、设备身份和原始配置不出现在该 API 中。
 
+安装器在部署锁内，将各发布目录中的 `release-coverage.json` 与 `/var/lib/duckking/release-coverage.json` 合并，校验后原子写入独立存储（0600 权限）。任何输入损坏或写入失败都会中止安装，不覆盖已有报告。清理旧发布目录不再删除覆盖率历史。接口每次刷新读取独立存储，并用当前包的同 SHA 报告优先覆盖；因此补入经过核验的历史报告无需再次重启服务。只恢复存在的 CI 证据，不把当前数值套用到其他提交。
+
 `simulation.py` 在 Python 进程中运行 MuJoCo CPU 与官方 ONNX 推理，`kind=mujoco`、`physics=true`、`runtime=mujoco_cpu_onnx`；它不是 robotd 适配器，也不复用首页预览的姿态动画。原工作台控制器与场景控制器相互独立。
 
 `POST /api/scenes/start` 显式惰性加载模型；模型文件和策略位于 `external/`，不进入 Python 包，本地开发显式下载，Linux 发布包携带固定版本及来源信息。球场使用官方 `scene_ball.xml`，双鸭场景用 `MjSpec.attach` 将两个官方 `robot_allcollisions.xml` 放到同一个模型中。控制频率 50 Hz，每次推进 4 个 5 ms 物理步，双鸭共用一次 `mj_step`。策略采用官方 61 维观测、14 维关节输出、默认姿态与 0.5 秒踢球时长；沿用 MJCF 的位置执行器参数，没有接入训练时的动态 BAM 电机模型。

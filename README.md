@@ -140,7 +140,7 @@ npm run test:e2e:dev
 
 CI 要求后端总体行覆盖率 ≥90%、分支覆盖率 ≥85%。后端、前端和四组浏览器检查使用独立 runner 并行；每种浏览器模式将完整十三幕与其余检查分开，清单保证不遗漏、不重复。全部成功后 `quality` 才通过，同一 PR 的新提交自动取消旧运行。首轮并行实测从约 34 分钟缩短到 **9 分 21 秒**，见 [CI 分析](docs/DEVELOPMENT.md#ci-并行分组)。
 
-[验证记录](docs/VALIDATION.md) 提供绑定具体提交的测试数量和覆盖率；前端当前覆盖门槛只统计 `audio-codec.js`，不能作为全前端覆盖率。部署页展示的是对应发布提交的 Python 后端覆盖率，没有历史报告时显示“未记录”。
+[验证记录](docs/VALIDATION.md) 提供绑定具体提交的测试数量和覆盖率；前端当前覆盖门槛只统计 `audio-codec.js`，不能作为全前端覆盖率。部署页展示的是对应发布提交的 Python 后端覆盖率。安装器将 CI 报告独立保存在 `/var/lib/duckking/release-coverage.json`，自动汇入历史发布包的报告，升级或清理旧发布目录后仍保留；没有真实报告的版本继续显示“未记录”。
 
 - [架构与模块规格](docs/ARCHITECTURE.md)、[本地开发与排障](docs/DEVELOPMENT.md)
 - [演示复现与历史视频](docs/DEMO.md)、[舞步编排](docs/CHOREOGRAPHY.md)、[媒体来源](docs/media/README.md)

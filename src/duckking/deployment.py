@@ -37,6 +37,10 @@ class DeploymentStatus:
 
     def snapshot(self) -> dict:
         warnings = [self.warning] if self.warning else []
+        # Independent of the current immutable release. Read on refresh so a
+        # verified historical report can be restored without restarting service.
+        coverage = load_coverage(self.history_file.with_name("release-coverage.json"))
+        coverage.update(self.coverage)
         rows = deque(maxlen=100)
         successful = {}
         baselines = {}
@@ -58,7 +62,7 @@ class DeploymentStatus:
                         # A staged/failed attempt never advances the successful baseline.
                         # Repeated staged/success records for one version share a baseline.
                         previous = baselines.setdefault(identity, successful.get(target))
-                        row["coverage"] = self.coverage.get(row.get("commit"))
+                        row["coverage"] = coverage.get(row.get("commit"))
                         rows.append(row | self.commit_history.changes(row.get("commit"), previous))
                         if row["status"] == "success":
                             successful[target] = row.get("commit")
