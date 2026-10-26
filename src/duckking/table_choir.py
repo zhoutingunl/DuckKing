@@ -217,6 +217,13 @@ class TableChoir:
         for i, driver in enumerate(b.drivers):
             driver.command[:] = 0
             if i == 3 and self.dropped_at is not None:
+                # Keep the bounded outward gait through touchdown. Braking in
+                # mid-air can leave a foot wedged beside a table leg; starting
+                # the dance there then exceeds its unchanged 14 cm boundary.
+                if self.landed_at is None or elapsed - self.landed_at < 0.4:
+                    _, yaw = driver.pose(b.data)
+                    driver.command[:2] = (0.35 * math.cos(yaw), -0.35 * math.sin(yaw))
+                    continue
                 if self.landed_at is not None and elapsed - self.landed_at > 1.2:
                     position, yaw = driver.pose(b.data)
                     upright = position[2] > 0.10 and b.data.xmat[driver.body, 8] > 0.85

@@ -125,6 +125,10 @@ PY
 nice -n 10 "$release/.venv/bin/python" "$release/scripts/verify_local_asr.py" > "/var/lib/duckking/verification/asr-$version.json"
 nice -n 10 "$release/.venv/bin/python" "$release/scripts/verify_scenarios.py" --output "/var/lib/duckking/verification/physics-$version.json"
 chown --reference=/var/lib/duckking "/var/lib/duckking/verification/physics-$version.json"
+# Retain exact CI reports across upgrades and pruning of old release directories.
+# This also recovers reports shipped by installers predating the persistent store.
+"$release/.venv/bin/python" -m duckking.release_coverage \
+  --store /var/lib/duckking/release-coverage.json --releases "$base/releases"
 if [[ ! -e /etc/duckking/runtime.env ]]; then
   printf 'DUCKKING_BIND_HOST=127.0.0.1\n' > /etc/duckking/runtime.env
   chmod 600 /etc/duckking/runtime.env
