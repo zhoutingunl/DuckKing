@@ -24,20 +24,36 @@ def backend():
     return MuJoCoBackend(ASSETS)
 
 
-@pytest.mark.parametrize("foot", ["left", "right"])
-async def test_official_kicks_have_selected_foot_contact_and_measured_ball_motion(backend, foot):
+@pytest.mark.parametrize("feet", [("left",), ("right",), ("left", "right")])
+async def test_official_kicks_have_selected_foot_contact_and_measured_ball_motion(backend, feet):
     motion = MotionController(backend)
-    action = Action(name=f"kick_{foot}")
-    await motion.submit(action)
-    result = await motion.wait(action.request_id)
-    assert result["status"] == "completed"
-    assert result["outcome"]["verified"]
-    assert foot in result["outcome"]["contact_feet"]
-    assert result["outcome"]["displacement_m"] > 0.02
-    state = await backend.snapshot()
-    assert state["physics"] is True and state["runtime"] == "mujoco_cpu_onnx"
-    assert not state["ducks"][0]["fallen"]
-    await motion.close()
+    try:
+        for foot in feet:
+            action = Action(name=f"kick_{foot}")
+            await motion.submit(action)
+            result = await motion.wait(action.request_id)
+            assert result["status"] == "completed"
+            assert result["outcome"]["verified"]
+            assert foot in result["outcome"]["contact_feet"]
+            assert result["outcome"]["displacement_m"] > 0.02
+        state = await backend.snapshot()
+        assert state["physics"] is True and state["runtime"] == "mujoco_cpu_onnx"
+        assert not state["ducks"][0]["fallen"]
+    finally:
+        await motion.close()
+    # Continue real fixed physics steps after the controller has finished. The
+    # old three-dimensional contact rolls indefinitely (~39 m in this minute).
+    # No position/velocity clamp, reset or mocked physics supplies the stop.
+    for _ in range(500):
+        backend.tick()
+    settled = backend.ball_state()
+    assert settled["speed_m_s"] < 0.01
+    assert 0.02 < settled["displacement_m"] < 2
+    for _ in range(2500):
+        backend.tick()
+    final = backend.ball_state()
+    assert final["speed_m_s"] < 0.01
+    assert np.linalg.norm(np.array(final["position"]) - settled["position"]) < 0.005
 
 
 async def test_ducks_share_contacts_and_discovery_requires_range_fov_and_line_of_sight(backend):

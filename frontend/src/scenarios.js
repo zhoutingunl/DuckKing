@@ -97,6 +97,7 @@ function update(data){
   $('posture-status').textContent=state.ducks.map(d=>`鸭 ${d.id.toUpperCase()} · ${{sit:'已坐稳',stand:'站立',transition:'调整姿态'}[d.posture?.observed]??'等待姿态数据'}`).join('；');
   if(state.grasp){const g=state.grasp;$('grasp-phase').textContent=graspPhases[g.phase]??g.phase;$('grasp-force').textContent=`${g.normal_force_n.upper.toFixed(2)} / ${g.normal_force_n.lower.toFixed(2)} N`;$('grasp-lift').textContent=`${(Math.max(0,g.max_lift_clearance_m)*1000).toFixed(1)} mm`;$('grasp-distance').textContent=`${(g.carry_distance_m*100).toFixed(1)} cm`;$('grasp-detail').textContent=g.error??`双侧连续接触 ${g.bilateral_s.toFixed(1)} 秒 · 放下稳定 ${g.released_stable_s.toFixed(1)} 秒`;}
   $('ball-distance').textContent=state.ball?`${state.ball.displacement_m.toFixed(2)} m`:'—';
+  $('ball-motion').textContent=Number.isFinite(state.ball?.speed_m_s)?`${state.ball.speed_m_s<0.01?'已停稳':'滚动中'} · ${state.ball.speed_m_s.toFixed(2)} m/s`:'—';
   $('ball-contact').textContent=state.ball?(state.ball.contact_feet.map(f=>f==='left'?'左脚':'右脚').join('、')||'尚无'):'—';
   $('duck-contact').textContent=scene==='duo'?state.contacts.ducks:'—';$('sim-speed').textContent=`${state.real_time_factor.toFixed(2)}×`;
   if(state.discovered.length)$('peer-status').textContent=state.discovered.map(p=>`鸭 ${p.observer.toUpperCase()} 发现鸭 ${p.peer.toUpperCase()}，相距 ${p.distance_m.toFixed(2)} m`).join('；');
@@ -113,7 +114,7 @@ function notStarted(){
   $('scene-placeholder').hidden=false;$('sim-status').textContent='选择场景开始';$('scene-title').textContent='等待启动';$('actions-heading').textContent='选择场景后开始';
   for(const id of ['posture-controls','skills-controls','rollers-controls','skill-readouts','basic-controls'])$(id).hidden=true;
   $('ball-controls').hidden=$('duo-controls').hidden=$('carry-controls').hidden=$('grasp-readouts').hidden=true;
-  for(const id of ['ball-distance','ball-contact','duck-contact','sim-speed'])$(id).textContent='—';
+  for(const id of ['ball-distance','ball-motion','ball-contact','duck-contact','sim-speed'])$(id).textContent='—';
 }
 function connect(){
   const channel=createSocket('scene-ws');socket=channel;let received=false;
