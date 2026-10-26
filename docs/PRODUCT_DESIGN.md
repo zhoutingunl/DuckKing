@@ -33,6 +33,10 @@
 
 官方产品页已经提供[仿真器入口](https://pollen-robotics.com/microduck/)。DuckKing 的增量是中文语音接入、有趣的场景编排、可中途修改的受限任务，以及可追溯的交互结果和体验统计；官方模型、策略和物理引擎分别注明来源。本项目不是官方销售渠道，也没有已确认的商业合作。
 
+### 从体验窗口延伸到开发入口
+
+用户决定继续探索后，可以沿用灵矽协议、命令解析、部分动作调度和验证工具，再逐步对接实体 MicroDuck。这样，购买前的体验与购买后的开发可以使用同一套软件基础。实体执行、感知、板载麦克风／扬声器和多鸭同步仍需接入与实测，节省工时和开发转化尚未验证。具体模块、音频边界和接入步骤见 [从仿真到实体：复用边界与接入指南](SIM_TO_HARDWARE.md)。
+
 ## 4. 产品体验：看懂、试用、改变结果
 
 下面是建议的 **3–5 分钟首次体验安排**，可以通过现有页面完成，不是已实现的自动新手引导，也不是实测完成时长。场景加载和用户操作会影响总耗时。
@@ -113,7 +117,7 @@
 
 ## 9. 竞赛材料对应关系
 
-- 商业价值与产品设计：本文；重点是购买前体验、功能认知和开发者入门。
+- 商业价值与产品设计：本文；重点是购买前体验、功能认知和开发者入门；[仿真到实体复用指南](SIM_TO_HARDWARE.md)补充后续开发路径。
 - 架构、模块规格与分工：[ARCHITECTURE.md](ARCHITECTURE.md)、[TEAM.md](TEAM.md)。
 - AI 协作与工程经验：[AI_COLLABORATION.md](AI_COLLABORATION.md)、[LESSONS_LEARNED.md](LESSONS_LEARNED.md)。
 - 演示视频、量化口径与验收：[DEMO_VIDEO.md](DEMO_VIDEO.md)、[EXPERIENCE_METRICS.md](EXPERIENCE_METRICS.md)、[VALIDATION.md](VALIDATION.md)。
