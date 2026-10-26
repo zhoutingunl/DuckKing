@@ -6,17 +6,13 @@ import {DEMOS} from '../src/demo-catalog.js';
 function silentFixture(){
  const b=Buffer.alloc(44+3200);b.write('RIFF');b.writeUInt32LE(b.length-8,4);b.write('WAVE',8);b.write('fmt ',12);b.writeUInt32LE(16,16);b.writeUInt16LE(1,20);b.writeUInt16LE(1,22);b.writeUInt32LE(16000,24);b.writeUInt32LE(32000,28);b.writeUInt16LE(2,32);b.writeUInt16LE(16,34);b.write('data',36);b.writeUInt32LE(3200,40);return b;
 }
-test('all thirteen automated scripts validate actual MuJoCo outcomes and chorale seats',{tag:'@journey'},async({page})=>{
- // Thirteen real-time scenes plus model transfers can exceed four minutes on
- // shared Linux runners. Each scene still has its own 90 s completion bound.
- test.setTimeout(480000);
+for(const demo of DEMOS)test(`automated ${demo.id} validates actual MuJoCo outcomes`,{tag:'@journey'},async({page})=>{
+ test.setTimeout(120000);
  await page.route('**/demo-audio/*.wav*',route=>route.fulfill({contentType:'audio/wav',body:silentFixture()}));
  const errors=[];page.on('pageerror',e=>errors.push(e.message));await page.goto('/demos.html?room=1');
  await expect(page.locator('.program-item')).toHaveCount(13);
- for(const demo of DEMOS){
-  await test.step(demo.id,async()=>{
   await page.locator(`[data-demo="${demo.id}"]`).click();
-  await expect(page.locator('#show-status')).toHaveText('本幕完成 · 可重演或进入下一幕',{timeout:90000});
+  await expect.poll(async()=>{const state=await page.locator('#show-status').textContent();if(state.includes('未完成'))throw Error(await page.locator('#demo-notice').textContent());return state},{timeout:90000}).toBe('本幕完成 · 可重演或进入下一幕');
   const proof=await page.locator('#theatre-result').textContent();expect(JSON.parse(proof).scene).toBe(demo.id);
   expect(JSON.parse(proof).mode).toBe('scripted_rehearsal');
   if(demo.id==='seated'){const result=JSON.parse(proof);expect(result.results.find(r=>r.name==='seated_show').outcome.completed_solos).toEqual(['a','b','c','d']);expect(result.results.find(r=>r.name==='seated_music').outcome.solos).toEqual(['a','b','c','d']);}
@@ -26,8 +22,6 @@ test('all thirteen automated scripts validate actual MuJoCo outcomes and chorale
    const rooms=await (await page.request.get('/api/rooms')).json();
    expect(rooms.rooms.filter(room=>room.physics).map(room=>room.id)).toEqual(['1']);
   }
-  });
- }
  expect(errors).toEqual([]);
 });
 test('stop and rapid replacement cannot continue or report success for the old script',async({page})=>{

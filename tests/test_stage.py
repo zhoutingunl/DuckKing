@@ -14,10 +14,19 @@ from duckking.simulation import MuJoCoBackend
 from duckking.stage import MEMBERS, SLOTS, StageSelection, path_to, scatter
 
 
-@pytest.fixture
-def backend(monkeypatch):
-    monkeypatch.setattr("duckking.simulation.secrets.randbelow", lambda _: 3)
+@pytest.fixture(scope="module")
+def stage_backend():
+    # Compiled MJCF and ONNX sessions are immutable; each test gets fresh MjData.
+    # Reuse them within this process instead of repeatedly compiling four robots.
     b = MuJoCoBackend(Path(__file__).resolve().parents[1] / "external")
+    b.load("stage")
+    return b
+
+
+@pytest.fixture
+def backend(monkeypatch, stage_backend):
+    monkeypatch.setattr("duckking.simulation.secrets.randbelow", lambda _: 3)
+    b = stage_backend
     b.load("stage")
 
     async def fast_loop():

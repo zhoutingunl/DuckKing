@@ -78,14 +78,15 @@ jobs:
         working-directory: frontend
 
   browser:
-    name: browser-${{ matrix.mode }}-${{ matrix.group }}
+    name: browser-${{ matrix.mode }}-${{ matrix.group }}-${{ matrix.shard }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
         mode: [production, development]
-        group: [journey, checks]
+        group: [journey, checks, stage]
+        shard: [1, 2]
     env:
       DUCKKING_TEST_DEV: ${{ matrix.mode == 'development' && '1' || '0' }}
     steps:
@@ -124,17 +125,20 @@ jobs:
       - name: Browser checks
         env:
           TEST_GROUP: ${{ matrix.group }}
+          TEST_SHARD: ${{ matrix.shard }}
         run: |
           if [ "$TEST_GROUP" = journey ]; then
-            npx playwright test --grep @journey
+            npx playwright test --grep @journey --shard="$TEST_SHARD/2"
+          elif [ "$TEST_GROUP" = stage ]; then
+            npx playwright test --grep @stage --shard="$TEST_SHARD/2"
           else
-            npx playwright test --grep-invert @journey
+            npx playwright test --grep-invert "@journey|@stage" --shard="$TEST_SHARD/2"
           fi
         working-directory: frontend
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: browser-${{ matrix.mode }}-${{ matrix.group }}
+          name: browser-${{ matrix.mode }}-${{ matrix.group }}-${{ matrix.shard }}
           path: |
             frontend/playwright-report/
             frontend/test-results/

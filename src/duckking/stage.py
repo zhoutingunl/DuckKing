@@ -413,6 +413,36 @@ class FloorStage:
         for i in indices:
             self.b.drivers[i].policy = "walk"
         await self.delay(0.5)
+        # A policy handoff must use a settled trained stance, not the first
+        # upright instant after a sitstand transition or a moving gait phase.
+        stable_since = None
+        stable_deadline = time.monotonic() + 4
+        while True:
+            self.guard()
+            settled = all(
+                measure_posture(self.b, self.b.drivers[i])["observed"] == "stand"
+                and math.hypot(
+                    *self.b.data.qvel[
+                        self.b.model.jnt_dofadr[
+                            self.b.model.joint(MEMBERS[i] + "_trunk_base_freejoint").id
+                        ] : self.b.model.jnt_dofadr[
+                            self.b.model.joint(MEMBERS[i] + "_trunk_base_freejoint").id
+                        ]
+                        + 2
+                    ]
+                )
+                < 0.08
+                for i in indices
+            )
+            if settled:
+                stable_since = self.b.data.time if stable_since is None else stable_since
+                if self.b.data.time - stable_since >= 0.3:
+                    break
+            else:
+                stable_since = None
+            if time.monotonic() > stable_deadline:
+                raise ValueError("翻滚前尚未稳定到策略站姿")
+            await asyncio.sleep(0.02)
         anchors = self.positions()
         self.phase = "rolling"
         runs = {}

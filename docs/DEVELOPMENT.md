@@ -213,11 +213,13 @@ HTTP API 用 `room=<房间编号>` 查询参数选择房间（省略时兼容房
 
 ## CI 并行分组
 
-本地完整回归命令保持不变。定位慢项可在 `frontend` 中执行 `npx playwright test --grep @journey`（完整十二幕），或 `npx playwright test --grep-invert @journey`（其余检查）；设置 `DUCKKING_TEST_DEV=1` 切到开发模式。`node scripts/verify-ci-groups.mjs` 仅枚举两种模式的测试，确认两组并集等于全量且没有交集。
+本地完整回归命令保持不变。浏览器按 `@journey`（十三幕逐幕验收）、`@stage`（第13幕多选与连续操作）和其余 checks 三类拆分，每类两片，在生产和开发两种构建模式下分别运行。示例：`npx playwright test --grep @journey --shard=1/2`；其他检查用 `--grep-invert '@journey|@stage'`。每台 runner 仍只有一个 browser worker，物理世界不共享。`node scripts/verify-ci-groups.mjs` 枚举全部分组与分片，确认不遗漏、不重复。十三幕从一个长测试改为十三个独立测试，仍逐一验证真实动作与结果。
 
-GitHub Actions 的四组浏览器检查在四台独立 runner 上运行，避免在同一个物理世界增加 workers 导致冲突。后端与前端单元检查同时启动，`quality` 汇总检查拒绝失败、取消或跳过的依赖。`backend-coverage` artifact 保存后端报告及绑定提交的摘要，其余四个 artifact 分别保留对应浏览器 HTML、截图和 trace。固定模型会缓存，但每次仍运行现有摘要／版本校验。
+新增四鸭场景复用模块内已编译模型和固定 ONNX 会话，每个后端测试仍重新创建 MjData 和任务状态。Playwright trace 保留DOM、网络与操作记录，关闭连续截图，失败仍另存截图，避免软件GPU的 ReadPixels 截图阻塞。软件渲染从较低画布像素预算起步，保持官方几何和实际物理状态。第13幕高内容卡片取消 sticky，避免短屏上按钮随滚动逃出可点击区域。
 
-串行基准 [CI 40192976186](https://github.com/zhoutingunl/DuckKing/actions/runs/40192976186) 总耗时 33 分 35 秒（约 34 分钟）：后端约 5.2 分钟，生产／开发浏览器约 13.6／13.8 分钟。首轮并行实测 [CI 40202356453](https://github.com/zhoutingunl/DuckKing/actions/runs/40202356453) 全部通过，总耗时 **9 分 21 秒**（14:27:58—14:37:19 UTC），约缩短 72%。后端 6:03、前端 0:12，生产完整十二幕／其余检查 5:12／6:20，开发完整十二幕／其余检查 6:08／9:11。当前最长路径是开发模式其余浏览器检查；模型准备分别约数秒到十余秒，不是主要瓶颈。
+`quality` 仍拒绝失败、取消或跳过依赖；覆盖率仍完整统计后端，门槛不变。固定模型仍校验摘要。GitHub 官方标准 Linux runner 公开仓库为4 vCPU/16 GB、私有仓库为2 vCPU/8 GB；转私有会改变CPU仿真与软件渲染条件，公开恢复后的新任务才使用公开规格，耗时以实际运行记录为准。
+
+串行基准 [CI 40192976186](https://github.com/zhoutingunl/DuckKing/actions/runs/40192976186) 总耗时 33 分 35 秒（约 34 分钟）：后端约 5.2 分钟，生产／开发浏览器约 13.6／13.8 分钟。首轮并行实测 [CI 40202356453](https://github.com/zhoutingunl/DuckKing/actions/runs/40202356453) 全部通过，总耗时 **9 分 21 秒**（14:27:58—14:37:19 UTC），约缩短 72%。后端 6:03、前端 0:12，生产完整十二幕／其余检查 5:12／6:20，开发完整十二幕／其余检查 6:08／9:11。该历史提交最长路径是开发模式其余浏览器检查；模型准备分别约数秒到十余秒，不是主要瓶颈。
 
 这是一次不同提交的实际运行对照，并非固定硬件基准；runner 调度、冷缓存与物理仿真负载会影响后续耗时。没有删减测试、放宽物理验收条件或跳过失败项。发布包上传是 CI 之外的部署步骤，不包含在上述时间中。
 

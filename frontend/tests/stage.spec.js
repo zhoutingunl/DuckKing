@@ -1,6 +1,6 @@
 import {test,expect} from '@playwright/test';
 import * as THREE from 'three';
-test('thirteenth show completes measured gathering, roll and shared-clock dance',async({page})=>{
+test('thirteenth show completes measured gathering, roll and shared-clock dance',{tag:'@stage'},async({page})=>{
  test.setTimeout(180000);const errors=[];page.on('pageerror',e=>errors.push(e.message));
  await page.goto('/demos.html?room=1');await expect(page.locator('.program-item')).toHaveCount(13);
  await page.locator('[data-demo=stage]').click();
@@ -10,7 +10,7 @@ test('thirteenth show completes measured gathering, roll and shared-clock dance'
  expect(result.results[0].outcome.arrived).toEqual([true,true,true,true]);expect(result.results[1].outcome.rotation_rad).toBeGreaterThan(5);
  expect(result.results[2].outcome.clock).toBe('shared_mujoco_sim_time');expect(errors).toEqual([]);
 });
-test('interactive stage selects ducks and stops without future actions',async({page})=>{
+test('interactive stage selects ducks and stops without future actions',{tag:'@stage'},async({page})=>{
  test.setTimeout(90000);await page.goto('/demos.html?room=1');
  await page.selectOption('#stage-play','interactive');await page.locator('[data-demo=stage]').click();
  await expect(page.locator('#show-status')).toContainText('现场互动已就绪',{timeout:30000});
@@ -31,7 +31,7 @@ test('interactive stage selects ducks and stops without future actions',async({p
  await expect(page.locator('#theatre-result')).toHaveCount(0);
 });
 
-test('mobile thirteenth stage keeps touch controls within the viewport',async({page})=>{
+test('mobile thirteenth stage keeps touch controls within the viewport',{tag:'@stage'},async({page})=>{
  test.setTimeout(45000);await page.setViewportSize({width:390,height:844});await page.goto('/demos.html?room=1');
  await page.selectOption('#stage-play','interactive');await page.locator('[data-demo=stage]').click();
  await expect(page.locator('#show-status')).toContainText('现场互动已就绪',{timeout:30000});
@@ -39,13 +39,13 @@ test('mobile thirteenth stage keeps touch controls within the viewport',async({p
  await page.locator('#stop-demo').click();await expect(page.locator('#show-status')).toHaveText('演示已停止');
 });
 
-test('automatic roll honors middle ducks selected by stick and repeated clicks cancel',async({page})=>{
+test('automatic roll honors middle ducks selected by stick and repeated clicks cancel',{tag:'@stage'},async({page})=>{
  test.setTimeout(180000);const errors=[];page.on('pageerror',e=>errors.push(e.message));
  let resumeRoll;const gate=new Promise(resolve=>{resumeRoll=resolve});
  await page.route('**/demo-audio/stage-roll.wav*',async route=>{await gate;await route.continue()});
  await page.goto('/demos.html?room=1');await page.locator('[data-demo=stage]').click();
  await expect(page.locator('#stage-state')).toHaveText('排队完成，已坐稳',{timeout:60000});
- await expect(page.locator('#caption')).toHaveText('选中的小鸭们，能一起翻个跟头吗？');
+ await expect(page.locator('#caption')).toHaveText('选中的小鸭们，能一起翻个跟头吗？',{timeout:15000});
  await page.locator('[data-stage-member][value=a]').uncheck();
  await page.selectOption('#stage-pointer','stick');
  async function tap(member){
@@ -71,7 +71,7 @@ test('automatic roll honors middle ducks selected by stick and repeated clicks c
  expect(errors).toEqual([]);
 });
 
-test('finished show accepts repeated selected gathering, seated roll and selected dance',async({page})=>{
+test('finished show accepts repeated selected gathering, seated roll and selected dance',{tag:'@stage'},async({page})=>{
  test.setTimeout(240000);await page.goto('/demos.html?room=1');
  await page.locator('[data-demo=stage]').click();
  await expect(page.locator('#show-status')).toHaveText('本幕完成 · 可重演或进入下一幕',{timeout:120000});

@@ -12,3 +12,6 @@
 .stage-choices{font-size:13px;margin:12px 0}.stage-choices select{display:block;width:100%;padding:9px;margin-top:6px}
 
 .stage-members{display:flex;flex-wrap:wrap;gap:12px;border:1px solid #bac7aa;border-radius:7px;margin:0;padding:5px 10px}.stage-members legend{font-size:12px}.stage-members input{accent-color:#637e35}
+
+/* Keep stage controls visible on short screens instead of a tall sticky card. */
+.theatre-stage:has(#stage-panel:not([hidden])){position:static}
