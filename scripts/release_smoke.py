@@ -69,7 +69,8 @@ async def verify(base, commit):
         modes = await client.get(urljoin(base, "api/voice/modes"))
         modes.raise_for_status()
         assert modes.json()["local_first"] is True and modes.json()["available"] is True
-        for page in ["", "scenarios.html", "demos.html", "statistics.html", "deploys.html"]:
+        for page in ["", "scenarios.html", "demos.html", "studio.html", "experience.html",
+                     "statistics.html", "deploys.html"]:
             response = await client.get(urljoin(base, page))
             response.raise_for_status()
             assert "DuckKing" in response.text and "<html" in response.text

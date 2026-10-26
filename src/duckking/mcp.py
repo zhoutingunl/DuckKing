@@ -7,6 +7,7 @@ from collections import OrderedDict
 from pydantic import ValidationError
 
 from .motion import Action, MotionController
+from .studio import motion_observer
 
 TOOLS = [
     {
@@ -291,7 +292,20 @@ class DeviceMCP:
                         and name not in {t["name"] for t in studio.tools()}):
                     raise ValueError("请使用当前节目提供的工具，不能绕过任务约束")
             if studio and name in {t["name"] for t in studio.tools()}:
-                result = await studio.invoke(name, arguments)
+                first_action = None
+
+                def observed(event, action_id, result=None):
+                    nonlocal first_action
+                    if first_action is None and event == "action_start":
+                        first_action = action_id
+                    if observe and action_id == first_action:
+                        observe(event, tool=name, **({"result": result} if result else {}))
+
+                token = motion_observer.set(observed)
+                try:
+                    result = await studio.invoke(name, arguments)
+                finally:
+                    motion_observer.reset(token)
                 return response | {"result": {"content": [{"type": "text", "text": json.dumps(
                     result, ensure_ascii=False)}],
                     "isError": result.get("operation_failed", False)}}

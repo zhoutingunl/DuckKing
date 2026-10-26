@@ -1,3 +1,4 @@
+import {measurement,loadMetrics,afterFrame} from './experience.js';
 import './style.css';
 import './scenarios.css';
 import './studio.css';
@@ -34,15 +35,16 @@ async function select(scene){
  if(loading||voiceBusy())return;
  void choir.enable();choir.stop();
  loading=true;selected=null;controls();$('notice').hidden=true;$('scene-placeholder').hidden=false;$('scene-placeholder').textContent='正在准备官方场景…';
- const mine=++epoch;
+ const mine=++epoch,experience=measurement('load'),metrics={};
  try{
   const rec=await api('api/scenes/start',currentRoom,{body:{name:`scene_${scene.scene}`,request_id:crypto.randomUUID()}});
   let result=rec;
   for(let i=0;result.status==='running'&&i<300;i++){await pause(100);result=await api(`api/scenes/actions/${rec.id}`,currentRoom)}
   if(result.status!=='completed')throw Error(result.error??'场景准备超时');
   await api('api/studio/select',currentRoom,{body:{scene:scene.id}});
-  const state=await api('api/scenes/state',currentRoom);await model(state.backend);
+  const state=await api('api/scenes/state',currentRoom);await model(state.backend,metrics);
   if(mine!==epoch)return;
+  experience.finish('completed',{...loadMetrics(metrics),scene_ms:Math.round(performance.now()-experience.started)},{cache:metrics.cache??'memory',scene:scene.scene});
   selected=scene;$('scene-title').textContent=scene.title;$('studio-prompt').textContent=scene.prompt;
   $('studio-controls').replaceChildren();
   for(const [label,name,args,text] of scene.controls??[]){const b=document.createElement('button');b.dataset.studioCommand=name;b.textContent=label;b.addEventListener('click',()=>invoke(name,args,text));$('studio-controls').append(b)}
@@ -51,13 +53,16 @@ async function select(scene){
   $('voice-lab').hidden=!['voice','persona'].includes(scene.id);
   $('persona-settings').hidden=scene.id!=='persona';
   if(['voice','persona'].includes(scene.id))await loadVoiceProfiles();
- }catch(e){notify(e.message)}finally{loading=false;controls()}
+ }catch(e){experience.finish('failed');notify(e.message)}finally{loading=false;controls()}
 }
-async function model(state){
- if(revision===state.revision)return;
+async function model(state,metrics={}){
+ if(!viewer)throw Error('浏览器无法绘制官方模型');
+ if(revision===state.revision){metrics.cache='memory';viewer.update(state);viewer.renderNow();await afterFrame();return}
  const url=appURL('api/scenes/model.dkm.gz');url.searchParams.set('room',currentRoom);
- const data=await loader(url,state.revision,{signal:AbortSignal.timeout(60000)});
+ const data=await loader(url,state.revision,{signal:AbortSignal.timeout(60000),metrics});
+ const assembling=performance.now();
  viewer?.load(data);viewer?.frameScene(state.scene);viewer?.update(state);revision=state.revision;
+ metrics.assemble_ms=performance.now()-assembling;const drawing=performance.now();viewer.renderNow();await afterFrame();metrics.first_frame_ms=performance.now()-drawing;
 }
 function renderStudio(studio){
  if(!studio)return;

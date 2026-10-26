@@ -17,6 +17,7 @@
 | [语音工作台](https://ztmonitor.qbox.net/duckking/) | 点头、摇头、歪头、前后移动、横移、左右转、两个舞步；连接语音或选择本地优先 |
 | [物理实验室](https://ztmonitor.qbox.net/duckking/scenarios.html) | 单鸭踢球、双鸭互动、嘴部搬运、动作练习场、轮滑；按钮无需启用语音 |
 | [演示场景](https://ztmonitor.qbox.net/duckking/demos.html) | 十二幕逐幕点播；预录对白本地编排与灵矽实连预录指令可现场切换 |
+| [使用体验](https://ztmonitor.qbox.net/duckking/experience.html) | 持续保存浏览器加载/语音与服务器处理时延；均值、P50/P90/P95、趋势、来源及版本筛选，跨重启保留，见 [口径说明](docs/EXPERIENCE_METRICS.md) |
 | [交互统计](https://ztmonitor.qbox.net/duckking/statistics.html) | 识别文本、实际动作、逐轮时间线、本地/灵矽识别均值及 P50/P90/P95、本地命中与云端回退；按房间和后端查看 |
 | [部署记录](https://ztmonitor.qbox.net/duckking/deploys.html) | 版本、验收结果、变更提交与 GitHub 对比、对应提交的后端行／分支覆盖率 |
 
@@ -133,7 +134,7 @@ npm run test:e2e
 npm run test:e2e:dev
 ```
 
-CI 要求每个后端模块行覆盖率 ≥90%、分支覆盖率 ≥85%。后端、前端和四组浏览器检查使用独立 runner 并行；每种浏览器模式将完整十二幕与其余检查分开，清单保证不遗漏、不重复。全部成功后 `quality` 才通过，同一 PR 的新提交自动取消旧运行。首轮并行实测从约 34 分钟缩短到 **9 分 21 秒**，见 [CI 分析](docs/DEVELOPMENT.md#ci-并行分组)。
+CI 要求后端总体行覆盖率 ≥90%、分支覆盖率 ≥85%。后端、前端和四组浏览器检查使用独立 runner 并行；每种浏览器模式将完整十二幕与其余检查分开，清单保证不遗漏、不重复。全部成功后 `quality` 才通过，同一 PR 的新提交自动取消旧运行。首轮并行实测从约 34 分钟缩短到 **9 分 21 秒**，见 [CI 分析](docs/DEVELOPMENT.md#ci-并行分组)。
 
 [验证记录](docs/VALIDATION.md) 提供绑定具体提交的测试数量和覆盖率；前端当前覆盖门槛只统计 `audio-codec.js`，不能作为全前端覆盖率。部署页展示的是对应发布提交的 Python 后端覆盖率，没有历史报告时显示“未记录”。
 

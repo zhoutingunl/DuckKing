@@ -138,6 +138,8 @@ class HybridVoiceSession(VoiceSession):
                 )
                 call = self.diagnostics.sequence + 1
                 self.record("action_start", call=call, tool=tool)
+                await self.send({"type": "voice_milestone", "phase": "action_start",
+                                 "turn": self.turn, "generation": generation})
                 active = (record["id"], call, tool)
                 finished = await self.motion.wait(record["id"])
                 self.last_activity = time.monotonic()
@@ -165,6 +167,9 @@ class HybridVoiceSession(VoiceSession):
 
     async def _local_done(self, text, *, success):
         self.record("local_end", result="ok" if success else "error")
+        await self.send({"type": "voice_milestone", "phase": "turn_end",
+                         "result": "completed" if success else "failed",
+                         "generation": self.generation})
         await self._local_text(text)
         self.state = "ready"
         self.last_activity = time.monotonic()

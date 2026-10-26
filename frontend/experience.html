@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="theme-color" content="#f6f7f2"/><title>DuckKing · 使用体验</title><link rel="icon" type="image/svg+xml" href="./favicon.svg"/></head>
+<body class="statistics-page experience-page">
+<header class="topbar"><a class="brand" href="./">DuckKing</a><nav><a href="./statistics.html">单轮诊断</a><a href="./">返回工作台</a></nav></header>
+<main>
+<section class="intro"><div><h1>使用体验，持续记录。</h1><p class="subtitle">从打开小鸭到一句话得到回应，查看日常使用中的等待与变化。</p></div><button id="refresh-experience" class="stats-button">刷新数据</button></section>
+<form id="experience-filters" class="experience-filters" aria-label="统计筛选">
+<label>时间范围<select name="hours"><option value="1">最近 1 小时</option><option value="24">最近 24 小时</option><option value="168" selected>最近 7 天</option><option value="720">最近 30 天</option><option value="2160">最近 90 天</option></select></label>
+<label>样本来源<select name="traffic"><option value="interactive">日常使用</option><option value="demo">预录语音演示</option><option value="verification">自动化 / 验收</option><option value="unattributed">未标记的调用</option><option value="all">全部来源</option></select></label>
+<label>页面<select name="page"><option value="all">全部页面</option><option value="home">首页</option><option value="scenarios">动作练习场</option><option value="demos">自动剧场</option><option value="studio">现场互动</option><option value="unknown">未知页面</option></select></label>
+<label>场景<select name="scene"><option value="all">全部场景</option><option value="ball">单鸭踢球</option><option value="duo">双鸭互动</option><option value="carry">嘴部搬运</option><option value="skills">动作练习</option><option value="rollers">轮滑</option><option value="table">桌上合唱</option><option value="seated">坐姿合唱</option><option value="unknown">未知 / 不适用</option></select></label>
+<label>设备<select name="device"><option value="all">全部设备</option><option value="mobile">手机 / 平板</option><option value="desktop">桌面浏览器</option><option value="unknown">未知设备</option></select></label>
+<label>模型缓存<select name="cache"><option value="all">全部缓存状态</option><option value="network">网络加载</option><option value="http">HTTP 缓存</option><option value="persistent">本地持久缓存</option><option value="memory">页面内复用</option><option value="unknown">未知 / 不适用</option></select></label>
+<label>房间<select name="room"><option value="all">全部房间</option></select></label>
+<label>动作后端<select name="backend"><option value="all">全部后端</option><option value="preview">动画预览</option><option value="mujoco">MuJoCo</option><option value="robotd">官方 robotd</option><option value="unknown">未知后端</option></select></label>
+<label>发布版本<select name="release"><option value="all">全部版本</option></select></label>
+</form>
+<div class="stats-meta"><span id="experience-scope">正在读取持续记录…</span><span id="experience-updated" role="status"></span></div>
+<p id="experience-error" class="notice" role="alert" hidden></p>
+<p id="experience-empty" class="stats-empty" hidden>当前筛选还没有样本。回到首页加载小鸭，或在练习场说一句话后刷新；旧的固定口令基准不会自动填入。</p>
+<section class="experience-section latency-panel"><div class="section-heading"><h2>浏览器里的等待</h2><button id="export-experience" class="stats-button" disabled>导出当前汇总 CSV</button></div>
+<p class="stats-note">加载统计只纳入成功显示的样本。语音从松开说话按钮开始，包含用户网络、HTTPS 转发与浏览器接收等待；不是云端纯推理时间。</p>
+<div class="table-scroll"><table class="stats-table"><thead><tr><th>阶段 / 路径</th><th>样本</th><th>均值 ms</th><th>P50</th><th>P90</th><th>P95</th></tr></thead><tbody id="browser-experience"></tbody></table></div></section>
+<section class="experience-section experience-trend"><div class="section-heading"><h2>等待是否在变短？</h2><label>趋势指标 <select id="trend-metric"></select></label></div><p id="trend-description" class="stats-note"></p><div id="trend-chart" role="img" aria-label="延迟趋势图"></div><div class="trend-legend"><span>● P50</span><span>● P95</span></div><details><summary>查看趋势数值</summary><div class="table-scroll"><table class="stats-table"><thead><tr><th>时段</th><th>样本</th><th>均值 ms</th><th>P50</th><th>P90</th><th>P95</th></tr></thead><tbody id="trend-rows"></tbody></table></div></details></section>
+<section class="experience-section latency-panel"><h2>服务器处理时间</h2><p class="stats-note">识别、动作与音频从 DuckKing 收到结束录音开始；本地 ASR 工作进程项仅包含排队、识别与返回。与浏览器样本分别计算，不相减估算网络耗时。</p><div class="table-scroll"><table class="stats-table"><thead><tr><th>阶段 / 路径</th><th>样本</th><th>均值 ms</th><th>P50</th><th>P90</th><th>P95</th></tr></thead><tbody id="server-experience"></tbody></table></div></section>
+<section class="experience-section"><h2>没等到结果的体验，也留下来</h2><p class="stats-note">浏览器与服务器分别记账，不可相加当作人数。超时、取消与失联不补成 0 ms；失联表示超过 3 分钟未收到结束记录，不能推断为成功。</p><div class="table-scroll"><table class="stats-table"><thead><tr><th>观测端 / 内容 / 路径</th><th>完成</th><th>失败</th><th>超时</th><th>取消</th><th>失联</th><th>进行中</th></tr></thead><tbody id="experience-outcomes"></tbody></table></div></section>
+<details class="metric-definitions" open><summary>采集口径与数据保留</summary><div>
+<p>从本版本上线后持续采集，跨服务重启、发布与房间回收保留。最多保留 90 天、50,000 条浏览器／服务器记录，先到上限先淘汰。固定合成口令基准保留在原报告，不混入日常使用。</p>
+<p>分位数使用 nearest-rank（最近秩法）；缺失阶段不补零。每项使用实际观测到该阶段的样本数，失败轮次中已经到达的语音阶段仍计入延迟。少于 20 个样本标记“样本较少”，P95 不能代表稳定性能。</p>
+<p>“模型可见”从模型加载开始至绘制后的动画帧；“场景可见”从点击加载至场景首帧；“首页首次可见”从页面导航开始。它们近似浏览器显示时机，未测量屏幕实际出光。动作回执表示控制器受理，不代表已经产生物理位移。首段音频到达不代表扬声器已经出声。</p>
+<p>仅保存耗时、阶段状态、页面类别、设备大类、房间与版本等技术字段；不在此数据库保存识别文本、录音、IP、原始 User-Agent 或长期用户标识。浏览器上报为尽力而为，断网、直接杀进程可能丢失；后台页面可能受浏览器节流影响。自动化浏览器和显式验收标记单独统计，来源标签由客户端申报，不是身份认证。</p>
+</div></details>
+</main><script type="module" src="/src/experience-stats.js"></script></body></html>

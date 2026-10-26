@@ -13,6 +13,7 @@ export default defineConfig({
     rolldownOptions: {
       input: {
         main: fileURLToPath(new URL('./index.html', import.meta.url)),
+        experience: fileURLToPath(new URL('./experience.html', import.meta.url)),
         statistics: fileURLToPath(new URL('./statistics.html', import.meta.url)),
         studio: fileURLToPath(new URL('./studio.html', import.meta.url)),
         demos: fileURLToPath(new URL('./demos.html', import.meta.url)),

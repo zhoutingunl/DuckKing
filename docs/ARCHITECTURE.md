@@ -151,7 +151,7 @@ ai_gateway 可独立添加固定 loopback 路由；现有前置代理不透传 U
 
 `GET /api/scenes/model` 提供编译后的官方网格和外观，顶点 float32、索引 uint32 以小端 base64 传输，按场景缓存。`/scene-ws` 只发送实际 `geom_xpos/geom_xmat`、接触计数、球位移、双鸭姿态和合唱节拍。浏览器处理后发送文本 `next` 请求最新快照，频率上限 20 Hz；每个连接只保留一帧待确认数据，30 秒没有确认就关闭并由页面重连，避免慢客户端积压旧物理状态。非法确认帧以 1008 关闭。模型响应与状态流使用 revision 配对，避免切换时套用旧模型；revision 属于编译模型，同场景重置复用几何，重启进程重新生成。
 
-Three.js 渲染官方几何，不会用预设踢球动画替换实际关节结果。每次绘制后留出至少 33 ms 空闲时间；检测到 SwiftShader / llvmpipe 等软件渲染器或连续慢帧时关闭阴影，将画布宽度限制为 640 像素，并延长绘制间隔至 100 ms。这样可以为输入、语音和状态处理留出时间，不改变物理步进和接触判定。
+Three.js 渲染官方几何，不会用预设踢球动画替换实际关节结果。每次绘制后留出至少 33 ms 空闲时间；检测到 SwiftShader / llvmpipe 等软件渲染器或连续慢帧时关闭阴影，将画布宽度先限制为 640 像素，持续慢帧时降到最低 240 像素；按绘制与 GPU 等待耗时的两倍留出 100–2,000 ms 空闲间隔。软件显卡上降低画面分辨率与刷新频率，仍显示完整官方几何。这样可以为输入、语音和状态处理留出时间，不改变物理步进和接触判定。
 
 `/scene-voice` 根据模式选择 `VoiceSession` 或 `HybridVoiceSession`，连接场景控制器，按同源规则保护。同一房间内和 `/voice` 共用一个语音名额；各房间使用独立设备身份与控制器，物理世界按需初始化并另设并发上限。物理专属 MCP 工具仅对 MuJoCo 控制器公布：`duck_set_scene`、`duck_kick`（必填 left/right）、`duck_find_companion`、`duck_duo_walk`、`duck_collide`、`duck_chorus`、`duck_pick_up`、`duck_carry`、`duck_put_down`、`duck_sit`、`duck_stand`、`duck_roulade`、`duck_ground_pick`、`duck_yawn`、`duck_idle_on`、`duck_idle_off`、`duck_skate`、`duck_roller_crouch`。桌上与坐姿四鸭演出由应用编排，不增加云端工具。状态工具剔除渲染网格，避免将大量图形数据送入模型上下文。统计按 `mujoco` 单独筛选。
 
@@ -264,3 +264,7 @@ Three.js 渲染官方几何，不会用预设踢球动画替换实际关节结�
 场景初始化另用全局锁限制并发世界数（默认 4），房间创建不会预先加载模型。`POST /api/scenes/close` 在无语音占用时停止并释放该房间物理控制器，其他房间不变。双房间演出通过分配 API 取得另一个空闲房间，编号不再写死为 1/2；演出结束后关闭借用房间的查看连接，再通过 `if_unused=true` 释放物理场景，有新查看者、语音或动作时保留。10 路房间不代表 10 个四鸭重场景能实时运行。部署预算仅调整 DuckKing 到 CPUQuota=400%、MemoryMax=8G，不改 ai_gateway；离线 ASR 的两任务队列仍保持有界。
 
 演示场景也使用按 revision 的压缩模型缓存。公网大模型下载可能占用浏览器/网关传输时间，`scene-ws` 确认帧的发送等待上限由 7 秒调整为 20 秒，仍小于后端 30 秒确认等待。语音发送仍为 7 秒；队列、帧大小、顺序检查和不重发语音的规则不变。
+
+### 持续使用体验统计
+
+`experience.py` 为所有房间提供独立 SQLite WAL 技术统计库和有界后台写入队列。`VoiceDiagnostics` 将结构化阶段筛选后送入库；浏览器 `experience.js` 在用户松手、文字/回执/音频到达以及模型绘制后的帧采样，经 `/api/experience` 持久化。原进程内统计保留用于逐轮诊断；新 `experience.html` 区分浏览器与服务器、本地命中与云端转交、日常与验收流量，按时间/场景/设备/缓存/房间/版本查询精确分位数及趋势。保存和失败口径见 [持续使用体验](EXPERIENCE_METRICS.md)。
