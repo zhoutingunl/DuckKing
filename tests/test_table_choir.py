@@ -215,7 +215,7 @@ async def test_cancelled_cold_compile_is_reused_and_cannot_change_scene_later(mo
         await motion.close()
 
 
-@pytest.mark.parametrize("idle_ticks", [0, 50, 150, 300])
+@pytest.mark.parametrize("idle_ticks", [0, 1, 2, 50, 150, 300])
 async def test_table_departure_is_independent_of_async_observer_cadence(backend, idle_ticks):
     proofs = []
     for burst in (1, 4):
@@ -246,3 +246,14 @@ async def test_table_departure_is_independent_of_async_observer_cadence(backend,
         finally:
             await motion.close()
     np.testing.assert_allclose(proofs[0], proofs[1], atol=0.021, rtol=0)
+
+
+def test_departure_rejects_missing_stable_support_without_moving_root(backend):
+    table = backend.tabletop
+    table.running = True
+    table.sim_start = float(backend.data.time) - 16.1
+    initial = backend.data.qpos.copy()
+    with pytest.raises(ValueError, match="离桌前未确认站稳"):
+        table.step()
+    assert not backend.drivers[3].command.any()
+    np.testing.assert_array_equal(backend.data.qpos, initial)

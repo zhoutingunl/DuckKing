@@ -30,6 +30,7 @@ test('local-first source stays explicit and cloud mode remains selectable',async
   await expect(page.locator('#connect-voice')).toHaveAccessibleName('断开连接');
   await expect(page.locator('#voice-badge')).toHaveClass(/connected/);
   await expect(page.locator('#voice-mode')).toBeDisabled();
+  await expect(page.locator('#talk-button')).toBeEnabled();
   await page.locator('#talk-button').dispatchEvent('pointerdown',{pointerId:1});
   await expect.poll(()=>frames).toBeGreaterThan(0);
   await page.locator('#talk-button').dispatchEvent('pointerup',{pointerId:1});
