@@ -14,7 +14,7 @@ export function physicsView(container) {
   container.append(renderer.domElement);renderer.domElement.setAttribute('aria-label','官方 MicroDuck 模型，位置与关节姿态来自 MuJoCo');
   const camera=new THREE.PerspectiveCamera(38,1,.01,30);camera.position.set(.85,.62,.95);
   const controls=new OrbitControls(camera,renderer.domElement);controls.target.set(0,.13,0);controls.minDistance=.35;controls.maxDistance=6;controls.maxPolarAngle=Math.PI/2.02;controls.enableDamping=true;controls.update();controls.saveState();
-  let manualView=false,floorFramed=false,seatedView=false;controls.addEventListener('start',()=>{manualView=true});
+  let diskView=null,manualView=false,floorFramed=false,seatedView=false;controls.addEventListener('start',()=>{manualView=true});
   scene.add(new THREE.HemisphereLight(0xffffff,0x71815a,2.4));
   const sun=new THREE.DirectionalLight(0xfff6df,3);sun.position.set(1,2,1);sun.castShadow=true;sun.shadow.mapSize.set(1024,1024);sun.shadow.camera.left=-2;sun.shadow.camera.right=2;sun.shadow.camera.top=2;sun.shadow.camera.bottom=-2;sun.shadow.bias=-.0001;sun.shadow.normalBias=.001;scene.add(sun);
   const floor=new THREE.Mesh(new THREE.PlaneGeometry(20,20),new THREE.MeshStandardMaterial({color:'#edf0e5',roughness:1}));floor.rotation.x=-Math.PI/2;floor.receiveShadow=true;scene.add(floor);
@@ -23,7 +23,7 @@ export function physicsView(container) {
   let objects=new Map(),labels=new Map(),textures=[],geometries=[],materials=[],frame,timer,revision=null,slowFrames=0,lastFrame=performance.now(),pixelBudget=reduced?320:640,drawCost=0,drawPause=0;
   const instanceMatrix=new THREE.Matrix4();
   const visibility=new IntersectionObserver(entries=>{visible=entries[0]?.isIntersecting??true});visibility.observe(renderer.domElement);
-  function clear(){world.clear();geometries.forEach(g=>g.dispose());materials.forEach(m=>m.dispose());textures.forEach(t=>t.dispose());geometries=[];materials=[];textures=[];objects.clear();labels.clear();}
+  function clear(){diskView=null;world.clear();geometries.forEach(g=>g.dispose());materials.forEach(m=>m.dispose());textures.forEach(t=>t.dispose());geometries=[];materials=[];textures=[];objects.clear();labels.clear();}
   function load(model){
     clear();const meshes=new Map(),shared=new Map();
     const decode=value=>Uint8Array.from(atob(value),char=>char.charCodeAt(0)).buffer;
@@ -57,6 +57,20 @@ export function physicsView(container) {
   }
   function update(state){
     latest=state;
+    if(state.turntable&&state.scene==='turntable'){
+      if(!diskView){
+        diskView=new THREE.Group();
+        const wood=new THREE.MeshStandardMaterial({color:'#b8863f',roughness:.85});
+        const plate=new THREE.Mesh(new THREE.CylinderGeometry(1.05,1.05,.04,48),wood);
+        plate.position.y=.04;diskView.add(plate);
+        for(let i=0;i<6;i++){const bar=new THREE.Mesh(new THREE.BoxGeometry(.86,.012,.14),
+          new THREE.MeshStandardMaterial({color:i%2?'#d24a3a':'#faf4e6',roughness:.6}));
+          const holder=new THREE.Group();bar.position.x=.48;holder.add(bar);
+          holder.rotation.y=i*Math.PI/3;holder.position.y=.062;diskView.add(holder);}
+        world.add(diskView);geometries.push(plate.geometry);
+      }
+      diskView.rotation.y=-state.turntable.angle;
+    } else if(diskView){diskView.visible=state.scene==='turntable';}
     if(state.stage&&(selection?.instance!==state.stage.instance||state.stage.selection_version>=selection.selection_version))selection=state.stage;
     if(state.revision!==revision)return;
     for(const duck of state.ducks){

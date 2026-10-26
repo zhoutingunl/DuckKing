@@ -35,7 +35,7 @@ def _decor():
                 f'{cy + off * math.sin(a + math.pi / 2):.3f} .03" '
                 f'quat="{math.cos(b / 2):.4f} 0 0 {math.sin(b / 2):.4f}" '
                 f'size=".13 .02 .004" rgba=".08 .08 .08 1" contype="0" '
-                f'conaffinity="0" group="3"/>')
+                f'conaffinity="0" group="2"/>')
     for i in range(6):  # alternating spokes
         a = i * math.tau / 6
         rgba = ".98 .94 .88" if i % 2 == 0 else ".82 .28 .22"
@@ -43,14 +43,14 @@ def _decor():
             f'<geom name="spoke{i}" type="box" '
             f'pos="{0.48 * math.cos(a):.3f} {0.48 * math.sin(a):.3f} .027" '
             f'quat="{math.cos(a / 2):.4f} 0 0 {math.sin(a / 2):.4f}" size=".43 .07 .004" '
-            f'rgba="{rgba} 1" contype="0" conaffinity="0" group="3"/>')
+            f'rgba="{rgba} 1" contype="0" conaffinity="0" group="2"/>')
     for i in range(10):  # rim dots
         a = i * math.tau / 10
         rgba = ".98 .94 .88" if i % 2 == 0 else ".82 .28 .22"
         parts.append(
             f'<geom name="dot{i}" type="sphere" '
             f'pos="{0.93 * math.cos(a):.3f} {0.93 * math.sin(a):.3f} .03" size=".035" '
-            f'rgba="{rgba} 1" contype="0" conaffinity="0" group="3"/>')
+            f'rgba="{rgba} 1" contype="0" conaffinity="0" group="2"/>')
     return "".join(parts)
 
 
@@ -63,7 +63,7 @@ def build_turntable_scene(robot_dir: Path):
         '<geom name="disk" type="cylinder" size="1.05 .02" mass="12" '
         'rgba=".72 .5 .3 1" friction=".6 .008 .0008" priority="1"/>'
         '<geom name="rim" type="cylinder" size="1.06 .028" rgba=".5 .32 .18 1" '
-        'mass="0" contype="0" conaffinity="0" group="3"/>'
+        'mass="0" contype="0" conaffinity="0" group="2"/>'
         + _decor() +
         '</body></worldbody>'
         '<actuator><velocity name="spinner" joint="spin" kv="40"/></actuator></mujoco>')
