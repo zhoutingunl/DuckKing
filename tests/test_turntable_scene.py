@@ -32,12 +32,20 @@ async def run(motion, name, **kwargs):
     return await motion.wait(action.request_id)
 
 
+def advance(backend, seconds):
+    """Synchronous physics: immune to event-loop pacing on any hardware."""
+    target = backend.data.time + seconds
+    while backend.data.time < target:
+        backend.tick()
+
+
 async def test_spin_is_real_and_eliminations_are_measured(backend):
     motion = MotionController(backend)
     assert (await run(motion, "spin_fast"))["outcome"]["target_omega"] == pytest.approx(4.0)
-    deadline = backend.data.time + 90
-    while backend.data.time < deadline and backend.turntable.snapshot()["remaining"] == 4:
-        await asyncio.sleep(0.05)
+    for _ in range(12):  # up to 60 sim-seconds, checking after every 5 s
+        advance(backend, 5)
+        if backend.turntable.snapshot()["remaining"] < 4:
+            break
     state = backend.turntable.snapshot()
     assert state["remaining"] < 4, "高速转盘必须产生真实出局"
     assert state["eliminated"], "出局必须带测量记录"
@@ -46,7 +54,7 @@ async def test_spin_is_real_and_eliminations_are_measured(backend):
     assert abs(state["omega"]) > 1.0  # the disk really spins
     assert state["source"] == "real_velocity_actuator_measured_eliminations"
     assert (await run(motion, "spin_stop"))["outcome"]["target_omega"] == 0.0
-    await asyncio.sleep(1.0)
+    advance(backend, 1.0)
     assert abs(backend.turntable.snapshot()["omega"]) < 1.0  # motor actually brakes
 
 
@@ -75,9 +83,10 @@ async def test_scene_gates_and_switch(backend):
 async def test_eliminated_ducks_can_self_recover_on_the_floor(backend):
     motion = MotionController(backend)
     await run(motion, "spin_fast")
-    deadline = backend.data.time + 90
-    while backend.data.time < deadline and not backend.turntable.eliminated:
-        await asyncio.sleep(0.05)
+    for _ in range(18):  # up to 90 sim-seconds of synchronous physics
+        advance(backend, 5)
+        if backend.turntable.eliminated:
+            break
     assert backend.turntable.eliminated
     await run(motion, "spin_stop")
     index = "abcd".index(backend.turntable.eliminated[0]["member"])
