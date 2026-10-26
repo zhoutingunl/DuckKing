@@ -3,6 +3,19 @@ import json
 from duckking.diagnostics import VoiceDiagnostics
 
 
+def test_redacted_tool_name_does_not_interrupt_action_statistics():
+    journal = VoiceDiagnostics()
+    journal.record("listen_start", backend="mujoco", turn=1)
+    journal.record("action_start", backend="mujoco", turn=1, call=1,
+                   tool="unrecognized-private-tool", elapsed_ms=50)
+    journal.record("action_end", backend="mujoco", turn=1, call=1,
+                   tool="unrecognized-private-tool", result="completed", elapsed_ms=150)
+    action = journal.statistics.snapshot()["rounds"][0]["actions"][0]
+    assert action["tool"] == "unknown"
+    assert action["result"] == "completed" and action["duration_ms"] == 100
+    assert "private" not in json.dumps(journal.snapshot())
+
+
 def test_metadata_allowlist_capacity_and_private_rotating_files(tmp_path):
     path = tmp_path / "private" / "voice.jsonl"
     journal = VoiceDiagnostics(path, capacity=2, max_bytes=550)
