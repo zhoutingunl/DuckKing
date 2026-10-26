@@ -1,10 +1,12 @@
 # DuckKing
 
-通过语音和按钮控制 MicroDuck，在浏览器中完成踢球、搬运、前滚翻、轮滑与四鸭合唱。支持服务器离线识别优先、真实灵矽语音、两个独立房间和十三幕自动演示。
+通过语音和按钮控制 MicroDuck，在浏览器中完成踢球、搬运、前滚翻、轮滑与四鸭合唱。支持服务器离线识别优先、真实灵矽语音、动态独立房间和十三幕自动演示。
 
 [在线体验](https://ztmonitor.qbox.net/duckking/) · [演示场景](https://ztmonitor.qbox.net/duckking/demos.html) · [物理实验室](https://ztmonitor.qbox.net/duckking/scenarios.html) · [部署记录](https://ztmonitor.qbox.net/duckking/deploys.html)
 
-![当前语音工作台：官方 MicroDuck 外观、动作按钮与语音模式](docs/media/workbench.png)
+![语音工作台：官方 MicroDuck 外观、动作按钮与语音模式](docs/media/workbench.png)
+
+本文三张界面截图采集于 2026-10-25 的 `a8a6675`，展示当时运行画面；新增 UI 以当前页面和下文说明为准。[截图来源与版本](docs/media/README.md)
 
 当前工作台使用官方模型外观，动作由本项目脚本驱动，属于**动画预览**。物理实验室与演示剧场使用**真实 MuJoCo CPU + 官方 ONNX 策略**；另有独立的官方 **robotd / MuJoCo** 适配。三条路径分别标识，连接失败会明确报错。项目目前是软件仿真，没有实体机器人验收。
 
@@ -17,11 +19,47 @@
 | [语音工作台](https://ztmonitor.qbox.net/duckking/) | 点头、摇头、歪头、前后移动、横移、左右转、两个舞步；连接语音或选择本地优先 |
 | [物理实验室](https://ztmonitor.qbox.net/duckking/scenarios.html) | 单鸭踢球、双鸭互动、嘴部搬运、动作练习场、轮滑；按钮无需启用语音 |
 | [演示场景](https://ztmonitor.qbox.net/duckking/demos.html) | 十三幕逐幕点播；预录对白本地编排与灵矽实连预录指令可现场切换 |
+| [现场互动工坊](https://ztmonitor.qbox.net/duckking/studio.html) | 十项语音任务、本地排练、临场改序与任务控制；真人语音固定走灵矽，见 [使用说明](docs/INTERACTIVE_STUDIO.md) |
 | [使用体验](https://ztmonitor.qbox.net/duckking/experience.html) | 持续保存浏览器加载/语音与服务器处理时延；均值、P50/P90/P95、趋势、来源及版本筛选，跨重启保留，见 [口径说明](docs/EXPERIENCE_METRICS.md) |
 | [交互统计](https://ztmonitor.qbox.net/duckking/statistics.html) | 识别文本、实际动作、逐轮时间线、本地/灵矽识别均值及 P50/P90/P95、本地命中与云端回退；按房间和后端查看 |
 | [部署记录](https://ztmonitor.qbox.net/duckking/deploys.html) | 版本、验收结果、变更提交与 GitHub 对比、对应提交的后端行／分支覆盖率 |
 
 页面可新建、切换房间，默认最多 10 个；没有指定房间的新页面优先分配空闲房间，满时按需创建。各房间隔离动作、设备身份、语音和统计，同房间只允许一个页面占用语音；这是公开演示空间。默认最多 4 个同时加载的 MuJoCo 世界，可在场景页释放；无人使用 5 分钟后回收。新增房间的云端设备需由管理员预先独立绑定；显式 robotd 后端只开放房间 1。
+
+## 软件架构
+
+围绕“复刻 Micro Duck，并通过灵矽语音交互”的题目，当前交付了从浏览器语音到动作执行、物理反馈与体验统计的软件链路。实体硬件复刻、传感器接入与实机验收仍未完成。
+
+```mermaid
+flowchart TB
+    User["浏览器 · 手机 / 电脑<br/>语音、动作、十三幕演示"]
+    Gateway["HTTPS 入口 /duckking/<br/>ai_gateway 固定转发"]
+    App["DuckKing · FastAPI<br/>动态房间、语音会话、任务编排"]
+    Local["服务器离线识别<br/>SenseVoiceSmall + 整句规则"]
+    Cloud["灵矽云端<br/>识别、对话、MCP 工具、语音回复"]
+    Motion["有界动作控制<br/>限时、取消、去重、实际结果"]
+    Preview["首页预览<br/>官方外观 + 脚本动画"]
+    Physics["物理场景<br/>MuJoCo + 官方 ONNX 策略"]
+    Robotd["可选官方 robotd<br/>Unix socket → MuJoCo body"]
+    Evidence["可追溯数据<br/>使用体验、逐轮诊断、部署与覆盖率"]
+    User <-->|"HTTPS API / 有序音频与状态帧"| Gateway
+    Gateway <--> App
+    App -->|"本地优先"| Local
+    App <-->|"云端模式"| Cloud
+    Local -->|"整句命中"| Motion
+    Local -->|"未命中 / 识别失败，原录音转交一次"| Cloud
+    Cloud <-->|"MCP 调用 / 执行结果"| Motion
+    App -->|"按钮 / 剧本"| Motion
+    Motion --> Preview
+    Motion --> Physics
+    Motion --> Robotd
+    App --> Evidence
+    User -->|"浏览器端计时"| Evidence
+```
+
+公网音频与状态帧经 HTTPS 长轮询转到真实后端 WebSocket，本地可直连 WebSocket。各房间隔离语音与动作；物理场景按需加载。三个动作后端显式区分，预览不计算接触，仿真也不等于实体硬件。灵矽回复、本地确认和预录音乐分别标记。
+
+[架构设计文档](docs/ARCHITECTURE.md)包含部署图、语音时序、模块输入输出、故障边界和接口规格；[模块分工与验收](docs/TEAM.md)对应负责人和测试入口。两者共同组成竞赛的“架构设计文档（包含模块规格、分工）”。
 
 ## 本地运行
 
@@ -138,14 +176,19 @@ npm run test:e2e
 npm run test:e2e:dev
 ```
 
-CI 要求后端总体行覆盖率 ≥90%、分支覆盖率 ≥85%。后端、前端和四组浏览器检查使用独立 runner 并行；每种浏览器模式将完整十三幕与其余检查分开，清单保证不遗漏、不重复。全部成功后 `quality` 才通过，同一 PR 的新提交自动取消旧运行。首轮并行实测从约 34 分钟缩短到 **9 分 21 秒**，见 [CI 分析](docs/DEVELOPMENT.md#ci-并行分组)。
+CI 要求后端总体行覆盖率 ≥90%、分支覆盖率 ≥85%。后端、前端和 12 个浏览器任务使用独立 runner 并行；浏览器按生产／开发 × 演示旅程／舞台交互／其余检查 × 两个分片运行，清单保证不遗漏、不重复。全部成功后 `quality` 才通过，共 15 个任务；同一 PR 的新提交自动取消旧运行。历史首轮并行实测从约 34 分钟缩短到 **9 分 21 秒**，不代表当前十三幕完整套件的固定耗时，见 [CI 分析](docs/DEVELOPMENT.md#ci-并行分组)。
 
 [验证记录](docs/VALIDATION.md) 提供绑定具体提交的测试数量和覆盖率；前端当前覆盖门槛只统计 `audio-codec.js`，不能作为全前端覆盖率。部署页展示的是对应发布提交的 Python 后端覆盖率。安装器将 CI 报告独立保存在 `/var/lib/duckking/release-coverage.json`，自动汇入历史发布包的报告，升级或清理旧发布目录后仍保留；没有真实报告的版本继续显示“未记录”。
 
 - [架构与模块规格](docs/ARCHITECTURE.md)、[本地开发与排障](docs/DEVELOPMENT.md)
+- [AI 协作说明](docs/AI_COLLABORATION.md)、[工程经验与回归检查](docs/LESSONS_LEARNED.md)、[持续使用体验口径](docs/EXPERIENCE_METRICS.md)
 - [演示复现与历史视频](docs/DEMO.md)、[舞步编排](docs/CHOREOGRAPHY.md)、[媒体来源](docs/media/README.md)
 - [贡献指南](CONTRIBUTING.md)、[团队与分工](docs/TEAM.md)、[原创贡献](docs/CONTRIBUTION_SCOPE.md)、[安全说明](SECURITY.md)
 
 `v0` 保留空仓库基线；后续变更使用功能分支与 Pull Request。原创代码采用 [MIT](LICENSE)，官方模型、策略、谱面与歌曲分别遵循其原许可，详见 [第三方来源](THIRD_PARTY.md)。
 
-现场互动工坊：从演示页进入 [`studio.html`](https://ztmonitor.qbox.net/duckking/studio.html)，十项语音任务及边界见 [使用说明](docs/INTERACTIVE_STUDIO.md)。
+## AI 协作说明
+
+DuckKing 采用人提出需求、选择交互方案、反馈实际体验，AI 辅助实现、排障、测试和文档的协作方式。本轮维护使用 Codex；当前确认的维护账号是 [@zhoutingunl](https://github.com/zhoutingunl)。AI 不是额外参赛成员，也不据此推断代码生成比例或多人贡献。实际修改通过功能分支、PR、CI 和发布验收追溯。
+
+后续协作者先读 [AGENTS.md](AGENTS.md) 与 [贡献指南](CONTRIBUTING.md)，再按 [AI 协作说明](docs/AI_COLLABORATION.md)定位代码与验证方式。可复用的教训统一整理在 [LESSONS_LEARNED.md](docs/LESSONS_LEARNED.md)；具体版本的测试证据留在 [VALIDATION.md](docs/VALIDATION.md)、PR、CI 和 Release 中。私有日志留在数据目录，不提交录音、凭证或设备身份。

@@ -25,6 +25,8 @@
 
 功能变化时同步更新使用说明、架构、能力边界和截图。截图必须来自实际运行页面；历史视频与验证数据保留原始版本和验证范围，不把旧结果改写成当前版本已通过。
 
+先核对说明与代码现状，再补展示性内容。模块输入输出与分工同步更新 [架构](docs/ARCHITECTURE.md)和 [TEAM.md](docs/TEAM.md)；AI 协作方式见 [AI_COLLABORATION.md](docs/AI_COLLABORATION.md)。可复用的故障经验写入 [LESSONS_LEARNED.md](docs/LESSONS_LEARNED.md)，链接实际代码、回归检查与版本证据，避免只留在聊天或私有临时日志中。
+
 发布使用新的不可变版本标签，记录准确提交 SHA、CI 和验收结果。Linux 安装、HTTPS 验收、部署变更与覆盖率追溯见 [部署指南](deploy/README.md)。
 
 依赖、已有代码与原创贡献必须清楚区分。新增第三方代码/资源前核对许可，并更新 THIRD_PARTY.md。

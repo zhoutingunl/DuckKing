@@ -15,6 +15,7 @@
 - [官方 microduck-policies](https://huggingface.co/pollen-robotics/microduck-policies/tree/665ae4eb20bfe13bca1ef4ea6d4bb6b4a096e448) 固定提交 `665ae4eb20bfe13bca1ef4ea6d4bb6b4a096e448`，当前共八个策略：`velstand.onnx`、`ball_kick_left.onnx`、`ball_kick_right.onnx`、`alpha_sitstand.onnx`、`roulade.onnx`、`alpha_ground_pick.onnx`、`roller.onnx`、`roller_crouch.onnx`，许可 Apache-2.0。SHA-256 在 `scripts/fetch_scene_assets.py` 中固定；不重新训练、不声明为原创策略。
 - `simulation.py` 的默认关节姿态、观测布局和推理时序参考官方 [`infer_policy.py`](https://github.com/pollen-robotics/microduck_rl/blob/b02fdea4902c2b93b7d34a83a6f05da4ececb7d3/scripts/infer_policy.py)，共享物理世界组合参考官方 `sim/body_server.py`。本项目自行实现动作编排、场景 API、接触验收和 Web 渲染接线，不声称复现完整硬件或电机数字孪生。
 - 双鸭互动按钮的合唱是本项目用 Web Audio 合成的双声部短旋律，不使用官方 BLE 实现，也不是云端语音。演示剧场另使用下述官方谱面、公共领域谱面和用户录音，其来源分别列明。
+- 球场在运行时为球／地面单独配置六维接触与 0.003 m 滚动摩擦，使球自然停下；这是 DuckKing 的演示场地参数，没有修改上游文件，也不是官方实机标定。脚球接触和机器人步态接触参数保留；详见 [架构中的接触说明](docs/ARCHITECTURE.md#共享物理场景)。
 
 ## 自动演示的对白与四声部乐谱
 
