@@ -41,16 +41,19 @@ test('mobile thirteenth stage keeps touch controls within the viewport',async({p
 
 test('automatic roll honors middle ducks selected by stick and repeated clicks cancel',async({page})=>{
  test.setTimeout(180000);const errors=[];page.on('pageerror',e=>errors.push(e.message));
+ let resumeRoll;const gate=new Promise(resolve=>{resumeRoll=resolve});
+ await page.route('**/demo-audio/stage-roll.wav*',async route=>{await gate;await route.continue()});
  await page.goto('/demos.html?room=1');await page.locator('[data-demo=stage]').click();
- await expect(page.locator('#stage-state')).toHaveText('集结排队中',{timeout:30000});
- await expect(page.locator('[data-stage-member][value=a]')).not.toBeChecked();
+ await expect(page.locator('#stage-state')).toHaveText('排队完成，已坐稳',{timeout:60000});
+ await expect(page.locator('#caption')).toHaveText('选中的小鸭们，能一起翻个跟头吗？');
+ await page.locator('[data-stage-member][value=a]').uncheck();
  await page.selectOption('#stage-pointer','stick');
  async function tap(member){
   const state=await(await page.request.get('/api/scenes/state?room=1')).json();
   const rect=await page.locator('#demo-viewport canvas').boundingBox();
   const camera=new THREE.PerspectiveCamera(38,rect.width/rect.height,.01,30);camera.position.set(2.7,2.1,0);camera.lookAt(0,.13,0);camera.updateMatrixWorld();
   const [x,y,z]=state.backend.ducks.find(d=>d.id===member).position;
-  const p=new THREE.Vector3(x,z+.045,-y).project(camera);
+  const p=new THREE.Vector3(x,z+.03,-y).project(camera);
   await page.mouse.click(rect.x+(p.x+1)*rect.width/2,rect.y+(1-p.y)*rect.height/2);
  }
  await tap('b');await expect(page.locator('[data-stage-member][value=b]')).toBeChecked();
@@ -58,11 +61,42 @@ test('automatic roll honors middle ducks selected by stick and repeated clicks c
  await expect(page.locator('#stage-hint')).toContainText('未选中');
  await tap('b');await expect(page.locator('[data-stage-member][value=b]')).toBeChecked();
  await tap('c');await expect(page.locator('[data-stage-member][value=c]')).toBeChecked();
+ resumeRoll();
  await expect(page.locator('#show-status')).toHaveText('本幕完成 · 可重演或进入下一幕',{timeout:140000});
  const proof=JSON.parse(await page.locator('#theatre-result').textContent());
  const roll=proof.results.find(r=>r.name==='stage_roll');
  expect(roll.outcome.members).toEqual(['b','c']);
  expect(roll.outcome.results.map(r=>r.member)).toEqual(['b','c']);
- expect(roll.outcome.results.every(r=>r.rotation_rad>5&&r.returned)).toBe(true);
+ expect(roll.outcome.results.every(r=>r.rotation_rad>5&&!r.returned)).toBe(true);
  expect(errors).toEqual([]);
+});
+
+test('finished show accepts repeated selected gathering, seated roll and selected dance',async({page})=>{
+ test.setTimeout(240000);await page.goto('/demos.html?room=1');
+ await page.locator('[data-demo=stage]').click();
+ await expect(page.locator('#show-status')).toHaveText('本幕完成 · 可重演或进入下一幕',{timeout:120000});
+ for(const id of ['stage-gather','stage-roll','stage-dance'])await expect(page.locator('#'+id)).toBeEnabled();
+ const state=async()=>(await(await page.request.get('/api/scenes/state?room=1')).json());
+ for(const member of 'abcd'){
+  const checkbox=page.locator(`[data-stage-member][value=${member}]`);
+  if(member==='b'||member==='c')await checkbox.check();else await checkbox.uncheck();
+ }
+ await expect.poll(async()=> (await state()).backend.stage.selected).toEqual(['b','c']);
+ async function perform(id,name){
+  const before=(await state()).events.at(-1)?.id??0;
+  await page.locator('#'+id).click();
+  await expect(page.locator('#show-status')).toHaveText('本地操作完成 · 可继续操作',{timeout:90000});
+  const now=await state(),event=now.events.findLast(e=>e.id>before&&e.kind==='result'&&e.text.startsWith(name+' ·'));
+  expect(event).toBeTruthy();const result=await(await page.request.get(`/api/scenes/actions/${event.action_id}?room=1`)).json();
+  expect(result.status).toBe('completed');expect(result.outcome.members).toEqual(['b','c']);return now;
+ }
+ const initial=await perform('stage-gather','stage_gather');
+ expect(initial.backend.ducks.slice(1,3).map(d=>d.posture.observed)).toEqual(['sit','sit']);
+ const rolled=await perform('stage-roll','stage_roll');
+ expect(rolled.backend.ducks.map(d=>d.posture.observed)).toEqual(['stand','sit','sit','stand']);
+ expect(rolled.backend.stage.roll.returned).toBe(false);
+ const dancing=await perform('stage-dance','stage_dance');
+ expect(dancing.backend.ducks.slice(1,3).map(d=>d.posture.observed)).toEqual(['stand','stand']);
+ await perform('stage-dance','stage_dance');await perform('stage-gather','stage_gather');
+ await page.locator('#stop-demo').click();await expect(page.locator('#show-status')).toHaveText('演示已停止');
 });

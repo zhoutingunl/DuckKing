@@ -19,6 +19,7 @@ import { setupVoice } from './voice.js';
 await setupRoom();
 const $=id=>document.getElementById(id),output=new VoiceAudio(),clips=new Map(),loadPhysicsModel=createPhysicsModelLoader(),stages=new Map();
 const chorus=createChorus(()=>{},{getContext:()=>output.context()});let current=null,selected=-1,serial=Promise.resolve();
+const pendingStageMembers=new Map();let selectionState=null;
 let stageInteractive=false,selectionQueue=Promise.resolve(),selectionVersion=-1,selectionInstance=null;
 let tableTracks=null,trackError=null,trackLoading=false,trackEpoch=0,preview=null;
 const controlsBusy=value=>document.querySelectorAll('[data-idle-control]').forEach(el=>{el.disabled=value});
@@ -28,13 +29,14 @@ function entry(text,state='completed'){const item=document.createElement('li');i
 function error(text){$('demo-notice').textContent=text;$('demo-notice').hidden=false;}
 function mode(){const live=$('demo-mode').value==='live';$('mode-note').textContent=live?'预录指令发往真实灵矽，现场识别和回答；依赖网络。':'本地编排 + 实时物理仿真；不使用麦克风。';$('voice-source').textContent=live?'预录指令 · 灵矽实时回答':'预录台词 · 本地编排';}
 $('demo-mode').addEventListener('change',mode);
-const stageVoice=setupVoice({endpoint:'/scene-voice',cloudOnly:true,appendLog:(text,label)=>entry(label+' · '+text),notify:error,beforeListen:async()=>{const stage=stages.get(currentRoom);if(!current||!stageInteractive||DEMOS[selected]?.id!=='stage')throw Error('请先进入第13幕现场互动');await syncStageOrder(stage)}});
+const stageVoice=setupVoice({endpoint:'/scene-voice',cloudOnly:true,appendLog:(text,label)=>entry(label+' · '+text),notify:error,beforeListen:async()=>{const stage=stages.get(currentRoom);if(!current||(!stageInteractive&&!current.completed)||DEMOS[selected]?.id!=='stage')throw Error('请先进入第13幕现场互动');await syncStageOrder(stage)}});
 const stageVoiceBusy=()=>!['disconnected','error','busy','awaiting_binding'].includes(stageVoice.state);
 $('stage-play').addEventListener('change',()=>{stageInteractive=$('stage-play').value==='interactive'});
 function renderSelection(state){
   if(state.instance===selectionInstance&&state.selection_version<selectionVersion)return;
-  selectionInstance=state.instance;selectionVersion=state.selection_version;
-  for(const input of document.querySelectorAll('[data-stage-member]'))input.checked=state.selected.includes(input.value);
+  if(selectionInstance!==state.instance)pendingStageMembers.clear();
+  selectionInstance=state.instance;selectionVersion=state.selection_version;selectionState=state;
+  for(const input of document.querySelectorAll('[data-stage-member]'))input.checked=pendingStageMembers.get(input.value)?.checked??state.selected.includes(input.value);
   $('stage-hint').textContent=state.selected.length?`已选中：${state.selected.map(c=>'鸭 '+c.toUpperCase()).join('、')}。再次点击可取消；翻滚使用当前选中集合。`:'未选中鸭子。点击鸭子或勾选 A—D，再让它们翻跟头。';
 }
 function stageSelect(change,stage=stages.get(currentRoom)){
@@ -55,17 +57,21 @@ function stageInteraction(){
 }
 $('stage-pointer').addEventListener('change',stageInteraction);
 for(const input of document.querySelectorAll('[data-stage-member]'))input.addEventListener('change',()=>{
-  stageSelect({operation:'toggle',target:input.value}).catch(e=>error(e.message));
+  const pending={checked:input.checked};pendingStageMembers.set(input.value,pending);
+  stageSelect({operation:'toggle',target:input.value}).catch(e=>error(e.message)).finally(()=>{
+    if(pendingStageMembers.get(input.value)===pending)pendingStageMembers.delete(input.value);
+    if(selectionState)renderSelection(selectionState);
+  });
 });
 async function stageAction(name,options={member:'selected'}){
   if(!current||DEMOS[selected]?.id!=='stage'){error('请先选择现场互动并重演第13幕。');return}
-  if(current&&!stageInteractive){error('自动演出中请先停止，再选择现场互动。');return}
+  if(current&&!stageInteractive&&!current.completed){error('自动演出中请先停止，再选择现场互动。');return}
   if(stageVoiceBusy()&&!['ready'].includes(stageVoice.state)){error('请等待本轮语音完成，或停止当前演出。');return}
   const run=current,signal=run.signal;
-  try{await selectionQueue;const result=await action(currentRoom,name,signal,options);entry(`本地点选 · ${ACTION_NAMES[name]} · ${result.status}`,result.status);if(result.status!=='completed')throw Error(result.error??'任务未完成')}catch(e){if(e.name!=='AbortError')error(e.message)}
+  try{await selectionQueue;$('demo-notice').hidden=true;status('本地操作 · '+ACTION_NAMES[name]);$('theatre-result')?.remove();const result=await action(currentRoom,name,signal,options);if(current!==run||run.signal.aborted)return;entry(`本地点选 · ${ACTION_NAMES[name]} · ${result.status}`,result.status);if(result.status!=='completed')throw Error(result.error??'任务未完成');status('本地操作完成 · 可继续操作')}catch(e){if(e.name!=='AbortError'){error(e.message);status('本地操作未完成 · 可重试')}}
 }
 for(const name of ['gather','roll','dance'])$('stage-'+name).addEventListener('click',()=>stageAction('stage_'+name));
-window.addEventListener('duckking-voice-state',()=>{if(stageVoiceBusy()&&current?.live===false&&!stageInteractive)void stop('已停止自动演示，请选择现场互动后连接语音')});
+window.addEventListener('duckking-voice-state',()=>{if(stageVoiceBusy()&&current?.live===false&&!stageInteractive&&!current.completed)void stop('已停止自动演示，请选择现场互动后连接语音')});
 
 $('program-count').textContent=`${DEMOS.length} 幕`;
 $('table-tracks').addEventListener('change',async event=>{
@@ -107,7 +113,7 @@ function connectStage(room,container){
   socket.onmessage=event=>{
     const data=JSON.parse(event.data);if(data.type==='state'){
       stage.latest=data;viewer.update(data.backend);if(data.backend.scene==='stage'){
-        $('stage-state').textContent=({scattered:'四鸭散落，等待召集',gathering:'集结排队中',contact_sit:'碰撞后坐下，再起身',lined_up:'四鸭已排好',rolling:'点名前滚翻',returning:'正在归位',dancing:'四鸭同拍齐舞',completed:'表演完成',failed:'任务未完成',stopped:'已停止'}[data.backend.stage.phase]??data.backend.stage.phase);
+        $('stage-state').textContent=({scattered:'四鸭散落，等待召集',gather_rising:'集结前起身',gathering:'集结排队中',gather_sitting:'排好队，一起坐下',contact_sit:'碰撞后坐下，再起身',lined_up:'排队完成，已坐稳',roll_rising:'四鸭起身，准备翻滚',roll_recovering:'翻滚后恢复站稳',roll_sitting:'翻滚后就地坐下',dance_rising:'选中鸭起身，准备齐舞',rolling:'点名前滚翻',returning:'正在归位',dancing:'选中鸭同拍齐舞',completed:'表演完成',failed:'任务未完成',stopped:'已停止'}[data.backend.stage.phase]??data.backend.stage.phase);
         renderSelection(data.backend.stage);
       }if(room===currentRoom)chorus.update(data.backend.chorus);
     }else if(data.type==='scene_error')stage.error=data.message||'物理场景异常';
@@ -317,16 +323,28 @@ function start(index){
       const rooms=await api('api/rooms',currentRoom,{signal:run.signal});if(rooms.rooms.find(r=>r.id===currentRoom)?.voice_busy)throw new Error('本房间语音正在其他页面使用，请先断开或选择空闲房间');
       await prepare(currentRoom,demo.scene,run);
       if(demo.id==='stage'&&stageInteractive){
-        message('现场互动 · 本地点选 / 灵矽实连','先召集四鸭排队，再点鸭子或说“最左边的鸭子翻个跟头”，最后一起齐舞。');
+        message('现场互动 · 本地点选 / 灵矽实连','集结后坐下；四鸭起身，选中鸭翻滚后就地坐下；选中鸭起身齐舞。可反复点选操作。');
         $('voice-source').textContent='点选：本地操作 · 真人语音：灵矽实连';
         status('现场互动已就绪 · 可点选、轻戳或连接语音');
         while(!run.signal.aborted)await pause(200,run.signal);
       }
       for(const step of demo.steps){status('正在演出');await runStep(run,step)}
       run.signal.throwIfAborted();if($('result-summary').textContent==='等待本轮动作结果。')$('result-summary').textContent=`本轮 ${run.results.filter(r=>r.status==='completed').length} 个动作完成，${run.results.filter(r=>r.status==='cancelled').length} 个动作已取消。结果来自本次物理执行。`;status('本幕完成 · 可重演或进入下一幕');entry('本幕完成');
-      $('theatre-result')?.remove();const proof=document.createElement('script');proof.type='application/json';proof.id='theatre-result';proof.textContent=JSON.stringify({scene:demo.id,mode:run.live?'live_linx':'scripted_rehearsal',status:'completed',results:run.results,cloud_audio_frames:run.voices.reduce((n,v)=>n+v.received,0)});document.body.append(proof);
+      $('theatre-result')?.remove();const proof=document.createElement('script');proof.type='application/json';proof.id='theatre-result';proof.textContent=JSON.stringify({scene:demo.id,mode:run.live?'live_linx':'scripted_rehearsal',status:'completed',results:run.results,cloud_audio_frames:run.voices.reduce((n,v)=>n+v.received,0)});document.body.append(proof);run.completed=true;
     }catch(e){if(e.name!=='AbortError'&&!run.signal.aborted&&current===run){error(e.message);status('本幕未完成 · 点击节目重试');entry(e.message,'failed')}}
-    finally{await cleanup(run);if(current===run){current=null;$('stop-demo').disabled=true;$('demo-mode').disabled=false;$('stage-play').disabled=false;controlsBusy(false);}}
+    finally{
+      if(current===run&&demo.id==='stage'&&run.completed){
+        // Preserve the room and command lifetime after the scripted show.
+        // Stop, switching scenes and page exit still own the usual cleanup.
+        for(const voice of run.voices)voice.close();
+        run.voices=[];run.voiceMap?.clear();$('stage-voice').hidden=false;
+        for(const b of document.querySelectorAll('.stage-tools button'))b.disabled=false;
+        controlsBusy(false);$('demo-mode').disabled=false;
+      }else{
+        await cleanup(run);
+        if(current===run){current=null;$('stop-demo').disabled=true;$('demo-mode').disabled=false;$('stage-play').disabled=false;controlsBusy(false);}
+      }
+    }
   })();
 }
 $('stop-demo').addEventListener('click',()=>void stop());$('next-demo').addEventListener('click',()=>start(Math.min(selected+1,DEMOS.length-1)));

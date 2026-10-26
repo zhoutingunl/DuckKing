@@ -127,7 +127,7 @@ STAGE_TOOLS = [
                         "default": "selected",
                     }
                 }
-                if name == "duck_stage_roll"
+                if name in {"duck_stage_gather", "duck_stage_roll", "duck_stage_dance"}
                 else {}
             ),
             "additionalProperties": False,
@@ -136,17 +136,17 @@ STAGE_TOOLS = [
     for name, description in [
         (
             "duck_stage_gather",
-            "四鸭发布会：小家伙们到中间排成一排；真实行走、打哈欠，碰撞后可能坐下再起身。等待实际全部排好，不能切换场景。",
+            "四鸭发布会：选中鸭起身集结排队后坐稳；首次未选择时召集四鸭。真实行走、哈欠和接触验收。",
         ),
         (
             "duck_stage_roll",
-            "四鸭发布会：指定 member 前滚翻并站稳归队，其他三鸭候场。"
+            "四鸭发布会：四鸭先站稳，指定 member 一起前滚翻后就地坐稳；其他鸭候场。不自动归队。"
             "a/b/c/d 按名字，selected 指屏幕多选集合（空集合请用户选择），"
-            "leftmost 指屏幕最左边。先集结。",
+            "leftmost 指屏幕最左边；需要稳定坐姿或站姿。",
         ),
         (
             "duck_stage_dance",
-            "四鸭发布会：一起表演闪身步然后狗熊抖抖毛，四鸭共用仿真节拍；先集结，失败停止。",
+            "四鸭发布会：仅选中鸭先站稳，再同拍闪身步和抖毛。未选中鸭保持原位姿态；失败停止。",
         ),
     ]
 ]
@@ -385,7 +385,7 @@ class DeviceMCP:
                     if name == "duck_kick"
                     else allowed
                 )
-            if name == "duck_stage_roll":
+            if name in {"duck_stage_gather", "duck_stage_roll", "duck_stage_dance"}:
                 allowed = {"member"}
             if set(arguments) - allowed:
                 raise ValueError("工具包含不支持的参数")
@@ -440,13 +440,18 @@ class DeviceMCP:
                         }.get(name, kind)
                 if not kind:
                     raise ValueError("未知工具")
-                if name == "duck_stage_roll":
+                if name in {"duck_stage_gather", "duck_stage_roll", "duck_stage_dance"}:
                     stage = self.motion.backend.stage
                     reference = stage.voice_reference
                     member = arguments.get("member", "selected")
                     if reference and member in {"selected", "leftmost"}:
-                        arguments = ({"members": list(reference[0])} if member == "selected"
-                                     else {"member": reference[1]})
+                        if member == "selected":
+                            members = list(reference[0])
+                            if not members and name == "duck_stage_gather":
+                                members = list("abcd")
+                            arguments = {"members": members}
+                        else:
+                            arguments = {"member": reference[1]}
                 action = Action(
                     name=kind, request_id=f"{self.session_key}:{request['id']}", **arguments
                 )

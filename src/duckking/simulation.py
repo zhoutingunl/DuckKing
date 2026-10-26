@@ -637,8 +637,10 @@ class MuJoCoBackend:
             if not self.stage:
                 raise ValueError("请先准备四鸭发布会舞台")
             operation = action.name.removeprefix("stage_")
-            if operation == "roll":
-                members = action.members or self.stage.members(action.member)
+            if operation in {"gather", "roll", "dance"}:
+                members = action.members or (
+                    list("abcd") if operation == "gather" and action.member == "selected"
+                    and not self.stage.selected else self.stage.members(action.member))
                 return await self.stage.perform(operation, members)
             member = self.stage.member(action.member) if operation == "poke" else "a"
             return await self.stage.perform(operation, member)

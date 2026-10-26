@@ -13,7 +13,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 from .choreography import CHOREOGRAPHIES, DEFAULT_DURATION, MIN_DURATION, sample
 from .motion_catalog import SKILL_DURATIONS, TRANSLATIONS
 
-STAGE_DURATIONS = {"stage_gather": 44, "stage_roll": 28, "stage_dance": 8, "stage_poke": 0.2}
+STAGE_DURATIONS = {"stage_gather": 44, "stage_roll": 28, "stage_dance": 12, "stage_poke": 0.2}
 
 SCENE_ACTIONS = {
     *STAGE_DURATIONS,
@@ -158,8 +158,9 @@ class Action(BaseModel):
     @model_validator(mode="after")
     def choreography_timing(self):
         if self.members is not None:
-            if self.name != "stage_roll" or self.member != "selected":
-                raise ValueError("members 仅用于四鸭发布会翻滚，不能同时指定 member")
+            if (self.name not in {"stage_gather", "stage_roll", "stage_dance"}
+                    or self.member != "selected"):
+                raise ValueError("members 仅用于四鸭发布会群体动作，不能同时指定 member")
             if len(set(self.members)) != len(self.members):
                 raise ValueError("翻滚成员不能重复")
         if not self.name.startswith("stage_") and self.member != "selected":

@@ -138,6 +138,7 @@ class FloorStage:
         self.yawns = [0] * 4
         self.mouths = [backend.model.actuator(c + "_mouth").id for c in MEMBERS]
         self.last_roll = None
+        self.roll_runs = None
         self.last_dance = None
         self.pokes = 0
 
@@ -168,7 +169,7 @@ class FloorStage:
             else [self.order[0] if target == "leftmost" else target]
         )
         if not chosen:
-            raise ValueError("请先用指挥棒或勾选框选中要翻跟头的鸭子")
+            raise ValueError("请先用指挥棒或勾选框选中要表演的鸭子")
         return chosen
 
     def member(self, target):
@@ -181,6 +182,17 @@ class FloorStage:
         return [d.pose(self.b.data)[0][:2] for d in self.b.drivers]
 
     def update_contacts(self):
+        # Measure rotations on every physics step; async/network scheduling must
+        # not skip the inversion or unwrap a whole somersault as a short turn.
+        if self.roll_runs is not None:
+            for i, run in self.roll_runs.items():
+                rot = self.b.data.xmat[self.b.drivers[i].body].reshape(3, 3)
+                current = math.atan2(-rot[2, 0], rot[2, 2])
+                run["rotation"] += angle(current - run["last"])
+                run["last"] = current
+                run["minimum"] = min(run["minimum"], run["rotation"])
+                run["maximum"] = max(run["maximum"], run["rotation"])
+                run["low"] = min(run["low"], float(rot[2, 2]))
         pairs = set()
         for c in self.b.data.contact:
             a, b = self.b.geom_owner[c.geom1], self.b.geom_owner[c.geom2]
@@ -247,7 +259,11 @@ class FloorStage:
                 raise ValueError("集结未在时限内完成，请重新散落后重试")
             if expressive and self.contacts and not reaction_done:
                 pair = sorted(self.contacts)[0]
-                chosen = self.rng.choice(pair)
+                involved = [i for i in pair if i in indices]
+                chosen = self.rng.choice(involved) if involved else None
+                if chosen is None:
+                    self.contacts.discard(pair)
+                    continue
                 self.clear_commands()
                 self.phase = "contact_sit"
                 seated = await change_posture(self.b, [self.b.drivers[chosen]], "sit")
@@ -317,7 +333,8 @@ class FloorStage:
                     d.posture_target = d.rest_posture = "stand"
                 done.append(arrived)
             if expressive:
-                for i, d in enumerate(self.b.drivers):
+                for i in indices:
+                    d = self.b.drivers[i]
                     opening = elapsed - i * 0.7 - 1
                     if 0 < opening < 4:
                         pitch, mouth = yawn_frame(opening)
@@ -338,25 +355,64 @@ class FloorStage:
             await asyncio.sleep(0.02)
         self.clear_commands()
 
-    async def gather(self):
-        self.phase = "gathering"
-        self.arrived = [False] * 4
-        self.contacts.clear()
-        await self.navigate(list(range(4)), dict(enumerate(SLOTS)), expressive=True)
-        self.arrived = [True] * 4
-        self.phase = "lined_up"
-        return {"verified": True, **self.snapshot(), "running": False}
+    async def posture(self, indices, target):
+        drivers = [self.b.drivers[i] for i in indices]
+        changing = [d for d in drivers if measure_posture(self.b, d)["observed"] != target]
+        if changing:
+            result = await change_posture(self.b, changing, target)
+        else:
+            result = {"verified": True, "posture": target}
+        # Keep supported sitting/standing robots on the posture policy while idle.
+        for d in drivers:
+            d.command[:] = 0
+            d.policy = "sitstand"
+            d.posture_target = d.rest_posture = target
+        return {
+            **result,
+            "members": [MEMBERS[i] for i in indices],
+            "ducks": [measure_posture(self.b, d) for d in drivers],
+        }
 
-    def require_line(self):
-        if not all(self.arrived) or any(
-            math.dist(p, slot) > 0.18 for p, slot in zip(self.positions(), SLOTS, strict=True)
-        ):
-            raise ValueError("请先让四鸭集结排队，当前未确认全部归位")
+    async def gather(self, members):
+        indices = [MEMBERS.index(member) for member in members]
+        self.contacts.clear()
+        self.phase = "gather_rising"
+        standing = await self.posture(indices, "stand")
+        for i in indices:
+            self.arrived[i] = False
+        self.phase = "gathering"
+        await self.navigate(indices, {i: SLOTS[i] for i in indices}, expressive=True)
+        self.phase = "gather_sitting"
+        seated = await self.posture(indices, "sit")
+        for i in indices:
+            self.arrived[i] = True
+        self.phase = "lined_up"
+        return {
+            "verified": True,
+            **self.snapshot(),
+            "running": False,
+            "members": members.copy(),
+            "standing": standing,
+            "seated": seated,
+        }
+
+    def require_ready(self):
         self.guard()
+        if any(
+            measure_posture(self.b, d)["observed"] not in {"sit", "stand"} for d in self.b.drivers
+        ):
+            raise ValueError("请等待四鸭坐稳或站稳后再表演")
 
     async def roll(self, members):
-        self.require_line()
+        self.require_ready()
+        self.phase = "roll_rising"
+        standing = await self.posture(list(range(4)), "stand")
         indices = [MEMBERS.index(member) for member in members]
+        # Sitstand ends with straight knees; settle the selected robots on
+        # velstand before entering the rolling policy, as for the kick handoff.
+        for i in indices:
+            self.b.drivers[i].policy = "walk"
+        await self.delay(0.5)
         anchors = self.positions()
         self.phase = "rolling"
         runs = {}
@@ -367,19 +423,12 @@ class FloorStage:
             d.policy = "roulade"
             d.phase_started, d.until = start, start + 2
             runs[i] = {"last": 0.0, "rotation": 0.0, "minimum": 0.0, "maximum": 0.0, "low": 1.0}
+        self.roll_runs = runs
         deadline = time.monotonic() + 15
         while self.b.data.time - start < 6:
             self.b.ensure_running()
             if time.monotonic() > deadline:
                 raise ValueError("前滚翻推进超时")
-            for i, run in runs.items():
-                rot = self.b.data.xmat[self.b.drivers[i].body].reshape(3, 3)
-                current = math.atan2(-rot[2, 0], rot[2, 2])
-                run["rotation"] += angle(current - run["last"])
-                run["last"] = current
-                run["minimum"] = min(run["minimum"], run["rotation"])
-                run["maximum"] = max(run["maximum"], run["rotation"])
-                run["low"] = min(run["low"], float(rot[2, 2]))
             if any(
                 math.dist(p, anchors[j]) > 0.12
                 for j, p in enumerate(self.positions())
@@ -387,36 +436,48 @@ class FloorStage:
             ):
                 raise ValueError("候场鸭偏离原位，前滚翻已停止")
             await asyncio.sleep(0.02)
-        results = []
         for i, run in runs.items():
-            pose = measure_posture(self.b, self.b.drivers[i])
             rotation = run["maximum"] - run["minimum"]
-            if run["low"] >= -0.5 or rotation < 5 or pose["observed"] != "stand":
-                raise ValueError(f"未确认鸭 {MEMBERS[i].upper()} 完整前滚翻和恢复站稳")
-            results.append(
-                {
-                    "member": MEMBERS[i],
-                    "rotation_rad": rotation,
-                    "min_upright": run["low"],
-                    "standing": pose,
-                    "returned": True,
-                }
-            )
-        self.phase = "returning"
-        await self.navigate(indices, {i: SLOTS[i] for i in indices}, max_seconds=18)
+            if run["low"] >= -0.5 or rotation < 5:
+                raise ValueError(
+                    f"未确认鸭 {MEMBERS[i].upper()} 完整前滚翻"
+                    f"（旋转 {rotation:.2f} rad，倒置 {run['low']:.2f}）"
+                )
+        self.phase = "roll_recovering"
+        recovered = await self.posture(indices, "stand")
+        results = [
+            {
+                "member": MEMBERS[i],
+                "rotation_rad": run["maximum"] - run["minimum"],
+                "min_upright": run["low"],
+                "standing": recovered["ducks"][j],
+                "returned": False,
+            }
+            for j, (i, run) in enumerate(runs.items())
+        ]
+        self.phase = "roll_sitting"
+        seated = await self.posture(indices, "sit")
+        for i in indices:
+            self.arrived[i] = False
         self.last_roll = {
             "members": members.copy(),
             "results": results,
-            "returned": True,
+            "standing": standing,
+            "seated": seated,
+            "returned": False,
             "rotation_rad": min(r["rotation_rad"] for r in results),
         }
         if len(results) == 1:
             self.last_roll.update(results[0])
-        self.phase = "lined_up"
+        self.phase = "completed"
         return {"verified": True, **self.last_roll}
 
-    async def dance(self):
-        self.require_line()
+    async def dance(self, members):
+        self.require_ready()
+        indices = [MEMBERS.index(member) for member in members]
+        self.phase = "dance_rising"
+        standing = await self.posture(indices, "stand")
+        anchors = self.positions()
         self.phase = "dancing"
         start = float(self.b.data.time)
         deadline = time.monotonic() + 25
@@ -435,7 +496,14 @@ class FloorStage:
             phase = name + ":" + frame.phase
             if not phases or phases[-1] != phase:
                 phases.append(phase)
-            for d in self.b.drivers:
+            if any(
+                math.dist(p, anchors[j]) > 0.12
+                for j, p in enumerate(self.positions())
+                if j not in indices
+            ):
+                raise ValueError("候场鸭偏离原位，齐舞已停止")
+            for i in indices:
+                d = self.b.drivers[i]
                 d.policy = "walk"
                 d.command[:] = 0
                 d.command[:3] = [frame.forward, frame.lateral, frame.turn]
@@ -445,18 +513,20 @@ class FloorStage:
             await asyncio.sleep(0.02)
         self.clear_commands()
         await self.delay(0.5)
-        postures = [measure_posture(self.b, d) for d in self.b.drivers]
+        postures = [measure_posture(self.b, self.b.drivers[i]) for i in indices]
         if any(p["observed"] != "stand" for p in postures):
-            raise ValueError("齐舞后未确认四鸭全部站稳")
+            raise ValueError("齐舞后未确认选中鸭全部站稳")
         self.last_dance = {
-            "members": list(MEMBERS),
+            "members": members.copy(),
+            "standing": standing,
             "phases": phases,
             "clock": "shared_mujoco_sim_time",
             "stable": True,
             "postures": postures,
         }
         self.phase = "completed"
-        self.arrived = [False] * 4
+        for i in indices:
+            self.arrived[i] = False
         return {"verified": True, **self.last_dance}
 
     async def poke(self, member):
@@ -483,7 +553,7 @@ class FloorStage:
         try:
             result = (
                 await getattr(self, operation)(member)
-                if operation in {"roll", "poke"}
+                if operation in {"gather", "roll", "dance", "poke"}
                 else await getattr(self, operation)()
             )
             return result
@@ -494,6 +564,7 @@ class FloorStage:
             self.phase = "failed"
             raise
         finally:
+            self.roll_runs = None
             self.running = False
             self.clear_commands()
             self.b.data.xfrc_applied[:] = 0

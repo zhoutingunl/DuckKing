@@ -36,7 +36,7 @@ async def run(motion, name, **kwargs):
 
 
 @pytest.mark.parametrize("seed", [1, 2, 3, 7, 10])
-async def test_random_scatter_gathers_with_real_motion_then_rolls_and_dances(
+async def test_random_scatter_gathers_seated_then_rolls_in_place_and_dances(
     backend, monkeypatch, seed
 ):
     monkeypatch.setattr("duckking.simulation.secrets.randbelow", lambda _: seed)
@@ -45,7 +45,7 @@ async def test_random_scatter_gathers_with_real_motion_then_rolls_and_dances(
     motion = MotionController(backend)
     try:
         result = await run(motion, "stage_gather")
-        assert result["status"] == "completed", result
+        assert result["status"] == "completed", result.get("error", result)
         out = result["outcome"]
         assert out["arrived"] == [True] * 4 and not out["running"]
         assert all(out["yawns"])
@@ -56,6 +56,7 @@ async def test_random_scatter_gathers_with_real_motion_then_rolls_and_dances(
         assert all(
             math.dist(p, q) < 0.18 for p, q in zip(backend.stage.positions(), SLOTS, strict=True)
         )
+        assert all(d.rest_posture == "sit" for d in backend.drivers)
         waiting = backend.stage.positions()
         backend.stage.select(
             StageSelection(
@@ -66,18 +67,19 @@ async def test_random_scatter_gathers_with_real_motion_then_rolls_and_dances(
             )
         )
         result = await run(motion, "stage_roll", member="selected")
-        assert result["status"] == "completed", result
+        assert result["status"] == "completed", result.get("error", result)
         assert result["outcome"]["member"] == "c"
-        assert result["outcome"]["rotation_rad"] > 5 and result["outcome"]["returned"]
+        assert result["outcome"]["rotation_rad"] > 5 and not result["outcome"]["returned"]
         assert all(
             math.dist(p, waiting[i]) < 0.12
             for i, p in enumerate(backend.stage.positions())
             if i != 2
         )
         result = await run(motion, "stage_dance")
-        assert result["status"] == "completed", result
+        assert result["status"] == "completed", result.get("error", result)
+        assert backend.drivers[2].rest_posture == "stand"
         assert result["outcome"]["clock"] == "shared_mujoco_sim_time"
-        assert result["outcome"]["members"] == list(MEMBERS)
+        assert result["outcome"]["members"] == ["c"]
         assert len(result["outcome"]["phases"]) == 7
         assert all(not d.command.any() for d in backend.drivers)
     finally:
@@ -108,7 +110,7 @@ async def test_poke_targets_selected_body_is_bounded_and_always_releases_force(b
     try:
         initial = backend.stage.positions()
         result = await run(motion, "stage_poke", member="d")
-        assert result["status"] == "completed", result
+        assert result["status"] == "completed", result.get("error", result)
         assert result["outcome"]["member"] == "d"
         assert result["outcome"]["force_n"] == 1
         assert math.dist(initial[3], backend.stage.positions()[3]) > 0.0001
@@ -218,7 +220,7 @@ async def test_actual_duck_contact_triggers_one_measured_sit_stand_and_resumes(b
     motion = MotionController(backend)
     try:
         result = await run(motion, "stage_gather")
-        assert result["status"] == "completed", result
+        assert result["status"] == "completed", result.get("error", result)
         reactions = result["outcome"]["reactions"]
         assert len(reactions) == 1 and reactions[0]["pair"] == ["a", "b"]
         assert reactions[0]["member"] in {"a", "b"}
@@ -399,13 +401,15 @@ async def test_multiselect_toggle_empty_and_roll_each_selected_robot(backend):
     motion = MotionController(backend)
     try:
         result = await run(motion, "stage_gather")
-        assert result["status"] == "completed", result
+        assert result["status"] == "completed", result.get("error", result)
         waiting = stage.positions()
         result = await run(motion, "stage_roll")
-        assert result["status"] == "completed", result
+        assert result["status"] == "completed", result.get("error", result)
         assert result["outcome"]["members"] == ["b", "c"]
         assert [r["member"] for r in result["outcome"]["results"]] == ["b", "c"]
-        assert all(r["rotation_rad"] > 5 and r["returned"] for r in result["outcome"]["results"])
+        assert all(
+            r["rotation_rad"] > 5 and not r["returned"] for r in result["outcome"]["results"]
+        )
         assert all(
             math.dist(p, waiting[i]) < 0.12 for i, p in enumerate(stage.positions()) if i in {0, 3}
         )
@@ -448,13 +452,13 @@ def test_selection_rejects_invalid_sets(backend, changes):
         selection_for(backend, **changes)
 
 
-async def test_all_four_selected_roll_and_return_together(backend):
+async def test_all_four_selected_roll_and_sit_in_place_together(backend):
     motion = MotionController(backend)
     try:
         assert (await run(motion, "stage_gather"))["status"] == "completed"
         backend.stage.select(selection_for(backend, targets=list(MEMBERS)))
         result = await run(motion, "stage_roll")
-        assert result["status"] == "completed", result
+        assert result["status"] == "completed", result.get("error", result)
         assert result["outcome"]["members"] == list(MEMBERS)
         assert all(
             r["rotation_rad"] > 5 and r["standing"]["supported"]
@@ -476,3 +480,90 @@ async def test_all_four_selected_roll_and_return_together(backend):
 def test_roll_member_sets_are_validated_before_motion(values):
     with pytest.raises(ValidationError):
         Action(**values)
+
+
+async def test_repeated_gather_roll_sit_and_selected_dance_preserve_waiting_ducks(backend):
+    motion = MotionController(backend)
+    stage = backend.stage
+    try:
+        result = await run(motion, "stage_gather")
+        assert result["status"] == "completed", result.get("error", result)
+        assert result["outcome"]["seated"]["verified"]
+        assert all(d.rest_posture == "sit" for d in backend.drivers)
+        stage.select(selection_for(backend, targets=["b", "c"]))
+        result = await run(motion, "stage_roll")
+        assert result["status"] == "completed", result.get("error", result)
+        assert result["outcome"]["standing"]["posture"] == "stand"
+        assert result["outcome"]["seated"]["members"] == ["b", "c"]
+        assert [d.rest_posture for d in backend.drivers] == ["stand", "sit", "sit", "stand"]
+        rolled = stage.positions()
+        assert any(math.dist(rolled[i], SLOTS[i]) > 0.20 for i in (1, 2))
+        for _ in range(2):
+            result = await run(motion, "stage_dance")
+            assert result["status"] == "completed", result.get("error", result)
+            assert result["outcome"]["members"] == ["b", "c"]
+        waiting = stage.positions()
+        result = await run(motion, "stage_gather")
+        assert result["status"] == "completed", result.get("error", result)
+        assert result["outcome"]["members"] == ["b", "c"]
+        assert all(math.dist(stage.positions()[i], waiting[i]) < 0.10 for i in (0, 3))
+        assert all(math.dist(stage.positions()[i], SLOTS[i]) < 0.18 for i in (1, 2))
+        stage.select(selection_for(backend, targets=["c"]))
+        result = await run(motion, "stage_dance")
+        assert result["status"] == "completed", result.get("error", result)
+        assert backend.drivers[1].rest_posture == "sit"
+        assert backend.drivers[2].rest_posture == "stand"
+        assert result["outcome"]["standing"]["members"] == ["c"]
+        result = await run(motion, "stage_roll")
+        assert result["status"] == "completed", result.get("error", result)
+        assert backend.drivers[2].rest_posture == "sit"
+    finally:
+        await motion.close()
+
+
+async def test_dance_mcp_freezes_selected_set_and_gather_handles_no_selection(backend, monkeypatch):
+    motion = MotionController(backend)
+    mcp = DeviceMCP(motion, "posture-reference")
+    seen = []
+
+    async def submit(action):
+        seen.append(action)
+
+    async def wait(_request_id):
+        return {"status": "completed"}
+
+    monkeypatch.setattr(motion, "submit", submit)
+    monkeypatch.setattr(motion, "wait", wait)
+    backend.stage.selected = ["b", "c"]
+    backend.stage.capture_reference()
+    backend.stage.selected = ["a"]
+    result = await mcp.handle(
+        {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "tools/call",
+            "params": {"name": "duck_stage_dance", "arguments": {}},
+        }
+    )
+    assert not result["result"]["isError"] and seen[-1].members == ["b", "c"]
+    backend.stage.selected = []
+    backend.stage.capture_reference()
+    result = await mcp.handle(
+        {
+            "jsonrpc": "2.0",
+            "id": 2,
+            "method": "tools/call",
+            "params": {"name": "duck_stage_gather", "arguments": {}},
+        }
+    )
+    assert not result["result"]["isError"] and seen[-1].members == list(MEMBERS)
+    result = await mcp.handle(
+        {
+            "jsonrpc": "2.0",
+            "id": 3,
+            "method": "tools/call",
+            "params": {"name": "duck_stage_dance", "arguments": {}},
+        }
+    )
+    assert result["result"]["isError"] and len(seen) == 2
+    await motion.close()
