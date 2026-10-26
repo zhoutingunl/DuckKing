@@ -6,13 +6,13 @@ import {DEMOS} from '../src/demo-catalog.js';
 function silentFixture(){
  const b=Buffer.alloc(44+3200);b.write('RIFF');b.writeUInt32LE(b.length-8,4);b.write('WAVE',8);b.write('fmt ',12);b.writeUInt32LE(16,16);b.writeUInt16LE(1,20);b.writeUInt16LE(1,22);b.writeUInt32LE(16000,24);b.writeUInt32LE(32000,28);b.writeUInt16LE(2,32);b.writeUInt16LE(16,34);b.write('data',36);b.writeUInt32LE(3200,40);return b;
 }
-test('all twelve automated scripts validate actual MuJoCo outcomes and chorale seats',{tag:'@journey'},async({page})=>{
- // Twelve real-time scenes plus model transfers can exceed four minutes on
+test('all thirteen automated scripts validate actual MuJoCo outcomes and chorale seats',{tag:'@journey'},async({page})=>{
+ // Thirteen real-time scenes plus model transfers can exceed four minutes on
  // shared Linux runners. Each scene still has its own 90 s completion bound.
- test.setTimeout(360000);
+ test.setTimeout(480000);
  await page.route('**/demo-audio/*.wav*',route=>route.fulfill({contentType:'audio/wav',body:silentFixture()}));
  const errors=[];page.on('pageerror',e=>errors.push(e.message));await page.goto('/demos.html?room=1');
- await expect(page.locator('.program-item')).toHaveCount(12);
+ await expect(page.locator('.program-item')).toHaveCount(13);
  for(const demo of DEMOS){
   await test.step(demo.id,async()=>{
   await page.locator(`[data-demo="${demo.id}"]`).click();

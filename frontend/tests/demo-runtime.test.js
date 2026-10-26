@@ -28,8 +28,8 @@ test('recognizable scores preserve melody, independent SATB and eight-beat canon
   }
 });
 
-test('all twelve scripts have real bounded PCM audio, with no microphone requirement',()=>{
-  assert.equal(DEMOS.length,12);assert.equal(new Set(DEMOS.map(d=>d.id)).size,12);
+test('all thirteen scripts have real bounded PCM audio, with no microphone requirement',()=>{
+  assert.equal(DEMOS.length,13);assert.equal(new Set(DEMOS.map(d=>d.id)).size,13);
   assert.equal(new Set(AUDIO_LINES.map(d=>d.id)).size,AUDIO_LINES.length);
   for(const line of AUDIO_LINES){
     const bytes=readFileSync(new URL('../public/demo-audio/'+line.id+'.wav',import.meta.url));

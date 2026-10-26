@@ -2,6 +2,8 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
 export function physicsView(container) {
+  let interaction=null,interactionMode="select",latest=null,pointerStart=null;
+  const raycaster=new THREE.Raycaster(),cursor=new THREE.Vector2();
   const scene=new THREE.Scene();scene.background=new THREE.Color('#edf0e5');
   const renderer=new THREE.WebGLRenderer({antialias:true});renderer.setPixelRatio(Math.min(devicePixelRatio,2));
   const gl=renderer.getContext(),debug=gl.getExtension('WEBGL_debug_renderer_info');
@@ -36,11 +38,12 @@ export function physicsView(container) {
       if(geom.type===2){geometry=new THREE.SphereGeometry(geom.size[0],32,20);geometries.push(geometry);}
       if(!geometry)continue;
       const material=new THREE.MeshStandardMaterial({color:new THREE.Color(...geom.rgba.slice(0,3)),roughness:.66,metalness:.08});materials.push(material);
-      const object=new THREE.Mesh(geometry,material);object.castShadow=object.receiveShadow=true;world.add(object);objects.set(geom.id,object);
+      const object=new THREE.Mesh(geometry,material);object.castShadow=object.receiveShadow=true;world.add(object);object.userData.geom=geom.id;objects.set(geom.id,object);
     }
     revision=model.revision;
   }
   function update(state){
+    latest=state;
     if(state.revision!==revision)return;
     for(const duck of state.ducks){
       if(!labels.has(duck.id)){
@@ -68,10 +71,31 @@ export function physicsView(container) {
       controls.update();
     }
   }
+  const ring=new THREE.Mesh(new THREE.RingGeometry(.11,.125,48),new THREE.MeshBasicMaterial({color:0xf2b744,side:THREE.DoubleSide,depthTest:false}));ring.rotation.x=-Math.PI/2;ring.visible=false;scene.add(ring);
+  const stick=new THREE.Mesh(new THREE.CylinderGeometry(.005,.008,.34,12),new THREE.MeshStandardMaterial({color:0xd99336}));stick.rotation.z=-.65;stick.visible=false;scene.add(stick);
+  function screenOrder(){camera.updateMatrixWorld();return (latest?.ducks??[]).map(d=>({id:d.id,x:new THREE.Vector3(d.position[0],d.position[2],-d.position[1]).project(camera).x})).sort((a,b)=>a.x-b.x||a.id.localeCompare(b.id)).map(d=>d.id)}
+  function hit(event){
+    if(!interaction||latest?.scene!=='stage')return null;
+    const rect=renderer.domElement.getBoundingClientRect();cursor.set((event.clientX-rect.left)/rect.width*2-1,-(event.clientY-rect.top)/rect.height*2+1);raycaster.setFromCamera(cursor,camera);
+    for(const candidate of raycaster.intersectObjects([...objects.values()])){
+      const id=latest.owners?.[candidate.object.userData.geom];
+      if(id){stick.position.copy(candidate.point).add(new THREE.Vector3(.1,.15,0));stick.visible=interactionMode!=='select';return id;}
+    }stick.visible=false;return null;
+  }
+  renderer.domElement.addEventListener('pointerdown',event=>{pointerStart={x:event.clientX,y:event.clientY}});
+  renderer.domElement.addEventListener('pointermove',event=>{hit(event)});
+  renderer.domElement.addEventListener('pointerleave',()=>{stick.visible=false});
+  renderer.domElement.addEventListener('pointerup',event=>{
+    if(!pointerStart||Math.hypot(event.clientX-pointerStart.x,event.clientY-pointerStart.y)>6)return;
+    pointerStart=null;const target=hit(event);if(target)interaction?.({target,order:screenOrder(),mode:interactionMode,revision:latest.revision,instance:latest.stage.instance});
+  });
   function resize(){const {width,height}=container.getBoundingClientRect();if(width&&height){renderer.setPixelRatio(reduced?Math.min(1,pixelBudget/width):Math.min(devicePixelRatio,seatedView?1:2));renderer.setSize(width,height);camera.aspect=width/height;camera.updateProjectionMatrix();}}
   const observer=new ResizeObserver(resize);observer.observe(container);
   function animate(){
-    const started=performance.now();controls.update();renderer.render(scene,camera);
+    const started=performance.now();controls.update();
+    const chosen=latest?.scene==='stage'?latest.ducks.find(d=>d.id===latest.stage?.selected):null;
+    ring.visible=Boolean(chosen&&interaction);if(chosen)ring.position.set(chosen.position[0],.007,-chosen.position[1]);
+    renderer.render(scene,camera);
     // WebGL can submit quickly while a software GPU blocks the next frame.
     // Include that delay, excluding our own idle interval, in the draw budget.
     const elapsed=Math.max(performance.now()-started,started-lastFrame-drawPause);
@@ -84,5 +108,5 @@ export function physicsView(container) {
     drawPause=reduced?Math.max(100,Math.min(2000,drawCost*2)):seatedView?66:33;
     timer=setTimeout(()=>{frame=requestAnimationFrame(animate);},drawPause);
   }animate();
-  return {load,update,clear,renderNow(){controls.update();renderer.render(scene,camera);},frameScene(scene){manualView=false;floorFramed=false;seatedView=scene==='seated';resize();const close=scene==='carry',seated=scene==='seated',table=scene==='table';camera.position.set(...(seated?[1.05,.90,-1.05]:table?[1.35,.98,-1.35]:close?[.6,.4,.65]:[.85,.62,.95]));controls.target.set(close ? .12 : table ? .20 : 0,seated ? .52 : table ? .25 : .13,table ? -.10 : 0);controls.update();controls.saveState();},reset(){manualView=false;floorFramed=false;controls.reset();},dispose(){clearTimeout(timer);cancelAnimationFrame(frame);observer.disconnect();clear();controls.dispose();renderer.dispose();}};
+  return {load,update,clear,screenOrder,interaction(callback,mode="select"){interaction=callback;interactionMode=mode;if(!callback){stick.visible=false;ring.visible=false}},renderNow(){controls.update();renderer.render(scene,camera);},frameScene(scene){manualView=false;floorFramed=false;seatedView=scene==='seated';resize();const close=scene==='carry',seated=scene==='seated',table=scene==='table';camera.position.set(...(scene==='stage'?[2.7,2.1,0]:seated?[1.05,.90,-1.05]:table?[1.35,.98,-1.35]:close?[.6,.4,.65]:[.85,.62,.95]));controls.target.set(close ? .12 : table ? .20 : 0,seated ? .52 : table ? .25 : .13,table ? -.10 : 0);controls.update();controls.saveState();},reset(){manualView=false;floorFramed=false;controls.reset();},dispose(){clearTimeout(timer);cancelAnimationFrame(frame);observer.disconnect();clear();controls.dispose();renderer.dispose();ring.geometry.dispose();ring.material.dispose();stick.geometry.dispose();stick.material.dispose();}};
 }

@@ -113,6 +113,43 @@ SKILL_TOOLS = {
     "duck_roller_crouch": ("roller_crouch", "轮滑场景 rollers：官方轮滑下蹲再站起，最多6秒。"),
 }
 
+STAGE_TOOLS = [
+    {
+        "name": name,
+        "description": description,
+        "inputSchema": {
+            "type": "object",
+            "properties": (
+                {
+                    "member": {
+                        "type": "string",
+                        "enum": ["a", "b", "c", "d", "selected", "leftmost"],
+                        "default": "selected",
+                    }
+                }
+                if name == "duck_stage_roll"
+                else {}
+            ),
+            "additionalProperties": False,
+        },
+    }
+    for name, description in [
+        (
+            "duck_stage_gather",
+            "四鸭发布会：小家伙们到中间排成一排；真实行走、打哈欠，碰撞后可能坐下再起身。等待实际全部排好，不能切换场景。",
+        ),
+        (
+            "duck_stage_roll",
+            "四鸭发布会：指定 member 前滚翻并站稳归队，其他三鸭候场。"
+            "a/b/c/d 按名字，selected 指屏幕选中对象，leftmost 指屏幕最左边。先集结。",
+        ),
+        (
+            "duck_stage_dance",
+            "四鸭发布会：一起表演闪身步然后狗熊抖抖毛，四鸭共用仿真节拍；先集结，失败停止。",
+        ),
+    ]
+]
+
 SCENE_TOOLS = [
     *[
         {
@@ -261,6 +298,10 @@ class DeviceMCP:
             tools = TOOLS
             if self.motion.backend.kind == "mujoco":
                 tools = TOOLS + SCENE_TOOLS
+                if self.motion.backend.scene == "stage":
+                    tools = [
+                        t for t in TOOLS if t["name"] in {"duck_stop", "duck_get_status"}
+                    ] + STAGE_TOOLS
             if self.motion.studio:
                 if self.motion.studio.active not in {None, "voice", "persona"}:
                     tools = [t for t in tools if t["name"] in {"duck_stop", "duck_get_status"}]
@@ -276,10 +317,20 @@ class DeviceMCP:
                 raise ValueError("工具名称必须是字符串")
             if not isinstance(arguments, dict):
                 raise ValueError("工具参数必须为对象")
+            if (self.motion.backend.kind == "mujoco" and self.motion.backend.scene == "stage"
+                    and name not in {t["name"] for t in STAGE_TOOLS}
+                    and name not in {"duck_stop", "duck_get_status"}):
+                raise ValueError("四鸭发布会请使用当前集结、翻滚和齐舞工具")
             if self.voice and name == "duck_voice_style":
                 result = await self.voice.set_style(arguments)
-                return response | {"result": {"content": [{"type": "text", "text": json.dumps(
-                    result, ensure_ascii=False)}], "isError": False}}
+                return response | {
+                    "result": {
+                        "content": [
+                            {"type": "text", "text": json.dumps(result, ensure_ascii=False)}
+                        ],
+                        "isError": False,
+                    }
+                }
             studio = self.motion.studio
             if studio:
                 studio.helpers.guard(name)
@@ -306,9 +357,18 @@ class DeviceMCP:
                     result = await studio.invoke(name, arguments)
                 finally:
                     motion_observer.reset(token)
-                return response | {"result": {"content": [{"type": "text", "text": json.dumps(
-                    result, ensure_ascii=False)}],
-                    "isError": result.get("operation_failed", False)}}
+                return response | {
+                    "result": {
+                        "content": [
+                            {"type": "text", "text": json.dumps(result, ensure_ascii=False)}
+                        ],
+                        "isError": result.get("operation_failed", False),
+                    }
+                }
+            if name.startswith("duck_stage_") and (
+                self.motion.backend.kind != "mujoco" or self.motion.backend.scene != "stage"
+            ):
+                raise ValueError("请先准备四鸭发布会舞台")
             allowed = (
                 {"duration"}
                 if name in {"duck_walk_short", "duck_turn_left", "duck_turn_right"}
@@ -324,6 +384,8 @@ class DeviceMCP:
                     if name == "duck_kick"
                     else allowed
                 )
+            if name == "duck_stage_roll":
+                allowed = {"member"}
             if set(arguments) - allowed:
                 raise ValueError("工具包含不支持的参数")
             if name == "duck_get_status":
@@ -336,6 +398,9 @@ class DeviceMCP:
             else:
                 kind = {
                     **{key: value[0] for key, value in BASIC_EXTRA.items()},
+                    "duck_stage_gather": "stage_gather",
+                    "duck_stage_roll": "stage_roll",
+                    "duck_stage_dance": "stage_dance",
                     "duck_nod": "nod",
                     "duck_walk_short": "walk",
                     "duck_turn_left": "turn_left",
@@ -374,6 +439,12 @@ class DeviceMCP:
                         }.get(name, kind)
                 if not kind:
                     raise ValueError("未知工具")
+                if name == "duck_stage_roll":
+                    stage = self.motion.backend.stage
+                    reference = stage.voice_reference
+                    member = arguments.get("member", "selected")
+                    if reference and member in {"selected", "leftmost"}:
+                        arguments = {"member": reference[member == "leftmost"]}
                 action = Action(
                     name=kind, request_id=f"{self.session_key}:{request['id']}", **arguments
                 )

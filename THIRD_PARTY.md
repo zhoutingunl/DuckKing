@@ -53,3 +53,5 @@
 ## 工坊声音试听素材
 
 `frontend/public/voice-samples/*.wav` 由本机 macOS Eddy 中文合成语音离线生成，再进行鼻音频段均衡与轻量软限幅等处理。它们不是 Pollen 官方 voice bank，不是克隆结果，也不是自然鸭叫录音。处理参数和来源见同目录 manifest.json；脚本为 scripts/build_duck_voice_samples.py。
+
+- 第十三幕是 [GTC MicroDuck 互动桥段](https://blogs.nvidia.com/blog/gtc-berlin-2026-keynote/)的中文改编。四鸭场景、受限位置反馈寻路、碰撞触发坐站、指向选择与齐舞由 DuckKing 编排；复用上述官方模型、策略和实验性嘴部铰链。没有使用原视频或黄仁勋录音，没有克隆其音色，不表示 NVIDIA 授权或完整原现场系统复现。

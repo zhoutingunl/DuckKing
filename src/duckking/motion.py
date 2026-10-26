@@ -13,7 +13,11 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 from .choreography import CHOREOGRAPHIES, DEFAULT_DURATION, MIN_DURATION, sample
 from .motion_catalog import SKILL_DURATIONS, TRANSLATIONS
 
+STAGE_DURATIONS = {"stage_gather": 44, "stage_roll": 28, "stage_dance": 8, "stage_poke": 0.2}
+
 SCENE_ACTIONS = {
+    *STAGE_DURATIONS,
+    "scene_stage",
     *SKILL_DURATIONS,
     "scene_skills",
     "scene_rollers",
@@ -47,6 +51,11 @@ SCENE_ACTIONS = {
 class Action(BaseModel):
     model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
     name: Literal[
+        "scene_stage",
+        "stage_gather",
+        "stage_roll",
+        "stage_dance",
+        "stage_poke",
         "roulade",
         "ground_pick",
         "skate",
@@ -101,12 +110,15 @@ class Action(BaseModel):
     duration: float = Field(default=1.2, ge=0.2, le=44)
     speed: float | None = Field(default=None, ge=0.02, le=0.4)
     target: Literal["a", "b", "c", "d", "both"] = "a"
+    member: Literal["a", "b", "c", "d", "selected", "leftmost"] = "selected"
     request_id: str = Field(default_factory=lambda: str(uuid.uuid4()), min_length=1, max_length=100)
 
     @model_validator(mode="before")
     @classmethod
     def choreography_defaults(cls, data):
         fixed = {
+            **STAGE_DURATIONS,
+            "scene_stage": 0.2,
             **SKILL_DURATIONS,
             "scene_skills": 0.2,
             "scene_rollers": 0.2,
@@ -143,6 +155,10 @@ class Action(BaseModel):
 
     @model_validator(mode="after")
     def choreography_timing(self):
+        if not self.name.startswith("stage_") and self.member != "selected":
+            raise ValueError("member 仅用于四鸭发布会")
+        if self.name.startswith("stage_") and self.target != "a":
+            raise ValueError("四鸭发布会使用 member 指定成员")
         if self.target in {"c", "d"} and self.name != "seated_solo":
             raise ValueError("鸭 C / D 仅用于语音独唱")
         if self.name == "seated_solo" and self.target == "both":
@@ -153,8 +169,14 @@ class Action(BaseModel):
         ):
             raise ValueError("桌上编排统一控制四只鸭，不接受单独指定成员")
         if (
-            self.name not in {
-                "put_down", "table_show", "seated_show", "seated_solo", *SKILL_DURATIONS
+            self.name
+            not in {
+                "put_down",
+                "table_show",
+                "seated_show",
+                "seated_solo",
+                *SKILL_DURATIONS,
+                *STAGE_DURATIONS,
             }
             and self.duration > 3
         ):
@@ -162,6 +184,8 @@ class Action(BaseModel):
         if self.name in SCENE_ACTIONS and self.speed is not None:
             raise ValueError("场景动作使用固定策略速度，不接受 speed 参数")
         fixed = {
+            **STAGE_DURATIONS,
+            "scene_stage": 0.2,
             **SKILL_DURATIONS,
             "scene_skills": 0.2,
             "scene_rollers": 0.2,
