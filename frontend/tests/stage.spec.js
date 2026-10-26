@@ -1,5 +1,17 @@
 import {test,expect} from '@playwright/test';
 import * as THREE from 'three';
+async function clickDuck(page,member){
+ const canvas=page.locator('#demo-viewport canvas');
+ // Selecting the tool or checkbox can scroll the page. Measure only after
+ // revealing the canvas; pointer coordinates are viewport-relative.
+ await canvas.scrollIntoViewIfNeeded();
+ const state=await(await page.request.get('/api/scenes/state?room=1')).json();
+ const rect=await canvas.boundingBox(),camera=new THREE.PerspectiveCamera(38,rect.width/rect.height,.01,30);
+ camera.position.set(2.7,2.1,0);camera.lookAt(0,.13,0);camera.updateMatrixWorld();
+ const [x,y,z]=state.backend.ducks.find(d=>d.id===member).position;
+ const point=new THREE.Vector3(x,z+.03,-y).project(camera);
+ await page.mouse.click(rect.x+(point.x+1)*rect.width/2,rect.y+(1-point.y)*rect.height/2);
+}
 test('thirteenth show completes measured gathering, roll and shared-clock dance',{tag:'@stage'},async({page})=>{
  test.setTimeout(180000);const errors=[];page.on('pageerror',e=>errors.push(e.message));
  await page.goto('/demos.html?room=1');await expect(page.locator('.program-item')).toHaveCount(13);
@@ -16,13 +28,9 @@ test('interactive stage selects ducks and stops without future actions',{tag:'@s
  await expect(page.locator('#show-status')).toContainText('现场互动已就绪',{timeout:30000});
  await page.locator('[data-stage-member][value=c]').check();await expect(page.locator('#stage-hint')).toContainText('鸭 C');
  const state=await(await page.request.get('/api/scenes/state?room=1')).json();expect(state.backend.stage.selected).toEqual(['c']);
- const canvas=page.locator('#demo-viewport canvas'),rect=await canvas.boundingBox();
- const camera=new THREE.PerspectiveCamera(38,rect.width/rect.height,.01,30);camera.position.set(2.7,2.1,0);camera.lookAt(0,.13,0);camera.updateMatrixWorld();
- const duck=state.backend.ducks.find(d=>d.id==='d'),[x,y,z]=duck.position;
- const point=new THREE.Vector3(x,z+.045,-y).project(camera),px=rect.x+(point.x+1)*rect.width/2,py=rect.y+(1-point.y)*rect.height/2;
- await page.selectOption('#stage-pointer','stick');await page.mouse.click(px,py);
+ await page.selectOption('#stage-pointer','stick');await clickDuck(page,'d');
  await expect(page.locator('#stage-hint')).toContainText('鸭 D');
- await page.selectOption('#stage-pointer','poke');await page.mouse.click(px,py);
+ await page.selectOption('#stage-pointer','poke');await clickDuck(page,'d');
  await expect.poll(async()=>{const s=await(await page.request.get('/api/scenes/state?room=1')).json();return s.backend.stage.pokes}).toBe(1);
 
  await page.locator('#stage-gather').click();await expect(page.locator('#stage-state')).toHaveText('集结排队中');
@@ -48,19 +56,11 @@ test('automatic roll honors middle ducks selected by stick and repeated clicks c
  await expect(page.locator('#caption')).toHaveText('选中的小鸭们，能一起翻个跟头吗？',{timeout:15000});
  await page.locator('[data-stage-member][value=a]').uncheck();
  await page.selectOption('#stage-pointer','stick');
- async function tap(member){
-  const state=await(await page.request.get('/api/scenes/state?room=1')).json();
-  const rect=await page.locator('#demo-viewport canvas').boundingBox();
-  const camera=new THREE.PerspectiveCamera(38,rect.width/rect.height,.01,30);camera.position.set(2.7,2.1,0);camera.lookAt(0,.13,0);camera.updateMatrixWorld();
-  const [x,y,z]=state.backend.ducks.find(d=>d.id===member).position;
-  const p=new THREE.Vector3(x,z+.03,-y).project(camera);
-  await page.mouse.click(rect.x+(p.x+1)*rect.width/2,rect.y+(1-p.y)*rect.height/2);
- }
- await tap('b');await expect(page.locator('[data-stage-member][value=b]')).toBeChecked();
- await tap('b');await expect(page.locator('[data-stage-member][value=b]')).not.toBeChecked();
+ await clickDuck(page,'b');await expect(page.locator('[data-stage-member][value=b]')).toBeChecked();
+ await clickDuck(page,'b');await expect(page.locator('[data-stage-member][value=b]')).not.toBeChecked();
  await expect(page.locator('#stage-hint')).toContainText('未选中');
- await tap('b');await expect(page.locator('[data-stage-member][value=b]')).toBeChecked();
- await tap('c');await expect(page.locator('[data-stage-member][value=c]')).toBeChecked();
+ await clickDuck(page,'b');await expect(page.locator('[data-stage-member][value=b]')).toBeChecked();
+ await clickDuck(page,'c');await expect(page.locator('[data-stage-member][value=c]')).toBeChecked();
  resumeRoll();
  await expect(page.locator('#show-status')).toHaveText('本幕完成 · 可重演或进入下一幕',{timeout:140000});
  const proof=JSON.parse(await page.locator('#theatre-result').textContent());
