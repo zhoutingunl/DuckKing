@@ -218,7 +218,10 @@ export function setupVoice({appendLog,notify,endpoint='/voice',cloudOnly=false,b
         const text=route==='local'?`本地识别 · 动作完整匹配${Number.isFinite(data.asr_ms)?` · ${data.asr_ms} ms`:''}`:route==='cloud_fallback'?`${reasons[data.reason]??'本地未匹配'}，正在连接灵矽并转交原录音。`:'未收到清晰语音，请重试。';
         if($('voice-route'))$('voice-route').textContent=text;
         appendLog(text,'处理路径');if(route==='local')void output.testTone();update();
-      }else if(data.type==='transcript'){appendLog(data.text,data.source==='local'?(data.role==='user'?'本地识别':'本地反馈'):data.role==='user'?'你说':'灵矽')}
+      }else if(data.type==='transcript'){
+        appendLog(data.text,data.source==='local'?(data.role==='user'?'本地识别':'本地反馈'):data.role==='user'?'你说':'灵矽');
+        if(data.source==='local'&&data.role==='assistant')$('voice-route').textContent=`${data.text} · 本轮未调用灵矽，无云端语音回复。`;
+      }
       else if(data.type==='audio'){try{await playback(data)}catch(error){notify(error.message)}}
       else if(data.type==='playback_end'&&data.aborted){clearPlayback()}
       else if(data.type==='error'){notify(data.message);await release(false)}
