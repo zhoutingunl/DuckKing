@@ -1,24 +1,28 @@
 # Hackathon 演示视频
 
-[观看／下载 MP4（4 分 02 秒）](https://github.com/zhoutingunl/DuckKing/releases/download/deploy-yzh737-20261025T165552Z/duckking-hackathon-20261026.mp4) · [GitHub Release](https://github.com/zhoutingunl/DuckKing/releases/tag/deploy-yzh737-20261025T165552Z) · [实测与录制记录](media/hackathon-video.json)
+[观看／下载自然配音版 MP4（4 分 46 秒）](https://github.com/zhoutingunl/DuckKing/releases/download/deploy-yzh737-20261025T165552Z/duckking-hackathon-20261027-natural.mp4) · [GitHub Release](https://github.com/zhoutingunl/DuckKing/releases/tag/deploy-yzh737-20261025T165552Z) · [新版剪辑与校验记录](media/hackathon-video-natural.json) · [原始实测与录制记录](media/hackathon-video.json)
 
-[![DuckKing 四鸭桌上合唱](media/hackathon-video.png)](https://github.com/zhoutingunl/DuckKing/releases/download/deploy-yzh737-20261025T165552Z/duckking-hackathon-20261026.mp4)
+[![DuckKing 四鸭桌上合唱](media/hackathon-video.png)](https://github.com/zhoutingunl/DuckKing/releases/download/deploy-yzh737-20261025T165552Z/duckking-hackathon-20261027-natural.mp4)
 
-视频为真实 Chrome 页面录制，1600 × 1000、H.264 / AAC。展示预录指令经真实灵矽完成左右脚踢球、嘴部搬运、桌上掉落恢复、四鸭坐站轮唱，以及本地／灵矽延迟数据。没有实体机器人验收。
+演示片段为真实 Chrome 页面录制，1600 × 1000、H.264 / AAC。展示预录指令经真实灵矽完成左右脚踢球，以及本地剧本的嘴部搬运、桌上掉落恢复、四鸭坐站轮唱和本地／灵矽延迟数据。没有实体机器人验收。
+
+2026-10-27 更新七段章节旁白，改用更口语化的文案和 Microsoft `zh-CN-XiaoxiaoNeural` 合成声音，按说话时长延长章节卡片。原演示画面、灵矽回复、页面音轨与统计样本保留，录制代码版本也未改变；这是重新配音剪辑，不是新一轮录制或验收。GitHub 只提供此新版视频；原始实测与录制记录保留用于追溯素材来源。
 
 | 时间 | 内容 |
 |---|---|
 | 00:00 | 项目与验证范围 |
-| 00:12 | 真实灵矽语音 |
-| 00:21 | 左右脚踢球 |
-| 01:08 | 嘴部搬运 |
-| 01:17 | 夹起、搬运、放下 |
-| 01:44 | 四鸭桌上合唱 |
-| 01:53 | 掉落、恢复、继续合唱 |
-| 02:40 | 四鸭坐站轮唱 |
-| 02:48 | 轮流站起独唱 |
-| 03:30 | 本地与灵矽延迟实测 |
-| 03:52 | 代码与后续集成 |
+| 00:18 | 真实灵矽语音 |
+| 00:33 | 左右脚踢球 |
+| 01:20 | 嘴部搬运 |
+| 01:35 | 夹起、搬运、放下 |
+| 02:02 | 四鸭桌上合唱 |
+| 02:15 | 掉落、恢复、继续合唱 |
+| 03:02 | 四鸭坐站轮唱 |
+| 03:17 | 轮流站起独唱 |
+| 04:00 | 本地与灵矽延迟实测 |
+| 04:31 | 代码与后续集成 |
+
+章节时间四舍五入到秒，精确起点见新版剪辑记录；总长 285.521 秒。
 
 ## 量化数据
 
@@ -35,10 +39,10 @@
 
 ## 来源与剪辑
 
-- 足球段来自本次公网发布 `894d2d9d65c79f5c2c99cb239820cf1a9a379e7f`；输入为随包预录指令，识别、工具调用和回复来自真实灵矽。
+- 足球段来自原录制时的公网发布 `894d2d9d65c79f5c2c99cb239820cf1a9a379e7f`；输入为随包预录指令，识别、工具调用和回复来自真实灵矽。
 - 搬运、桌上合唱、坐站轮唱来自本机提交 `c1a90175e4a77560b25ac0da05edcf9a857236cf` 的生产构建，均通过录制当次动作结果验证；这些段落的动作与台词由本地剧本编排，四声部音乐为本地合成的公版《欢乐颂》。后续物理控制修复另有 PR 与验收记录，本视频不替代新版验收。
-- 音轨来自页面实际 Web Audio 混音，由 MediaRecorder 采集；按墙钟时间与 Playwright 画面对齐，存在采集与编码误差，不能用此视频测声画延迟。章节旁白由系统合成语音生成。
-- 仅剪掉加载与章节间空白；保留各段完整动作过程，无加速或替换物理状态。没有使用实体相机视野、实体手机扬声器或 BLE 同步结果。
+- 演示音轨来自页面实际 Web Audio 混音，由 MediaRecorder 采集；按墙钟时间与 Playwright 画面对齐，存在采集与编码误差，不能用此视频测声画延迟。新版章节旁白通过 `edge-tts 7.3.1` 调用上述合成声音，语速参数为 `-3%`，响度归一目标为 -18.5 LUFS；不是真人录音或声音克隆。
+- 原版剪掉加载与章节间空白；新版仅替换七段卡片旁白并调整卡片停留时间，四段完整演示通过流复制保留，无加速或替换物理状态。校验确认原演示的全部 AAC 音频包和非关键视频包在新版中按顺序完整保留，并完成全片解码检查；MP4 拼接时关键帧可能重新附带编码头，因此不声称所有视频包逐字节相同。没有使用实体相机视野、实体手机扬声器或 BLE 同步结果。
 - 模型来自 Pollen Robotics MicroDuck，模型及改编画面遵循 CC BY-NC-SA 4.0；详见 [媒体来源](media/README.md) 与 [第三方来源](../THIRD_PARTY.md)。
 
-SHA-256：`7427e82015f014b440e80e9dca405ee6f9e82cc440060ee7a79bd9970e1dfcef`。
+视频 SHA-256：`75a5d548c74c3e2aec57426f1a1f2bd69fb053707c67d26ec646d3023f064391`。

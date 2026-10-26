@@ -10,7 +10,7 @@
 
 当前工作台使用官方模型外观，动作由本项目脚本驱动，属于**动画预览**。物理实验室与演示剧场使用**真实 MuJoCo CPU + 官方 ONNX 策略**；另有独立的官方 **robotd / MuJoCo** 适配。三条路径分别标识，连接失败会明确报错。项目目前是软件仿真，没有实体机器人验收。
 
-**竞赛演示视频：** [观看 4 分 02 秒实录](https://github.com/zhoutingunl/DuckKing/releases/download/deploy-yzh737-20261025T165552Z/duckking-hackathon-20261026.mp4) · [章节、量化数据与来源](docs/DEMO_VIDEO.md)
+**竞赛演示视频：** [观看 4 分 46 秒自然配音版](https://github.com/zhoutingunl/DuckKing/releases/download/deploy-yzh737-20261025T165552Z/duckking-hackathon-20261027-natural.mp4) · [章节、量化数据与来源](docs/DEMO_VIDEO.md)
 
 ## 从哪里开始
 

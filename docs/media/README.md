@@ -1,8 +1,10 @@
 # 演示媒体来源
 
-## 2026-10-26 竞赛视频
+## 2026-10-26 竞赛视频与 2026-10-27 自然配音版
 
 `hackathon-video.png` 是本次实际桌上合唱录屏截图；`hackathon-video.json` 包含源提交、动作验收、20 轮延迟样本、10 路真实云端会话与加载对比。完整 MP4 存放于 GitHub Release，入口和剪辑说明见 [演示视频](../DEMO_VIDEO.md)。视频中的官方模型及改编画面遵循 CC BY-NC-SA 4.0，不由根目录 MIT 许可替代。
+
+`hackathon-video-natural.json` 记录自然配音版的文件摘要、章节起点、合成旁白及原演示保留校验。新版为 4 分 46 秒，使用 Microsoft `zh-CN-XiaoxiaoNeural` 合成章节旁白，不是真人配音或声音克隆。原演示片段、页面声音和实测样本保持来源不变，原始 `hackathon-video.json` 保留用于素材溯源；GitHub 仅提供新版 MP4，观看入口统一指向新版。
 
 ## 界面截图版本（2026-10-25）
 
