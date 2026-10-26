@@ -187,8 +187,19 @@ CI 要求后端总体行覆盖率 ≥90%、分支覆盖率 ≥85%。后端、前
 
 `v0` 保留空仓库基线；后续变更使用功能分支与 Pull Request。原创代码采用 [MIT](LICENSE)，官方模型、策略、谱面与歌曲分别遵循其原许可，详见 [第三方来源](THIRD_PARTY.md)。
 
+## 项目成员与分工
+
+本项目由 **周霆（[@zhoutingunl](https://github.com/zhoutingunl)）** 和 **陶纯堂（[@evanwooo](https://github.com/evanwooo)）** 合作完成。
+
+| 成员 | 主要分工 |
+|---|---|
+| 周霆 · zhoutingunl | 项目方案与需求、开发集成、语音与仿真联调、部署和演示交付 |
+| 陶纯堂 · evanwooo | 持续参与各阶段 PR 的 review、comment 与改进反馈，协助代码质量把关；参与界面代码改进 |
+
+协作记录包括陶纯堂在 [PR #30 的审阅评论](https://github.com/zhoutingunl/DuckKing/pull/30#pullrequestreview-5648738898)、[PR #36 的审阅](https://github.com/zhoutingunl/DuckKing/pull/36#pullrequestreview-5656580760)，以及[语音连接按钮样式提交](https://github.com/zhoutingunl/DuckKing/commit/324423d0ca917ec8cb23053b340ad2af1101b83d)。完整模块责任与协作边界见 [团队分工](docs/TEAM.md)。
+
 ## AI 协作说明
 
-DuckKing 采用人提出需求、选择交互方案、反馈实际体验，AI 辅助实现、排障、测试和文档的协作方式。本轮维护使用 Codex；当前确认的维护账号是 [@zhoutingunl](https://github.com/zhoutingunl)。AI 不是额外参赛成员，也不据此推断代码生成比例或多人贡献。实际修改通过功能分支、PR、CI 和发布验收追溯。
+DuckKing 采用两位成员协作、AI 辅助开发的方式：人负责需求、方案选择、代码审阅和实际体验反馈，AI 辅助实现、排障、测试与文档。本轮维护使用 Codex；AI 不计作额外参赛成员，代码生成比例未经统计。实际修改与审阅通过功能分支、PR、CI 和发布验收追溯。
 
 后续协作者先读 [AGENTS.md](AGENTS.md) 与 [贡献指南](CONTRIBUTING.md)，再按 [AI 协作说明](docs/AI_COLLABORATION.md)定位代码与验证方式。可复用的教训统一整理在 [LESSONS_LEARNED.md](docs/LESSONS_LEARNED.md)；具体版本的测试证据留在 [VALIDATION.md](docs/VALIDATION.md)、PR、CI 和 Release 中。私有日志留在数据目录，不提交录音、凭证或设备身份。

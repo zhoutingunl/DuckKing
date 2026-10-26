@@ -26,6 +26,6 @@ GitHub 已对 `v0` 设置禁止更新、禁止删除的规则；对 `main` 设�
 
 ## 真实协作记录
 
-当前确认的实际提交账号为 `@zhoutingunl`，使用 AI 辅助开发。PR 和 CI 机制已建立；若以团队作品参赛，仍需其他真实队员用自己的账号参与提交和评审，不能凭现有单一账号记录声称已满足多人提交要求。
+项目由周霆（[@zhoutingunl](https://github.com/zhoutingunl)）与陶纯堂（[@evanwooo](https://github.com/evanwooo)）合作完成，并使用 AI 辅助开发。周霆主要负责方案、开发集成与交付；陶纯堂持续参与 PR review、comment 与改进反馈，并有界面代码提交。实际例证包括 [PR #30 的评论](https://github.com/zhoutingunl/DuckKing/pull/30#pullrequestreview-5648738898)、[PR #36 的审阅](https://github.com/zhoutingunl/DuckKing/pull/36#pullrequestreview-5656580760)和[语音连接按钮改进](https://github.com/zhoutingunl/DuckKing/commit/324423d0ca917ec8cb23053b340ad2af1101b83d)。模块责任见 [TEAM.md](TEAM.md)，AI 辅助不计作额外人类成员。
 
 贡献归属随实际 PR 更新；代码、模型、音频各自的来源与许可分别记录。
