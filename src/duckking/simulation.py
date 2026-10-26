@@ -168,7 +168,10 @@ class MuJoCoBackend:
             # pure rolling. Give only ball/floor contact rolling resistance, so
             # foot contact and the official kick policy retain their parameters.
             spec.add_pair(
-                name="ball_floor", geomname1="ball_geom", geomname2="floor", condim=6,
+                name="ball_floor",
+                geomname1="ball_geom",
+                geomname2="floor",
+                condim=6,
                 friction=[1, 1, 0.005, 0.003, 0.003],
             )
             model = spec.compile()
@@ -234,7 +237,7 @@ class MuJoCoBackend:
                 ]
             if scene == "turntable":
                 x, y = SPAWNS_TURNTABLE[i]
-                self.data.qpos[driver.root: driver.root + 7] = [x, y, 0.157, 1, 0, 0, 0]
+                self.data.qpos[driver.root : driver.root + 7] = [x, y, 0.157, 1, 0, 0, 0]
             if scene == "stage":
                 x, y, yaw = stage_spawns[i]
                 self.data.qpos[driver.root : driver.root + 7] = [
@@ -376,14 +379,33 @@ class MuJoCoBackend:
             "stop",
         }:
             raise ValueError(self.error)
-        if action.target != "a" and self.scene not in {"duo", "table", "seated", "stage",
-                                                       "turntable"}:
+        if action.target != "a" and self.scene not in {
+            "duo",
+            "table",
+            "seated",
+            "stage",
+            "turntable",
+        }:
             raise ValueError("当前场景只有鸭 A")
         if self.turntable and action.name not in {
-            "spin_slow", "spin_medium", "spin_fast", "spin_stop",
-            "sit", "stand", "stop", "reset", "scene_turntable",
-            "scene_ball", "scene_duo", "scene_carry", "scene_table", "scene_seated",
-            "scene_skills", "scene_rollers", "scene_stage",
+            "spin_slow",
+            "spin_medium",
+            "spin_fast",
+            "spin_stop",
+            "escape_mode",
+            "sit",
+            "stand",
+            "stop",
+            "reset",
+            "scene_turntable",
+            "scene_ball",
+            "scene_duo",
+            "scene_carry",
+            "scene_table",
+            "scene_seated",
+            "scene_skills",
+            "scene_rollers",
+            "scene_stage",
         }:
             raise ValueError("转盘场景请使用转速控制与坐站动作")
         if self.stage and not (
@@ -425,7 +447,8 @@ class MuJoCoBackend:
         }:
             raise ValueError("桌上场景请使用完整合唱表演，避免单独行走破坏舞台布置")
         if self.seated and action.name not in {
-            "seated_ready", "seated_solo",
+            "seated_ready",
+            "seated_solo",
             "seated_show",
             "stop",
             "reset",
@@ -462,12 +485,19 @@ class MuJoCoBackend:
             }
         ):
             raise ValueError("轮滑场景请使用滑行、轮滑下蹲或头部动作；其他动作需切换场景")
-        if action.name not in {
+        turntable_control = self.scene == "turntable" and action.name in {
+            "spin_slow", "spin_medium", "spin_fast", "spin_stop", "escape_mode"
+        }
+        if not turntable_control and action.name not in {
             "sit",
             "stand",
             "nod",
             "shake_head",
-            "tilt_head", "look_left", "look_right", "look_forward", "look_down",
+            "tilt_head",
+            "look_left",
+            "look_right",
+            "look_forward",
+            "look_down",
             "idle_on",
             "idle_off",
             "yawn",
@@ -475,7 +505,9 @@ class MuJoCoBackend:
             "reset",
             "chorus",
             "find_companion",
-            "seated_show", "seated_ready", "seated_solo",
+            "seated_show",
+            "seated_ready",
+            "seated_solo",
         } and not action.name.startswith("scene_"):
             drivers = self.drivers if action.name in {"duo_walk", "collide"} else self.targets()
             if any(d.rest_posture == "sit" for d in drivers):
@@ -508,6 +540,8 @@ class MuJoCoBackend:
             self.seated.stop()
         if self.grasp:
             self.grasp.stop()
+        if self.turntable:
+            self.turntable.halt()
         for driver in self.drivers:
             if self.grasp and self.grasp.held:
                 driver.command[:3] = 0
@@ -559,12 +593,22 @@ class MuJoCoBackend:
         dx, dy = ball[:2] - position[:2]
         forward = math.cos(yaw) * dx + math.sin(yaw) * dy
         lateral = -math.sin(yaw) * dx + math.cos(yaw) * dy
-        ready = {foot: bool(abs(forward - .09) < .035 and abs(lateral - side) < .03
-                            and .025 < ball[2] < .05 and driver.rest_posture == "stand")
-                 for foot, side in (("left", .042), ("right", -.042))}
-        return {"sensor": "mujoco_state_query", "ball": self.ball_state(), "ready": ready,
-                "prepared_foot": self.ball_prepared,
-                "message": "只读取仿真状态，本次没有摆球或踢球"}
+        ready = {
+            foot: bool(
+                abs(forward - 0.09) < 0.035
+                and abs(lateral - side) < 0.03
+                and 0.025 < ball[2] < 0.05
+                and driver.rest_posture == "stand"
+            )
+            for foot, side in (("left", 0.042), ("right", -0.042))
+        }
+        return {
+            "sensor": "mujoco_state_query",
+            "ball": self.ball_state(),
+            "ready": ready,
+            "prepared_foot": self.ball_prepared,
+            "message": "只读取仿真状态，本次没有摆球或踢球",
+        }
 
     def ball_state(self):
         if self.scene != "ball":
@@ -658,9 +702,11 @@ class MuJoCoBackend:
             if action.name in {"scene_stage", "scene_turntable"} and "stage" not in self.models:
                 if self.stage_build_task is None:
                     self.stage_build_task = asyncio.create_task(
-                        asyncio.to_thread(self._build, "stage"))
+                        asyncio.to_thread(self._build, "stage")
+                    )
                     self.stage_build_task.add_done_callback(
-                        lambda task: None if task.cancelled() else task.exception())
+                        lambda task: None if task.cancelled() else task.exception()
+                    )
                 try:
                     self.models["stage"] = await asyncio.shield(self.stage_build_task)
                 except asyncio.CancelledError:
@@ -679,8 +725,12 @@ class MuJoCoBackend:
             operation = action.name.removeprefix("stage_")
             if operation in {"gather", "roll", "dance"}:
                 members = action.members or (
-                    list("abcd") if operation == "gather" and action.member == "selected"
-                    and not self.stage.selected else self.stage.members(action.member))
+                    list("abcd")
+                    if operation == "gather"
+                    and action.member == "selected"
+                    and not self.stage.selected
+                    else self.stage.members(action.member)
+                )
                 return await self.stage.perform(operation, members)
             member = self.stage.member(action.member) if operation == "poke" else "a"
             return await self.stage.perform(operation, member)
@@ -692,6 +742,14 @@ class MuJoCoBackend:
             if action.name == "seated_ready":
                 return await change_posture(self, self.drivers, "sit")
             return await self.seated.single(action.target)
+        if action.name == "escape_mode":
+            if not self.turntable:
+                raise ValueError("请先切换到转盘场景")
+            return self.turntable.set_escape()
+        if action.name == "escape_mode":
+            if not self.turntable:
+                raise ValueError("请先切换到转盘场景")
+            return self.turntable.set_escape()
         if action.name.startswith("spin_"):
             if not self.turntable:
                 raise ValueError("请先切换到转盘场景")
