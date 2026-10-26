@@ -40,16 +40,24 @@ test('conductor control changes pending solo and gates audible part on actual st
  await expect(page.locator('#scene-title')).toHaveText('评委当指挥',{timeout:60000});
  const next=page.getByRole('button',{name:'下一位换 B',exact:true});
  await expect(next).toBeVisible();await expect(next).toBeEnabled();
+ // Act in the same browser turn that first confirms C's audible solo. Polling
+ // the server and then sending a separate browser automation command can arrive
+ // after A has started on a busy software GPU. Keep the real UI handler and
+ // physical/audio order assertions; no timing extension or fake performance.
+ await page.evaluate(()=>{
+  window.conductorChangeIssued=false;
+  const viewport=document.getElementById('physics-viewport');
+  const observer=new MutationObserver(()=>{
+   const notes=JSON.parse(viewport.dataset.musicEvidence??'[]');
+   if(!notes.some(n=>n.member==='c'))return;
+   const button=[...document.querySelectorAll('#studio-controls button')].find(b=>b.textContent==='下一位换 B');
+   if(!button||button.disabled)return;
+   observer.disconnect();button.click();window.conductorChangeIssued=true;
+  });
+  observer.observe(viewport,{attributes:true,attributeFilter:['data-music-evidence']});
+ });
  await page.getByRole('button',{name:'C 先唱，再 A',exact:true}).click();
- await expect.poll(async()=>{
-  const s=await page.request.get('/api/scenes/state?room=1').then(r=>r.json());
-  return s.backend.seated_choir?.phase==='solo'&&s.backend.seated_choir.solo==='c';
- },{timeout:12000,intervals:[100]}).toBe(true);
- // Exercise the real displayed control's handler in one browser turn. Extra
- // automation focus/layout round trips on software GPUs can consume the whole
- // eight-second solo before an input is sent. Native click still respects a
- // disabled button; the actual physical and audible order is checked below.
- await page.evaluate(()=>[...document.querySelectorAll('#studio-controls button')].find(b=>b.textContent==='下一位换 B').click());
+ await expect.poll(()=>page.evaluate(()=>window.conductorChangeIssued),{timeout:15000}).toBe(true);
  await expect(page.locator('#task-status')).toContainText('已完成',{timeout:35000});
  const music=JSON.parse(await page.locator('#physics-viewport').getAttribute('data-music-evidence'));
  expect([...new Set(music.map(n=>n.member))]).toEqual(['c','b']);

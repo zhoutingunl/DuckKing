@@ -1,7 +1,8 @@
 import { test, expect } from '@playwright/test';
 
-test('scene selection waits for room setup and the first live state',async({page})=>{
-  let release;
+test('scene selection waits for room setup and the first scene state',async({page})=>{
+  let release,channel;
+  await page.routeWebSocket('**/scene-ws',socket=>{channel=socket});
   const gate=new Promise(resolve=>release=resolve);
   await page.route('**/api/rooms',async route=>{await gate;await route.continue()});
   try{
@@ -10,6 +11,9 @@ test('scene selection waits for room setup and the first live state',async({page
     await expect(buttons).toHaveCount(5);
     for(const button of await buttons.all())await expect(button).toBeDisabled();
     release();
+    await expect.poll(()=>Boolean(channel)).toBe(true);
+    for(const button of await buttons.all())await expect(button).toBeDisabled();
+    channel.send(JSON.stringify({type:'not_started'}));
     await expect(page.locator('#sim-status')).toHaveText('选择场景开始');
     for(const button of await buttons.all())await expect(button).toBeEnabled();
   }finally{release()}
