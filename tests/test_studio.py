@@ -1,4 +1,5 @@
 import asyncio
+import json
 from pathlib import Path
 
 import pytest
@@ -93,7 +94,12 @@ async def test_real_delivery_resume_keeps_remaining_path(tmp_path, pause_after):
         await asyncio.sleep(.35)
         assert backend.grasp.carry_remaining == remaining
         result = await studio.invoke("duck_delivery", {"operation": "resume"})
-        assert result["task"]["status"] == "completed", result
+        # Pytest abbreviates nested dicts, hiding the physical failure reason in CI.
+        assert result["task"]["status"] == "completed", json.dumps(
+            {"task": result["task"], "grasp": backend.grasp.snapshot(),
+             "actions": list(motion.records.values())},
+            ensure_ascii=False, indent=2,
+        )
         assert backend.grasp.phase == "released"
         assert backend.grasp.released_s >= .2
         assert sum(r["name"] == "pick_up" for r in motion.records.values()) == 1
