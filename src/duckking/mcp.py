@@ -162,6 +162,7 @@ TURNTABLE_TOOLS = [
         ("duck_spin_medium", "转盘大逃鸭：中速转动（2.4 弧度/秒），外圈鸭鸭开始危险。"),
         ("duck_spin_fast", "转盘大逃鸭：高速转动（4.0 弧度/秒），会被真实离心力甩出局。"),
         ("duck_spin_stop", "转盘大逃鸭：转盘停下。出局的鸭鸭会自己爬起来。"),
+        ("duck_escape_mode", "转盘大逃鸭：开启/关闭逆盘倒走，鸭鸭用行走策略抵消盘面偏航。"),
     ]
 ]
 
@@ -181,7 +182,11 @@ SCENE_TOOLS = [
             "inputSchema": {
                 "type": "object",
                 "properties": {
-                    "target": {"type": "string", "enum": ["a", "b", "both"], "default": "a"}
+                    "target": {
+                        "type": "string",
+                        "enum": ["a", "b", "c", "d", "both"],
+                        "default": "a",
+                    }
                 },
                 "additionalProperties": False,
             },
@@ -319,9 +324,9 @@ class DeviceMCP:
                     ] + STAGE_TOOLS
                 if self.motion.backend.scene == "turntable":
                     tools = [
-                        t for t in TOOLS
-                        if t["name"] in {"duck_stop", "duck_get_status", "duck_sit",
-                                         "duck_stand"}
+                        t
+                        for t in TOOLS
+                        if t["name"] in {"duck_stop", "duck_get_status", "duck_sit", "duck_stand"}
                     ] + TURNTABLE_TOOLS
             if self.motion.studio:
                 if self.motion.studio.active not in {None, "voice", "persona"}:
@@ -338,15 +343,26 @@ class DeviceMCP:
                 raise ValueError("工具名称必须是字符串")
             if not isinstance(arguments, dict):
                 raise ValueError("工具参数必须为对象")
-            if (self.motion.backend.kind == "mujoco" and self.motion.backend.scene == "stage"
-                    and name not in {t["name"] for t in STAGE_TOOLS}
-                    and name not in {"duck_stop", "duck_get_status"}):
+            if (
+                self.motion.backend.kind == "mujoco"
+                and self.motion.backend.scene == "stage"
+                and name not in {t["name"] for t in STAGE_TOOLS}
+                and name not in {"duck_stop", "duck_get_status"}
+            ):
                 raise ValueError("四鸭发布会请使用当前集结、翻滚和齐舞工具")
-            if (self.motion.backend.kind == "mujoco"
-                    and self.motion.backend.scene == "turntable"
-                    and name not in {t["name"] for t in TURNTABLE_TOOLS}
-                    and name not in {"duck_stop", "duck_get_status", "duck_sit",
-                                     "duck_stand"}):
+            if (
+                self.motion.backend.kind == "mujoco"
+                and self.motion.backend.scene == "turntable"
+                and name not in {t["name"] for t in TURNTABLE_TOOLS}
+                and name
+                not in {
+                    "duck_stop",
+                    "duck_get_status",
+                    "duck_sit",
+                    "duck_stand",
+                    "duck_escape_mode",
+                }
+            ):
                 raise ValueError("转盘大逃鸭请使用转速控制与坐站工具")
             if self.voice and name == "duck_voice_style":
                 result = await self.voice.set_style(arguments)
@@ -365,9 +381,11 @@ class DeviceMCP:
                     raise ValueError("互动舞台已准备好，请使用当前节目工具；换幕请在页面选择")
                 if studio.active == "coach" and name == "duck_kick":
                     raise ValueError("教练场景请用 duck_coach，观察、摆球和踢球必须分开")
-                if (studio.active not in {None, "voice", "persona"}
-                        and name not in {"duck_stop", "duck_get_status"}
-                        and name not in {t["name"] for t in studio.tools()}):
+                if (
+                    studio.active not in {None, "voice", "persona"}
+                    and name not in {"duck_stop", "duck_get_status"}
+                    and name not in {t["name"] for t in studio.tools()}
+                ):
                     raise ValueError("请使用当前节目提供的工具，不能绕过任务约束")
             if studio and name in {t["name"] for t in studio.tools()}:
                 first_action = None
