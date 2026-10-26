@@ -25,7 +25,6 @@ from pathlib import Path
 
 import mujoco
 import numpy as np
-from PIL import Image, ImageDraw, ImageFont
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))

@@ -116,7 +116,7 @@ class TurntableGame:
                 self.eliminated.append({
                     "member": MEMBERS[i],
                     "at_s": round(elapsed, 2),
-                    "radial_m": round(radius, 3),
+                         "radial_m": round(radius, 6),
                     "omega": round(abs(omega), 2),
                 })
         standing = [
