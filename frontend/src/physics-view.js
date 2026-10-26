@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
 export function physicsView(container) {
-  let interaction=null,interactionMode="select",latest=null,pointerStart=null,selection=null;
+  let interaction=null,interactionMode="select",latest=null,pointerStart=null,selection=null,visible=true;
   const raycaster=new THREE.Raycaster(),cursor=new THREE.Vector2();
   const scene=new THREE.Scene();scene.background=new THREE.Color('#edf0e5');
   const renderer=new THREE.WebGLRenderer({antialias:true});renderer.setPixelRatio(Math.min(devicePixelRatio,2));
@@ -21,7 +21,8 @@ export function physicsView(container) {
   const grid=new THREE.GridHelper(8,80,0xcbd6bd,0xe0e6d7);grid.position.y=.0001;scene.add(grid);
   const world=new THREE.Group();world.rotation.x=-Math.PI/2;scene.add(world);
   let objects=new Map(),labels=new Map(),textures=[],geometries=[],materials=[],frame,timer,revision=null,slowFrames=0,lastFrame=performance.now(),pixelBudget=reduced?320:640,drawCost=0,drawPause=0;
-  const matrix=new THREE.Matrix4();
+  const instanceMatrix=new THREE.Matrix4();
+  const visibility=new IntersectionObserver(entries=>{visible=entries[0]?.isIntersecting??true});visibility.observe(renderer.domElement);
   function clear(){world.clear();geometries.forEach(g=>g.dispose());materials.forEach(m=>m.dispose());textures.forEach(t=>t.dispose());geometries=[];materials=[];textures=[];objects.clear();labels.clear();}
   function load(model){
     clear();const meshes=new Map(),shared=new Map();
@@ -32,13 +33,25 @@ export function physicsView(container) {
       const geometry=new THREE.BufferGeometry();geometry.setAttribute('position',new THREE.BufferAttribute(value.positions??new Float32Array(decode(value.vertices)),3));geometry.setIndex(new THREE.BufferAttribute(value.indices??new Uint32Array(decode(value.faces)),1));geometry.computeVertexNormals();meshes.set(Number(id),geometry);geometries.push(geometry);
       if(key)shared.set(key,geometry);
     }
+    const batches=new Map(),primitives=new Map(),paint=new Map();
     for(const geom of model.geoms){
       let geometry=geom.type===7?meshes.get(geom.mesh):null;
-      if(geom.type===6){geometry=new THREE.BoxGeometry(...geom.size.map(v=>v*2));geometries.push(geometry);}
-      if(geom.type===2){geometry=new THREE.SphereGeometry(geom.size[0],32,20);geometries.push(geometry);}
+      const primitiveKey=JSON.stringify([geom.type,geom.size]);
+      if(geom.type===6||geom.type===2){
+        geometry=primitives.get(primitiveKey);
+        if(!geometry){geometry=geom.type===6?new THREE.BoxGeometry(...geom.size.map(v=>v*2)):new THREE.SphereGeometry(geom.size[0],32,20);primitives.set(primitiveKey,geometry);geometries.push(geometry)}
+      }
       if(!geometry)continue;
-      const material=new THREE.MeshStandardMaterial({color:new THREE.Color(...geom.rgba.slice(0,3)),roughness:.66,metalness:.08});materials.push(material);
-      const object=new THREE.Mesh(geometry,material);object.castShadow=object.receiveShadow=true;world.add(object);object.userData.geom=geom.id;objects.set(geom.id,object);
+      const color=geom.rgba.slice(0,3),paintKey=color.join(','),key=geometry.uuid+':'+paintKey;
+      if(!paint.has(paintKey)){const material=new THREE.MeshStandardMaterial({color:new THREE.Color(...color),roughness:.66,metalness:.08});paint.set(paintKey,material);materials.push(material)}
+      if(!batches.has(key))batches.set(key,{geometry,material:paint.get(paintKey),ids:[]});
+      batches.get(key).ids.push(geom.id);
+    }
+    for(const batch of batches.values()){
+      const object=new THREE.InstancedMesh(batch.geometry,batch.material,batch.ids.length);
+      object.castShadow=object.receiveShadow=true;object.frustumCulled=false;object.userData.geoms=batch.ids;
+      object.instanceMatrix.setUsage(THREE.DynamicDrawUsage);world.add(object);
+      batch.ids.forEach((id,index)=>objects.set(id,{object,index}));
     }
     revision=model.revision;
   }
@@ -53,9 +66,13 @@ export function physicsView(container) {
       }
       const [x,y,z]=duck.position;labels.get(duck.id).position.set(x,y,z+.20);
     }
-    for(const geom of state.geoms){const object=objects.get(geom.id);if(!object)continue;
-      object.position.fromArray(geom.position);const r=geom.rotation;matrix.set(r[0],r[1],r[2],0,r[3],r[4],r[5],0,r[6],r[7],r[8],0,0,0,0,1);object.quaternion.setFromRotationMatrix(matrix);
+    const changed=new Set();
+    for(const geom of state.geoms){const entry=objects.get(geom.id);if(!entry)continue;
+      const {object,index}=entry,r=geom.rotation;
+      instanceMatrix.set(r[0],r[1],r[2],geom.position[0],r[3],r[4],r[5],geom.position[1],r[6],r[7],r[8],geom.position[2],0,0,0,1);
+      object.setMatrixAt(index,instanceMatrix);changed.add(object);
     }
+    for(const object of changed){object.instanceMatrix.needsUpdate=true;object.computeBoundingSphere()}
     // Reveal the real fall without cropping feet on a narrow screen. Enlarge
     // the view only as needed; a user's orbit/zoom always takes precedence.
     if(state.scene==='table'&&state.tabletop?.dropped_at!=null&&!manualView){
@@ -79,13 +96,13 @@ export function physicsView(container) {
   function hit(event){
     if(!interaction||latest?.scene!=='stage')return null;
     const rect=renderer.domElement.getBoundingClientRect();cursor.set((event.clientX-rect.left)/rect.width*2-1,-(event.clientY-rect.top)/rect.height*2+1);raycaster.setFromCamera(cursor,camera);
-    for(const candidate of raycaster.intersectObjects([...objects.values()])){
-      const id=latest.owners?.[candidate.object.userData.geom];
+    for(const candidate of raycaster.intersectObjects([...new Set([...objects.values()].map(entry=>entry.object))])){
+      const id=latest.owners?.[candidate.object.userData.geoms[candidate.instanceId]];
       if(id){stick.position.copy(candidate.point).add(new THREE.Vector3(.1,.15,0));stick.visible=interactionMode!=='select';return id;}
     }stick.visible=false;return null;
   }
   renderer.domElement.addEventListener('pointerdown',event=>{pointerStart={x:event.clientX,y:event.clientY}});
-  renderer.domElement.addEventListener('pointermove',event=>{hit(event)});
+  renderer.domElement.addEventListener('pointermove',event=>{if(!pointerStart&&interactionMode!=='select')hit(event)});
   renderer.domElement.addEventListener('pointerleave',()=>{stick.visible=false});
   renderer.domElement.addEventListener('pointerup',event=>{
     if(!pointerStart||Math.hypot(event.clientX-pointerStart.x,event.clientY-pointerStart.y)>6)return;
@@ -99,7 +116,7 @@ export function physicsView(container) {
       const chosen=latest?.scene==='stage'&&selection?.selected.includes(id)?latest.ducks.find(d=>d.id===id):null;
       ring.visible=Boolean(chosen&&interaction);if(chosen)ring.position.set(chosen.position[0],.007,-chosen.position[1]);
     }
-    renderer.render(scene,camera);
+    if(visible)renderer.render(scene,camera);
     // WebGL can submit quickly while a software GPU blocks the next frame.
     // Include that delay, excluding our own idle interval, in the draw budget.
     const elapsed=Math.max(performance.now()-started,started-lastFrame-drawPause);
@@ -112,5 +129,5 @@ export function physicsView(container) {
     drawPause=reduced?Math.max(100,Math.min(2000,drawCost*2)):seatedView?66:33;
     timer=setTimeout(()=>{frame=requestAnimationFrame(animate);},drawPause);
   }animate();
-  return {load,update,clear,screenOrder,selection(value){selection=value},interaction(callback,mode="select"){interaction=callback;interactionMode=mode;if(!callback){stick.visible=false;for(const ring of rings.values())ring.visible=false}},renderNow(){controls.update();renderer.render(scene,camera);},frameScene(scene){manualView=false;floorFramed=false;seatedView=scene==='seated';resize();const close=scene==='carry',seated=scene==='seated',table=scene==='table';camera.position.set(...(scene==='stage'?[2.7,2.1,0]:seated?[1.05,.90,-1.05]:table?[1.35,.98,-1.35]:close?[.6,.4,.65]:[.85,.62,.95]));controls.target.set(close ? .12 : table ? .20 : 0,seated ? .52 : table ? .25 : .13,table ? -.10 : 0);controls.update();controls.saveState();},reset(){manualView=false;floorFramed=false;controls.reset();},dispose(){clearTimeout(timer);cancelAnimationFrame(frame);observer.disconnect();clear();controls.dispose();renderer.dispose();ringGeometry.dispose();ringMaterial.dispose();stick.geometry.dispose();stick.material.dispose();}};
+  return {load,update,clear,screenOrder,selection(value){selection=value},interaction(callback,mode="select"){interaction=callback;interactionMode=mode;if(!callback){stick.visible=false;for(const ring of rings.values())ring.visible=false}},renderNow(){controls.update();renderer.render(scene,camera);},frameScene(scene){manualView=false;floorFramed=false;seatedView=scene==='seated';resize();const close=scene==='carry',seated=scene==='seated',table=scene==='table';camera.position.set(...(scene==='stage'?[2.7,2.1,0]:seated?[1.05,.90,-1.05]:table?[1.35,.98,-1.35]:close?[.6,.4,.65]:[.85,.62,.95]));controls.target.set(close ? .12 : table ? .20 : 0,seated ? .52 : table ? .25 : .13,table ? -.10 : 0);controls.update();controls.saveState();},reset(){manualView=false;floorFramed=false;controls.reset();},dispose(){clearTimeout(timer);cancelAnimationFrame(frame);observer.disconnect();visibility.disconnect();clear();controls.dispose();renderer.dispose();ringGeometry.dispose();ringMaterial.dispose();stick.geometry.dispose();stick.material.dispose();}};
 }
