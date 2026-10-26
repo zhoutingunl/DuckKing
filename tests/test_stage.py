@@ -346,6 +346,46 @@ async def test_voice_reference_is_used_by_mcp_even_if_selection_changes(backend,
     await motion.close()
 
 
+@pytest.mark.parametrize("tool", ["duck_stage_gather", "duck_stage_roll", "duck_stage_dance"])
+async def test_stage_voice_tool_returns_result_and_records_action(
+    backend, tmp_path, monkeypatch, tool,
+):
+    from unittest.mock import AsyncMock
+
+    from duckking.config import Settings
+    from duckking.diagnostics import VoiceDiagnostics
+    from duckking.voice import VoiceSession
+
+    motion = MotionController(backend)
+    journal = VoiceDiagnostics(tmp_path / "voice.jsonl")
+    session = VoiceSession(AsyncMock(), motion, Settings(data_dir=tmp_path), journal)
+    session.turn = journal.next_turn()
+    session.record("listen_start")
+    submitted = AsyncMock()
+    waited = AsyncMock(return_value={"status": "completed"})
+    replied = AsyncMock()
+    monkeypatch.setattr(motion, "submit", submitted)
+    monkeypatch.setattr(motion, "wait", waited)
+    monkeypatch.setattr(session, "_json", replied)
+    try:
+        await session._tool({
+            "jsonrpc": "2.0", "id": 1, "method": "tools/call",
+            "params": {"name": tool, "arguments": {"member": "a"}},
+        })
+        submitted.assert_awaited_once()
+        waited.assert_awaited_once()
+        replied.assert_awaited_once()
+        result = replied.call_args.args[0]["payload"]
+        assert result["id"] == 1 and result["result"]["isError"] is False
+        action = journal.statistics.snapshot()["rounds"][0]["actions"][0]
+        assert action["tool"] == tool and action["result"] == "completed"
+        assert journal.events[-1]["event"] == "tool_end"
+        assert journal.events[-1]["result"] == "ok"
+    finally:
+        await session.disconnect()
+        await motion.close()
+
+
 async def test_slow_but_advancing_stage_does_not_hit_response_idle_and_still_has_turn_cap(
     backend,
     tmp_path,

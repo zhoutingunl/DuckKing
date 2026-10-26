@@ -215,7 +215,7 @@ async def test_cancelled_cold_compile_is_reused_and_cannot_change_scene_later(mo
         await motion.close()
 
 
-@pytest.mark.parametrize("idle_ticks", [0, 50, 150, 300])
+@pytest.mark.parametrize("idle_ticks", [0, 1, 2, 50, 150, 300])
 async def test_table_departure_is_independent_of_async_observer_cadence(backend, idle_ticks):
     proofs = []
     for burst in (1, 4):
@@ -246,3 +246,60 @@ async def test_table_departure_is_independent_of_async_observer_cadence(backend,
         finally:
             await motion.close()
     np.testing.assert_allclose(proofs[0], proofs[1], atol=0.021, rtol=0)
+
+
+def test_departure_rejects_missing_stable_support_without_moving_root(backend):
+    table = backend.tabletop
+    table.running = True
+    table.sim_start = float(backend.data.time) - 16.1
+    initial = backend.data.qpos.copy()
+    with pytest.raises(ValueError, match="离桌前未确认站稳"):
+        table.step()
+    assert not backend.drivers[3].command.any()
+    np.testing.assert_array_equal(backend.data.qpos, initial)
+
+
+def test_table_landing_with_ci_idle_phase_clears_table_leg_before_dancing(backend):
+    # Reproduces CI's exact 4.22 s start: on Linux the old controller stopped
+    # at 34.88 s with 0.1439368 m floor drift after landing beside the table leg.
+    for _ in range(151):
+        backend.tick()
+    table = backend.tabletop
+    table.running = True
+    table.sim_start = float(backend.data.time)
+    assert table.sim_start == pytest.approx(4.22)
+    for _ in range(1801):
+        backend.tick()
+    out = table.snapshot()
+    assert 16 < out["dropped_at"] <= out["landed_at"] < 20
+    assert out["supported"] == [True, True, True, False]
+    assert out["ground_contacts"][:3] == [0, 0, 0] and out["ground_contacts"][3] > 0
+    assert out["floor_dance"]["started_at"] < SHOW_DURATION - 5
+    assert min(out["floor_dance"]["knee_excursion_deg"]) > 25
+    assert min(out["floor_dance"]["ankle_vertical_excursion_m"]) > 0.012
+    assert out["floor_dance"]["max_drift_m"] < 0.14
+
+
+def test_landing_follow_through_is_bounded_world_outward_and_never_moves_root(backend):
+    table = backend.tabletop
+    table.running = True
+    table.dropped_at = 17.4
+    table.landed_at = 17.5
+    table.sim_start = float(backend.data.time) - 17.6
+    driver = backend.drivers[3]
+    backend.data.qpos[driver.root + 3:driver.root + 7] = [np.cos(0.6), 0, 0, np.sin(0.6)]
+    initial = backend.data.qpos.copy()
+    table.step()
+    _, yaw = driver.pose(backend.data)
+    forward, sideways = driver.command[:2]
+    np.testing.assert_allclose(
+        [np.cos(yaw) * forward - np.sin(yaw) * sideways,
+         np.sin(yaw) * forward + np.cos(yaw) * sideways], [0.35, 0], atol=1e-7,
+    )
+    assert np.linalg.norm(driver.command[:2]) == pytest.approx(0.35)
+    np.testing.assert_array_equal(backend.data.qpos, initial)
+    backend.data.time += 0.4
+    table.step()
+    assert not driver.command.any()
+    table.stop()
+    assert not table.running

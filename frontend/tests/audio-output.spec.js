@@ -19,7 +19,7 @@ function protocol(page,frames,commands,reports) {
   }));
 }
 
-test('local sound check and two mic turns reuse one hardware-rate context and finish nonzero playback',async({page,context})=>{
+test('two turns reuse a muted standby microphone and disconnect releases it',async({page,context})=>{
   await context.grantPermissions(['microphone']);
   const frames=[],commands=[],reports=[];
   await protocol(page,frames,commands,reports);
@@ -42,6 +42,7 @@ test('local sound check and two mic turns reuse one hardware-rate context and fi
   await page.locator('#connect-voice').click();
   await expect(page.locator('#voice-badge')).toHaveText('灵矽已连接');
   for(let turn=0;turn<2;turn++){
+    await expect(page.locator('#talk-button')).toBeEnabled();
     await page.locator('#talk-button').dispatchEvent('pointerdown',{pointerId:1});
     await expect(page.locator('#voice-badge')).toHaveText('正在聆听');
     const count=frames.length;
@@ -54,11 +55,12 @@ test('local sound check and two mic turns reuse one hardware-rate context and fi
   expect(reports.at(-1).signal_peak_milli).toBeGreaterThan(0);
   expect(reports.at(-1).dropped_frames).toBe(0);
   const audit=await page.evaluate(()=>({contexts:audioAudit.contexts.length,closed:audioAudit.closed,
-    rate:audioAudit.contexts[0].sampleRate,tracks:audioAudit.tracks.map(track=>track.readyState)}));
+    rate:audioAudit.contexts[0].sampleRate,tracks:audioAudit.tracks.map(track=>[track.readyState,track.enabled])}));
   expect(audit.contexts).toBe(1);expect(audit.closed).toBe(0);
-  expect(audit.rate).toBeGreaterThan(16000);expect(audit.tracks).toEqual(['ended','ended']);
+  expect(audit.rate).toBeGreaterThan(16000);expect(audit.tracks).toEqual([['live',false]]);
   await page.locator('#connect-voice').click();
   await expect(page.locator('#voice-badge')).toHaveText('未连接灵矽');
+  expect(await page.evaluate(()=>audioAudit.tracks.map(t=>t.readyState))).toEqual(['ended']);
   await Promise.all([
     page.waitForEvent('domcontentloaded'),
     page.evaluate(()=>{
@@ -98,7 +100,7 @@ test('a permanently suspended output never blocks connect or disconnect and show
   await expect(page.locator('#voice-badge')).toHaveText('未连接灵矽');
 });
 
-test('late mic permission from a released press cannot start or stop the next recording',async({page,context})=>{
+test('late mic permission from an old connection cannot attach to the new connection',async({page,context})=>{
   await context.grantPermissions(['microphone']);
   const frames=[],commands=[],reports=[];await protocol(page,frames,commands,reports);
   await page.addInitScript(()=>{
@@ -112,19 +114,67 @@ test('late mic permission from a released press cannot start or stop the next re
   await page.goto('/?room=1');await page.locator('#connect-voice').click();
   await expect(page.locator('#voice-badge')).toHaveText('灵矽已连接');
   const talk=page.locator('#talk-button');
-  await talk.dispatchEvent('pointerdown',{pointerId:1});
   await expect.poll(()=>page.evaluate(()=>pendingMics.length)).toBe(1);
-  await talk.dispatchEvent('pointerup',{pointerId:1});
-  await talk.dispatchEvent('pointerdown',{pointerId:1});
+  await expect(talk).toBeDisabled();
+  await page.locator('#connect-voice').click();
+  await expect(page.locator('#voice-badge')).toHaveText('未连接灵矽');
+  await page.locator('#connect-voice').click();
   await expect.poll(()=>page.evaluate(()=>pendingMics.length)).toBe(2);
   await page.evaluate(()=>pendingMics[0]());
   await expect.poll(()=>page.evaluate(()=>micTracks[0].readyState)).toBe('ended');
   expect(commands.filter(command=>command==='listen_start')).toHaveLength(0);
+  await expect(talk).toBeDisabled();
   await page.evaluate(()=>pendingMics[1]());
+  await expect(talk).toBeEnabled();
+  await talk.dispatchEvent('pointerdown',{pointerId:1});
   await expect(page.locator('#voice-badge')).toHaveText('正在聆听');
   await expect.poll(()=>frames.length).toBeGreaterThan(0);
   await talk.dispatchEvent('pointerup',{pointerId:1});
   await expect(page.locator('#voice-badge')).toHaveText('灵矽已连接');
   expect(commands.filter(command=>command==='listen_start')).toHaveLength(1);
+  expect(await page.evaluate(()=>micTracks.map(track=>[track.readyState,track.enabled]))).toEqual([['ended',true],['live',false]]);
+  await page.locator('#connect-voice').click();
+  await expect(page.locator('#voice-badge')).toHaveText('未连接灵矽');
   expect(await page.evaluate(()=>micTracks.map(track=>track.readyState))).toEqual(['ended','ended']);
+});
+
+test('short press retains the very first PCM frame before async preparation completes',async({page,context})=>{
+  await context.grantPermissions(['microphone']);
+  const frames=[],commands=[],reports=[];await protocol(page,frames,commands,reports);
+  await page.addInitScript(()=>{
+    const Native=window.AudioWorkletNode;
+    window.AudioWorkletNode=new Proxy(Native,{construct(Target,args){
+      const node=new Target(...args);window.capturePort=node.port;window.captureRate=args[0].sampleRate;return node;
+    }});
+    const get=navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
+    navigator.mediaDevices.getUserMedia=async options=>{
+      // Hold permission until the test observes standby, independent of runner load.
+      await new Promise(resolve=>window.allowCapture=resolve);
+      const stream=await get(options);window.captureStream=stream;return stream;
+    };
+  });
+  await page.goto('/?room=1');await page.locator('#connect-voice').click();
+  await expect(page.locator('#voice-badge')).toHaveText('灵矽已连接');
+  await expect.poll(()=>page.evaluate(()=>typeof window.allowCapture)).toBe('function');
+  await expect(page.locator('#talk-button')).toBeDisabled();
+  await page.evaluate(()=>allowCapture());
+  await expect(page.locator('#talk-button')).toBeEnabled();
+  expect(frames).toHaveLength(0);
+  // Controlled PCM at the worklet boundary: no cloud recognition claim.
+  await page.evaluate(()=>{
+    const talk=document.getElementById('talk-button');
+    talk.dispatchEvent(new PointerEvent('pointerdown',{pointerId:1}));
+    capturePort.onmessage({data:new Float32Array(captureRate*.06).fill(.25)});
+    talk.dispatchEvent(new PointerEvent('pointerup',{pointerId:1}));
+  });
+  await expect.poll(()=>commands.filter(c=>c==='listen_stop').length).toBe(1);
+  expect(commands.filter(c=>c==='listen_start')).toHaveLength(1);
+  expect(frames.length).toBeGreaterThan(0);
+  expect(frames[0].readInt16LE(0)).toBeGreaterThan(8000);
+  const count=frames.length;await page.waitForTimeout(200);expect(frames).toHaveLength(count);
+  await page.evaluate(()=>captureStream.getAudioTracks()[0].dispatchEvent(new Event('ended')));
+  await expect(page.locator('#talk-button')).toBeDisabled();
+  await expect(page.locator('#notice')).toContainText('麦克风已断开');
+  expect(await page.evaluate(()=>captureStream.getTracks().every(t=>t.readyState==='ended'))).toBe(true);
+  await page.locator('#connect-voice').click();
 });

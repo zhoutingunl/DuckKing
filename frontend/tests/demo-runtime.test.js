@@ -5,8 +5,28 @@ import {DEMOS,AUDIO_LINES} from '../src/demo-catalog.js';
 import {pcmWave,pause,DemoVoice,matchesCloudActions} from '../src/demo-runtime.js';
 import {ChoraleRoster,openingScore} from '../src/chorale-demo.js';
 import {checkTrackFiles,checkOffset,decodeTracks,originalTableScore,TABLE_SECONDS,TABLE_TEMPO,playTableChoir} from '../src/table-choir.js';
-import {seatedScore} from '../src/seated-choir.js';
+import {seatedScore,playSeatedChoir} from '../src/seated-choir.js';
 import {TABLE_SCORES,odeToJoyScore,tigerCanonScore} from '../src/table-scores.js';
+
+test('seated audio does not skip singers when its clock runs ahead of physical phases',async()=>{
+  const started=performance.now(),notes=[];
+  const elapsed=()=>Math.min(40,(performance.now()-started)/25);
+  const param=()=>({value:0,setValueAtTime(){},linearRampToValueAtTime(){}});
+  const node=()=>({connect(){},disconnect(){},stop(){},gain:param(),pan:param(),frequency:param()});
+  const ctx={state:'running',destination:{},get currentTime(){return 100+elapsed()*2},
+    createGain:node,createStereoPanner:node,createBiquadFilter:node,
+    createOscillator(){const osc=node();osc.start=at=>notes.push({at,frequency:osc.frequency.value});return osc},
+  };
+  const read=()=>{
+    const e=elapsed(),part=Math.floor((e-4)/8),within=(e-4)%8;
+    const phase=e>=40?'completed':e<4||e>=36?'chorus':within<2?'rising':within<6?'solo':'sitting';
+    return {elapsed:e,phase,solo:['rising','solo','sitting'].includes(phase)?'abcd'[part]:null,
+      music_started:true,running:e<40,postures:[0,1,2,3].map(i=>({observed:phase==='solo'&&i===part?'stand':'sit'}))};
+  };
+  const result=await playSeatedChoir({context:()=>ctx},new AbortController().signal,read,()=>{});
+  assert.deepEqual(result.solos,['a','b','c','d']);
+  assert.ok(notes.length>=4);assert.equal(read().phase,'completed');
+});
 
 test('recognizable scores preserve melody, independent SATB and eight-beat canon entrances',()=>{
   const ode=odeToJoyScore(),tigers=tigerCanonScore();

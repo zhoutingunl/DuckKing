@@ -163,7 +163,15 @@ class MuJoCoBackend:
         if scene == "carry":
             return build_grasp_model(self.robot_dir)
         if scene == "ball":
-            model = mujoco.MjModel.from_xml_path(str(self.robot_dir / "scene_ball.xml"))
+            spec = mujoco.MjSpec.from_file(str(self.robot_dir / "scene_ball.xml"))
+            # The upstream scene uses condim=3: sliding friction cannot dissipate
+            # pure rolling. Give only ball/floor contact rolling resistance, so
+            # foot contact and the official kick policy retain their parameters.
+            spec.add_pair(
+                name="ball_floor", geomname1="ball_geom", geomname2="floor", condim=6,
+                friction=[1, 1, 0.005, 0.003, 0.003],
+            )
+            model = spec.compile()
         else:
             spec = mujoco.MjSpec.from_string(
                 '<mujoco><worldbody><geom name="floor" type="plane" size="4 4 .1" '
@@ -562,6 +570,7 @@ class MuJoCoBackend:
         if self.scene != "ball":
             return None
         pos = self.data.xpos[self.model.body("ball").id]
+        velocity = self.model.jnt_dofadr[self.model.joint("ball_free").id]
         distance = (
             float(np.linalg.norm(pos[:2] - self.ball_start[:2]))
             if self.ball_start is not None
@@ -570,6 +579,7 @@ class MuJoCoBackend:
         return {
             "position": pos.tolist(),
             "displacement_m": distance,
+            "speed_m_s": float(np.linalg.norm(self.data.qvel[velocity : velocity + 3])),
             "contacts": self.contacts["ball"],
             "contact_feet": sorted(self.ball_feet),
         }

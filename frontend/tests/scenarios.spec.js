@@ -1,5 +1,24 @@
 import { test, expect } from '@playwright/test';
 
+test('scene selection waits for room setup and the first scene state',async({page})=>{
+  let release,channel;
+  await page.routeWebSocket('**/scene-ws',socket=>{channel=socket});
+  const gate=new Promise(resolve=>release=resolve);
+  await page.route('**/api/rooms',async route=>{await gate;await route.continue()});
+  try{
+    await page.goto('/scenarios.html?room=1',{waitUntil:'commit'});
+    const buttons=page.locator('[data-scene]');
+    await expect(buttons).toHaveCount(5);
+    for(const button of await buttons.all())await expect(button).toBeDisabled();
+    release();
+    await expect.poll(()=>Boolean(channel)).toBe(true);
+    for(const button of await buttons.all())await expect(button).toBeDisabled();
+    channel.send(JSON.stringify({type:'not_started'}));
+    await expect(page.locator('#sim-status')).toHaveText('选择场景开始');
+    for(const button of await buttons.all())await expect(button).toBeEnabled();
+  }finally{release()}
+});
+
 test('real MuJoCo left/right contacts, duo discovery/collision, chorus and stop',async({page})=>{
   test.setTimeout(90000);
   const errors=[];page.on('pageerror',e=>errors.push(e.message));
@@ -14,6 +33,7 @@ test('real MuJoCo left/right contacts, duo discovery/collision, chorus and stop'
   await expect(page.locator('#action-result')).toContainText('左脚踢球 · 完成',{timeout:15000});
   await expect(page.locator('#ball-contact')).toHaveText('左脚');
   expect(parseFloat(await page.locator('#ball-distance').textContent())).toBeGreaterThan(.02);
+  await expect(page.locator('#ball-motion')).toContainText('已停稳',{timeout:15000});
   expect(modelRequests).toBeGreaterThan(0);
   const requestsBeforeReset=modelRequests;
   await page.getByRole('button',{name:'重置场景',exact:true}).click();

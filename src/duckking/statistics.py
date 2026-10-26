@@ -91,7 +91,7 @@ class VoiceStatistics:
             timings["local_end"] = elapsed
         elif event == "action_start":
             row["actions"].append({
-                "call": entry["call"], "tool": entry["tool"], "at_ms": elapsed,
+                "call": entry["call"], "tool": entry.get("tool", "unknown"), "at_ms": elapsed,
                 "result": "running", "duration_ms": None,
             })
             timings.setdefault("action_start", elapsed)
