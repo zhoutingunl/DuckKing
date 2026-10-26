@@ -10,11 +10,12 @@ const apiURL=`http://127.0.0.1:${port}`;
 const baseURL=dev?`http://127.0.0.1:${devPort}`:apiURL;
 export default defineConfig({
   workers: 1,
+  fullyParallel: true,
   testDir: './tests',
   outputDir: `test-results/${dev?'development':'production'}`,
   testMatch: '**/*.spec.js',
   testIgnore: dev?[]:['**/dev-proxy.spec.js'],
-  use: { baseURL, viewport: {width:1440,height:1050}, trace:'retain-on-failure', screenshot:'only-on-failure',
+  use: { baseURL, viewport: {width:1440,height:1050}, trace:{mode:'retain-on-failure',screenshots:false}, screenshot:'only-on-failure',
     launchOptions: {args:['--use-fake-ui-for-media-stream','--use-fake-device-for-media-stream'],
       ...(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE ? {executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE}:{})} },
   webServer: [

@@ -179,24 +179,47 @@ def create_app(
         return {"queued": accepted}
 
     @app.get("/api/experience")
-    async def experience_summary(hours: int = 168, traffic: str = "interactive",
-                                 page: str = "all", device: str = "all", cache: str = "all",
-                                 room: str = "all", release: str = "all", backend: str = "all",
-                                 scene: str = "all"):
-        allowed = {"traffic": {"all", "interactive", "demo", "verification", "unattributed"},
-                   "page": {"all", "home", "scenarios", "demos", "studio", "unknown"},
-                   "device": {"all", "mobile", "desktop", "unknown"},
-                   "cache": {"all", "network", "http", "persistent", "memory", "unknown"},
-                   "backend": {"all", "preview", "mujoco", "robotd", "unknown"},
-                   "scene": {"all", "ball", "duo", "carry", "skills", "rollers", "table",
-                             "seated", "unknown"}}
-        filters = dict(traffic=traffic, page=page, device=device, cache=cache,
-                       backend=backend, scene=scene)
-        if (hours not in {1, 24, 168, 720, 2160}
-                or any(v not in allowed[k] for k, v in filters.items())
-                or (room != "all" and not re.fullmatch(r"[1-9][0-9]?", room))
-                or (release not in {"all", "development"}
-                    and not re.fullmatch(r"[a-f0-9]{40}", release))):
+    async def experience_summary(
+        hours: int = 168,
+        traffic: str = "interactive",
+        page: str = "all",
+        device: str = "all",
+        cache: str = "all",
+        room: str = "all",
+        release: str = "all",
+        backend: str = "all",
+        scene: str = "all",
+    ):
+        allowed = {
+            "traffic": {"all", "interactive", "demo", "verification", "unattributed"},
+            "page": {"all", "home", "scenarios", "demos", "studio", "unknown"},
+            "device": {"all", "mobile", "desktop", "unknown"},
+            "cache": {"all", "network", "http", "persistent", "memory", "unknown"},
+            "backend": {"all", "preview", "mujoco", "robotd", "unknown"},
+            "scene": {
+                "all",
+                "ball",
+                "duo",
+                "carry",
+                "skills",
+                "rollers",
+                "table",
+                "seated",
+                "stage",
+                "unknown",
+            },
+        }
+        filters = dict(
+            traffic=traffic, page=page, device=device, cache=cache, backend=backend, scene=scene
+        )
+        if (
+            hours not in {1, 24, 168, 720, 2160}
+            or any(v not in allowed[k] for k, v in filters.items())
+            or (room != "all" and not re.fullmatch(r"[1-9][0-9]?", room))
+            or (
+                release not in {"all", "development"} and not re.fullmatch(r"[a-f0-9]{40}", release)
+            )
+        ):
             raise HTTPException(422, "未知统计筛选")
         result = await anyio.to_thread.run_sync(lambda: app.state.experience.snapshot(
             hours=hours, room=room, release=release, **filters))
@@ -257,9 +280,16 @@ def create_app(
     @app.post("/api/scenes/start", status_code=202)
     async def start_scene(body: Action, room: str = "1"):
         if (
-            body.name not in {
-                "scene_ball", "scene_duo", "scene_carry", "scene_table", "scene_seated",
-                "scene_skills", "scene_rollers"
+            body.name
+            not in {
+                "scene_ball",
+                "scene_duo",
+                "scene_carry",
+                "scene_table",
+                "scene_seated",
+                "scene_skills",
+                "scene_rollers",
+                "scene_stage",
             }
             or body.target != "a"
         ):
@@ -282,7 +312,8 @@ def create_app(
                         backend = await asyncio.to_thread(MuJoCoBackend, assets)
                         selected.scene_motion = MotionController(backend)
                         selected.scene_motion.studio = Studio(
-                            selected.scene_motion, selected.settings.data_dir)
+                            selected.scene_motion, selected.settings.data_dir
+                        )
                     except Exception as exc:
                         raise HTTPException(
                             503, "物理场景未就绪，请运行 scripts/setup_scenarios.sh 并重新启动服务"
@@ -426,6 +457,19 @@ def create_app(
             "official_model_load source=browser_reported room=%s %s", room, body.model_dump_json()
         )
         return Response(status_code=204)
+
+    @app.post("/api/scenes/stage/selection")
+    async def stage_selection(request: Request, room: str = "1"):
+        from .stage import StageSelection
+
+        try:
+            selection = StageSelection.model_validate(await request.json())
+            backend = scene_controller(room).backend
+            if not backend.stage:
+                raise ValueError("请先准备四鸭发布会舞台")
+            return backend.stage.select(selection)
+        except (ValueError, TypeError) as exc:
+            raise HTTPException(422, "点选无效或舞台已重置，请重新点选") from exc
 
     @app.get("/api/scenes/state")
     async def scene_state(room: str = "1"):

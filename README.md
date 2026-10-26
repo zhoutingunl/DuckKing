@@ -1,6 +1,6 @@
 # DuckKing
 
-通过语音和按钮控制 MicroDuck，在浏览器中完成踢球、搬运、前滚翻、轮滑与四鸭合唱。支持服务器离线识别优先、真实灵矽语音、两个独立房间和十二幕自动演示。
+通过语音和按钮控制 MicroDuck，在浏览器中完成踢球、搬运、前滚翻、轮滑与四鸭合唱。支持服务器离线识别优先、真实灵矽语音、两个独立房间和十三幕自动演示。
 
 [在线体验](https://ztmonitor.qbox.net/duckking/) · [演示场景](https://ztmonitor.qbox.net/duckking/demos.html) · [物理实验室](https://ztmonitor.qbox.net/duckking/scenarios.html) · [部署记录](https://ztmonitor.qbox.net/duckking/deploys.html)
 
@@ -16,7 +16,7 @@
 |---|---|
 | [语音工作台](https://ztmonitor.qbox.net/duckking/) | 点头、摇头、歪头、前后移动、横移、左右转、两个舞步；连接语音或选择本地优先 |
 | [物理实验室](https://ztmonitor.qbox.net/duckking/scenarios.html) | 单鸭踢球、双鸭互动、嘴部搬运、动作练习场、轮滑；按钮无需启用语音 |
-| [演示场景](https://ztmonitor.qbox.net/duckking/demos.html) | 十二幕逐幕点播；预录对白本地编排与灵矽实连预录指令可现场切换 |
+| [演示场景](https://ztmonitor.qbox.net/duckking/demos.html) | 十三幕逐幕点播；预录对白本地编排与灵矽实连预录指令可现场切换 |
 | [使用体验](https://ztmonitor.qbox.net/duckking/experience.html) | 持续保存浏览器加载/语音与服务器处理时延；均值、P50/P90/P95、趋势、来源及版本筛选，跨重启保留，见 [口径说明](docs/EXPERIENCE_METRICS.md) |
 | [交互统计](https://ztmonitor.qbox.net/duckking/statistics.html) | 识别文本、实际动作、逐轮时间线、本地/灵矽识别均值及 P50/P90/P95、本地命中与云端回退；按房间和后端查看 |
 | [部署记录](https://ztmonitor.qbox.net/duckking/deploys.html) | 版本、验收结果、变更提交与 GitHub 对比、对应提交的后端行／分支覆盖率 |
@@ -83,7 +83,7 @@ uv run duckking-setup --room 2
 
 停止和 Esc 会取消动作并清零运动意图，物理重力继续；搬运停止保留已建立的夹持，放下需显式操作。动作失败显示实际原因，不以预设动画代替成功。接触计数是物理步中接触点的累计，不是独立碰撞次数。
 
-## 十二幕自动演示
+## 十三幕自动演示
 
 ![四鸭坐姿合唱：轮到独唱的鸭子站起来，唱完坐回](docs/media/theatre-current.png)
 
@@ -101,6 +101,8 @@ uv run duckking-setup --room 2
 10. 四声部谢幕：官方 `wistful` 乐谱节选；两只物理鸭加两个虚拟声部。
 11. 桌上不掉拍：四鸭踏步和声，鸭 D 真实离桌、落地、站稳后续舞；可选《欢乐颂》《两只老虎》及用户提供的《夜空中最亮的星》片段。
 12. 轮到我开唱：四鸭坐着合唱《欢乐颂》，A—D 轮流站稳独唱、唱完坐回。
+
+13. 黄仁勋的四只小鸭：随机散落、集结排队后坐下、点名前滚翻就地坐下、选中鸭同拍齐舞；另有真人语音、指挥棒点选与物理轻戳。
 
 第 10—12 幕在两种模式下均明确标为本地音乐与物理编排，不是灵矽生成歌声或官方 BLE 合唱。桌上跌落是预设剧情，结果由 MuJoCo 决定；个别跌落姿态可能无法恢复，届时会报失败。第 7 幕需要两个空闲房间。节目来源、音源处理与效果说明见 [演示剧场](docs/DEMO_THEATRE.md)。
 
@@ -134,7 +136,7 @@ npm run test:e2e
 npm run test:e2e:dev
 ```
 
-CI 要求后端总体行覆盖率 ≥90%、分支覆盖率 ≥85%。后端、前端和四组浏览器检查使用独立 runner 并行；每种浏览器模式将完整十二幕与其余检查分开，清单保证不遗漏、不重复。全部成功后 `quality` 才通过，同一 PR 的新提交自动取消旧运行。首轮并行实测从约 34 分钟缩短到 **9 分 21 秒**，见 [CI 分析](docs/DEVELOPMENT.md#ci-并行分组)。
+CI 要求后端总体行覆盖率 ≥90%、分支覆盖率 ≥85%。后端、前端和四组浏览器检查使用独立 runner 并行；每种浏览器模式将完整十三幕与其余检查分开，清单保证不遗漏、不重复。全部成功后 `quality` 才通过，同一 PR 的新提交自动取消旧运行。首轮并行实测从约 34 分钟缩短到 **9 分 21 秒**，见 [CI 分析](docs/DEVELOPMENT.md#ci-并行分组)。
 
 [验证记录](docs/VALIDATION.md) 提供绑定具体提交的测试数量和覆盖率；前端当前覆盖门槛只统计 `audio-codec.js`，不能作为全前端覆盖率。部署页展示的是对应发布提交的 Python 后端覆盖率，没有历史报告时显示“未记录”。
 

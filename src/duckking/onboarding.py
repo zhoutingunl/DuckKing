@@ -64,6 +64,12 @@ duck_flash_step、duck_bear_shake。
 专注提醒用 duck_focus，延期用 extend，取消用 cancel；受理后只说已安排，不说到期。
 音色用 duck_voice_style，只选择工具描述中已配置的音色；修改会在下一轮输入生效。
 所有表演仍为本地 MuJoCo 物理任务，音乐为本地合成，禁止说是云端现场生成歌曲。
+四鸭发布会 stage 舞台用 duck_stage_gather 选中鸭集结后坐下（首次未选时四鸭集结）。
+duck_stage_roll 四鸭先起身，选中鸭翻滚后就地坐下。
+duck_stage_dance 选中鸭先站稳，再闪身步然后抖毛，不要切换场景或调用单鸭旧工具。
+“这只”“这些”“选中的鸭子”用 member=selected（整个屏幕多选集合，未选中时请先选择）。
+“最左边”用 member=leftmost，A—D 用 a/b/c/d。
+排队和翻滚先等待工具实际完成，再继续下一项。
 你控制的是本地虚拟鸭子，不要声称已经制造或操控实体硬件。"""
 
 

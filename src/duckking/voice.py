@@ -262,6 +262,9 @@ class VoiceSession:
         if start:
             if self.state != "ready":
                 raise ValueError("请等待灵矽连接就绪或回答结束")
+            stage = getattr(self.motion.backend, "stage", None)
+            if stage:
+                stage.capture_reference()
             self.started = time.monotonic()
             self.last_activity = self.started
             self.turn = self.diagnostics.next_turn()
@@ -442,10 +445,22 @@ class VoiceSession:
             await self.publish_status()
 
     async def _watch(self):
+        stage_progress = None
         try:
             while True:
                 await asyncio.sleep(WATCHDOG_INTERVAL)
                 now = time.monotonic()
+                # A bounded stage action may take longer than response-idle. Only
+                # advancing real physics counts as activity; the turn cap remains.
+                backend = self.motion.backend
+                stage = getattr(backend, "stage", None)
+                if stage and stage.running and self.motion.current:
+                    progress = (self.motion.current["id"], float(backend.data.time))
+                    if progress != stage_progress:
+                        self.last_activity = now
+                    stage_progress = progress
+                else:
+                    stage_progress = None
                 if self.state == "listening" and now - self.started >= RECORDING_LIMIT:
                     self.record("timeout", reason="recording_limit")
                     await self.listen(False)

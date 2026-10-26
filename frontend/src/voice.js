@@ -4,7 +4,7 @@ import { appURL } from './urls.js';
 import { createSocket } from './transport.js';
 import { VoiceAudio } from './audio-output.js';
 
-export function setupVoice({appendLog,notify,endpoint='/voice',cloudOnly=false}){
+export function setupVoice({appendLog,notify,endpoint='/voice',cloudOnly=false,beforeListen=null}){
   const $=id=>document.getElementById(id),talk=$('talk-button'),connect=$('connect-voice'),connectLabel=$('connect-label');
   let ws=null,state='disconnected',pressed=false,recording=null,timeout=null,heartbeat=null,closingTimer=null,voiceNotice=null;
   function voiceError(text){voiceNotice=text;notify(text)}
@@ -100,6 +100,8 @@ export function setupVoice({appendLog,notify,endpoint='/voice',cloudOnly=false})
       if(!pressed||ws!==channel||attempt!==captureId){stream.getTracks().forEach(track=>track.stop());return}
       const source=context.createMediaStreamSource(stream),node=new AudioWorkletNode(context,'duck-capture');
       const framer=new PCMFramer(context.sampleRate);
+      if(beforeListen)await beforeListen();
+      if(!pressed||ws!==channel||attempt!==captureId){source.disconnect();node.disconnect();stream.getTracks().forEach(track=>track.stop());return}
       recording={stream,node,source,context,framer};
       send({type:'listen_start',experience:experience.start(mode,ws?.transport)});
       node.port.onmessage=event=>{if(pressed)framer.push(event.data).forEach(frame=>send(frame))};
@@ -190,7 +192,7 @@ export function setupVoice({appendLog,notify,endpoint='/voice',cloudOnly=false})
   // A history-cache restore reuses a document whose microphone and audio were closed.
   window.addEventListener('pageshow',event=>{if(event.persisted)window.location.reload()});
   window.addEventListener('pagehide',()=>{clearInterval(heartbeat);clearTimeout(closingTimer);release(false);ws?.close();output.close();clearTimeout(audioReportTimer)});
-  return {send, get state(){return state}, clearPlayback, interrupt(){
+  return {send, disconnect(){if(ws?.readyState===WebSocket.OPEN)send({type:'disconnect'});else ws?.close();clearPlayback()}, get state(){return state}, clearPlayback, interrupt(){
     clearPlayback();
     if(['ready','thinking','speaking'].includes(state)){
       experience.finish('cancelled');minGeneration=generation+1;state='interrupting';send({type:'interrupt'});update();

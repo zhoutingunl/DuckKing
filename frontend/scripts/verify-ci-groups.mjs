@@ -17,9 +17,17 @@ function list(dev,args=[]){
   return collect(report.suites);
 }
 for(const dev of ['0','1']){
-  const all=list(dev),journey=list(dev,['--grep','@journey']),checks=list(dev,['--grep-invert','@journey']);
-  assert.ok(journey.length>0&&checks.length>0);
-  assert.equal(new Set([...journey,...checks]).size,journey.length+checks.length);
-  assert.deepEqual([...journey,...checks].sort(),all.sort());
-  console.log(`${dev==='1'?'development':'production'}: ${all.length} tests = ${journey.length} journey + ${checks.length} checks; no omissions or duplicates`);
+  const all=list(dev),groups={journey:['--grep','@journey'],stage:['--grep','@stage'],checks:['--grep-invert','@journey|@stage']};
+  const collected=[];
+  for(const [name,args] of Object.entries(groups)){
+    const expected=list(dev,args),parts=[1,2].map(shard=>list(dev,[...args,`--shard=${shard}/2`])),shards=parts.flat();
+    assert.ok(parts.every(part=>part.length>0),`${name}: empty shard`);
+    assert.ok(expected.length>0);
+    assert.equal(new Set(shards).size,shards.length,`${name}: duplicate shard test`);
+    assert.deepEqual(shards.sort(),expected.sort(),`${name}: omitted shard test`);
+    collected.push(...shards);
+  }
+  assert.equal(new Set(collected).size,collected.length);
+  assert.deepEqual(collected.sort(),all.sort());
+  console.log(`${dev==='1'?'development':'production'}: ${all.length} tests across journey / stage / checks, each in two shards; no omissions or duplicates`);
 }
