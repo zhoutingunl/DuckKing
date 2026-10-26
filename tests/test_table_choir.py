@@ -213,3 +213,36 @@ async def test_cancelled_cold_compile_is_reused_and_cannot_change_scene_later(mo
     finally:
         release.set()
         await motion.close()
+
+
+@pytest.mark.parametrize("idle_ticks", [0, 50, 150, 300])
+async def test_table_departure_is_independent_of_async_observer_cadence(backend, idle_ticks):
+    proofs = []
+    for burst in (1, 4):
+        backend.load("table")
+        for _ in range(idle_ticks):
+            backend.tick()
+
+        async def paced_loop(batch=burst):
+            # Change only event-loop pacing. Physics is still 5 ms integration
+            # and policy commands are sampled every 20 ms in both cases.
+            while True:
+                for _ in range(batch):
+                    backend.tick()
+                await asyncio.sleep(0.001)
+
+        backend._loop = paced_loop
+        motion = MotionController(backend)
+        try:
+            action = Action(name="table_show")
+            await motion.submit(action)
+            result = await motion.wait(action.request_id)
+            assert result["status"] == "completed", result
+            out = result["outcome"]
+            assert out["ground_contacts"][:3] == [0, 0, 0]
+            assert out["floor_dance"]["started_at"] is not None
+            assert min(out["floor_dance"]["knee_excursion_deg"]) > 25
+            proofs.append((out["dropped_at"], out["landed_at"], out["floor_dance"]["started_at"]))
+        finally:
+            await motion.close()
+    np.testing.assert_allclose(proofs[0], proofs[1], atol=0.021, rtol=0)

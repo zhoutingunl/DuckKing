@@ -100,6 +100,7 @@ class TableChoir:
         self.floor_min = [float("inf")] * 4
         self.floor_max = [float("-inf")] * 4
         self.floor_drift = 0.0
+        self.sim_start = None
 
     def update(self):
         b = self.backend
@@ -193,64 +194,74 @@ class TableChoir:
             "source": "scripted_gait_real_contacts_gravity",
         }
 
+    def step(self):
+        """One policy command per 20 ms physics tick, independent of UI pacing."""
+        if not self.running or self.sim_start is None:
+            return
+        b = self.backend
+        elapsed = float(b.data.time) - self.sim_start
+        self.elapsed = elapsed
+        reaction = self.dropped_at is not None and elapsed - self.dropped_at < 1.2
+        self.phase = (
+            "surprised"
+            if reaction
+            else "rejoin"
+            if self.landed_at is not None
+            else "edge"
+            if elapsed >= 16
+            else "singing"
+        )
+        for i, driver in enumerate(b.drivers):
+            driver.command[:] = 0
+            if i == 3 and self.dropped_at is not None:
+                if self.landed_at is not None and elapsed - self.landed_at > 1.2:
+                    position, yaw = driver.pose(b.data)
+                    upright = position[2] > 0.10 and b.data.xmat[driver.body, 8] > 0.85
+                    if self.floor_dance_at is None:
+                        if not upright:
+                            self.floor_stable_since = None
+                        elif self.floor_stable_since is None:
+                            self.floor_stable_since = elapsed
+                        elif elapsed - self.floor_stable_since >= 0.4:
+                            self.floor_anchor = tuple(position[:2])
+                            self.floor_heading = yaw
+                            self.floor_dance_at = elapsed
+                    if self.floor_dance_at is not None:
+                        dance_command(
+                            driver,
+                            b.data,
+                            i,
+                            elapsed,
+                            anchor=self.floor_anchor,
+                            heading=self.floor_heading,
+                        )
+                continue
+            if not reaction:
+                if i < 3 or elapsed < 16:
+                    dance_command(driver, b.data, i, elapsed)
+            else:
+                driver.command[5] = 0.30
+            # A bounded forward gait crosses the real table edge. No
+            # force impulse, root teleport, or moving floor is applied.
+            if i == 3 and 16 <= elapsed < 19:
+                driver.command[:] = 0
+                driver.command[0] = 0.35
+
     async def perform(self):
         b = self.backend
         if self.phase != "ready" or not all(self.supported):
             raise ValueError("请重置桌上合唱场景，确认四只鸭都站在桌面上")
         self.running = True
         self.phase = "singing"
-        start, sim_start = time.monotonic(), float(b.data.time)
+        start = time.monotonic()
+        self.sim_start = float(b.data.time)
         try:
-            while (elapsed := time.monotonic() - start) < SHOW_DURATION:
+            self.step()
+            while b.data.time - self.sim_start < SHOW_DURATION:
                 b.ensure_running()
-                if elapsed > 2 and b.data.time - sim_start < elapsed * 0.5:
+                wall_elapsed = time.monotonic() - start
+                if wall_elapsed > 2 and b.data.time - self.sim_start < wall_elapsed * 0.5:
                     raise ValueError("桌上表演物理推进过慢，已停止，请重演")
-                self.elapsed = elapsed
-                reaction = self.dropped_at is not None and elapsed - self.dropped_at < 1.2
-                self.phase = (
-                    "surprised"
-                    if reaction
-                    else "rejoin"
-                    if self.landed_at is not None
-                    else "edge"
-                    if elapsed >= 16
-                    else "singing"
-                )
-                for i, driver in enumerate(b.drivers):
-                    driver.command[:] = 0
-                    if i == 3 and self.dropped_at is not None:
-                        if self.landed_at is not None and elapsed - self.landed_at > 1.2:
-                            position, yaw = driver.pose(b.data)
-                            upright = position[2] > 0.10 and b.data.xmat[driver.body, 8] > 0.85
-                            if self.floor_dance_at is None:
-                                if not upright:
-                                    self.floor_stable_since = None
-                                elif self.floor_stable_since is None:
-                                    self.floor_stable_since = elapsed
-                                elif elapsed - self.floor_stable_since >= 0.4:
-                                    self.floor_anchor = tuple(position[:2])
-                                    self.floor_heading = yaw
-                                    self.floor_dance_at = elapsed
-                            if self.floor_dance_at is not None:
-                                dance_command(
-                                    driver,
-                                    b.data,
-                                    i,
-                                    elapsed,
-                                    anchor=self.floor_anchor,
-                                    heading=self.floor_heading,
-                                )
-                        continue
-                    if not reaction:
-                        if i < 3 or elapsed < 16:
-                            dance_command(driver, b.data, i, elapsed)
-                    else:
-                        driver.command[5] = 0.30
-                    # A bounded forward gait crosses the real table edge. No
-                    # force impulse, root teleport, or moving floor is applied.
-                    if i == 3 and 16 <= elapsed < 19:
-                        driver.command[:] = 0
-                        driver.command[0] = 0.35
                 await asyncio.sleep(0.02)
             self.elapsed = SHOW_DURATION
             verified = bool(

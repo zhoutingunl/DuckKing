@@ -264,6 +264,8 @@ class MuJoCoBackend:
         self.sim_start = float(self.data.time)
 
     def tick(self):
+        if self.tabletop:
+            self.tabletop.step()
         if self.idle:
             self.idle.tick()
         for driver in self.drivers:
