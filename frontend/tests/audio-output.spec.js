@@ -148,13 +148,16 @@ test('short press retains the very first PCM frame before async preparation comp
     }});
     const get=navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
     navigator.mediaDevices.getUserMedia=async options=>{
-      await new Promise(resolve=>setTimeout(resolve,600));
+      // Hold permission until the test observes standby, independent of runner load.
+      await new Promise(resolve=>window.allowCapture=resolve);
       const stream=await get(options);window.captureStream=stream;return stream;
     };
   });
   await page.goto('/?room=1');await page.locator('#connect-voice').click();
   await expect(page.locator('#voice-badge')).toHaveText('灵矽已连接');
+  await expect.poll(()=>page.evaluate(()=>typeof window.allowCapture)).toBe('function');
   await expect(page.locator('#talk-button')).toBeDisabled();
+  await page.evaluate(()=>allowCapture());
   await expect(page.locator('#talk-button')).toBeEnabled();
   expect(frames).toHaveLength(0);
   // Controlled PCM at the worklet boundary: no cloud recognition claim.
