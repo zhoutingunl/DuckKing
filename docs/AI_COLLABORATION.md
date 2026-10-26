@@ -1,6 +1,6 @@
 # AI 协作说明
 
-DuckKing 围绕“复刻一台 Micro Duck，并在其内装上灵矽通过语音交互”迭代软件原型。人类维护者提出目标、选择方案、反馈手机和网页体验；AI 辅助阅读代码、实现、排障、验证与整理交付材料。本轮维护使用 Codex，确认的维护账号为 [@zhoutingunl](https://github.com/zhoutingunl)。目前没有足够记录统计整个项目的 AI 生成代码比例、模型用量或节省工时，也不把 AI 算作额外参赛队员。
+DuckKing 由周霆（[@zhoutingunl](https://github.com/zhoutingunl)）与陶纯堂（[@evanwooo](https://github.com/evanwooo)）围绕“复刻一台 Micro Duck，并在其内装上灵矽通过语音交互”合作开发。周霆主要负责目标、方案、开发集成与交付，陶纯堂主要通过 PR review、comment、改进反馈及界面代码参与；[团队分工](TEAM.md)提供实际协作记录。AI 辅助阅读代码、实现、排障、验证与整理材料，本轮维护使用 Codex。目前没有足够记录统计整个项目的 AI 生成代码比例、模型用量或节省工时，也不把 AI 算作额外参赛队员。
 
 ## 开发协作与产品中的 AI
 
