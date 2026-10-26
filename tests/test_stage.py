@@ -247,7 +247,7 @@ async def test_reference_is_captured_per_voice_turn_and_stale_selection_is_rejec
             instance=backend.stage.instance,
         )
     )
-    assert backend.stage.voice_reference == ("c", "d")
+    assert backend.stage.voice_reference == (("c",), "d")
     with pytest.raises(ValueError, match="重置"):
         backend.stage.select(
             StageSelection(target="a", revision="stale", instance=backend.stage.instance)
@@ -278,7 +278,7 @@ def test_selection_endpoint_validates_room_revision_and_order(tmp_path):
             "revision": revision,
             "instance": state["backend"]["stage"]["instance"],
         }
-        assert client.post("/api/scenes/stage/selection", json=valid).json()["selected"] == "d"
+        assert client.post("/api/scenes/stage/selection", json=valid).json()["selected"] == ["d"]
         assert (
             client.post(
                 "/api/scenes/stage/selection", json=valid | {"order": list("aaaa")}
@@ -296,10 +296,10 @@ def test_selection_endpoint_validates_room_revision_and_order(tmp_path):
 async def test_voice_reference_is_used_by_mcp_even_if_selection_changes(backend, monkeypatch):
     motion = MotionController(backend)
     mcp = DeviceMCP(motion, "reference")
-    backend.stage.selected = "c"
+    backend.stage.selected = ["b", "c"]
     backend.stage.order = list("dcba")
     backend.stage.capture_reference()
-    backend.stage.selected = "a"
+    backend.stage.selected = ["a"]
     backend.stage.order = list("abcd")
     seen = []
 
@@ -321,7 +321,8 @@ async def test_voice_reference_is_used_by_mcp_even_if_selection_changes(backend,
             }
         )
         assert not result["result"]["isError"]
-    assert [a.member for a in seen] == ["c", "d", "b"]
+    assert seen[0].members == ["b", "c"]
+    assert [a.member for a in seen[1:]] == ["d", "b"]
     result = await mcp.handle(
         {
             "jsonrpc": "2.0",
@@ -374,3 +375,104 @@ async def test_slow_but_advancing_stage_does_not_hit_response_idle_and_still_has
     assert resets == [True]
     motion.current = None
     await motion.close()
+
+
+def selection_for(backend, **changes):
+    return StageSelection(revision=backend.revision, instance=backend.stage.instance, **changes)
+
+
+async def test_multiselect_toggle_empty_and_roll_each_selected_robot(backend):
+    stage = backend.stage
+    assert stage.selected == []
+    stage.select(selection_for(backend, operation="toggle", target="b"))
+    stage.select(selection_for(backend, operation="toggle", target="c"))
+    stage.select(selection_for(backend, operation="toggle", target="b"))
+    assert stage.selected == ["c"]
+    stage.select(selection_for(backend, operation="toggle", target="c"))
+    assert stage.selected == []
+    with pytest.raises(ValueError, match="选中"):
+        stage.members("selected")
+    stage.select(selection_for(backend, targets=["c", "b"]))
+    assert stage.selected == ["b", "c"]
+    stage.select(selection_for(backend, operation="order", order=list("dcba")))
+    assert stage.selected == ["b", "c"] and stage.members("leftmost") == ["d"]
+    motion = MotionController(backend)
+    try:
+        result = await run(motion, "stage_gather")
+        assert result["status"] == "completed", result
+        waiting = stage.positions()
+        result = await run(motion, "stage_roll")
+        assert result["status"] == "completed", result
+        assert result["outcome"]["members"] == ["b", "c"]
+        assert [r["member"] for r in result["outcome"]["results"]] == ["b", "c"]
+        assert all(r["rotation_rad"] > 5 and r["returned"] for r in result["outcome"]["results"])
+        assert all(
+            math.dist(p, waiting[i]) < 0.12 for i, p in enumerate(stage.positions()) if i in {0, 3}
+        )
+        assert stage.selected == ["b", "c"]
+        stage.select(selection_for(backend, targets=[]))
+        result = await run(motion, "stage_roll")
+        assert result["status"] == "failed" and "选中" in result["error"]
+    finally:
+        await motion.close()
+
+
+async def test_multiselect_cancel_clears_all_rollers_without_reporting_completion(backend):
+    motion = MotionController(backend)
+    try:
+        assert (await run(motion, "stage_gather"))["status"] == "completed"
+        backend.stage.select(selection_for(backend, targets=["b", "c"]))
+        a = Action(name="stage_roll")
+        await motion.submit(a)
+        await asyncio.sleep(0.1)
+        await run(motion, "stop")
+        assert (await motion.wait(a.request_id))["status"] == "cancelled"
+        assert backend.stage.last_roll is None
+        assert all(not d.command.any() and d.policy != "roulade" for d in backend.drivers)
+    finally:
+        await motion.close()
+
+
+@pytest.mark.parametrize(
+    "changes",
+    [
+        {"targets": ["b", "b"]},
+        {"targets": ["e"]},
+        {"operation": "toggle", "targets": ["b"]},
+        {"operation": "order", "target": "b"},
+        {},
+    ],
+)
+def test_selection_rejects_invalid_sets(backend, changes):
+    with pytest.raises(ValidationError):
+        selection_for(backend, **changes)
+
+
+async def test_all_four_selected_roll_and_return_together(backend):
+    motion = MotionController(backend)
+    try:
+        assert (await run(motion, "stage_gather"))["status"] == "completed"
+        backend.stage.select(selection_for(backend, targets=list(MEMBERS)))
+        result = await run(motion, "stage_roll")
+        assert result["status"] == "completed", result
+        assert result["outcome"]["members"] == list(MEMBERS)
+        assert all(
+            r["rotation_rad"] > 5 and r["standing"]["supported"]
+            for r in result["outcome"]["results"]
+        )
+    finally:
+        await motion.close()
+
+
+@pytest.mark.parametrize(
+    "values",
+    [
+        {"name": "stage_roll", "members": []},
+        {"name": "stage_roll", "members": ["b", "b"]},
+        {"name": "stage_roll", "members": ["b"], "member": "c"},
+        {"name": "walk", "members": ["b"]},
+    ],
+)
+def test_roll_member_sets_are_validated_before_motion(values):
+    with pytest.raises(ValidationError):
+        Action(**values)

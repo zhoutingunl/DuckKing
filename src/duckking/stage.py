@@ -11,6 +11,7 @@ import random
 import time
 import uuid
 import xml.etree.ElementTree as ET
+from typing import Literal
 
 import mujoco
 from pydantic import BaseModel, ConfigDict, Field, model_validator
@@ -27,7 +28,9 @@ LIMIT = 1.65
 
 class StageSelection(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    target: str = Field(pattern="^[abcd]$")
+    target: Literal["a", "b", "c", "d"] | None = None
+    targets: list[Literal["a", "b", "c", "d"]] | None = Field(default=None, max_length=4)
+    operation: Literal["set", "toggle", "order"] = "set"
     order: list[str] = Field(default_factory=lambda: list(MEMBERS), min_length=4, max_length=4)
     revision: str
     instance: str
@@ -36,6 +39,16 @@ class StageSelection(BaseModel):
     def unique_order(self):
         if set(self.order) != set(MEMBERS):
             raise ValueError("屏幕顺序必须恰好包含 A—D")
+        if self.operation == "toggle":
+            if self.target is None or self.targets is not None:
+                raise ValueError("切换选择需要一个目标")
+        elif self.operation == "order":
+            if self.target is not None or self.targets is not None:
+                raise ValueError("更新屏幕顺序不能改变选择")
+        elif (self.target is None) == (self.targets is None):
+            raise ValueError("请提供单个目标或完整选择集合")
+        if self.targets is not None and len(set(self.targets)) != len(self.targets):
+            raise ValueError("选择集合不能重复")
         return self
 
 
@@ -113,7 +126,8 @@ class FloorStage:
         self.b, self.seed = backend, seed
         self.instance = uuid.uuid4().hex
         self.rng = random.Random(seed)
-        self.selected = "a"
+        self.selected = []
+        self.selection_version = 0
         self.order = list(MEMBERS)
         self.voice_reference = None
         self.phase = "scattered"
@@ -130,20 +144,38 @@ class FloorStage:
     def select(self, selection):
         if selection.revision != self.b.revision or selection.instance != self.instance:
             raise ValueError("舞台已重置，请重新点选")
-        self.selected, self.order = selection.target, selection.order
+        if selection.operation == "toggle":
+            if selection.target in self.selected:
+                self.selected.remove(selection.target)
+            else:
+                self.selected.append(selection.target)
+        elif selection.operation == "set":
+            self.selected = (
+                list(selection.targets) if selection.targets is not None else [selection.target]
+            )
+        self.selected = [c for c in MEMBERS if c in self.selected]
+        self.order = selection.order.copy()
+        self.selection_version += 1
         return self.snapshot()
 
     def capture_reference(self):
-        self.voice_reference = (self.selected, self.order[0])
+        self.voice_reference = (tuple(self.selected), self.order[0])
+
+    def members(self, target):
+        chosen = (
+            self.selected.copy()
+            if target == "selected"
+            else [self.order[0] if target == "leftmost" else target]
+        )
+        if not chosen:
+            raise ValueError("请先用指挥棒或勾选框选中要翻跟头的鸭子")
+        return chosen
 
     def member(self, target):
-        return (
-            self.selected
-            if target == "selected"
-            else self.order[0]
-            if target == "leftmost"
-            else target
-        )
+        chosen = self.members(target)
+        if len(chosen) != 1:
+            raise ValueError("轻戳一次只能指定一只鸭子")
+        return chosen[0]
 
     def positions(self):
         return [d.pose(self.b.data)[0][:2] for d in self.b.drivers]
@@ -322,51 +354,64 @@ class FloorStage:
             raise ValueError("请先让四鸭集结排队，当前未确认全部归位")
         self.guard()
 
-    async def roll(self, member):
+    async def roll(self, members):
         self.require_line()
-        index = MEMBERS.index(member)
-        self.selected = member
-        d = self.b.drivers[index]
+        indices = [MEMBERS.index(member) for member in members]
         anchors = self.positions()
         self.phase = "rolling"
-        # Same official one-shot, now measured for the selected prefixed robot.
-        d.command[:] = 0
-        d.policy = "roulade"
-        d.phase_started = float(self.b.data.time)
-        d.until = d.phase_started + 2
-        last, rotation, low = 0.0, 0.0, 1.0
-        min_rotation = max_rotation = 0.0
+        runs = {}
         start = float(self.b.data.time)
+        for i in indices:
+            d = self.b.drivers[i]
+            d.command[:] = 0
+            d.policy = "roulade"
+            d.phase_started, d.until = start, start + 2
+            runs[i] = {"last": 0.0, "rotation": 0.0, "minimum": 0.0, "maximum": 0.0, "low": 1.0}
         deadline = time.monotonic() + 15
         while self.b.data.time - start < 6:
             self.b.ensure_running()
             if time.monotonic() > deadline:
                 raise ValueError("前滚翻推进超时")
-            rot = self.b.data.xmat[d.body].reshape(3, 3)
-            current = math.atan2(-rot[2, 0], rot[2, 2])
-            rotation += angle(current - last)
-            last = current
-            min_rotation, max_rotation = min(min_rotation, rotation), max(max_rotation, rotation)
-            low = min(low, float(rot[2, 2]))
+            for i, run in runs.items():
+                rot = self.b.data.xmat[self.b.drivers[i].body].reshape(3, 3)
+                current = math.atan2(-rot[2, 0], rot[2, 2])
+                run["rotation"] += angle(current - run["last"])
+                run["last"] = current
+                run["minimum"] = min(run["minimum"], run["rotation"])
+                run["maximum"] = max(run["maximum"], run["rotation"])
+                run["low"] = min(run["low"], float(rot[2, 2]))
             if any(
                 math.dist(p, anchors[j]) > 0.12
                 for j, p in enumerate(self.positions())
-                if j != index
+                if j not in runs
             ):
                 raise ValueError("候场鸭偏离原位，前滚翻已停止")
             await asyncio.sleep(0.02)
-        pose = measure_posture(self.b, d)
-        if low >= -0.5 or max_rotation - min_rotation < 5 or pose["observed"] != "stand":
-            raise ValueError("未确认完整前滚翻和恢复站稳")
+        results = []
+        for i, run in runs.items():
+            pose = measure_posture(self.b, self.b.drivers[i])
+            rotation = run["maximum"] - run["minimum"]
+            if run["low"] >= -0.5 or rotation < 5 or pose["observed"] != "stand":
+                raise ValueError(f"未确认鸭 {MEMBERS[i].upper()} 完整前滚翻和恢复站稳")
+            results.append(
+                {
+                    "member": MEMBERS[i],
+                    "rotation_rad": rotation,
+                    "min_upright": run["low"],
+                    "standing": pose,
+                    "returned": True,
+                }
+            )
         self.phase = "returning"
-        await self.navigate([index], {index: SLOTS[index]}, max_seconds=18)
+        await self.navigate(indices, {i: SLOTS[i] for i in indices}, max_seconds=18)
         self.last_roll = {
-            "member": member,
-            "rotation_rad": max_rotation - min_rotation,
-            "min_upright": low,
-            "standing": pose,
+            "members": members.copy(),
+            "results": results,
             "returned": True,
+            "rotation_rad": min(r["rotation_rad"] for r in results),
         }
+        if len(results) == 1:
+            self.last_roll.update(results[0])
         self.phase = "lined_up"
         return {"verified": True, **self.last_roll}
 
@@ -415,7 +460,6 @@ class FloorStage:
         return {"verified": True, **self.last_dance}
 
     async def poke(self, member):
-        self.selected = member
         d = self.b.drivers[MEMBERS.index(member)]
         self.phase = "poking"
         try:
@@ -460,7 +504,8 @@ class FloorStage:
             "running": self.running,
             "seed": self.seed,
             "instance": self.instance,
-            "selected": self.selected,
+            "selected": self.selected.copy(),
+            "selection_version": self.selection_version,
             "screen_order": self.order,
             "slots": SLOTS,
             "arrived": self.arrived.copy(),

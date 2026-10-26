@@ -26,11 +26,11 @@ export const DEMOS=[
   steps:[line('table-intro','四位歌手，一张桌子。请把掌声留到最后，桌子的面积有限。','旁白'),{kind:'table_music'},line('table-end','我没掉队，只是把低音部，搬到了楼下。')]},
  {id:'seated',title:'轮到我开唱',hook:'一起坐着唱，轮到谁，谁站起来。',scene:'seated',source:'新增坐姿合唱',duration:'约 45 秒',
   steps:[{kind:'seated_music'}]},
- {id:'stage',title:'黄仁勋的四只小鸭',hook:'散落、哈欠、排队。点一只翻跟头，再四鸭同拍齐舞。',scene:'stage',source:'GTC 互动桥段 · 中文改编',duration:'约 60–100 秒',
-  steps:[command('stage-gather','嘿，小家伙们，到中间来站成一排，让大家看你们表演。',['stage_gather']),command('stage-roll','最左边的鸭子，能翻个跟头吗？',['stage_roll']),command('stage-dance','一起表演闪身步和狗熊抖抖毛吧。',['stage_dance'])]}
+ {id:'stage',title:'黄仁勋的四只小鸭',hook:'散落、哈欠、排队。选几只翻跟头，再四鸭同拍齐舞。',scene:'stage',source:'GTC 互动桥段 · 中文改编',duration:'约 60–100 秒',
+  steps:[command('stage-gather','嘿，小家伙们，到中间来站成一排，让大家看你们表演。',['stage_gather']),command('stage-roll','选中的小鸭们，能一起翻个跟头吗？',['stage_roll']),command('stage-dance','一起表演闪身步和狗熊抖抖毛吧。',['stage_dance'])]}
 
 ];
-export const AUDIO_VERSION='personas-20261025';
+export const AUDIO_VERSION='personas-stage-selection-v2';
 export const ACTION_NAMES={stage_gather:'四鸭集结排队',stage_roll:'点名前滚翻并归位',stage_dance:'四鸭同拍齐舞',stage_poke:'物理轻戳',scene_stage:'准备四鸭发布会',sit:'坐下',stand:'站起来',scene_seated:'准备坐姿合唱舞台',seated_show:'坐姿合唱与独唱交接',scene_table:'准备桌面舞台',table_show:'桌上合唱',scene_ball:'准备球场',scene_carry:'准备搬运场景',scene_duo:'准备双鸭场景',nod:'点头',walk:'前进',turn_left:'左转',turn_right:'右转',flash_step:'闪身步',bear_shake:'抖毛',kick_left:'左脚踢球',kick_right:'右脚踢球',pick_up:'夹起',carry:'搬运',put_down:'放下',find_companion:'发现同伴',collide:'相向碰面',chorus:'双声部合唱',stop:'停止'};
 export const AUDIO_LINES=DEMOS.flatMap(d=>d.steps.flatMap(s=>[
  ...(s.id?[{id:s.id,text:s.text,role:s.role??'预录指令'}]:[]),

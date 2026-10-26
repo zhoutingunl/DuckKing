@@ -404,9 +404,9 @@
     },
     {
       "id": "stage-roll",
-      "text": "最左边的鸭子，能翻个跟头吗？",
+      "text": "选中的小鸭们，能一起翻个跟头吗？",
       "role": "预录指令",
-      "bytes": 80208,
+      "bytes": 96540,
       "voice": "Tingting",
       "persona": "human",
       "rate": 205,

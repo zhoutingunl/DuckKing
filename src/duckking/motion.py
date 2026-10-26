@@ -111,6 +111,8 @@ class Action(BaseModel):
     speed: float | None = Field(default=None, ge=0.02, le=0.4)
     target: Literal["a", "b", "c", "d", "both"] = "a"
     member: Literal["a", "b", "c", "d", "selected", "leftmost"] = "selected"
+    members: list[Literal["a", "b", "c", "d"]] | None = Field(
+        default=None, min_length=1, max_length=4)
     request_id: str = Field(default_factory=lambda: str(uuid.uuid4()), min_length=1, max_length=100)
 
     @model_validator(mode="before")
@@ -155,6 +157,11 @@ class Action(BaseModel):
 
     @model_validator(mode="after")
     def choreography_timing(self):
+        if self.members is not None:
+            if self.name != "stage_roll" or self.member != "selected":
+                raise ValueError("members 仅用于四鸭发布会翻滚，不能同时指定 member")
+            if len(set(self.members)) != len(self.members):
+                raise ValueError("翻滚成员不能重复")
         if not self.name.startswith("stage_") and self.member != "selected":
             raise ValueError("member 仅用于四鸭发布会")
         if self.name.startswith("stage_") and self.target != "a":

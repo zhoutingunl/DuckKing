@@ -19,7 +19,7 @@ import { setupVoice } from './voice.js';
 await setupRoom();
 const $=id=>document.getElementById(id),output=new VoiceAudio(),clips=new Map(),loadPhysicsModel=createPhysicsModelLoader(),stages=new Map();
 const chorus=createChorus(()=>{},{getContext:()=>output.context()});let current=null,selected=-1,serial=Promise.resolve();
-let stageInteractive=false;
+let stageInteractive=false,selectionQueue=Promise.resolve(),selectionVersion=-1,selectionInstance=null;
 let tableTracks=null,trackError=null,trackLoading=false,trackEpoch=0,preview=null;
 const controlsBusy=value=>document.querySelectorAll('[data-idle-control]').forEach(el=>{el.disabled=value});
 const message=(role,text)=>{$('caption-role').textContent=role;$('caption').textContent=text};
@@ -28,27 +28,41 @@ function entry(text,state='completed'){const item=document.createElement('li');i
 function error(text){$('demo-notice').textContent=text;$('demo-notice').hidden=false;}
 function mode(){const live=$('demo-mode').value==='live';$('mode-note').textContent=live?'预录指令发往真实灵矽，现场识别和回答；依赖网络。':'本地编排 + 实时物理仿真；不使用麦克风。';$('voice-source').textContent=live?'预录指令 · 灵矽实时回答':'预录台词 · 本地编排';}
 $('demo-mode').addEventListener('change',mode);
-const stageVoice=setupVoice({endpoint:'/scene-voice',cloudOnly:true,appendLog:(text,label)=>entry(label+' · '+text),notify:error,beforeListen:async()=>{const stage=stages.get(currentRoom);if(!current||!stageInteractive||DEMOS[selected]?.id!=='stage')throw Error('请先进入第13幕现场互动');await stageSelect($('stage-member').value,stage.viewer.screenOrder(),stage.latest.backend.revision)}});
+const stageVoice=setupVoice({endpoint:'/scene-voice',cloudOnly:true,appendLog:(text,label)=>entry(label+' · '+text),notify:error,beforeListen:async()=>{const stage=stages.get(currentRoom);if(!current||!stageInteractive||DEMOS[selected]?.id!=='stage')throw Error('请先进入第13幕现场互动');await syncStageOrder(stage)}});
 const stageVoiceBusy=()=>!['disconnected','error','busy','awaiting_binding'].includes(stageVoice.state);
 $('stage-play').addEventListener('change',()=>{stageInteractive=$('stage-play').value==='interactive'});
-async function stageSelect(target,order,revision,instance=stages.get(currentRoom)?.latest?.backend.stage?.instance){
-  await api('api/scenes/stage/selection',currentRoom,{body:{target,order,revision,instance}});
-  $('stage-member').value=target;$('stage-hint').textContent=`已选中鸭 ${target.toUpperCase()}；“这只”指向它。“最左边”按当前屏幕顺序确定。`;
+function renderSelection(state){
+  if(state.instance===selectionInstance&&state.selection_version<selectionVersion)return;
+  selectionInstance=state.instance;selectionVersion=state.selection_version;
+  for(const input of document.querySelectorAll('[data-stage-member]'))input.checked=state.selected.includes(input.value);
+  $('stage-hint').textContent=state.selected.length?`已选中：${state.selected.map(c=>'鸭 '+c.toUpperCase()).join('、')}。再次点击可取消；翻滚使用当前选中集合。`:'未选中鸭子。点击鸭子或勾选 A—D，再让它们翻跟头。';
 }
+function stageSelect(change,stage=stages.get(currentRoom)){
+  const state=stage.latest.backend,body={...change,order:stage.viewer.screenOrder(),revision:state.revision,instance:state.stage.instance};
+  const pending=selectionQueue.catch(()=>{}).then(()=>api('api/scenes/stage/selection',currentRoom,{body}));
+  selectionQueue=pending;return pending.then(result=>{renderSelection(result);stage.viewer.selection(result)});
+}
+async function syncStageOrder(stage){await selectionQueue;await stageSelect({operation:'order'},stage)}
 function stageInteraction(){
   const stage=stages.get(currentRoom);if(!stage||stage.latest?.backend.scene!=='stage')return;
   stage.viewer.interaction(async selection=>{
-    try{await stageSelect(selection.target,selection.order,selection.revision,selection.instance);if(selection.mode==='poke')await stageAction('stage_poke')}catch(e){error(e.message)}
+    try{
+      if(selection.revision!==stage.latest.backend.revision||selection.instance!==stage.latest.backend.stage.instance)throw Error('舞台已重置，请重新点选');
+      if(selection.mode==='poke')await stageAction('stage_poke',{member:selection.target});
+      else await stageSelect({operation:'toggle',target:selection.target});
+    }catch(e){error(e.message)}
   },$('stage-pointer').value);
 }
 $('stage-pointer').addEventListener('change',stageInteraction);
-$('stage-member').addEventListener('change',async()=>{const stage=stages.get(currentRoom);try{await stageSelect($('stage-member').value,stage.viewer.screenOrder(),stage.latest.backend.revision)}catch(e){error(e.message)}});
-async function stageAction(name){
+for(const input of document.querySelectorAll('[data-stage-member]'))input.addEventListener('change',()=>{
+  stageSelect({operation:'toggle',target:input.value}).catch(e=>error(e.message));
+});
+async function stageAction(name,options={member:'selected'}){
   if(!current||DEMOS[selected]?.id!=='stage'){error('请先选择现场互动并重演第13幕。');return}
   if(current&&!stageInteractive){error('自动演出中请先停止，再选择现场互动。');return}
   if(stageVoiceBusy()&&!['ready'].includes(stageVoice.state)){error('请等待本轮语音完成，或停止当前演出。');return}
   const run=current,signal=run.signal;
-  try{const result=await action(currentRoom,name,signal,{member:'selected'});entry(`本地点选 · ${ACTION_NAMES[name]} · ${result.status}`,result.status);if(result.status!=='completed')throw Error(result.error??'任务未完成')}catch(e){if(e.name!=='AbortError')error(e.message)}
+  try{await selectionQueue;const result=await action(currentRoom,name,signal,options);entry(`本地点选 · ${ACTION_NAMES[name]} · ${result.status}`,result.status);if(result.status!=='completed')throw Error(result.error??'任务未完成')}catch(e){if(e.name!=='AbortError')error(e.message)}
 }
 for(const name of ['gather','roll','dance'])$('stage-'+name).addEventListener('click',()=>stageAction('stage_'+name));
 window.addEventListener('duckking-voice-state',()=>{if(stageVoiceBusy()&&current?.live===false&&!stageInteractive)void stop('已停止自动演示，请选择现场互动后连接语音')});
@@ -94,7 +108,7 @@ function connectStage(room,container){
     const data=JSON.parse(event.data);if(data.type==='state'){
       stage.latest=data;viewer.update(data.backend);if(data.backend.scene==='stage'){
         $('stage-state').textContent=({scattered:'四鸭散落，等待召集',gathering:'集结排队中',contact_sit:'碰撞后坐下，再起身',lined_up:'四鸭已排好',rolling:'点名前滚翻',returning:'正在归位',dancing:'四鸭同拍齐舞',completed:'表演完成',failed:'任务未完成',stopped:'已停止'}[data.backend.stage.phase]??data.backend.stage.phase);
-        if(data.backend.stage.selected)$('stage-member').value=data.backend.stage.selected;
+        renderSelection(data.backend.stage);
       }if(room===currentRoom)chorus.update(data.backend.chorus);
     }else if(data.type==='scene_error')stage.error=data.message||'物理场景异常';
     if(socket.readyState===1)socket.send('next');
@@ -127,7 +141,7 @@ async function prepare(room,scene,run,second=false){
   if(!second)$('stage-placeholder').hidden=true;
   metrics.assemble_ms=performance.now()-assembling;const drawing=performance.now();stage.viewer.renderNow();await afterFrame();metrics.first_frame_ms=performance.now()-drawing;
   experience.finish('completed',{...loadMetrics(metrics),scene_ms:Math.round(performance.now()-experience.started)},{cache:metrics.cache??'unknown',scene});
-  stage.error=null;status('舞台已就绪');if(scene==='stage'){stage.latest=state;stageInteraction();await stageSelect('a',stage.viewer.screenOrder(),rev,state.backend.stage.instance)}else stage.viewer.interaction(null);return stage;
+  stage.error=null;status('舞台已就绪');if(scene==='stage'){stage.latest=state;stageInteraction();renderSelection(state.backend.stage)}else stage.viewer.interaction(null);return stage;
   }catch(error){experience.finish(run.signal.aborted?'cancelled':'failed');throw error}
 }
 async function perform(run,room,name,options={},expectFailure=false){
@@ -162,13 +176,13 @@ async function cloudResults(run,room,before,expected,scene){
   if(state.backend.scene!==scene||!matchesCloudActions(records,expected,scene))throw new Error(`本轮实际动作未符合剧本（期望 ${expected.map(n=>ACTION_NAMES[n]).join('、')}）；已保留真实结果，不补造动作`);
 }
 async function command(run,room,step){
-  if(step.actions.includes('stage_roll')){const stage=stages.get(room);await stageSelect($('stage-member').value,stage.viewer.screenOrder(),stage.latest.backend.revision)}
+  if(step.actions.includes('stage_roll')){const stage=stages.get(room);await selectionQueue;if(selectionVersion===0)await stageSelect({targets:['a']},stage);await syncStageOrder(stage)}
   if(run.live){
     const voice=await voiceFor(run,room),state=await api('api/scenes/state',room,{signal:run.signal}),before=state.events.at(-1)?.id??0;
     const pcm=await speak(step.id,step.text,'预录指令 → 灵矽',run,{wait:false});await voice.turn(pcm,run.signal);await cloudResults(run,room,before,step.actions,state.backend.scene);
   }else{
     await speak(step.id,step.text,'预录指令 · 本地剧本',run);
-    for(const name of step.actions)await perform(run,room,name,name==='stage_roll'?{member:'leftmost'}:{});
+    for(const name of step.actions)await perform(run,room,name,name==='stage_roll'?{member:'selected'}:{});
   }
 }
 async function interrupt(run,step){

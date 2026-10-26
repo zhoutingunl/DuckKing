@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
 export function physicsView(container) {
-  let interaction=null,interactionMode="select",latest=null,pointerStart=null;
+  let interaction=null,interactionMode="select",latest=null,pointerStart=null,selection=null;
   const raycaster=new THREE.Raycaster(),cursor=new THREE.Vector2();
   const scene=new THREE.Scene();scene.background=new THREE.Color('#edf0e5');
   const renderer=new THREE.WebGLRenderer({antialias:true});renderer.setPixelRatio(Math.min(devicePixelRatio,2));
@@ -44,6 +44,7 @@ export function physicsView(container) {
   }
   function update(state){
     latest=state;
+    if(state.stage&&(selection?.instance!==state.stage.instance||state.stage.selection_version>=selection.selection_version))selection=state.stage;
     if(state.revision!==revision)return;
     for(const duck of state.ducks){
       if(!labels.has(duck.id)){
@@ -71,7 +72,8 @@ export function physicsView(container) {
       controls.update();
     }
   }
-  const ring=new THREE.Mesh(new THREE.RingGeometry(.11,.125,48),new THREE.MeshBasicMaterial({color:0xf2b744,side:THREE.DoubleSide,depthTest:false}));ring.rotation.x=-Math.PI/2;ring.visible=false;scene.add(ring);
+  const ringGeometry=new THREE.RingGeometry(.11,.125,48),ringMaterial=new THREE.MeshBasicMaterial({color:0xf2b744,side:THREE.DoubleSide,depthTest:false});
+  const rings=new Map('abcd'.split('').map(id=>{const ring=new THREE.Mesh(ringGeometry,ringMaterial);ring.rotation.x=-Math.PI/2;ring.visible=false;scene.add(ring);return [id,ring]}));
   const stick=new THREE.Mesh(new THREE.CylinderGeometry(.005,.008,.34,12),new THREE.MeshStandardMaterial({color:0xd99336}));stick.rotation.z=-.65;stick.visible=false;scene.add(stick);
   function screenOrder(){camera.updateMatrixWorld();return (latest?.ducks??[]).map(d=>({id:d.id,x:new THREE.Vector3(d.position[0],d.position[2],-d.position[1]).project(camera).x})).sort((a,b)=>a.x-b.x||a.id.localeCompare(b.id)).map(d=>d.id)}
   function hit(event){
@@ -93,8 +95,10 @@ export function physicsView(container) {
   const observer=new ResizeObserver(resize);observer.observe(container);
   function animate(){
     const started=performance.now();controls.update();
-    const chosen=latest?.scene==='stage'?latest.ducks.find(d=>d.id===latest.stage?.selected):null;
-    ring.visible=Boolean(chosen&&interaction);if(chosen)ring.position.set(chosen.position[0],.007,-chosen.position[1]);
+    for(const [id,ring] of rings){
+      const chosen=latest?.scene==='stage'&&selection?.selected.includes(id)?latest.ducks.find(d=>d.id===id):null;
+      ring.visible=Boolean(chosen&&interaction);if(chosen)ring.position.set(chosen.position[0],.007,-chosen.position[1]);
+    }
     renderer.render(scene,camera);
     // WebGL can submit quickly while a software GPU blocks the next frame.
     // Include that delay, excluding our own idle interval, in the draw budget.
@@ -108,5 +112,5 @@ export function physicsView(container) {
     drawPause=reduced?Math.max(100,Math.min(2000,drawCost*2)):seatedView?66:33;
     timer=setTimeout(()=>{frame=requestAnimationFrame(animate);},drawPause);
   }animate();
-  return {load,update,clear,screenOrder,interaction(callback,mode="select"){interaction=callback;interactionMode=mode;if(!callback){stick.visible=false;ring.visible=false}},renderNow(){controls.update();renderer.render(scene,camera);},frameScene(scene){manualView=false;floorFramed=false;seatedView=scene==='seated';resize();const close=scene==='carry',seated=scene==='seated',table=scene==='table';camera.position.set(...(scene==='stage'?[2.7,2.1,0]:seated?[1.05,.90,-1.05]:table?[1.35,.98,-1.35]:close?[.6,.4,.65]:[.85,.62,.95]));controls.target.set(close ? .12 : table ? .20 : 0,seated ? .52 : table ? .25 : .13,table ? -.10 : 0);controls.update();controls.saveState();},reset(){manualView=false;floorFramed=false;controls.reset();},dispose(){clearTimeout(timer);cancelAnimationFrame(frame);observer.disconnect();clear();controls.dispose();renderer.dispose();ring.geometry.dispose();ring.material.dispose();stick.geometry.dispose();stick.material.dispose();}};
+  return {load,update,clear,screenOrder,selection(value){selection=value},interaction(callback,mode="select"){interaction=callback;interactionMode=mode;if(!callback){stick.visible=false;for(const ring of rings.values())ring.visible=false}},renderNow(){controls.update();renderer.render(scene,camera);},frameScene(scene){manualView=false;floorFramed=false;seatedView=scene==='seated';resize();const close=scene==='carry',seated=scene==='seated',table=scene==='table';camera.position.set(...(scene==='stage'?[2.7,2.1,0]:seated?[1.05,.90,-1.05]:table?[1.35,.98,-1.35]:close?[.6,.4,.65]:[.85,.62,.95]));controls.target.set(close ? .12 : table ? .20 : 0,seated ? .52 : table ? .25 : .13,table ? -.10 : 0);controls.update();controls.saveState();},reset(){manualView=false;floorFramed=false;controls.reset();},dispose(){clearTimeout(timer);cancelAnimationFrame(frame);observer.disconnect();clear();controls.dispose();renderer.dispose();ringGeometry.dispose();ringMaterial.dispose();stick.geometry.dispose();stick.material.dispose();}};
 }

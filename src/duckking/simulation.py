@@ -637,7 +637,10 @@ class MuJoCoBackend:
             if not self.stage:
                 raise ValueError("请先准备四鸭发布会舞台")
             operation = action.name.removeprefix("stage_")
-            member = self.stage.member(action.member)
+            if operation == "roll":
+                members = action.members or self.stage.members(action.member)
+                return await self.stage.perform(operation, members)
+            member = self.stage.member(action.member) if operation == "poke" else "a"
             return await self.stage.perform(operation, member)
         if action.name in {"sit", "stand"}:
             return await change_posture(self, self.targets(), action.name, action.duration)

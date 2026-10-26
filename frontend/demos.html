@@ -16,9 +16,9 @@
     <section id="stage-panel" hidden aria-label="四鸭发布会交互">
      <p><strong>四鸭发布会</strong> · <span id="stage-state">准备集结</span></p>
 
-     <div class="stage-tools"><button id="stage-gather">本地：集结排队</button><button id="stage-roll">本地：选中鸭翻跟头</button><button id="stage-dance">本地：四鸭齐舞</button></div>
-     <div class="stage-tools"><label>屏幕工具<select id="stage-pointer"><option value="select">点选</option><option value="stick">指挥棒</option><option value="poke">轻戳 · 实际物理推力</option></select></label><label>选中鸭<select id="stage-member"><option value="a">鸭 A</option><option value="b">鸭 B</option><option value="c">鸭 C</option><option value="d">鸭 D</option></select></label></div>
-     <p id="stage-hint">点鸭子锁定对象；拖动仍可旋转镜头。轻戳不保证跌倒，之后请重新集结。</p>
+     <div class="stage-tools"><button id="stage-gather">本地：集结排队</button><button id="stage-roll">本地：选中鸭一起翻跟头</button><button id="stage-dance">本地：四鸭齐舞</button></div>
+     <div class="stage-tools"><label>屏幕工具<select id="stage-pointer"><option value="select">点选</option><option value="stick">指挥棒</option><option value="poke">轻戳 · 实际物理推力</option></select></label><fieldset class="stage-members"><legend>选中鸭（可多选）</legend><label><input type="checkbox" data-stage-member value="a">鸭 A</label><label><input type="checkbox" data-stage-member value="b">鸭 B</label><label><input type="checkbox" data-stage-member value="c">鸭 C</label><label><input type="checkbox" data-stage-member value="d">鸭 D</label></fieldset></div>
+     <p id="stage-hint">点击选中，再点取消，可多选；拖动仍可旋转镜头。轻戳不保证跌倒，之后请重新集结。</p>
      <details id="stage-voice"><summary>真人语音 · 灵矽实连</summary><div id="notice" role="alert" hidden></div><span id="voice-badge"></span><p id="voice-intro"></p><p id="voice-connection-hint"></p><button id="connect-voice"><span id="connect-label">连接灵矽</span></button><button id="talk-button" disabled><span>按住说话</span></button><button id="reset-voice">重置语音</button><button id="enable-sound">启用 / 测试声音</button><p id="voice-caption"></p><p id="voice-route"></p><p id="activation" hidden></p><p id="audio-status"></p><pre id="audio-diagnostics"></pre></details>
     </section>
     <div class="dialogue" aria-live="polite"><span id="caption-role">舞台提示</span><p id="caption">每幕独立开演，可以停止、重演或接着看下一幕。</p></div>

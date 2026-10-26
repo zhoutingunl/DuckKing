@@ -141,7 +141,8 @@ STAGE_TOOLS = [
         (
             "duck_stage_roll",
             "四鸭发布会：指定 member 前滚翻并站稳归队，其他三鸭候场。"
-            "a/b/c/d 按名字，selected 指屏幕选中对象，leftmost 指屏幕最左边。先集结。",
+            "a/b/c/d 按名字，selected 指屏幕多选集合（空集合请用户选择），"
+            "leftmost 指屏幕最左边。先集结。",
         ),
         (
             "duck_stage_dance",
@@ -444,7 +445,8 @@ class DeviceMCP:
                     reference = stage.voice_reference
                     member = arguments.get("member", "selected")
                     if reference and member in {"selected", "leftmost"}:
-                        arguments = {"member": reference[member == "leftmost"]}
+                        arguments = ({"members": list(reference[0])} if member == "selected"
+                                     else {"member": reference[1]})
                 action = Action(
                     name=kind, request_id=f"{self.session_key}:{request['id']}", **arguments
                 )
