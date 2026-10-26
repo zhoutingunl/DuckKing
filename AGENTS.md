@@ -7,3 +7,4 @@
 - Keep credentials and device identities out of tracked files and API responses/logs.
 - Add meaningful tests for motion cancellation, bounded actions, protocol framing, and failure handling. Run relevant checks before merging.
 - Document architecture, setup, current limitations, and third-party sources. Keep docs synchronized with actual tested behavior.
+- Respect the competition freeze: 2026-10-27 09:00 Asia/Shanghai (Beijing time), as explicitly corrected by the user. Do not change the remote repository after that deadline without a new explicit instruction addressing it.
