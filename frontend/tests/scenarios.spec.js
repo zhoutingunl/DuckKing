@@ -1,5 +1,20 @@
 import { test, expect } from '@playwright/test';
 
+test('scene selection waits for room setup and the first live state',async({page})=>{
+  let release;
+  const gate=new Promise(resolve=>release=resolve);
+  await page.route('**/api/rooms',async route=>{await gate;await route.continue()});
+  try{
+    await page.goto('/scenarios.html?room=1',{waitUntil:'commit'});
+    const buttons=page.locator('[data-scene]');
+    await expect(buttons).toHaveCount(5);
+    for(const button of await buttons.all())await expect(button).toBeDisabled();
+    release();
+    await expect(page.locator('#sim-status')).toHaveText('选择场景开始');
+    for(const button of await buttons.all())await expect(button).toBeEnabled();
+  }finally{release()}
+});
+
 test('real MuJoCo left/right contacts, duo discovery/collision, chorus and stop',async({page})=>{
   test.setTimeout(90000);
   const errors=[];page.on('pageerror',e=>errors.push(e.message));
