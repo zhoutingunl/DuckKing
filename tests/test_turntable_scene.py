@@ -52,9 +52,9 @@ async def test_spin_is_real_and_eliminations_are_measured(backend):
 
 async def test_sit_and_stand_work_on_the_disk_surface(backend):
     motion = MotionController(backend)
-    seated = await run(motion, "sit", target="a")
+    seated = await run(motion, "sit", target="c")  # any member, not just duck A
     assert seated["status"] == "completed"  # posture windows use the disk offset
-    standing = await run(motion, "stand", target="a")
+    standing = await run(motion, "stand", target="c")
     assert standing["status"] == "completed"
 
 

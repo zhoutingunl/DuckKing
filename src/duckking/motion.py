@@ -182,8 +182,8 @@ class Action(BaseModel):
             raise ValueError("member 仅用于四鸭发布会")
         if self.name.startswith("stage_") and self.target != "a":
             raise ValueError("四鸭发布会使用 member 指定成员")
-        if self.target in {"c", "d"} and self.name != "seated_solo":
-            raise ValueError("鸭 C / D 仅用于语音独唱")
+        if self.target in {"c", "d"} and self.name not in {"seated_solo", "sit", "stand"}:
+            raise ValueError("鸭 C / D 仅用于语音独唱或转盘坐站")
         if self.name == "seated_solo" and self.target == "both":
             raise ValueError("一次只能指定一位独唱者")
         if (
