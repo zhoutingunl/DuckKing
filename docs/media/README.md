@@ -4,9 +4,9 @@
 
 `hackathon-video.png` 是本次实际桌上合唱录屏截图；`hackathon-video.json` 包含源提交、动作验收、20 轮延迟样本、10 路真实云端会话与加载对比。完整 MP4 存放于 GitHub Release，入口和剪辑说明见 [演示视频](../DEMO_VIDEO.md)。视频中的官方模型及改编画面遵循 CC BY-NC-SA 4.0，不由根目录 MIT 许可替代。
 
-## 当前界面截图
+## 界面截图版本（2026-10-25）
 
-2026-10-25 从当前代码的独立本地生产服务实际采集，没有拦截或伪造 API 响应。
+2026-10-25 从应用提交 `a8a6675309738844caf8956fb669e71c8994ad7c` 的独立本地生产服务实际采集，没有拦截或伪造 API 响应。文件名中的 `current` 是当时的命名；后续新增 UI 不在这些截图中，不能据此推断最新页面逐项布局。
 
 - `workbench.png`：官方模型外观、动作按钮与本地优先选项；首页仍是脚本动画，语音未连接。
 - `practice-current.png`：动作练习场实际 MuJoCo 画面，完成一次打哈欠；本地优先已选择，未上传录音。
@@ -21,7 +21,7 @@
 - `physics-scenes.json`：`scripts/verify_scenarios.py` 在本机实际执行的接触、球位移和双鸭动作记录；没有真实云端调用。合唱条目仅验证控制编排，不证明扬声器输出。
 - `scene-voice-verification.json`：左右脚语音踢球的真实灵矽 STT / MCP / TTS 记录。输入为系统合成中文录音，动作来自 MuJoCo CPU + 官方 ONNX，不经过 robotd；不含设备身份或凭证。
 
-- `local-preview.mp4`：早期 DuckKing 原创界面与程序化卡通鸭，由当时实际应用录制，没有灵矽云端对话。旧首页图可从 Git 历史查阅；`workbench.png` 已更新为上方当前截图。
+- `local-preview.mp4`：早期 DuckKing 原创界面与程序化卡通鸭，由当时实际应用录制，没有灵矽云端对话。旧首页图可从 Git 历史查阅；`workbench.png` 为上方 2026-10-25 的官方外观截图。
 - `official-simulation.mp4`：读取运行中的官方 MuJoCo body 状态，并用官方 Microduck 场景渲染。机械模型、纹理及场景来源于 [Pollen Robotics microduck_rl](https://github.com/pollen-robotics/microduck_rl)，固定提交 `b02fdea4902c2b93b7d34a83a6f05da4ececb7d3`。
 - `official-simulation.json`：该次本地仿真实测记录，不含账号、token 或设备身份。
 - `live-linx-voice.mp4`、`live-voice.png`、`live-linx-voice.json`：真实灵矽浏览器联调。输入为系统合成中文语音；识别、工具调用和回复来自实际云端请求。
