@@ -17,6 +17,11 @@
 - 双鸭互动按钮的合唱是本项目用 Web Audio 合成的双声部短旋律，不使用官方 BLE 实现，也不是云端语音。演示剧场另使用下述官方谱面、公共领域谱面和用户录音，其来源分别列明。
 - 球场在运行时为球／地面单独配置六维接触与 0.003 m 滚动摩擦，使球自然停下；这是 DuckKing 的演示场地参数，没有修改上游文件，也不是官方实机标定。脚球接触和机器人步态接触参数保留；详见 [架构中的接触说明](docs/ARCHITECTURE.md#共享物理场景)。
 
+## 四种官方配色与视觉材质（赛后更新）
+
+- 配色与部件对应关系参考 Pollen Robotics 官方 [Microduck Simulator 的 variants.js](https://huggingface.co/spaces/pollen-robotics/microduck-simulator/blob/ad9d41a763f30dc770817c33d92dcfec0205db1e/app/src/game/variants.js)，固定提交 `ad9d41a763f30dc770817c33d92dcfec0205db1e`，Apache-2.0；许可原文保存在 [docs/licenses/Microduck-Simulator-APACHE-2.0.txt](docs/licenses/Microduck-Simulator-APACHE-2.0.txt)。Cream、Graphite、Lavender、Sky 名称与选择器色值同时对照[官方 Press Kit](https://pollen-robotics.com/microduck/press-kit/)。
+- `frontend/src/duck-appearance.js` 采用上述配色数据，DuckKing 自行实现部件元数据、每鸭换色、实例颜色更新、浏览器偏好及材质调校。金属度、粗糙度和灯光是视觉效果配置，没有改变质量、惯量、摩擦、关节执行器或策略。程序化环境反射使用 Three.js 的 `RoomEnvironment` / `PMREMGenerator`，不另行下载 HDR 或复制四套网格。
+
 ## 自动演示的对白与四声部乐谱
 
 - 演示场景的角色文案与自动编排由 DuckKing 编写；人类指令/旁白使用 macOS Tingting，小鸭使用 Eddy 中文系统语音加轻量升调和滤波生成，未克隆真人或官方鸭子音色。生成工具为 `scripts/build_demo_audio.py`，生成结果和逐句文本清单位于 `frontend/public/demo-audio/`。实时灵矽模式中的识别、工具调用与回复另由真实云端会话产生。

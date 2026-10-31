@@ -266,7 +266,9 @@ ai_gateway 可独立添加固定 loopback 路由；现有前置代理不透传 U
 
 `GET /api/scenes/model` 提供编译后的官方网格和外观，顶点 float32、索引 uint32 以小端 base64 传输，按场景缓存。`/scene-ws` 只发送实际 `geom_xpos/geom_xmat`、接触计数、球位移、双鸭姿态和合唱节拍。浏览器处理后发送文本 `next` 请求最新快照，频率上限 20 Hz；每个连接只保留一帧待确认数据，30 秒没有确认就关闭并由页面重连，避免慢客户端积压旧物理状态。非法确认帧以 1008 关闭。模型响应与状态流使用 revision 配对，避免切换时套用旧模型；revision 属于编译模型，同场景重置复用几何，重启进程重新生成。
 
-Three.js 渲染官方几何，不会用预设踢球动画替换实际关节结果。每次绘制后留出至少 33 ms 空闲时间；检测到 SwiftShader / llvmpipe 等软件渲染器或连续慢帧时关闭阴影，将画布宽度先限制为 640 像素，持续慢帧时降到最低 240 像素；按绘制与 GPU 等待耗时的两倍留出 100–2,000 ms 空闲间隔。软件显卡上降低画面分辨率与刷新频率，仍显示完整官方几何。这样可以为输入、语音和状态处理留出时间，不改变物理步进和接触判定。
+Three.js 渲染官方几何，不会用预设踢球动画替换实际关节结果。每次绘制后留出至少 33 ms 空闲时间；检测到 SwiftShader / llvmpipe 等软件渲染器或连续慢帧时关闭阴影，软件渲染器初始画布宽度预算为 320 像素，持续慢帧时降到最低 160 像素；按绘制与 GPU 等待耗时的两倍留出 100–2,000 ms 空闲间隔。软件显卡上降低画面分辨率与刷新频率，仍显示完整官方几何。这样可以为输入、语音和状态处理留出时间，不改变物理步进和接触判定。
+
+赛后外观更新（2026-11-01）：几何导出新增 `duck`（机器人子树身份，场景物体为空）和 `part`（去除多鸭前缀的网格名）元数据。`frontend/src/duck-appearance.js` 将官方四种配色映射到不同部件，默认 A/B/C/D 为 Cream/Graphite/Lavender/Sky；首页与物理渲染共用此映射。偏好仅存当前浏览器，换色不发送动作或重建模型。物理画面通过 `InstancedMesh` 的实例颜色保留多鸭网格与绘制批次共享，球、桌面和搬运物品不参与换色。分部件粗糙度／金属度与一次性生成的 64 像素环境反射改善高光；软件渲染器或连续慢帧时关闭环境反射，保留部件颜色与直接灯光高光。无额外 HDR 下载，释放视图时回收反射贴图。
 
 `/scene-voice` 根据模式选择 `VoiceSession` 或 `HybridVoiceSession`，连接场景控制器，按同源规则保护。同一房间内和 `/voice` 共用一个语音名额；各房间使用独立设备身份与控制器，物理世界按需初始化并另设并发上限。物理专属 MCP 工具仅对 MuJoCo 控制器公布：`duck_set_scene`、`duck_kick`（必填 left/right）、`duck_find_companion`、`duck_duo_walk`、`duck_collide`、`duck_chorus`、`duck_pick_up`、`duck_carry`、`duck_put_down`、`duck_sit`、`duck_stand`、`duck_roulade`、`duck_ground_pick`、`duck_yawn`、`duck_idle_on`、`duck_idle_off`、`duck_skate`、`duck_roller_crouch`。桌上与坐姿四鸭演出由应用编排，不增加云端工具。状态工具剔除渲染网格，避免将大量图形数据送入模型上下文。统计按 `mujoco` 单独筛选。
 

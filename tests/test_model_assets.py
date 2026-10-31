@@ -16,6 +16,28 @@ from duckking.app import create_app
 ASSETS = Path(__file__).resolve().parents[1] / "external"
 
 
+def test_appearance_ownership_follows_robot_subtrees_without_changing_physics():
+    from duckking.simulation import MuJoCoBackend
+
+    backend = MuJoCoBackend(ASSETS)
+    before = backend.data.qpos.copy()
+    colours = backend.model.mat_rgba.copy()
+    ball = backend.geometry()
+    assert next(g for g in ball["geoms"] if g["type"] == 2)["duck"] is None
+    assert {g["duck"] for g in ball["geoms"] if g["part"] == "top_head_shell"} == {"a"}
+    np.testing.assert_array_equal(backend.data.qpos, before)
+    np.testing.assert_array_equal(backend.model.mat_rgba, colours)
+    backend.load("duo")
+    duo = backend.geometry()
+    assert {g["duck"] for g in duo["geoms"] if g["part"] == "top_head_shell"} == {"a", "b"}
+    assert all(not g["part"].startswith(("a_", "b_")) for g in duo["geoms"])
+    backend.load("carry")
+    carry = backend.geometry()
+    assert next(g for g in carry["geoms"]
+                if backend.model.geom(g["id"]).name == "object_geom")["duck"] is None
+    assert {g["duck"] for g in carry["geoms"] if g["part"] == "jaw"} == {"a"}
+
+
 def test_binary_asset_preserves_all_official_vertices_faces_rig_and_materials():
     original = model_assets.official_preview(ASSETS)
     asset = model_assets.visual_asset(ASSETS)

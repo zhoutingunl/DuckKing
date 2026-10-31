@@ -84,6 +84,12 @@ def visual_asset(assets):
 
 def geometry(model, ids):
     meshes, geoms = {}, []
+    # Appearance metadata follows the robot subtree, never a material's colour.
+    # Objects and scenery retain their own materials even when their colours match a duck.
+    owners = {}
+    roots = {"trunk_base": "a", **{f"{c}_trunk_base": c for c in "abcd"}}
+    for body in range(1, model.nbody):
+        owners[body] = roots.get(model.body(body).name, owners.get(int(model.body_parentid[body])))
     for i in ids:
         mid = int(model.geom_dataid[i])
         if int(model.geom_type[i]) == 7 and mid not in meshes:
@@ -99,6 +105,10 @@ def geometry(model, ids):
             }
         material = int(model.geom_matid[i])
         rgba = model.mat_rgba[material] if material >= 0 else model.geom_rgba[i]
+        owner = owners.get(int(model.geom_bodyid[i]))
+        part = model.mesh(mid).name if int(model.geom_type[i]) == 7 else ""
+        if owner:
+            part = part.removeprefix(owner + "_")
         geoms.append(
             {
                 "id": i,
@@ -106,6 +116,8 @@ def geometry(model, ids):
                 "mesh": mid,
                 "size": model.geom_size[i].tolist(),
                 "rgba": rgba.tolist(),
+                "duck": owner,
+                "part": part,
                 "body": int(model.geom_bodyid[i]),
                 "position": model.geom_pos[i].tolist(),
                 "quaternion": model.geom_quat[i].tolist(),

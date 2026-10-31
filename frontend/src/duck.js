@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { appURL } from './urls.js';
 import { loadOfficialModel } from './model-loader.js';
+import {appearanceControls,appearanceFor,studioEnvironment} from './duck-appearance.js';
 
 // Official geometry, with deliberately scripted animation. No physics or policy inference here.
 export function createDuckScene(container,{onLoad=()=>{}}={}) {
@@ -19,9 +20,10 @@ export function createDuckScene(container,{onLoad=()=>{}}={}) {
   const controls=new OrbitControls(camera,renderer.domElement); controls.target.set(0,.65,0);
   controls.minDistance=1.4;controls.maxDistance=8;controls.maxPolarAngle=Math.PI/2.04;
   controls.enableDamping=true;controls.enablePan=false;controls.update();controls.saveState();
-  scene.add(new THREE.HemisphereLight(0xffffff,0x78845c,2.6));
-  const sun=new THREE.DirectionalLight(0xfff9e8,3);sun.position.set(-3,6,4);sun.castShadow=true;
+  scene.add(new THREE.HemisphereLight(0xffffff,0x78845c,1.2));
+  const sun=new THREE.DirectionalLight(0xfff9e8,2);sun.position.set(-3,6,4);sun.castShadow=true;
   sun.shadow.mapSize.set(1024,1024);sun.shadow.camera.left=-3;sun.shadow.camera.right=3;sun.shadow.camera.top=3;sun.shadow.camera.bottom=-3;sun.shadow.normalBias=.002;scene.add(sun);
+  const disposeEnvironment=studioEnvironment(renderer,scene,{reduced});
   const floor=new THREE.Mesh(new THREE.PlaneGeometry(100,100),new THREE.MeshStandardMaterial({color:'#edf0e5'}));floor.rotation.x=-Math.PI/2;floor.receiveShadow=true;scene.add(floor);
   const grid=new THREE.GridHelper(12,48,0xd9dfce,0xe0e5d7);grid.position.y=.001;scene.add(grid);
   const duck=new THREE.Group();duck.scale.setScalar(5);scene.add(duck);
@@ -29,6 +31,11 @@ export function createDuckScene(container,{onLoad=()=>{}}={}) {
   const joints=new Map(), geometries=[], materials=[];
   let loadExperience;
   let state={}, frame,timer,disposed=false,slowFrames=0,lastFrame=performance.now(),root,needsRender=true,poseKey='',pendingLoad;
+  let painted=[];
+  const appearance=appearanceControls(container,()=>{
+    for(const {geom,material} of painted)material.color.copy(appearanceFor(geom,appearance.colours).color);
+    needsRender=true;
+  });
   controls.addEventListener('change',()=>{needsRender=true});
   const abort=new AbortController();
   const quaternion=(target,[w,x,y,z])=>target.set(x,y,z,w);
@@ -48,7 +55,7 @@ export function createDuckScene(container,{onLoad=()=>{}}={}) {
         progress:stage=>{status.textContent=stage==='cache'?'正在读取已缓存的官方 MicroDuck 外观…':stage==='assemble'?'正在绘制官方 MicroDuck 外观…':'正在下载官方 MicroDuck 外观…'}});
       if(disposed)return;
       const assembling=performance.now();
-      basis.clear();joints.clear();geometries.splice(0).forEach(g=>g.dispose());materials.splice(0).forEach(m=>m.dispose());
+      basis.clear();joints.clear();painted=[];geometries.splice(0).forEach(g=>g.dispose());materials.splice(0).forEach(m=>m.dispose());
       const nodes=new Map([[0,basis]]),meshes=new Map();
       for(const body of model.bodies){
         const base=new THREE.Group();base.position.fromArray(body.position);quaternion(base.quaternion,body.quaternion);nodes.get(body.parent).add(base);
@@ -65,9 +72,10 @@ export function createDuckScene(container,{onLoad=()=>{}}={}) {
       }
       for(const geom of model.geoms){
         const geometry=meshes.get(geom.mesh);if(!geometry)continue;
-        const material=new THREE.MeshStandardMaterial({color:new THREE.Color(...geom.rgba.slice(0,3)),roughness:.66,metalness:.08});materials.push(material);
+        const material=new THREE.MeshStandardMaterial(appearanceFor(geom,appearance.colours));materials.push(material);painted.push({geom,material});
         const mesh=new THREE.Mesh(geometry,material);mesh.position.fromArray(geom.position);quaternion(mesh.quaternion,geom.quaternion);mesh.castShadow=mesh.receiveShadow=true;nodes.get(geom.body).add(mesh);
       }
+      appearance.setDucks(['a']);
       metrics.assemble_ms=performance.now()-assembling;
       pendingLoad={metrics,started,assembled:performance.now()};needsRender=true;
     }catch(error){
@@ -101,8 +109,8 @@ export function createDuckScene(container,{onLoad=()=>{}}={}) {
       });}
     }
     slowFrames=performance.now()-started>70||started-lastFrame>180?slowFrames+1:0;lastFrame=started;
-    if(!reduced&&slowFrames>=3){reduced=true;renderer.shadowMap.enabled=false;materials.forEach(m=>m.needsUpdate=true);resize();}
+    if(!reduced&&slowFrames>=3){reduced=true;scene.environment=null;renderer.shadowMap.enabled=false;materials.forEach(m=>m.needsUpdate=true);resize();}
     timer=setTimeout(()=>{frame=requestAnimationFrame(animate);},reduced?100:33);
   }animate();
-  return {update(next){state=next;const key=JSON.stringify([next.pose,next.velocity]);if(key!==poseKey){poseKey=key;needsRender=true}},resetCamera(){controls.reset()},dispose(){loadExperience?.finish('cancelled');disposed=true;abort.abort();clearTimeout(timer);cancelAnimationFrame(frame);observer.disconnect();geometries.forEach(g=>g.dispose());materials.forEach(m=>m.dispose());renderer.dispose();controls.dispose();status.remove();}};
+  return {update(next){state=next;const key=JSON.stringify([next.pose,next.velocity]);if(key!==poseKey){poseKey=key;needsRender=true}},resetCamera(){controls.reset()},dispose(){loadExperience?.finish('cancelled');disposed=true;abort.abort();clearTimeout(timer);cancelAnimationFrame(frame);observer.disconnect();appearance.dispose();disposeEnvironment();geometries.forEach(g=>g.dispose());materials.forEach(m=>m.dispose());renderer.dispose();controls.dispose();status.remove();}};
 }

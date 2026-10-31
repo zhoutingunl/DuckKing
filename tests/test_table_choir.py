@@ -157,6 +157,9 @@ def test_table_choreography_has_a_fixed_bounded_duration(changes):
 
 def test_four_duck_geometry_shares_bytes_but_keeps_every_geom_and_exact_mesh(backend):
     original = backend.geometry()
+    assert {g["duck"] for g in original["geoms"] if g["part"] == "top_head_shell"} == set("abcd")
+    assert all(g["duck"] is None for g in original["geoms"]
+               if backend.model.geom(g["id"]).name.startswith("table_"))
     packed = pack_visual_model({**original, "physics": True})
     size = struct.unpack_from("<I", packed, 4)[0]
     meta = json.loads(packed[8 : 8 + size])
