@@ -24,7 +24,9 @@ test('official colours repaint the home canvas without reloading geometry, persi
 });
 
 test('four physical ducks keep distinct identities and repaint independently without motion or reload',async({page},testInfo)=>{
-  test.setTimeout(90000);
+  // Two real scene loads plus desktop/mobile captures share this total budget.
+  // Keep the shorter per-load and first-render deadlines below unchanged.
+  test.setTimeout(180000);
   const errors=[];page.on('pageerror',e=>errors.push(e.message));
   let assets=0,commands=0;page.on('request',r=>{
     if(r.url().includes('.dkm.gz'))assets++;
