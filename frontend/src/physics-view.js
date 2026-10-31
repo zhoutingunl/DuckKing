@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import {appearanceControls,appearanceFor,studioEnvironment} from './duck-appearance.js';
 
 export function physicsView(container) {
   let interaction=null,interactionMode="select",latest=null,pointerStart=null,selection=null,visible=true;
@@ -15,15 +16,24 @@ export function physicsView(container) {
   const camera=new THREE.PerspectiveCamera(38,1,.01,30);camera.position.set(.85,.62,.95);
   const controls=new OrbitControls(camera,renderer.domElement);controls.target.set(0,.13,0);controls.minDistance=.35;controls.maxDistance=6;controls.maxPolarAngle=Math.PI/2.02;controls.enableDamping=true;controls.update();controls.saveState();
   let manualView=false,floorFramed=false,seatedView=false;controls.addEventListener('start',()=>{manualView=true});
-  scene.add(new THREE.HemisphereLight(0xffffff,0x71815a,2.4));
-  const sun=new THREE.DirectionalLight(0xfff6df,3);sun.position.set(1,2,1);sun.castShadow=true;sun.shadow.mapSize.set(1024,1024);sun.shadow.camera.left=-2;sun.shadow.camera.right=2;sun.shadow.camera.top=2;sun.shadow.camera.bottom=-2;sun.shadow.bias=-.0001;sun.shadow.normalBias=.001;scene.add(sun);
+  scene.add(new THREE.HemisphereLight(0xffffff,0x71815a,1.2));
+  const sun=new THREE.DirectionalLight(0xfff6df,2);sun.position.set(1,2,1);sun.castShadow=true;sun.shadow.mapSize.set(1024,1024);sun.shadow.camera.left=-2;sun.shadow.camera.right=2;sun.shadow.camera.top=2;sun.shadow.camera.bottom=-2;sun.shadow.bias=-.0001;sun.shadow.normalBias=.001;scene.add(sun);
+  const disposeEnvironment=studioEnvironment(renderer,scene,{reduced});
   const floor=new THREE.Mesh(new THREE.PlaneGeometry(20,20),new THREE.MeshStandardMaterial({color:'#edf0e5',roughness:1}));floor.rotation.x=-Math.PI/2;floor.receiveShadow=true;scene.add(floor);
   const grid=new THREE.GridHelper(8,80,0xcbd6bd,0xe0e6d7);grid.position.y=.0001;scene.add(grid);
   const world=new THREE.Group();world.rotation.x=-Math.PI/2;scene.add(world);
   let objects=new Map(),labels=new Map(),textures=[],geometries=[],materials=[],frame,timer,revision=null,slowFrames=0,lastFrame=performance.now(),pixelBudget=reduced?320:640,drawCost=0,drawPause=0;
+  let renderBatches=[],readyToRender=false;
+  const appearance=appearanceControls(container,repaint);
+  function repaint(){
+    for(const {object,geoms} of renderBatches){
+      geoms.forEach((geom,index)=>object.setColorAt(index,appearanceFor(geom,appearance.colours).color));
+      object.instanceColor.needsUpdate=true;
+    }
+  }
   const instanceMatrix=new THREE.Matrix4();
   const visibility=new IntersectionObserver(entries=>{visible=entries[0]?.isIntersecting??true});visibility.observe(renderer.domElement);
-  function clear(){world.clear();geometries.forEach(g=>g.dispose());materials.forEach(m=>m.dispose());textures.forEach(t=>t.dispose());geometries=[];materials=[];textures=[];objects.clear();labels.clear();}
+  function clear(){world.clear();geometries.forEach(g=>g.dispose());materials.forEach(m=>m.dispose());textures.forEach(t=>t.dispose());geometries=[];materials=[];textures=[];renderBatches=[];readyToRender=false;objects.clear();labels.clear();appearance.setDucks([]);delete container.dataset.renderedScene;}
   function load(model){
     clear();const meshes=new Map(),shared=new Map();
     const decode=value=>Uint8Array.from(atob(value),char=>char.charCodeAt(0)).buffer;
@@ -42,17 +52,19 @@ export function physicsView(container) {
         if(!geometry){geometry=geom.type===6?new THREE.BoxGeometry(...geom.size.map(v=>v*2)):new THREE.SphereGeometry(geom.size[0],32,20);primitives.set(primitiveKey,geometry);geometries.push(geometry)}
       }
       if(!geometry)continue;
-      const color=geom.rgba.slice(0,3),paintKey=color.join(','),key=geometry.uuid+':'+paintKey;
-      if(!paint.has(paintKey)){const material=new THREE.MeshStandardMaterial({color:new THREE.Color(...color),roughness:.66,metalness:.08});paint.set(paintKey,material);materials.push(material)}
-      if(!batches.has(key))batches.set(key,{geometry,material:paint.get(paintKey),ids:[]});
-      batches.get(key).ids.push(geom.id);
+      const spec=appearanceFor(geom,appearance.colours),paintKey=`${spec.roughness}:${spec.metalness}`,key=geometry.uuid+':'+paintKey;
+      if(!paint.has(paintKey)){const material=new THREE.MeshStandardMaterial({color:0xffffff,roughness:spec.roughness,metalness:spec.metalness});paint.set(paintKey,material);materials.push(material)}
+      if(!batches.has(key))batches.set(key,{geometry,material:paint.get(paintKey),geoms:[]});
+      batches.get(key).geoms.push(geom);
     }
     for(const batch of batches.values()){
-      const object=new THREE.InstancedMesh(batch.geometry,batch.material,batch.ids.length);
-      object.castShadow=object.receiveShadow=true;object.frustumCulled=false;object.userData.geoms=batch.ids;
+      const object=new THREE.InstancedMesh(batch.geometry,batch.material,batch.geoms.length);
+      object.castShadow=object.receiveShadow=true;object.frustumCulled=false;object.userData.geoms=batch.geoms.map(geom=>geom.id);
       object.instanceMatrix.setUsage(THREE.DynamicDrawUsage);world.add(object);
-      batch.ids.forEach((id,index)=>objects.set(id,{object,index}));
+      batch.geoms.forEach((geom,index)=>objects.set(geom.id,{object,index}));
+      renderBatches.push({object,geoms:batch.geoms});
     }
+    repaint();appearance.setDucks(model.geoms.map(geom=>geom.duck));
     revision=model.revision;
   }
   function update(state){
@@ -73,6 +85,7 @@ export function physicsView(container) {
       object.setMatrixAt(index,instanceMatrix);changed.add(object);
     }
     for(const object of changed){object.instanceMatrix.needsUpdate=true;object.computeBoundingSphere()}
+    readyToRender=changed.size>0;
     // Reveal the real fall without cropping feet on a narrow screen. Enlarge
     // the view only as needed; a user's orbit/zoom always takes precedence.
     if(state.scene==='table'&&state.tabletop?.dropped_at!=null&&!manualView){
@@ -116,18 +129,18 @@ export function physicsView(container) {
       const chosen=latest?.scene==='stage'&&selection?.selected.includes(id)?latest.ducks.find(d=>d.id===id):null;
       ring.visible=Boolean(chosen&&interaction);if(chosen)ring.position.set(chosen.position[0],.007,-chosen.position[1]);
     }
-    if(visible)renderer.render(scene,camera);
+    if(visible){renderer.render(scene,camera);if(readyToRender)container.dataset.renderedScene=latest.scene;}
     // WebGL can submit quickly while a software GPU blocks the next frame.
     // Include that delay, excluding our own idle interval, in the draw budget.
     const elapsed=Math.max(performance.now()-started,started-lastFrame-drawPause);
     drawCost=Math.max(drawCost*.85,elapsed);
     slowFrames=elapsed>70?slowFrames+1:0;lastFrame=started;
-    if(!reduced&&slowFrames>=3){reduced=true;renderer.shadowMap.enabled=false;floor.material.needsUpdate=true;materials.forEach(m=>m.needsUpdate=true);resize();container.dataset.renderQuality='reduced';}
+    if(!reduced&&slowFrames>=3){reduced=true;scene.environment=null;renderer.shadowMap.enabled=false;floor.material.needsUpdate=true;materials.forEach(m=>m.needsUpdate=true);resize();container.dataset.renderQuality='reduced';}
     if(reduced&&(slowFrames>=3||elapsed>250)&&pixelBudget>160){pixelBudget=Math.max(160,Math.floor(pixelBudget/2));slowFrames=0;resize();}
     // Leave an idle interval after each draw so software GPUs cannot starve input,
     // voice audio or the stream of physical state. Physics remains at 200 Hz.
     drawPause=reduced?Math.max(100,Math.min(2000,drawCost*2)):seatedView?66:33;
     timer=setTimeout(()=>{frame=requestAnimationFrame(animate);},drawPause);
   }animate();
-  return {load,update,clear,screenOrder,selection(value){selection=value},interaction(callback,mode="select"){interaction=callback;interactionMode=mode;if(!callback){stick.visible=false;for(const ring of rings.values())ring.visible=false}},renderNow(){controls.update();renderer.render(scene,camera);},frameScene(scene){manualView=false;floorFramed=false;seatedView=scene==='seated';resize();const close=scene==='carry',seated=scene==='seated',table=scene==='table';camera.position.set(...(scene==='stage'?[2.7,2.1,0]:seated?[1.05,.90,-1.05]:table?[1.35,.98,-1.35]:close?[.6,.4,.65]:[.85,.62,.95]));controls.target.set(close ? .12 : table ? .20 : 0,seated ? .52 : table ? .25 : .13,table ? -.10 : 0);controls.update();controls.saveState();},reset(){manualView=false;floorFramed=false;controls.reset();},dispose(){clearTimeout(timer);cancelAnimationFrame(frame);observer.disconnect();visibility.disconnect();clear();controls.dispose();renderer.dispose();ringGeometry.dispose();ringMaterial.dispose();stick.geometry.dispose();stick.material.dispose();}};
+  return {load,update,clear,screenOrder,selection(value){selection=value},interaction(callback,mode="select"){interaction=callback;interactionMode=mode;if(!callback){stick.visible=false;for(const ring of rings.values())ring.visible=false}},renderNow(){controls.update();renderer.render(scene,camera);},frameScene(scene){manualView=false;floorFramed=false;seatedView=scene==='seated';resize();const close=scene==='carry',seated=scene==='seated',table=scene==='table';camera.position.set(...(scene==='stage'?[2.7,2.1,0]:seated?[1.05,.90,-1.05]:table?[1.35,.98,-1.35]:close?[.6,.4,.65]:[.85,.62,.95]));controls.target.set(close ? .12 : table ? .20 : 0,seated ? .52 : table ? .25 : .13,table ? -.10 : 0);controls.update();controls.saveState();},reset(){manualView=false;floorFramed=false;controls.reset();},dispose(){clearTimeout(timer);cancelAnimationFrame(frame);observer.disconnect();visibility.disconnect();clear();appearance.dispose();disposeEnvironment();controls.dispose();renderer.dispose();ringGeometry.dispose();ringMaterial.dispose();stick.geometry.dispose();stick.material.dispose();}};
 }
