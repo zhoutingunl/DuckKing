@@ -12,6 +12,8 @@ DuckKing 是可本地运行或部署在 HTTPS 入口后的语音、动作与自�
 
 本文是竞赛的架构设计入口：下面给出运行模块、部署、时序与接口规格；[TEAM.md](TEAM.md)用相同模块编号列出负责人、交付边界和验收入口；[CONTRIBUTION_SCOPE.md](CONTRIBUTION_SCOPE.md)区分自研接线与官方模型、策略、引擎。代码核对基线为 `2089d6e`（PR #36 合入后的 main），历史测试数据按 [VALIDATION.md](VALIDATION.md)各自的提交读取。
 
+赛后新增的“语音平衡教练”使用独立 CPU PPO 训练进程和共享物理引擎；学习范围、三关验收、工件契约和验证边界见 [平衡教练设计](PPO_BALANCE_COACH.md)。竞赛期间的云端联调记录不自动证明新增口令已经完成现场验收。
+
 ## 架构
 
 ```mermaid
@@ -51,6 +53,8 @@ robotd 路径的物理计算在官方 MuJoCo body 中完成，官方 robotd 运�
 |---|---|---|---|
 | 本地应用与房间 | `src/duckking/app.py`、`rooms.py` | HTTP API、状态 WS、语音 WS | 默认只绑定 loopback；同源校验；默认最多 10 个房间、4 个物理世界，每房间一个页面拥有语音 |
 | 动作调度 | `motion.py` | Action → 执行记录 / 状态 | 限时、取消、去重、失败反馈；不直接控制舵机 |
+| 语音平衡教练 | `balance.py`、`balance_backend.py`、`balance_api.py` | 仿真状态＋PPO 工件 → 有界反馈力度／真实圆盘结果 | 与训练共享 200 Hz MuJoCo、50 Hz 官方步态、10 Hz 任务控制；单房间状态与渐进停盘 |
+| 离线 PPO 与工件 | `training/train_balance.py`、`balance_policy.py`、`balance_runs.py` | CPU 采样／SB3 PPO → 数值策略 JSON、验证和测试记录 | 独立训练解释器与进程；服务只做数值推理；模型/契约/关卡校验，未达门槛不标收敛 |
 | 组合动作 | `choreography.py` | 动作名 / 时间 → 高层意图帧 | 闪身步与狗熊哆嗦毛；有界、连续的阶段编排 |
 | 预览后端 | `motion.py:PreviewBackend` | 速度 / 头部意图 → 动画状态 | 运动学示意，不计算接触、平衡与真实步态 |
 | 官方适配 | `robotd.py` | NDJSON → 官方状态 | 订阅 20 Hz 遥测；发送连续意图；拒绝使用过期状态 |

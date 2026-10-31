@@ -55,6 +55,7 @@ def create_app(
         finally:
             reaper.cancel()
             await asyncio.gather(reaper, return_exceptions=True)
+            await app.state.balance_runs.close()
             for room in list(app.state.rooms.values()):
                 if room.voice:
                     await room.voice.disconnect()
@@ -94,6 +95,10 @@ def create_app(
 
     def get_room(number="1"):
         return app.state.room_registry.get(number)
+
+    from .balance_api import install_balance_api
+
+    install_balance_api(app, get_room, ROOT)
 
     async def socket_room(ws):
         # Selection is a protocol frame so existing HTTPS bridges need no changes.
@@ -192,7 +197,7 @@ def create_app(
     ):
         allowed = {
             "traffic": {"all", "interactive", "demo", "verification", "unattributed"},
-            "page": {"all", "home", "scenarios", "demos", "studio", "unknown"},
+            "page": {"all", "home", "scenarios", "demos", "studio", "balance", "unknown"},
             "device": {"all", "mobile", "desktop", "unknown"},
             "cache": {"all", "network", "http", "persistent", "memory", "unknown"},
             "backend": {"all", "preview", "mujoco", "robotd", "unknown"},
@@ -206,6 +211,7 @@ def create_app(
                 "table",
                 "seated",
                 "stage",
+                "balance",
                 "unknown",
             },
         }
@@ -296,6 +302,12 @@ def create_app(
             raise HTTPException(422, "请选择有效的物理场景")
         selected = get_room(room)
         async with selected.scene_lock:
+            if (selected.scene_motion
+                    and getattr(selected.scene_motion.backend, "scene", None) == "balance"):
+                if selected.voice:
+                    raise HTTPException(409, "请先断开当前房间语音，再切换物理世界")
+                await selected.scene_motion.close()
+                selected.scene_motion = None
             if selected.scene_motion is None:
                 async with app.state.physics_lock:
                     count = sum(r.scene_motion is not None for r in app.state.rooms.values())
@@ -325,7 +337,10 @@ def create_app(
 
     @app.get("/api/studio")
     async def studio_status(room: str = "1"):
-        return scene_controller(room).studio.snapshot()
+        studio = scene_controller(room).studio
+        if studio is None:
+            raise HTTPException(409, "当前不是互动工坊场景，请先选择节目")
+        return studio.snapshot()
 
     @app.post("/api/studio/select")
     async def studio_select(body: dict, room: str = "1"):
@@ -344,6 +359,8 @@ def create_app(
     async def studio_action(body: dict, room: str = "1"):
         try:
             studio = scene_controller(room).studio
+            if studio is None:
+                raise ValueError("当前不是互动工坊场景，请先选择节目")
             if "rehearsal_text" in body:
                 text = body["rehearsal_text"]
                 if not isinstance(text, str) or len(text) > 1000:
@@ -465,7 +482,7 @@ def create_app(
         try:
             selection = StageSelection.model_validate(await request.json())
             backend = scene_controller(room).backend
-            if not backend.stage:
+            if not getattr(backend, "stage", None):
                 raise ValueError("请先准备四鸭发布会舞台")
             return backend.stage.select(selection)
         except (ValueError, TypeError) as exc:
@@ -619,6 +636,9 @@ def create_app(
                         mode = data.get("mode", "cloud")
                         if mode not in {"cloud", "local_first"}:
                             raise ValueError("未知语音模式")
+                        if (mode != "cloud"
+                                and getattr(voice_motion.backend, "scene", None) == "balance"):
+                            raise ValueError("平衡教练使用灵矽理解，请选择灵矽模式")
                         if (mode == "local_first" and voice_motion.studio
                                 and voice_motion.studio.active):
                             raise ValueError("现场互动节目使用灵矽理解，请选择灵矽模式")

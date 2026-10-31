@@ -43,7 +43,13 @@ class RoomRegistry:
 
     @staticmethod
     def busy(room):
+        # A balance policy owns a bounded task directly on its physics backend.
+        physics_task = (getattr(room.scene_motion.backend, "task", None)
+                        if (room.scene_motion
+                            and getattr(room.scene_motion.backend, "scene", None) == "balance")
+                        else None)
         return (room.viewers or room.voice is not None or room.motion.current is not None
+                or (physics_task is not None and not physics_task.done())
                 or (room.scene_motion is not None and (room.scene_motion.current is not None
                     or (room.scene_motion.studio is not None
                         and room.scene_motion.studio.task is not None

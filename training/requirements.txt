@@ -1,0 +1,10 @@
+# Isolated CPU training environment; serving DuckKing does not require PyTorch.
+# Intel macOS's last official PyTorch wheel uses the NumPy 1.x ABI.
+numpy==1.26.4
+mujoco==3.3.7
+onnxruntime==1.19.2
+gymnasium==1.0.0
+stable-baselines3==2.4.1
+torch==2.2.2; sys_platform == 'darwin' and platform_machine == 'x86_64'
+torch>=2.6,<3; sys_platform != 'darwin' or platform_machine != 'x86_64'
+pydantic>=2.10,<3

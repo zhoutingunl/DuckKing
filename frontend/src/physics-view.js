@@ -47,9 +47,14 @@ export function physicsView(container) {
     for(const geom of model.geoms){
       let geometry=geom.type===7?meshes.get(geom.mesh):null;
       const primitiveKey=JSON.stringify([geom.type,geom.size]);
-      if(geom.type===6||geom.type===2){
+      if(geom.type===6||geom.type===2||geom.type===5){
         geometry=primitives.get(primitiveKey);
-        if(!geometry){geometry=geom.type===6?new THREE.BoxGeometry(...geom.size.map(v=>v*2)):new THREE.SphereGeometry(geom.size[0],32,20);primitives.set(primitiveKey,geometry);geometries.push(geometry)}
+        if(!geometry){
+          geometry=geom.type===6?new THREE.BoxGeometry(...geom.size.map(v=>v*2)):geom.type===5?new THREE.CylinderGeometry(geom.size[0],geom.size[0],geom.size[1]*2,64):new THREE.SphereGeometry(geom.size[0],32,20);
+          // MuJoCo cylinders use local Z, Three.js cylinders use local Y.
+          if(geom.type===5)geometry.rotateX(Math.PI/2);
+          primitives.set(primitiveKey,geometry);geometries.push(geometry)
+        }
       }
       if(!geometry)continue;
       const spec=appearanceFor(geom,appearance.colours),paintKey=`${spec.roughness}:${spec.metalness}`,key=geometry.uuid+':'+paintKey;
@@ -142,5 +147,5 @@ export function physicsView(container) {
     drawPause=reduced?Math.max(100,Math.min(2000,drawCost*2)):seatedView?66:33;
     timer=setTimeout(()=>{frame=requestAnimationFrame(animate);},drawPause);
   }animate();
-  return {load,update,clear,screenOrder,selection(value){selection=value},interaction(callback,mode="select"){interaction=callback;interactionMode=mode;if(!callback){stick.visible=false;for(const ring of rings.values())ring.visible=false}},renderNow(){controls.update();renderer.render(scene,camera);},frameScene(scene){manualView=false;floorFramed=false;seatedView=scene==='seated';resize();const close=scene==='carry',seated=scene==='seated',table=scene==='table';camera.position.set(...(scene==='stage'?[2.7,2.1,0]:seated?[1.05,.90,-1.05]:table?[1.35,.98,-1.35]:close?[.6,.4,.65]:[.85,.62,.95]));controls.target.set(close ? .12 : table ? .20 : 0,seated ? .52 : table ? .25 : .13,table ? -.10 : 0);controls.update();controls.saveState();},reset(){manualView=false;floorFramed=false;controls.reset();},dispose(){clearTimeout(timer);cancelAnimationFrame(frame);observer.disconnect();visibility.disconnect();clear();appearance.dispose();disposeEnvironment();controls.dispose();renderer.dispose();ringGeometry.dispose();ringMaterial.dispose();stick.geometry.dispose();stick.material.dispose();}};
+  return {load,update,clear,screenOrder,selection(value){selection=value},interaction(callback,mode="select"){interaction=callback;interactionMode=mode;if(!callback){stick.visible=false;for(const ring of rings.values())ring.visible=false}},renderNow(){controls.update();renderer.render(scene,camera);},frameScene(scene){manualView=false;floorFramed=false;seatedView=scene==='seated';resize();const close=scene==='carry',seated=scene==='seated',table=scene==='table';camera.position.set(...(scene==='stage'?[2.7,2.1,0]:seated?[1.05,.90,-1.05]:table?[1.35,.98,-1.35]:close?[.6,.4,.65]:[.85,.62,.95]));controls.target.set(close ? .12 : table ? .20 : 0,scene==='balance' ? .30 : seated ? .52 : table ? .25 : .13,table ? -.10 : 0);controls.update();controls.saveState();},reset(){manualView=false;floorFramed=false;controls.reset();},dispose(){clearTimeout(timer);cancelAnimationFrame(frame);observer.disconnect();visibility.disconnect();clear();appearance.dispose();disposeEnvironment();controls.dispose();renderer.dispose();ringGeometry.dispose();ringMaterial.dispose();stick.geometry.dispose();stick.material.dispose();}};
 }

@@ -1,0 +1,19 @@
+{
+  "cpu": "Intel Core i7-9750H @ 2.60GHz",
+  "physical_cores": 6,
+  "logical_cpus": 12,
+  "memory_bytes": 34359738368,
+  "device": "cpu",
+  "platform": "macOS-26.5.2-x86_64-i386-64bit",
+  "python": "3.12.12",
+  "packages": {
+    "numpy": "1.26.4",
+    "torch": "2.2.2",
+    "mujoco": "3.3.7",
+    "stable-baselines3": "2.4.1",
+    "gymnasium": "1.0.0",
+    "onnxruntime": "1.19.2",
+    "pydantic": "2.14.2"
+  },
+  "timing_scope": "Measured wall time includes model preparation, baseline, sampling, optimization, validation and exports; total also includes held-out policy and paired baseline tests. Three training runs and development checks overlapped on this workstation; not an exclusive-CPU benchmark. The per-run time excludes earlier exploratory/cancelled runs and implementation work."
+}

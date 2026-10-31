@@ -27,6 +27,10 @@
 - 演示场景的角色文案与自动编排由 DuckKing 编写；人类指令/旁白使用 macOS Tingting，小鸭使用 Eddy 中文系统语音加轻量升调和滤波生成，未克隆真人或官方鸭子音色。生成工具为 `scripts/build_demo_audio.py`，生成结果和逐句文本清单位于 `frontend/public/demo-audio/`。实时灵矽模式中的识别、工具调用与回复另由真实云端会话产生。
 - 第十幕使用 Pollen Robotics Microduck 固定提交 `942e58e3aa6dbb28e7037203fff11866122c7567` 的原创 `sounds/scores/wistful.duckscore` 开头 16 拍。原谱与 Apache-2.0 许可保存在 `frontend/public/scores/`；声部编队规则参考同提交 `sounds/src/chorale/mod.rs`。DuckKing 自行编写浏览器合成与节目调度，不宣称官方音色、BLE 传输或硬件时钟同步。
 
+## CPU PPO 训练
+
+语音平衡教练的训练使用 [Stable Baselines3](https://github.com/DLR-RM/stable-baselines3) 2.4.1（MIT）、[Gymnasium](https://github.com/Farama-Foundation/Gymnasium) 1.0.0（MIT）与 [PyTorch](https://github.com/pytorch/pytorch)（BSD 风格许可）；运行时仍使用已声明的 MuJoCo、NumPy、ONNX Runtime。依赖通过包管理器安装，没有将这些库的源码重新署名为本项目代码。环境、圆盘、奖励、评估、策略导出与教学页面由 DuckKing 编写；设计参考同一作者的 DuckKing_PPO 训练流程，没有复用其浏览器渲染。PPO 的工程反馈先验与官方冻结步态见 [能力边界](docs/PPO_BALANCE_COACH.md)。
+
 ## 协议参考
 
 - [灵矽 OTA](https://linx.qiniu.com/docs/xrobot/platform/OTA)

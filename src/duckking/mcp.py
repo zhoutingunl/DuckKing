@@ -303,6 +303,11 @@ class DeviceMCP:
                     tools = [
                         t for t in TOOLS if t["name"] in {"duck_stop", "duck_get_status"}
                     ] + STAGE_TOOLS
+                if self.motion.backend.scene == "balance":
+                    from .balance_backend import BALANCE_TOOLS
+
+                    tools = [t for t in TOOLS if t["name"] in {"duck_stop", "duck_get_status"}]
+                    tools += BALANCE_TOOLS
             if self.motion.studio:
                 if self.motion.studio.active not in {None, "voice", "persona"}:
                     tools = [t for t in tools if t["name"] in {"duck_stop", "duck_get_status"}]
@@ -318,6 +323,19 @@ class DeviceMCP:
                 raise ValueError("工具名称必须是字符串")
             if not isinstance(arguments, dict):
                 raise ValueError("工具参数必须为对象")
+            if (self.motion.backend.kind == "mujoco"
+                    and self.motion.backend.scene == "balance"):
+                if name == "duck_balance":
+                    if "run" in arguments:
+                        raise ValueError("语音工具不接受工件路径或记录编号")
+                    if arguments.get("operation") not in ("start", "stop", "status"):
+                        raise ValueError("无效平衡教练语音操作")
+                    result = await self.motion.backend.invoke(arguments)
+                    return response | {"result": {"content": [{"type": "text", "text":
+                        json.dumps(result, ensure_ascii=False)}],
+                        "isError": result.get("operation_failed", False)}}
+                if name not in {"duck_stop", "duck_get_status"}:
+                    raise ValueError("圆盘上只能使用平衡教练与停止工具")
             if (self.motion.backend.kind == "mujoco" and self.motion.backend.scene == "stage"
                     and name not in {t["name"] for t in STAGE_TOOLS}
                     and name not in {"duck_stop", "duck_get_status"}):
