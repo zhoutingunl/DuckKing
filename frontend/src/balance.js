@@ -5,19 +5,18 @@ import {createPhysicsModelLoader} from './model-loader.js';
 import {setupVoice} from './voice.js';
 import {setupRoom} from './room.js';
 import {appURL,currentRoom} from './urls.js';
-import {createSocket} from './transport.js';
+import {sceneStateFeed} from './scene-state-feed.js';
 import {api} from './demo-runtime.js';
 import {rewardTerms,hyperparameters,observationGroups,metricLabels,ppoSymbols,clippedExample,compatibleRuns} from './balance-explain.js';
 import {drawChart} from './balance-chart.js';
 import {measurement,loadMetrics,afterFrame} from './experience.js';
 
 const $=id=>document.getElementById(id),titles=['跟着圆盘站稳','转盘转，我不转','从边缘回到中心'];
-let level=1,observedLevel=1,levelChosen=false,viewer,baselineViewer,lastBackend,ready=false,loading=false,selectedRun='',records=[],detail=null,sample=null,sampleStep=null,term='center',socket,timer,closed=false,revision=null;
-let reconnectTimer,ackTimer,lastStateKey='',lastObservation=null,lastObservationAt=0,detailKey=null,optionsKey='';
+let level=1,observedLevel=1,levelChosen=false,viewer,baselineViewer,lastBackend,ready=false,loading=false,selectedRun='',records=[],detail=null,sample=null,sampleStep=null,term='center',stateFeed,timer,closed=false,revision=null;
+let lastStateKey='',lastObservation=null,lastObservationAt=0,detailKey=null,optionsKey='';
 const lifetime=new AbortController();
 window.addEventListener('pagehide',()=>{
- closed=true;lifetime.abort();clearInterval(timer);clearTimeout(reconnectTimer);clearTimeout(ackTimer);
- if(socket){socket.onclose=null;socket.close();socket=null}viewer?.dispose();baselineViewer?.dispose();
+ closed=true;lifetime.abort();clearInterval(timer);stateFeed?.close();viewer?.dispose();baselineViewer?.dispose();
 },{once:true});
 window.addEventListener('pageshow',event=>{if(event.persisted)location.reload()});
 const loader=createPhysicsModelLoader();
@@ -28,7 +27,7 @@ function appendLog(text,label='实际执行'){
 await setupRoom();
 const voice=setupVoice({appendLog,notify,endpoint:'scene-voice',cloudOnly:true});
 function controls(){
- $('start-challenge').disabled=!ready||loading;$('stop-balance').disabled=!ready;
+ $('start-challenge').disabled=!ready||loading||!stateFeed?.fresh();$('stop-balance').disabled=!ready;
  $('prepare-balance').disabled=loading;$('prepare-balance').textContent=ready?'圆盘已准备 · 重新加载':'准备圆盘';
  document.querySelectorAll('[data-level]').forEach(b=>{b.disabled=loading;b.setAttribute('aria-pressed',String(Number(b.dataset.level)===level))});
 }
@@ -89,26 +88,37 @@ async function prepare(){
   }else metrics.cache='memory';
   lastStateKey='';renderState(state.backend);const firstFrame=performance.now();await afterFrame();signal.throwIfAborted();viewer.renderNow();baselineViewer.renderNow();await afterFrame();signal.throwIfAborted();metrics.first_frame_ms=Math.round(performance.now()-firstFrame);placeholders(null);ready=true;
   experience.finish('completed',{...loadMetrics(metrics),scene_ms:Math.round(performance.now()-experience.started)},{cache:metrics.cache,scene:'balance'});
-  if(!socket)connect();appendLog('左右圆盘已准备：左侧官方基线，右侧所选策略；按钮或灵矽口令均可同时发起挑战。');
+  if(!stateFeed)connect();else void stateFeed.refresh();appendLog('左右圆盘已准备：左侧官方基线，右侧所选策略；按钮或灵矽口令均可同时发起挑战。');
  }catch(e){experience.finish('failed');if(!closed){notify(e.message);placeholders('加载未完成，可重试。')}}finally{loading=false;if(!closed)controls()}
 }
 function connect(){
- if(closed)return;const ws=socket=createSocket('scene-ws');
- ws.onmessage=e=>{let active=false;try{if(closed)return;const state=JSON.parse(e.data);if(state.type==='state'){
-   active=(state.backend.balance?.comparison?.execution??state.backend.balance?.execution)==='running';
-   if(state.backend.scene==='balance')renderState(state.backend);
-   else{ready=false;controls();notify('本房间已切到其他场景，请重新准备圆盘。')}
-  }}catch(error){if(!closed)notify(error.message)}finally{
-   // Preserve one-snapshot backpressure; paused/hidden scenes need only a heartbeat.
-   clearTimeout(ackTimer);if(!closed)ackTimer=setTimeout(()=>{if(ws===socket&&ws.readyState===1)ws.send('next')},document.hidden?1000:active?0:250);
-  }};
- ws.onclose=()=>{clearTimeout(ackTimer);if(ws!==socket)return;socket=null;if(!closed){$('challenge-status').textContent='状态连接中断，正在重新连接';reconnectTimer=setTimeout(connect,1500)}};
+ if(closed)return;
+ stateFeed=sceneStateFeed({
+  readState:signal=>api('api/scenes/state',currentRoom,{signal}),
+  onState:state=>{
+   if(state.backend?.scene==='balance')renderState(state.backend);
+   else{ready=false;notify('本房间已切到其他场景，请重新准备圆盘。')}
+   controls();
+  },
+  onStatus:({mode,reason})=>{
+   const labels={connecting:'正在连接物理状态…',websocket:'实时连接正常 · 两侧实际物理状态',http:'已通过 HTTP 接续实际物理状态 · 正在恢复实时连接',offline:'实时状态不可用 · 画面保留上次记录，恢复后可开始；仍可尝试停盘'};
+   $('scene-connection').textContent=labels[mode]+(mode==='offline'&&reason?' · '+reason:'');
+   $('scene-connection').dataset.transport=mode;controls();
+  },
+ });
 }
 async function command(body){
- try{const result=await api('api/balance/command',currentRoom,{body});appendLog(`第 ${result.level} 关 · ${result.phase} · ${result.controller}`,'本地排练');return result}catch(e){notify(e.message)}
+ $('command-feedback').textContent='正在提交请求…';
+ try{
+  const result=await api('api/balance/command',currentRoom,{body,signal:lifetime.signal});
+  if(closed)return;
+  $('command-feedback').textContent=`${{start:'挑战',stop:'停盘',select:'切换关卡'}[body.operation]??'操作'}请求已受理 · 进度见对照画面`;
+  appendLog(`第 ${result.level} 关 · ${result.phase} · ${result.controller}`,'本地排练');void stateFeed?.refresh();return result;
+ }catch(e){if(!closed){$('command-feedback').textContent='请求未确认，请查看提示及实际进度。';notify(e.message)}}
 }
 $('prepare-balance').addEventListener('click',prepare);
 $('start-challenge').addEventListener('click',async()=>{
+ if(loading||!ready||!stateFeed?.fresh())return;
  loading=true;controls();$('notice').hidden=true;
  try{await command({operation:'start',compare:true,level,controller:$('controller').value,seed:Number($('challenge-seed').value),...(selectedRun?{run:selectedRun}:{})})}finally{loading=false;controls()}
 });
@@ -120,7 +130,7 @@ $('clear-log').addEventListener('click',()=>$('activity-log').replaceChildren())
 for(const button of document.querySelectorAll('[data-level]'))button.addEventListener('click',async()=>{
  if(loading)return;level=Number(button.dataset.level);levelChosen=true;controls();
  if(ready)await command({operation:'select',level});
- $('scene-title').textContent=`待挑战第 ${level} 关 · ${titles[level-1]}`;
+ if(!ready)$('scene-title').textContent=`待挑战第 ${level} 关 · ${titles[level-1]}`;
  selectedRun='';sampleStep=null;await refresh();
 });
 function options(select,entries){const previous=select.value;select.replaceChildren();for(const[value,label]of entries){const o=document.createElement('option');o.value=value;o.textContent=label;select.append(o)}if(entries.some(([value])=>value===previous))select.value=previous}

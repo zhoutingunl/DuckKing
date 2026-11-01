@@ -1,5 +1,53 @@
 import {test,expect} from '@playwright/test';
 
+test('rejected scene socket falls back to real HTTP physics; start, offline stop and reconnection recover',async({page,request})=>{
+ test.setTimeout(120000);
+ const errors=[],commands=[];page.on('pageerror',e=>errors.push(e.message));
+ page.on('request',req=>{if(req.method()==='POST'&&new URL(req.url()).pathname==='/api/balance/command')commands.push(req.postDataJSON())});
+ // Exercise the server's actual Origin rejection, without changing its policy.
+ await page.addInitScript(()=>{
+  window.sceneNativeWebSocket=window.WebSocket;
+  window.WebSocket=new Proxy(window.WebSocket,{construct(Target,args){
+   const url=new URL(args[0]);if(url.pathname==='/scene-ws'){url.hostname='localhost';args[0]=url.href}
+   return new Target(...args);
+  }});
+ });
+ const created=await request.post('/api/rooms');expect(created.ok()).toBe(true);
+ const {room}=await created.json();
+ await page.goto(`/balance.html?room=${room}`);
+ await page.locator('#prepare-balance').click();
+ const connection=page.locator('#scene-connection'),start=page.locator('#start-challenge');
+ await expect(start).toBeEnabled({timeout:45000});
+ await expect(connection).toHaveAttribute('data-transport','http');
+ await page.selectOption('#controller','baseline');await start.click();
+ await expect(page.locator('#command-feedback')).toContainText('挑战请求已受理');
+ await expect(page.locator('#comparison-status')).toContainText('同步挑战中');
+ await expect(page.locator('#disc-time')).not.toHaveText('0.0 s');
+ await expect(page.locator('#baseline-time')).not.toHaveText('0.0 s');
+ const state=(await(await request.get(`/api/scenes/state?room=${room}`)).json()).backend;
+ expect(state.balance.comparison.sim_time).toBeGreaterThan(0);
+ expect(state.comparison.baseline.sim_time).toBe(state.sim_time);
+ expect(state.comparison.baseline.disc_target).toEqual(state.disc_target);
+ // A total read outage must never leave a stale scene looking ready to start.
+ await page.route('**/api/scenes/state?*',route=>route.fulfill({status:503,json:{detail:'test state outage'}}));
+ await expect(connection).toHaveAttribute('data-transport','offline');
+ await expect(start).toBeDisabled();await expect(page.locator('#stop-balance')).toBeEnabled();
+ await page.locator('#stop-balance').click();
+ await expect(page.locator('#command-feedback')).toContainText('停盘请求已受理');
+ await expect.poll(async()=>((await(await request.get(`/api/scenes/state?room=${room}`)).json()).backend.balance.comparison.phase),{timeout:10000}).toBe('cancelled');
+ await page.unroute('**/api/scenes/state?*');
+ await expect(connection).toHaveAttribute('data-transport','http');await expect(start).toBeEnabled();
+ await expect(page.locator('#comparison-status')).toContainText('对照已停止');
+ await expect(page.locator('#baseline-status')).toContainText('人为干预不计成功');
+ const outcome=await page.locator('#challenge-status').textContent();
+ await page.evaluate(()=>{window.WebSocket=window.sceneNativeWebSocket});
+ await expect(connection).toHaveAttribute('data-transport','websocket',{timeout:40000});
+ await expect(page.locator('#challenge-status')).toHaveText(outcome);
+ expect(commands.filter(c=>c.operation==='start')).toHaveLength(1);
+ expect(commands.filter(c=>c.operation==='stop')).toHaveLength(1);
+ expect(errors).toEqual([]);
+});
+
 test('balance classroom explains signs, displays real record boundaries and fits a phone',async({page})=>{
  const errors=[];page.on('pageerror',e=>errors.push(e.message));
  await page.goto('/balance.html?room=1');
