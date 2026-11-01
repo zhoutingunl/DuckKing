@@ -1,40 +1,100 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import {appearanceControls,appearanceFor,studioEnvironment} from './duck-appearance.js';
+import {renderScheduler} from './render-scheduler.js';
 
-export function physicsView(container) {
-  let interaction=null,interactionMode="select",latest=null,pointerStart=null,selection=null,visible=true;
+export function physicsView(container,{label=null,onCameraChange}={}) {
+  let interaction=null,interactionMode="select",latest=null,pointerStart=null,selection=null,visible=true,disposed=false,scheduler;
+  const invalidate=()=>scheduler?.invalidate();
+  let syncingCamera=false;
   const raycaster=new THREE.Raycaster(),cursor=new THREE.Vector2();
   const scene=new THREE.Scene();scene.background=new THREE.Color('#edf0e5');
   const renderer=new THREE.WebGLRenderer({antialias:true});renderer.setPixelRatio(Math.min(devicePixelRatio,2));
   const gl=renderer.getContext(),debug=gl.getExtension('WEBGL_debug_renderer_info');
-  let reduced=/swiftshader|llvmpipe|softpipe|software/i.test(debug?gl.getParameter(debug.UNMASKED_RENDERER_WEBGL):'');
+  const reduced=/swiftshader|llvmpipe|softpipe|software/i.test(debug?gl.getParameter(debug.UNMASKED_RENDERER_WEBGL):'');
   container.dataset.renderQuality=reduced?'reduced':'full';
   renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1;
   renderer.shadowMap.enabled=!reduced;renderer.shadowMap.type=THREE.PCFShadowMap;
+  renderer.shadowMap.autoUpdate=false;
   container.append(renderer.domElement);renderer.domElement.setAttribute('aria-label','官方 MicroDuck 模型，位置与关节姿态来自 MuJoCo');
   const camera=new THREE.PerspectiveCamera(38,1,.01,30);camera.position.set(.85,.62,.95);
   const controls=new OrbitControls(camera,renderer.domElement);controls.target.set(0,.13,0);controls.minDistance=.35;controls.maxDistance=6;controls.maxPolarAngle=Math.PI/2.02;controls.enableDamping=true;controls.update();controls.saveState();
-  let manualView=false,floorFramed=false,seatedView=false;controls.addEventListener('start',()=>{manualView=true});
+  let manualView=false,floorFramed=false,seatedView=false;
+  const cameraState=()=>({position:camera.position.toArray(),target:controls.target.toArray(),zoom:camera.zoom});
+  const cameraChanged=()=>{invalidate();if(!syncingCamera)onCameraChange?.(cameraState())};
+  const manual=()=>{manualView=true};controls.addEventListener('start',manual);controls.addEventListener('change',cameraChanged);
   scene.add(new THREE.HemisphereLight(0xffffff,0x71815a,1.2));
   const sun=new THREE.DirectionalLight(0xfff6df,2);sun.position.set(1,2,1);sun.castShadow=true;sun.shadow.mapSize.set(1024,1024);sun.shadow.camera.left=-2;sun.shadow.camera.right=2;sun.shadow.camera.top=2;sun.shadow.camera.bottom=-2;sun.shadow.bias=-.0001;sun.shadow.normalBias=.001;scene.add(sun);
   const disposeEnvironment=studioEnvironment(renderer,scene,{reduced});
   const floor=new THREE.Mesh(new THREE.PlaneGeometry(20,20),new THREE.MeshStandardMaterial({color:'#edf0e5',roughness:1}));floor.rotation.x=-Math.PI/2;floor.receiveShadow=true;scene.add(floor);
   const grid=new THREE.GridHelper(8,80,0xcbd6bd,0xe0e6d7);grid.position.y=.0001;scene.add(grid);
   const world=new THREE.Group();world.rotation.x=-Math.PI/2;scene.add(world);
-  let objects=new Map(),labels=new Map(),textures=[],geometries=[],materials=[],frame,timer,revision=null,slowFrames=0,lastFrame=performance.now(),pixelBudget=reduced?320:640,drawCost=0,drawPause=0;
-  let renderBatches=[],readyToRender=false;
+  let objects=new Map(),labels=new Map(),textures=[],geometries=[],materials=[],revision=null;
+  let renderBatches=[],readyToRender=false,headingGuide=null;
   const appearance=appearanceControls(container,repaint);
   function repaint(){
     for(const {object,geoms} of renderBatches){
       geoms.forEach((geom,index)=>object.setColorAt(index,appearanceFor(geom,appearance.colours).color));
       object.instanceColor.needsUpdate=true;
     }
+    invalidate();
   }
   const instanceMatrix=new THREE.Matrix4();
-  const visibility=new IntersectionObserver(entries=>{visible=entries[0]?.isIntersecting??true});visibility.observe(renderer.domElement);
-  function clear(){world.clear();geometries.forEach(g=>g.dispose());materials.forEach(m=>m.dispose());textures.forEach(t=>t.dispose());geometries=[];materials=[];textures=[];renderBatches=[];readyToRender=false;objects.clear();labels.clear();appearance.setDucks([]);delete container.dataset.renderedScene;}
+  function paintLabel(canvas,id){const context=canvas.getContext('2d');context.clearRect(0,0,192,72);context.fillStyle=({a:'#526d32',b:'#3f6580',c:'#987033',d:'#865872'}[id]??'#526d32');context.fillRect(0,0,192,72);context.font='40px sans-serif';context.textAlign='center';context.fillStyle='#fff';context.fillText(label??`鸭 ${id.toUpperCase()}`,96,51)}
+  function setLabel(text){
+    if(disposed||text===label)return;label=text;container.dataset.duckLabel=text??'';
+    for(const [id,sprite] of labels){paintLabel(sprite.material.map.image,id);sprite.material.map.needsUpdate=true}invalidate();
+  }
+  if(label)container.dataset.duckLabel=label;
+  function updateHeadingGuide(state){
+    // Level 2's explicit facing task targets world +X (yaw=0). Paint this on
+    // the floor outside the disc, never as an obstacle or floating label.
+    // This annotation belongs to world, never to the moving
+    // disc, robot, or camera. World's Z-up -> Y-up conversion preserves +X.
+    const active=state.scene==='balance'&&state.balance?.level===2;
+    if(active&&!headingGuide){
+      headingGuide=new THREE.Group();world.add(headingGuide);
+      // A rectangle plus triangle keeps the overlay small and avoids a shape
+      // triangulator in the shared renderer bundle.
+      const geometry=new THREE.BufferGeometry();
+      geometry.setAttribute('position',new THREE.Float32BufferAttribute([-.12,-.010,0,.04,-.010,0,.04,.010,0,-.12,.010,0,.04,-.030,0,.12,0,0,.04,.030,0],3));
+      geometry.setIndex([0,1,2,0,2,3,4,5,6]);geometries.push(geometry);
+      for(const [colour,scale,height,order] of [[0xffffff,1.12,.002,10],[0x155d85,1,.003,11]]){
+        const material=new THREE.MeshBasicMaterial({color:colour,side:THREE.DoubleSide,depthWrite:false});materials.push(material);
+        const arrow=new THREE.Mesh(geometry,material);arrow.position.set(.56,0,height);arrow.scale.setScalar(scale);arrow.renderOrder=order;headingGuide.add(arrow);
+      }
+      const canvas=document.createElement('canvas');canvas.width=384;canvas.height=96;
+      const context=canvas.getContext('2d');context.fillStyle='#155d85';context.fillRect(0,0,384,96);
+      context.font='bold 48px sans-serif';context.textAlign='center';context.fillStyle='#fff';context.fillText('目标朝向',192,65);
+      const texture=new THREE.CanvasTexture(canvas);texture.colorSpace=THREE.SRGBColorSpace;textures.push(texture);
+      const material=new THREE.MeshBasicMaterial({map:texture,side:THREE.DoubleSide,depthWrite:false});materials.push(material);
+      const plane=new THREE.PlaneGeometry(.22,.055);geometries.push(plane);
+      const text=new THREE.Mesh(plane,material);text.position.set(.56,-.075,.003);text.renderOrder=12;headingGuide.add(text);
+      invalidate();
+    }
+    if(headingGuide&&headingGuide.visible!==active){headingGuide.visible=active;invalidate()}
+    const target=active?'world:+X':'none';
+    if(container.dataset.headingTarget!==target){
+      container.dataset.headingTarget=target;
+      container.dataset.headingSurface=active?'ground':'none';
+      renderer.domElement.setAttribute('aria-label','官方 MicroDuck 模型，位置与关节姿态来自 MuJoCo'+(active?'；地面蓝色目标朝向标记固定在圆盘外，躯干应沿箭头方向保持朝向':''));
+    }
+  }
+  const setVisibility=()=>scheduler?.visible(visible&&!document.hidden);
+  const visibility=new IntersectionObserver(entries=>{visible=entries[0]?.isIntersecting??true;setVisibility()});visibility.observe(renderer.domElement);
+  document.addEventListener('visibilitychange',setVisibility);
+  function clear(){
+    // Geometry disposal does not release InstancedMesh's matrix/colour buffers.
+    for(const {object} of renderBatches)object.dispose();
+    world.clear();geometries.forEach(g=>g.dispose());materials.forEach(m=>m.dispose());textures.forEach(t=>t.dispose());
+    geometries=[];materials=[];textures=[];renderBatches=[];readyToRender=false;revision=null;latest=null;selection=null;headingGuide=null;
+    objects.clear();labels.clear();renderer.renderLists.dispose();appearance.setDucks([]);delete container.dataset.renderedScene;
+    delete container.dataset.headingTarget;
+    delete container.dataset.headingSurface;
+    renderer.shadowMap.needsUpdate=true;invalidate();
+  }
   function load(model){
+    if(disposed)return;
     clear();const meshes=new Map(),shared=new Map();
     const decode=value=>Uint8Array.from(atob(value),char=>char.charCodeAt(0)).buffer;
     for(const [id,value] of Object.entries(model.meshes)){
@@ -47,9 +107,14 @@ export function physicsView(container) {
     for(const geom of model.geoms){
       let geometry=geom.type===7?meshes.get(geom.mesh):null;
       const primitiveKey=JSON.stringify([geom.type,geom.size]);
-      if(geom.type===6||geom.type===2){
+      if(geom.type===6||geom.type===2||geom.type===5){
         geometry=primitives.get(primitiveKey);
-        if(!geometry){geometry=geom.type===6?new THREE.BoxGeometry(...geom.size.map(v=>v*2)):new THREE.SphereGeometry(geom.size[0],32,20);primitives.set(primitiveKey,geometry);geometries.push(geometry)}
+        if(!geometry){
+          geometry=geom.type===6?new THREE.BoxGeometry(...geom.size.map(v=>v*2)):geom.type===5?new THREE.CylinderGeometry(geom.size[0],geom.size[0],geom.size[1]*2,64):new THREE.SphereGeometry(geom.size[0],32,20);
+          // MuJoCo cylinders use local Z, Three.js cylinders use local Y.
+          if(geom.type===5)geometry.rotateX(Math.PI/2);
+          primitives.set(primitiveKey,geometry);geometries.push(geometry)
+        }
       }
       if(!geometry)continue;
       const spec=appearanceFor(geom,appearance.colours),paintKey=`${spec.roughness}:${spec.metalness}`,key=geometry.uuid+':'+paintKey;
@@ -68,24 +133,30 @@ export function physicsView(container) {
     revision=model.revision;
   }
   function update(state){
+    if(disposed)return;
     latest=state;
-    if(state.stage&&(selection?.instance!==state.stage.instance||state.stage.selection_version>=selection.selection_version))selection=state.stage;
+    if(state.stage&&(selection?.instance!==state.stage.instance||state.stage.selection_version>selection.selection_version)){selection=state.stage;invalidate()}
     if(state.revision!==revision)return;
+    updateHeadingGuide(state);
     for(const duck of state.ducks){
       if(!labels.has(duck.id)){
-        const canvas=document.createElement('canvas');canvas.width=192;canvas.height=72;const context=canvas.getContext('2d');context.fillStyle=({a:'#526d32',b:'#3f6580',c:'#987033',d:'#865872'}[duck.id]??'#526d32');context.fillRect(0,0,192,72);context.font='40px sans-serif';context.textAlign='center';context.fillStyle='#fff';context.fillText(`鸭 ${duck.id.toUpperCase()}`,96,51);
-        const texture=new THREE.CanvasTexture(canvas);textures.push(texture);const material=new THREE.SpriteMaterial({map:texture,depthTest:false});materials.push(material);const sprite=new THREE.Sprite(material);sprite.scale.set(.105,.04,1);world.add(sprite);labels.set(duck.id,sprite);
+        const canvas=document.createElement('canvas');canvas.width=192;canvas.height=72;paintLabel(canvas,duck.id);
+        const texture=new THREE.CanvasTexture(canvas);textures.push(texture);const material=new THREE.SpriteMaterial({map:texture,depthTest:false});materials.push(material);const sprite=new THREE.Sprite(material);sprite.scale.set(.105,.04,1);world.add(sprite);labels.set(duck.id,sprite);invalidate();
       }
       const [x,y,z]=duck.position;labels.get(duck.id).position.set(x,y,z+.20);
     }
     const changed=new Set();
     for(const geom of state.geoms){const entry=objects.get(geom.id);if(!entry)continue;
       const {object,index}=entry,r=geom.rotation;
+      // Paused backends still send snapshots. Do not upload identical transforms.
+      if(entry.pose&&geom.position.every((v,i)=>v===entry.pose.position[i])&&r.every((v,i)=>v===entry.pose.rotation[i]))continue;
+      entry.pose=geom;
       instanceMatrix.set(r[0],r[1],r[2],geom.position[0],r[3],r[4],r[5],geom.position[1],r[6],r[7],r[8],geom.position[2],0,0,0,1);
       object.setMatrixAt(index,instanceMatrix);changed.add(object);
     }
-    for(const object of changed){object.instanceMatrix.needsUpdate=true;object.computeBoundingSphere()}
-    readyToRender=changed.size>0;
+    // Raycasting computes the bounds lazily; rendering has frustumCulled=false.
+    for(const object of changed){object.instanceMatrix.needsUpdate=true;object.boundingSphere=null}
+    if(changed.size){readyToRender=true;renderer.shadowMap.needsUpdate=true;invalidate()}
     // Reveal the real fall without cropping feet on a narrow screen. Enlarge
     // the view only as needed; a user's orbit/zoom always takes precedence.
     if(state.scene==='table'&&state.tabletop?.dropped_at!=null&&!manualView){
@@ -108,39 +179,58 @@ export function physicsView(container) {
   function screenOrder(){camera.updateMatrixWorld();return (latest?.ducks??[]).map(d=>({id:d.id,x:new THREE.Vector3(d.position[0],d.position[2],-d.position[1]).project(camera).x})).sort((a,b)=>a.x-b.x||a.id.localeCompare(b.id)).map(d=>d.id)}
   function hit(event){
     if(!interaction||latest?.scene!=='stage')return null;
+    // Hidden/static views may not have rendered the latest scene yet. Raycasting
+    // must use current world/camera transforms without waiting for a GPU frame.
+    world.updateMatrixWorld(true);camera.updateMatrixWorld();
     const rect=renderer.domElement.getBoundingClientRect();cursor.set((event.clientX-rect.left)/rect.width*2-1,-(event.clientY-rect.top)/rect.height*2+1);raycaster.setFromCamera(cursor,camera);
     for(const candidate of raycaster.intersectObjects([...new Set([...objects.values()].map(entry=>entry.object))])){
       const id=latest.owners?.[candidate.object.userData.geoms[candidate.instanceId]];
       if(id){stick.position.copy(candidate.point).add(new THREE.Vector3(.1,.15,0));stick.visible=interactionMode!=='select';return id;}
     }stick.visible=false;return null;
   }
-  renderer.domElement.addEventListener('pointerdown',event=>{pointerStart={x:event.clientX,y:event.clientY}});
-  renderer.domElement.addEventListener('pointermove',event=>{if(!pointerStart&&interactionMode!=='select')hit(event)});
-  renderer.domElement.addEventListener('pointerleave',()=>{stick.visible=false});
+  const events=new AbortController(),listen={signal:events.signal};
+  renderer.domElement.addEventListener('pointerdown',event=>{pointerStart={x:event.clientX,y:event.clientY}},listen);
+  renderer.domElement.addEventListener('pointermove',event=>{if(!pointerStart&&interactionMode!=='select'){hit(event);invalidate()}},listen);
+  renderer.domElement.addEventListener('pointerleave',()=>{stick.visible=false;invalidate()},listen);
+  renderer.domElement.addEventListener('pointercancel',()=>{pointerStart=null},listen);
   renderer.domElement.addEventListener('pointerup',event=>{
-    if(!pointerStart||Math.hypot(event.clientX-pointerStart.x,event.clientY-pointerStart.y)>6)return;
-    pointerStart=null;const target=hit(event);if(target)interaction?.({target,order:screenOrder(),mode:interactionMode,revision:latest.revision,instance:latest.stage.instance});
-  });
-  function resize(){const {width,height}=container.getBoundingClientRect();if(width&&height){renderer.setPixelRatio(reduced?Math.min(1,pixelBudget/width):Math.min(devicePixelRatio,seatedView?1:2));renderer.setSize(width,height);camera.aspect=width/height;camera.updateProjectionMatrix();}}
+    const start=pointerStart;pointerStart=null;
+    if(!start||Math.hypot(event.clientX-start.x,event.clientY-start.y)>6)return;
+    const target=hit(event);invalidate();if(target)interaction?.({target,order:screenOrder(),mode:interactionMode,revision:latest.revision,instance:latest.stage.instance});
+  },listen);
+  // Keep at least one physical pixel per CSS pixel, including on software GPUs.
+  // Model parsing, shader compilation and background-tab delays are not evidence
+  // that the image should be permanently shrunk to a 160px-wide thumbnail.
+  function resize(){if(disposed)return;const {width,height}=container.getBoundingClientRect();if(width&&height){renderer.setPixelRatio(reduced?1:Math.min(devicePixelRatio,2));renderer.setSize(width,height);camera.aspect=width/height;camera.updateProjectionMatrix();invalidate();}}
   const observer=new ResizeObserver(resize);observer.observe(container);
-  function animate(){
-    const started=performance.now();controls.update();
+  function draw(){
+    const moving=controls.update();
     for(const [id,ring] of rings){
-      const chosen=latest?.scene==='stage'&&selection?.selected.includes(id)?latest.ducks.find(d=>d.id===id):null;
+      const chosen=latest?.scene==='stage'&&selection?.selected?.includes(id)?latest.ducks.find(d=>d.id===id):null;
       ring.visible=Boolean(chosen&&interaction);if(chosen)ring.position.set(chosen.position[0],.007,-chosen.position[1]);
     }
-    if(visible){renderer.render(scene,camera);if(readyToRender)container.dataset.renderedScene=latest.scene;}
-    // WebGL can submit quickly while a software GPU blocks the next frame.
-    // Include that delay, excluding our own idle interval, in the draw budget.
-    const elapsed=Math.max(performance.now()-started,started-lastFrame-drawPause);
-    drawCost=Math.max(drawCost*.85,elapsed);
-    slowFrames=elapsed>70?slowFrames+1:0;lastFrame=started;
-    if(!reduced&&slowFrames>=3){reduced=true;scene.environment=null;renderer.shadowMap.enabled=false;floor.material.needsUpdate=true;materials.forEach(m=>m.needsUpdate=true);resize();container.dataset.renderQuality='reduced';}
-    if(reduced&&(slowFrames>=3||elapsed>250)&&pixelBudget>160){pixelBudget=Math.max(160,Math.floor(pixelBudget/2));slowFrames=0;resize();}
-    // Leave an idle interval after each draw so software GPUs cannot starve input,
-    // voice audio or the stream of physical state. Physics remains at 200 Hz.
-    drawPause=reduced?Math.max(100,Math.min(2000,drawCost*2)):seatedView?66:33;
-    timer=setTimeout(()=>{frame=requestAnimationFrame(animate);},drawPause);
-  }animate();
-  return {load,update,clear,screenOrder,selection(value){selection=value},interaction(callback,mode="select"){interaction=callback;interactionMode=mode;if(!callback){stick.visible=false;for(const ring of rings.values())ring.visible=false}},renderNow(){controls.update();renderer.render(scene,camera);},frameScene(scene){manualView=false;floorFramed=false;seatedView=scene==='seated';resize();const close=scene==='carry',seated=scene==='seated',table=scene==='table';camera.position.set(...(scene==='stage'?[2.7,2.1,0]:seated?[1.05,.90,-1.05]:table?[1.35,.98,-1.35]:close?[.6,.4,.65]:[.85,.62,.95]));controls.target.set(close ? .12 : table ? .20 : 0,seated ? .52 : table ? .25 : .13,table ? -.10 : 0);controls.update();controls.saveState();},reset(){manualView=false;floorFramed=false;controls.reset();},dispose(){clearTimeout(timer);cancelAnimationFrame(frame);observer.disconnect();visibility.disconnect();clear();appearance.dispose();disposeEnvironment();controls.dispose();renderer.dispose();ringGeometry.dispose();ringMaterial.dispose();stick.geometry.dispose();stick.material.dispose();}};
+    renderer.render(scene,camera);if(readyToRender)container.dataset.renderedScene=latest.scene;
+    return moving;
+  }
+  scheduler=renderScheduler(draw,{interval:()=>reduced?100:seatedView?66:33});setVisibility();resize();
+  return {load,update,clear,screenOrder,setLabel,
+    syncCamera(state){
+      if(disposed)return;syncingCamera=true;manualView=true;controls.enableDamping=false;controls.update();
+      camera.position.fromArray(state.position);controls.target.fromArray(state.target);camera.zoom=state.zoom;camera.updateProjectionMatrix();controls.update();controls.enableDamping=true;syncingCamera=false;invalidate();
+    },
+    selection(value){selection=value;invalidate()},
+    interaction(callback,mode="select"){interaction=callback;interactionMode=mode;if(!callback){stick.visible=false;for(const ring of rings.values())ring.visible=false}invalidate()},
+    renderNow(){scheduler.flush()},
+    frameScene(scene){if(disposed)return;manualView=false;floorFramed=false;seatedView=scene==='seated';resize();controls.enableDamping=false;controls.update();const close=scene==='carry',seated=scene==='seated',table=scene==='table';camera.position.set(...(scene==='stage'?[2.7,2.1,0]:seated?[1.05,.90,-1.05]:table?[1.35,.98,-1.35]:close?[.6,.4,.65]:scene==='balance'?[1.25,.82,1.35]:[.85,.62,.95]));controls.target.set(close ? .12 : table ? .20 : 0,scene==='balance' ? .13 : seated ? .52 : table ? .25 : .13,table ? -.10 : 0);controls.update();controls.saveState();controls.enableDamping=true;invalidate()},
+    reset(){if(disposed)return;manualView=false;floorFramed=false;controls.enableDamping=false;controls.update();controls.reset();controls.enableDamping=true;invalidate()},
+    dispose(){
+      if(disposed)return;disposed=true;scheduler.dispose();events.abort();observer.disconnect();visibility.disconnect();document.removeEventListener('visibilitychange',setVisibility);
+      controls.removeEventListener('start',manual);controls.removeEventListener('change',cameraChanged);controls.dispose();
+      clear();appearance.dispose();disposeEnvironment();sun.shadow.dispose();
+      floor.geometry.dispose();floor.material.dispose();grid.geometry.dispose();grid.material.dispose();
+      ringGeometry.dispose();ringMaterial.dispose();stick.geometry.dispose();stick.material.dispose();
+      scene.clear();renderer.dispose();renderer.forceContextLoss();renderer.domElement.remove();
+      delete container.dataset.duckLabel;
+    },
+  };
 }

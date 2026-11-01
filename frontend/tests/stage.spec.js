@@ -1,5 +1,32 @@
 import {test,expect} from '@playwright/test';
 import * as THREE from 'three';
+
+test('an unpainted offscreen world can pick a duck before its first GPU frame',{tag:'@stage'},async({page,request})=>{
+ test.skip(process.env.DUCKKING_TEST_DEV!=='1','Direct source-module harness uses Vite');
+ test.setTimeout(60000);
+ await request.post('/api/scenes/start?room=1',{data:{name:'scene_stage',request_id:crypto.randomUUID()}});
+ await expect.poll(async()=>{const s=await(await request.get('/api/scenes/state?room=1')).json();return s.backend.scene==='stage'&&!s.action},{timeout:30000}).toBe(true);
+ await page.goto('/balance.html?room=1');
+ const state=(await(await request.get('/api/scenes/state?room=1')).json()).backend;
+ const camera=new THREE.PerspectiveCamera(38,700/440,.01,30);camera.position.set(2.7,2.1,0);camera.lookAt(0,.13,0);camera.updateMatrixWorld();
+ const [x,y,z]=state.ducks.find(d=>d.id==='d').position,point=new THREE.Vector3(x,z+.10,-y).project(camera);
+ const picked=await page.evaluate(async(point)=>{
+  const [{physicsView},{unpackVisualModel}]=await Promise.all([import('/src/physics-view.js'),import('/src/model-loader.js')]);
+  const state=(await(await fetch('/api/scenes/state?room=1')).json()).backend;
+  const model=unpackVisualModel(await(await fetch('/api/scenes/model.dkm.gz?room=1')).arrayBuffer(),{physics:true});
+  const host=document.createElement('div');host.style.cssText='position:absolute;top:4000px;width:700px;height:440px';document.body.append(host);
+  const view=physicsView(host);view.load(model);view.frameScene('stage');view.update(state);
+  let picked=null;view.interaction(value=>{picked=value.target});
+  // No await/frame between loading the new objects and dispatching the click.
+  const canvas=host.querySelector('canvas'),rect=canvas.getBoundingClientRect(),options={clientX:rect.x+(point.x+1)*rect.width/2,clientY:rect.y+(1-point.y)*rect.height/2,pointerId:1,pointerType:'mouse'};
+  // Synthetic same-task events have no browser-owned active pointer to capture.
+  canvas.setPointerCapture=canvas.releasePointerCapture=()=>{};
+  canvas.dispatchEvent(new PointerEvent('pointerdown',options));canvas.dispatchEvent(new PointerEvent('pointerup',options));
+  view.dispose();host.remove();return picked;
+ },{x:point.x,y:point.y});
+ expect(picked).toBe('d');
+});
+
 async function clickDuck(page,member){
  const canvas=page.locator('#demo-viewport canvas');
  // Selecting the tool or checkbox can scroll the page. Measure only after
@@ -9,7 +36,9 @@ async function clickDuck(page,member){
  const rect=await canvas.boundingBox(),camera=new THREE.PerspectiveCamera(38,rect.width/rect.height,.01,30);
  camera.position.set(2.7,2.1,0);camera.lookAt(0,.13,0);camera.updateMatrixWorld();
  const [x,y,z]=state.backend.ducks.find(d=>d.id===member).position;
- const point=new THREE.Vector3(x,z+.03,-y).project(camera);
+ // Aim at the broad head shell, not the narrow neck gap; tiny CPU-dependent
+ // posture differences must not turn this pointer test into a miss.
+ const point=new THREE.Vector3(x,z+.10,-y).project(camera);
  await page.mouse.click(rect.x+(point.x+1)*rect.width/2,rect.y+(1-point.y)*rect.height/2);
 }
 test('thirteenth show completes measured gathering, roll and shared-clock dance',{tag:'@stage'},async({page})=>{
@@ -48,7 +77,10 @@ test('mobile thirteenth stage keeps touch controls within the viewport',{tag:'@s
 });
 
 test('automatic roll honors middle ducks selected by stick and repeated clicks cancel',{tag:'@stage'},async({page})=>{
- test.setTimeout(180000);const errors=[];page.on('pageerror',e=>errors.push(e.message));
+ // Budget model loading, five real raycast interactions and the full show.
+ // A software-GPU CI trace completed every action/assertion at ~182 s; the
+ // former 180 s total expired while retrieving the measured result.
+ test.setTimeout(240000);const errors=[];page.on('pageerror',e=>errors.push(e.message));
  let resumeRoll;const gate=new Promise(resolve=>{resumeRoll=resolve});
  await page.route('**/demo-audio/stage-roll.wav*',async route=>{await gate;await route.continue()});
  await page.goto('/demos.html?room=1');await page.locator('[data-demo=stage]').click();

@@ -32,6 +32,7 @@
 | [物理实验室](https://ztmonitor.qbox.net/duckking/scenarios.html) | 单鸭踢球、双鸭互动、嘴部搬运、动作练习场、轮滑；按钮无需启用语音 |
 | [演示场景](https://ztmonitor.qbox.net/duckking/demos.html) | 十三幕逐幕点播；预录对白本地编排与灵矽实连预录指令可现场切换 |
 | [现场互动工坊](https://ztmonitor.qbox.net/duckking/studio.html) | 十项语音任务、本地排练、临场改序与任务控制；真人语音固定走灵矽，见 [使用说明](docs/INTERACTIVE_STUDIO.md) |
+| [语音平衡教练（实验）](docs/PPO_BALANCE_COACH.md) | `balance.html`：旋转倾斜圆盘三关、真实 CPU PPO 训练记录、成功率/参数曲线与可交互函数说明；PPO 学习反馈力度，底层复用官方步态 |
 | [使用体验](https://ztmonitor.qbox.net/duckking/experience.html) | 持续保存浏览器加载/语音与服务器处理时延；均值、P50/P90/P95、趋势、来源及版本筛选，跨重启保留，见 [口径说明](docs/EXPERIENCE_METRICS.md) |
 | [交互统计](https://ztmonitor.qbox.net/duckking/statistics.html) | 识别文本、实际动作、逐轮时间线、本地/灵矽识别均值及 P50/P90/P95、本地命中与云端回退；按房间和后端查看 |
 | [部署记录](https://ztmonitor.qbox.net/duckking/deploys.html) | 版本、验收结果、变更提交与 GitHub 对比、对应提交的后端行／分支覆盖率 |

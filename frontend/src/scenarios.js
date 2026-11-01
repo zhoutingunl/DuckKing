@@ -82,6 +82,12 @@ async function loadModel(state,currentAction){
 }
 function update(data){
   const state=data.backend;latest=state;online=true;scene=state.scene;buttons();
+  if(scene==='balance'){
+    notStarted();scene='balance';latest=state;online=true;buttons();
+    $('scene-title').textContent='本房间正在使用语音平衡教练';
+    $('scene-placeholder').textContent='请打开语音平衡教练页面，或在这里重新加载所选场景。';
+    $('sim-status').textContent='场景已在另一页面切换';return;
+  }
   if(data.events.length&&data.events.at(-1).id<seen)seen=0;
   $('sim-status').textContent=state.error?'物理场景异常':'MuJoCo 物理运行中';
   $('scene-title').textContent=scene==='skills'?'单鸭 · 动作与表情':scene==='rollers'?'单鸭 · 官方轮滑模型':scene==='seated'?'四鸭坐姿合唱 · 轮流独唱':scene==='table'?'四鸭桌上合唱':scene==='carry'?'单鸭 + 轻质小棒 · 接触夹持':scene==='ball'?'单鸭 + 球':'鸭 A + 鸭 B · 共享物理世界';

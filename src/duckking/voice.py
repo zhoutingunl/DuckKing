@@ -564,6 +564,12 @@ class VoiceSession:
 
     async def _stop_motion(self):
         studio = self.motion.studio
+        # Conversation/interruptions must not disable balance while the disk moves.
+        # Explicit stop, cloud failure and disconnect have no pending_input and
+        # still request a real, bounded deceleration through backend.stop().
+        if (self.pending_input is not None
+                and getattr(self.motion.backend, "scene", None) == "balance"):
+            return
         # A spoken queue edit must not stop the singer it is meant to follow.
         # Explicit stop/disconnect still cancels the conductor immediately.
         if (studio and self.pending_input is not None and studio.active == "conductor"
