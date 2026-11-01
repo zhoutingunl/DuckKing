@@ -179,6 +179,9 @@ export function physicsView(container,{label=null,onCameraChange}={}) {
   function screenOrder(){camera.updateMatrixWorld();return (latest?.ducks??[]).map(d=>({id:d.id,x:new THREE.Vector3(d.position[0],d.position[2],-d.position[1]).project(camera).x})).sort((a,b)=>a.x-b.x||a.id.localeCompare(b.id)).map(d=>d.id)}
   function hit(event){
     if(!interaction||latest?.scene!=='stage')return null;
+    // Hidden/static views may not have rendered the latest scene yet. Raycasting
+    // must use current world/camera transforms without waiting for a GPU frame.
+    world.updateMatrixWorld(true);camera.updateMatrixWorld();
     const rect=renderer.domElement.getBoundingClientRect();cursor.set((event.clientX-rect.left)/rect.width*2-1,-(event.clientY-rect.top)/rect.height*2+1);raycaster.setFromCamera(cursor,camera);
     for(const candidate of raycaster.intersectObjects([...new Set([...objects.values()].map(entry=>entry.object))])){
       const id=latest.owners?.[candidate.object.userData.geoms[candidate.instanceId]];
