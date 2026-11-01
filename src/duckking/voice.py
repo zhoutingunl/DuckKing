@@ -450,10 +450,12 @@ class VoiceSession:
             while True:
                 await asyncio.sleep(WATCHDOG_INTERVAL)
                 now = time.monotonic()
-                # A bounded stage action may take longer than response-idle. Only
+                # A bounded stage/table action may exceed response-idle. Only
                 # advancing real physics counts as activity; the turn cap remains.
                 backend = self.motion.backend
-                stage = getattr(backend, "stage", None)
+                stage = next((task for task in (
+                    getattr(backend, "stage", None), getattr(backend, "tabletop", None)
+                ) if task and task.running), None)
                 if stage and stage.running and self.motion.current:
                     progress = (self.motion.current["id"], float(backend.data.time))
                     if progress != stage_progress:

@@ -54,9 +54,9 @@ try{
  if(!active||active.voice_busy||active.viewers)throw Error('Recording room is in use; select an idle bound room');
  const before=await request(`api/voice/statistics?room=${room}&backend=mujoco`);proof.before_turns=before.rounds.map(r=>r.turn);
  await open('tabletop','demos.html');await expect(page.locator('[data-demo]')).toHaveCount(13);
- await page.selectOption('#demo-mode','live');await page.selectOption('#table-song','tigers');
+ await page.selectOption('#demo-mode','live');
  await mark('live-tabletop-two-tigers',async()=>{
-  await shot('competition-live-selection');await page.locator('[data-demo="tabletop"]').click();
+  await shot('competition-live-selection');await page.locator('[data-table-song="tigers"]').click();
   await expect(page.locator('#table-panel')).toBeVisible({timeout:90000});await expect(page.locator('#table-song-title')).toContainText('两只老虎');
   await shot('competition-live-running');
   await expect(page.locator('#table-cue')).toContainText('楼下',{timeout:60000});await shot('competition-live-fall');
