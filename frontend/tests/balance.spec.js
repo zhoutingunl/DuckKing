@@ -14,6 +14,7 @@ test('duration and seed settings have stacked labels, bound the real run and fol
  await page.locator('#prepare-balance').click();
  await expect(page.locator('#start-challenge')).toBeEnabled({timeout:45000});
  await expect(seed).toHaveValue('1');await expect(duration).toHaveValue('6');
+ for(const id of ['physics-viewport','baseline-viewport'])await expect(page.locator('#'+id)).toHaveAttribute('data-heading-target','none');
  await expect(page.locator('#seed-summary')).toContainText('逆时针');
  await page.selectOption('#controller','baseline');await page.locator('#start-challenge').click();
  await expect(page.locator('#comparison-status')).toContainText('/ 6 s');
@@ -30,6 +31,10 @@ test('duration and seed settings have stacked labels, bound the real run and fol
  await duration.fill('20');await page.waitForTimeout(800);await expect(duration).toHaveValue('20');
  await page.locator('[data-level="2"]').click();
  await expect(page.locator('#scene-title')).toContainText('第 2 关');await expect(duration).toHaveValue('20');
+ for(const id of ['physics-viewport','baseline-viewport']){
+  await expect(page.locator('#'+id)).toHaveAttribute('data-heading-target','world:+X');
+  await expect(page.locator('#'+id+' canvas')).toHaveAttribute('aria-label',/蓝色目标朝向箭头固定在场景中/);
+ }
  // The voice tool reaches this same backend operation; no cloud ASR is mocked as real.
  const selected=await request.post(`/api/balance/command?room=${room}`,{data:{operation:'select',duration_seconds:8,seed:0}});
  expect(selected.ok()).toBe(true);expect((await selected.json()).phase).toBe('idle');
@@ -167,6 +172,7 @@ test('balance stays sharp and sleeps when static; orbit, colour and repeated sce
  await expect(view).toHaveAttribute('data-rendered-scene','balance',{timeout:45000});
  await expect(page.locator('#start-challenge')).toBeEnabled();
  await expect(page.locator('#scene-title')).toContainText('第 3 关');
+ for(const id of ['physics-viewport','baseline-viewport'])await expect(page.locator('#'+id)).toHaveAttribute('data-heading-target','world:+X');
  const prepared=(await(await request.get('/api/scenes/state?room=2')).json()).backend;
  expect(prepared.balance.level).toBe(3);expect(prepared.comparison.baseline.balance.level).toBe(3);
  expect(prepared.ducks).toEqual(prepared.comparison.baseline.ducks);
@@ -185,6 +191,7 @@ test('balance stays sharp and sleeps when static; orbit, colour and repeated sce
  await page.mouse.move(rect.x+rect.width*.7,rect.y+rect.height*.55,{steps:6});await page.mouse.up();
  await expect.poll(async()=>!before.equals(await canvas.screenshot())).toBe(true);
  await expect.poll(async()=>!leftBefore.equals(await left.screenshot())).toBe(true);
+ for(const id of ['physics-viewport','baseline-viewport'])await expect(page.locator('#'+id)).toHaveAttribute('data-heading-target','world:+X');
  await page.waitForTimeout(1500);
  await page.locator('#reset-camera').click();
  await expect.poll(async()=>before.equals(await canvas.screenshot()),{timeout:10000}).toBe(true);
@@ -193,6 +200,11 @@ test('balance stays sharp and sleeps when static; orbit, colour and repeated sce
  await expect.poll(async()=>!before.equals(await canvas.screenshot())).toBe(true);
  await page.mouse.move(rect.x+rect.width*.5,rect.y+rect.height*.4);const coloured=await canvas.screenshot();
  await page.mouse.wheel(0,-180);await expect.poll(async()=>!coloured.equals(await canvas.screenshot())).toBe(true);
+ // Let the scene socket publish the fresh world's default level before the
+ // prepare HTTP response arrives. It must not erase the chosen third level.
+ await page.route('**/api/balance/prepare?*',async route=>{
+  const response=await route.fetch();await new Promise(resolve=>setTimeout(resolve,350));await route.fulfill({response});
+ });
  for(let i=0;i<3;i++){
   expect((await request.post('/api/scenes/start?room=2',{data:{name:'scene_ball',request_id:crypto.randomUUID()}})).ok()).toBe(true);
   await expect(page.locator('#notice')).toContainText('本房间已切到其他场景');

@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {clippedExample,series,observationGroups,compatibleRuns} from '../src/balance-explain.js';
+import {clippedExample,series,observationGroups,compatibleRuns,balanceFailureReason} from '../src/balance-explain.js';
 
 test('PPO clipping preserves the pessimistic bound for both advantage signs',()=>{
  assert.equal(clippedExample(1.5,2,.2).objective,2.4);
@@ -25,4 +25,14 @@ test('an owned worker stays visible before its manifest and on startup failure',
  assert.deepEqual(compatibleRuns(list,2),[preparing,current]);
  preparing.phase='failed';assert.deepEqual(compatibleRuns(list,2),[preparing,current]);
  list.active_run=null;assert.deepEqual(compatibleRuns(list,2),[current]);
+});
+
+test('a boundary stop reports measured overshoot without inventing a full fall',()=>{
+ const result={reason:'fell_or_left_disc',rim_margin:-.00437279,body_contact:false,upright:.9987,height:.1147};
+ assert.equal(balanceFailureReason(result),'脚部越过盘缘 4.4 mm，物理已暂停');
+ assert.equal(balanceFailureReason({...result,rim_margin:.02,body_contact:true}),'非脚部触盘或机器人触地，物理已暂停');
+ assert.equal(balanceFailureReason({...result,rim_margin:.02,height:.06}),'身体失稳，物理已暂停');
+ assert.match(balanceFailureReason({...result,rim_margin:.02}),/连续失去脚部支撑/);
+ assert.match(balanceFailureReason({reason:'criteria_not_met'}),/条件未全部达标/);
+ for(const value of [null,{reason:'success'},{reason:'cancelled'}])assert.equal(balanceFailureReason(value),'');
 });

@@ -7,14 +7,14 @@ import {setupRoom} from './room.js';
 import {appURL,currentRoom} from './urls.js';
 import {sceneStateFeed} from './scene-state-feed.js';
 import {api} from './demo-runtime.js';
-import {rewardTerms,hyperparameters,observationGroups,metricLabels,ppoSymbols,clippedExample,compatibleRuns} from './balance-explain.js';
+import {rewardTerms,hyperparameters,observationGroups,metricLabels,ppoSymbols,clippedExample,compatibleRuns,balanceFailureReason} from './balance-explain.js';
 import {drawChart} from './balance-chart.js';
 import {measurement,loadMetrics,afterFrame} from './experience.js';
 
 const $=id=>document.getElementById(id),titles=['跟着圆盘站稳','转盘转，我不转','从边缘回到中心'];
 let level=1,observedLevel=1,levelChosen=false,viewer,baselineViewer,lastBackend,ready=false,loading=false,selectedRun='',records=[],detail=null,sample=null,sampleStep=null,term='center',stateFeed,timer,closed=false,revision=null;
 let lastStateKey='',lastObservation=null,lastObservationAt=0,detailKey=null,optionsKey='';
-let settingsKey='',seedEdited=false,durationEdited=false;
+let settingsKey='',seedEdited=false,durationEdited=false,preparing=false;
 const lifetime=new AbortController();
 window.addEventListener('pagehide',()=>{
  closed=true;lifetime.abort();clearInterval(timer);stateFeed?.close();viewer?.dispose();baselineViewer?.dispose();
@@ -44,14 +44,16 @@ for(const id of ['challenge-seed','challenge-duration'])$(id).addEventListener('
 });
 durationNote();
 function renderSide(b,prefix,status){
- const r=b.result;
+ const r=b.result,terminal=['completed','failed','cancelled'].includes(b.phase);
+ $(prefix+'-time-label').textContent=terminal?(b.phase==='failed'?'终止时刻 · 已定格':'结束时刻'):'本侧仿真时间';
+ $(prefix+'-rpm-label').textContent=terminal?'定格时盘速':'实际盘速';
  $(prefix+'-rpm').textContent=r?`${r.rpm.toFixed(2)} RPM`:'—';
  $(prefix+'-radius').textContent=r?`${(r.radius*100).toFixed(1)} cm`:'—';
  $(prefix+'-contact').textContent=r?`${r.contacts} / 2 脚`:'—';
  $(prefix+'-time').textContent=`${b.sim_time.toFixed(1)} s`;
- const reasons={fell_or_left_disc:'身体失稳、触地或脚部越过盘缘，物理已暂停',criteria_not_met:'挑战结束，但中心位置、朝向或停盘条件未全部达标'};
+ const reason=balanceFailureReason(r);
  const phases={idle:'等待指令',running:'挑战中',stopping:'正在减速停盘',completed:'挑战成功',failed:'本轮未完成 · 画面已定格',cancelled:'已停止 · 人为干预不计成功'};
- $(status).textContent=`${phases[b.phase]??b.phase}${r?.reason&&reasons[r.reason]?' · '+reasons[r.reason]:''}${r?` · 朝向达标 ${(r.heading_fraction*100).toFixed(0)}% · 脚边缘余量 ${(r.rim_margin*100).toFixed(1)} cm · ${r.disk_stopped?'圆盘已停稳':'尚未物理停稳'}`:''}${b.error?' · '+b.error:''}`;
+ $(status).textContent=`${phases[b.phase]??b.phase}${reason?' · '+reason:''}${r?` · 朝向达标 ${(r.heading_fraction*100).toFixed(0)}% · 脚边缘余量 ${(r.rim_margin*100).toFixed(1)} cm · ${r.disk_stopped?'圆盘已停稳':'尚未物理停稳'}`:''}${b.error?' · '+b.error:''}`;
  $(status).dataset.phase=b.phase;
 }
 function updateLabels(controller){
@@ -75,7 +77,9 @@ function renderState(state){
  if(baseline){baselineViewer?.update(baseline);renderSide(baseline.balance,'baseline','baseline-status')}
  updateLabels(b.phase==='idle'?$('controller').value:b.controller);
  const phases={idle:'等待同时开始',running:'同步挑战中',stopping:'两侧正在减速',completed:'对照结束',cancelled:'对照已停止',failed:'对照计算异常，物理已暂停'};
- $('comparison-status').textContent=comparison?.enabled?`${phases[comparison.phase]??comparison.phase} · 共同进度 ${comparison.sim_time.toFixed(1)} / ${b.duration_seconds??13} s · 种子 ${b.seed} · 左侧官方基线 / 右侧${$('trained-label').textContent}`:'本轮仅运行右侧策略，左侧未参与';
+ const frozen=[['左侧',baseline?.balance],['右侧',b]].filter(([,side])=>side?.phase==='failed').map(([name,side])=>`${name} ${side.sim_time.toFixed(1)} s 已定格`);
+ $('comparison-status').textContent=(comparison?.enabled?`${phases[comparison.phase]??comparison.phase} · 共同进度 ${comparison.sim_time.toFixed(1)} / ${b.duration_seconds??13} s · 种子 ${b.seed} · 左侧官方基线 / 右侧${$('trained-label').textContent}`:'本轮仅运行右侧策略，左侧未参与')+(frozen.length?' · '+frozen.join('；'):'');
+ $('heading-guide-note').textContent=b.level>=2?'蓝色箭头标记躯干应保持的目标朝向。箭头固定在场景中；拖动视角只改变观看位置，不改变目标方向。':'本关允许随盘转动，不要求保持固定朝向。';
  const name={baseline:'官方步态基线',early:'训练步数 0 的任务网络＋官方步态',trained:'已评估反馈力度 PPO＋官方步态'}[b.controller];
  $('controller-source').textContent=`右侧：${b.phase==='idle'?'等待本轮策略加载':name}${b.policy_steps!=null&&b.phase!=='idle'?` · ${b.policy_steps.toLocaleString()} 训练步`:''}。${comparison?.enabled?'同一仿真时钟，独立计算两侧物理。':''}训练过程见下方记录。`;
  $('scene-title').textContent=`第 ${b.level} 关 · ${b.title}`;
@@ -85,7 +89,7 @@ function placeholders(text){for(const node of document.querySelectorAll('.balanc
 async function prepare(){
  if(loading||closed||!validSettings())return;
  const inputs=formSettings(),requested={...(levelChosen?{level}:{}),...(seedEdited?{seed:inputs.seed}:{}),...(durationEdited?{duration_seconds:inputs.duration_seconds}:{})};
- loading=true;controls();$('notice').hidden=true;
+ loading=preparing=true;controls();$('notice').hidden=true;
  placeholders('正在加载官方模型与左右对照圆盘…');
  const experience=measurement('load'),metrics={};
  try{
@@ -95,7 +99,7 @@ async function prepare(){
    await api('api/balance/command',currentRoom,{body:{operation:'select',...requested},signal});
    state=await api('api/scenes/state',currentRoom,{signal});signal.throwIfAborted();
   }
-  if(requested.level!=null)observedLevel=requested.level;
+  if(requested.level!=null)observedLevel=level=requested.level;
   if(!state.backend.comparison?.baseline)throw Error('服务尚未支持左右对照，请更新并重启本地后端。');
   if(revision!==state.backend.revision){
    const data=await loader(appURL('api/scenes/model.dkm.gz'),state.backend.revision,{signal:AbortSignal.any([signal,AbortSignal.timeout(60000)]),metrics});signal.throwIfAborted();const started=performance.now();
@@ -107,13 +111,16 @@ async function prepare(){
   lastStateKey='';renderState(state.backend);const firstFrame=performance.now();await afterFrame();signal.throwIfAborted();viewer.renderNow();baselineViewer.renderNow();await afterFrame();signal.throwIfAborted();metrics.first_frame_ms=Math.round(performance.now()-firstFrame);placeholders(null);ready=true;
   experience.finish('completed',{...loadMetrics(metrics),scene_ms:Math.round(performance.now()-experience.started)},{cache:metrics.cache,scene:'balance'});
   if(!stateFeed)connect();else void stateFeed.refresh();appendLog('左右圆盘已准备：左侧官方基线，右侧所选策略；按钮或灵矽口令均可同时发起挑战。');
- }catch(e){experience.finish('failed');if(!closed){notify(e.message);placeholders('加载未完成，可重试。')}}finally{loading=false;if(!closed)controls()}
+ }catch(e){experience.finish('failed');if(!closed){notify(e.message);placeholders('加载未完成，可重试。')}}finally{loading=preparing=false;if(!closed)controls()}
 }
 function connect(){
  if(closed)return;
  stateFeed=sceneStateFeed({
   readState:signal=>api('api/scenes/state',currentRoom,{signal}),
   onState:state=>{
+   // Preparing a new world briefly exposes its default level before the
+   // requested settings are restored. Do not let that frame overwrite them.
+   if(preparing)return;
    if(state.backend?.scene==='balance')renderState(state.backend);
    else{ready=false;notify('本房间已切到其他场景，请重新准备圆盘。')}
    controls();

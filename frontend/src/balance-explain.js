@@ -70,3 +70,14 @@ export function series(rows,key){
 export function compatibleRuns(list,level){
  return list.runs.filter(r=>r.level===level&&(r.contract==='balance-v4-gain-bodyframe'||(!r.contract&&r.id===list.active_run)));
 }
+// Termination groups several physical guards. Report the measured cause when
+// available, without calling every foot-boundary violation a visible fall.
+export function balanceFailureReason(result){
+ if(result?.reason==='criteria_not_met')return '挑战结束，但中心位置、朝向或停盘条件未全部达标';
+ if(result?.reason!=='fell_or_left_disc')return '';
+ const causes=[];
+ if(result.rim_margin<0)causes.push(`脚部越过盘缘 ${(-result.rim_margin*1000).toFixed(1)} mm`);
+ if(result.body_contact)causes.push('非脚部触盘或机器人触地');
+ if(result.upright<.65||result.height<.075)causes.push('身体失稳');
+ return (causes.length?causes.join('、'):'身体失稳或连续失去脚部支撑')+'，物理已暂停';
+}
