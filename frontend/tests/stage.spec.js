@@ -77,7 +77,10 @@ test('mobile thirteenth stage keeps touch controls within the viewport',{tag:'@s
 });
 
 test('automatic roll honors middle ducks selected by stick and repeated clicks cancel',{tag:'@stage'},async({page})=>{
- test.setTimeout(180000);const errors=[];page.on('pageerror',e=>errors.push(e.message));
+ // Budget model loading, five real raycast interactions and the full show.
+ // A software-GPU CI trace completed every action/assertion at ~182 s; the
+ // former 180 s total expired while retrieving the measured result.
+ test.setTimeout(240000);const errors=[];page.on('pageerror',e=>errors.push(e.message));
  let resumeRoll;const gate=new Promise(resolve=>{resumeRoll=resolve});
  await page.route('**/demo-audio/stage-roll.wav*',async route=>{await gate;await route.continue()});
  await page.goto('/demos.html?room=1');await page.locator('[data-demo=stage]').click();
