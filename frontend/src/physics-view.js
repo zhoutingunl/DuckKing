@@ -47,10 +47,11 @@ export function physicsView(container,{label=null,onCameraChange}={}) {
   }
   if(label)container.dataset.duckLabel=label;
   function updateHeadingGuide(state){
-    // BalanceWorld measures heading_error as body yaw: the level 2/3 goal is
-    // world +X (yaw=0). This annotation belongs to world, never to the moving
+    // Level 2's explicit facing task targets world +X (yaw=0). Paint this on
+    // the floor outside the disc, never as an obstacle or floating label.
+    // This annotation belongs to world, never to the moving
     // disc, robot, or camera. World's Z-up -> Y-up conversion preserves +X.
-    const active=state.scene==='balance'&&[2,3].includes(state.balance?.level);
+    const active=state.scene==='balance'&&state.balance?.level===2;
     if(active&&!headingGuide){
       headingGuide=new THREE.Group();world.add(headingGuide);
       // A rectangle plus triangle keeps the overlay small and avoids a shape
@@ -58,23 +59,25 @@ export function physicsView(container,{label=null,onCameraChange}={}) {
       const geometry=new THREE.BufferGeometry();
       geometry.setAttribute('position',new THREE.Float32BufferAttribute([-.12,-.010,0,.04,-.010,0,.04,.010,0,-.12,.010,0,.04,-.030,0,.12,0,0,.04,.030,0],3));
       geometry.setIndex([0,1,2,0,2,3,4,5,6]);geometries.push(geometry);
-      for(const [colour,scale,height,order] of [[0xffffff,1.12,.259,10],[0x155d85,1,.260,11]]){
-        const material=new THREE.MeshBasicMaterial({color:colour,side:THREE.DoubleSide,depthTest:false,depthWrite:false});materials.push(material);
-        const arrow=new THREE.Mesh(geometry,material);arrow.position.set(.28,0,height);arrow.scale.setScalar(scale);arrow.renderOrder=order;headingGuide.add(arrow);
+      for(const [colour,scale,height,order] of [[0xffffff,1.12,.002,10],[0x155d85,1,.003,11]]){
+        const material=new THREE.MeshBasicMaterial({color:colour,side:THREE.DoubleSide,depthWrite:false});materials.push(material);
+        const arrow=new THREE.Mesh(geometry,material);arrow.position.set(.56,0,height);arrow.scale.setScalar(scale);arrow.renderOrder=order;headingGuide.add(arrow);
       }
       const canvas=document.createElement('canvas');canvas.width=384;canvas.height=96;
       const context=canvas.getContext('2d');context.fillStyle='#155d85';context.fillRect(0,0,384,96);
       context.font='bold 48px sans-serif';context.textAlign='center';context.fillStyle='#fff';context.fillText('目标朝向',192,65);
       const texture=new THREE.CanvasTexture(canvas);texture.colorSpace=THREE.SRGBColorSpace;textures.push(texture);
-      const material=new THREE.SpriteMaterial({map:texture,depthTest:false,depthWrite:false});materials.push(material);
-      const text=new THREE.Sprite(material);text.position.set(.28,0,.320);text.scale.set(.15,.0375,1);text.renderOrder=12;headingGuide.add(text);
+      const material=new THREE.MeshBasicMaterial({map:texture,side:THREE.DoubleSide,depthWrite:false});materials.push(material);
+      const plane=new THREE.PlaneGeometry(.22,.055);geometries.push(plane);
+      const text=new THREE.Mesh(plane,material);text.position.set(.56,-.075,.003);text.renderOrder=12;headingGuide.add(text);
       invalidate();
     }
     if(headingGuide&&headingGuide.visible!==active){headingGuide.visible=active;invalidate()}
     const target=active?'world:+X':'none';
     if(container.dataset.headingTarget!==target){
       container.dataset.headingTarget=target;
-      renderer.domElement.setAttribute('aria-label','官方 MicroDuck 模型，位置与关节姿态来自 MuJoCo'+(active?'；蓝色目标朝向箭头固定在场景中，躯干应沿箭头方向保持朝向':''));
+      container.dataset.headingSurface=active?'ground':'none';
+      renderer.domElement.setAttribute('aria-label','官方 MicroDuck 模型，位置与关节姿态来自 MuJoCo'+(active?'；地面蓝色目标朝向标记固定在圆盘外，躯干应沿箭头方向保持朝向':''));
     }
   }
   const setVisibility=()=>scheduler?.visible(visible&&!document.hidden);
@@ -87,6 +90,7 @@ export function physicsView(container,{label=null,onCameraChange}={}) {
     geometries=[];materials=[];textures=[];renderBatches=[];readyToRender=false;revision=null;latest=null;selection=null;headingGuide=null;
     objects.clear();labels.clear();renderer.renderLists.dispose();appearance.setDucks([]);delete container.dataset.renderedScene;
     delete container.dataset.headingTarget;
+    delete container.dataset.headingSurface;
     renderer.shadowMap.needsUpdate=true;invalidate();
   }
   function load(model){

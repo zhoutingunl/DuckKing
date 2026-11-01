@@ -82,7 +82,7 @@ function renderState(state){
  const phases={idle:'等待同时开始',running:'同步挑战中',stopping:'两侧正在减速',settling:'判分结束 · 正在显示后续物理过程',completed:'对照结束',cancelled:'对照已停止',failed:'对照计算异常，物理已暂停'};
  const frozen=[['左侧',baseline?.balance],['右侧',b]].filter(([,side])=>side?.phase==='failed').map(([name,side])=>`${name} ${side.sim_time.toFixed(1)} s 判定失败${side.aftermath?.phase==='running'?'（物理继续）':'（已定格）'}`);
  $('comparison-status').textContent=(comparison?.enabled?`${phases[comparison.phase]??comparison.phase} · 共同进度 ${comparison.sim_time.toFixed(1)} / ${b.duration_seconds??13} s · 种子 ${b.seed} · 左侧官方基线 / 右侧${$('trained-label').textContent}`:'本轮仅运行右侧策略，左侧未参与')+(frozen.length?' · '+frozen.join('；'):'');
- $('heading-guide-note').textContent=b.level>=2?'蓝色箭头标记躯干应保持的目标朝向。箭头固定在场景中；拖动视角只改变观看位置，不改变目标方向。':'本关允许随盘转动，不要求保持固定朝向。';
+ $('heading-guide-note').textContent=b.level===2?'圆盘外地面的蓝色标记表示目标朝向。拖动视角只改变观看位置，不改变目标方向。':b.level===3?'从偏心起点走回圆盘中心，观察距中心的变化。':'本关允许随盘转动，不要求保持固定朝向。';
  const name={baseline:'官方步态基线',early:'训练步数 0 的任务网络＋官方步态',trained:'已评估反馈力度 PPO＋官方步态'}[b.controller];
  $('controller-source').textContent=`右侧：${b.phase==='idle'?'等待本轮策略加载':name}${b.policy_steps!=null&&b.phase!=='idle'?` · ${b.policy_steps.toLocaleString()} 训练步`:''}。${comparison?.enabled?'同一仿真时钟，独立计算两侧物理。':''}训练过程见下方记录。`;
  $('scene-title').textContent=`第 ${b.level} 关 · ${b.title}`;
