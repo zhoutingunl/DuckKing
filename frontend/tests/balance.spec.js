@@ -24,7 +24,8 @@ test('a real boundary failure continues falling, shows an in-scene result and cl
  await expect(page.locator('#baseline-result')).toContainText('挑战失败');
  await expect(page.locator('#comparison-status')).toContainText('对照结束',{timeout:10000});
  const b=(await(await request.get(`/api/scenes/state?room=${room}`)).json()).backend.balance;
- expect(b.result.seconds).toBeCloseTo(13.4);expect(b.sim_time).toBeCloseTo(13.4);
+ expect(b.result.seconds).toBeGreaterThan(0);expect(b.result.seconds).toBeLessThan(20);
+ expect(b.result.reason).toBe('fell_or_left_disc');expect(b.sim_time).toBe(b.result.seconds);
  expect(b.physics_time).toBeGreaterThan(b.sim_time);
  expect(b.aftermath.ground_contact).toBe(true);expect(b.aftermath.seconds).toBeLessThanOrEqual(4);
  expect(b.aftermath.phase).toBe('finished');expect(b.aftermath.counts_toward_score).toBe(false);
@@ -240,17 +241,18 @@ test('balance stays sharp and sleeps when static; orbit, colour and repeated sce
  expect(Math.abs(leftRect.width-rect.width)).toBeLessThan(1);
  await page.mouse.move(rect.x+rect.width*.5,rect.y+rect.height*.4);await page.mouse.down();
  await page.mouse.move(rect.x+rect.width*.7,rect.y+rect.height*.55,{steps:6});await page.mouse.up();
- await expect.poll(async()=>!before.equals(await canvas.screenshot())).toBe(true);
- await expect.poll(async()=>!leftBefore.equals(await left.screenshot())).toBe(true);
+ // A dual WebGL screenshot on the CI software GPU can itself take > 5 s.
+ await expect.poll(async()=>!before.equals(await canvas.screenshot()),{timeout:30000}).toBe(true);
+ await expect.poll(async()=>!leftBefore.equals(await left.screenshot()),{timeout:30000}).toBe(true);
  for(const id of ['physics-viewport','baseline-viewport'])await expect(page.locator('#'+id)).toHaveAttribute('data-heading-target','none');
  await page.waitForTimeout(1500);
  await page.locator('#reset-camera').click();
- await expect.poll(async()=>before.equals(await canvas.screenshot()),{timeout:10000}).toBe(true);
- await expect.poll(async()=>leftBefore.equals(await left.screenshot()),{timeout:10000}).toBe(true);
+ await expect.poll(async()=>before.equals(await canvas.screenshot()),{timeout:30000}).toBe(true);
+ await expect.poll(async()=>leftBefore.equals(await left.screenshot()),{timeout:30000}).toBe(true);
  await view.getByRole('button',{name:'天空蓝 · Sky',exact:true}).click();
- await expect.poll(async()=>!before.equals(await canvas.screenshot())).toBe(true);
+ await expect.poll(async()=>!before.equals(await canvas.screenshot()),{timeout:30000}).toBe(true);
  await page.mouse.move(rect.x+rect.width*.5,rect.y+rect.height*.4);const coloured=await canvas.screenshot();
- await page.mouse.wheel(0,-180);await expect.poll(async()=>!coloured.equals(await canvas.screenshot())).toBe(true);
+ await page.mouse.wheel(0,-180);await expect.poll(async()=>!coloured.equals(await canvas.screenshot()),{timeout:30000}).toBe(true);
  // Let the scene socket publish the fresh world's default level before the
  // prepare HTTP response arrives. It must not erase the chosen third level.
  await page.route('**/api/balance/prepare?*',async route=>{

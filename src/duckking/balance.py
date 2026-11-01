@@ -149,8 +149,16 @@ def build_model(assets: Path):
     xml = ET.tostring(root, encoding="unicode")
     model = mujoco.MjModel.from_xml_string(xml)
     model.opt.timestep = 0.005
-    # Exclude the absolute local asset directory from the portable model fingerprint.
-    signature = hashlib.sha256(xml.replace(str(directory.resolve()), "ROBOT").encode())
+    # libm differs by an ulp across macOS/ARM and Linux/x86. These decorative
+    # stripe coordinates must not make identical assets reject a trained policy.
+    # Canonicalize only the signature; keep the compiled physics XML untouched.
+    for stripe in root.findall(".//geom"):
+        if stripe.get("name", "").startswith("disc_stripe_"):
+            stripe.set("pos", " ".join(format(float(x), ".12g") for x in stripe.get("pos").split()))
+    signature_xml = ET.tostring(root, encoding="unicode")
+    signature = hashlib.sha256(
+        signature_xml.replace(str(directory.resolve()), "ROBOT").encode()
+    )
     for file in sorted((directory / "assets").glob("*")):
         signature.update(file.name.encode())
         signature.update(file.read_bytes())

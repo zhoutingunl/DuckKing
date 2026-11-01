@@ -9,7 +9,9 @@ async function clickDuck(page,member){
  const rect=await canvas.boundingBox(),camera=new THREE.PerspectiveCamera(38,rect.width/rect.height,.01,30);
  camera.position.set(2.7,2.1,0);camera.lookAt(0,.13,0);camera.updateMatrixWorld();
  const [x,y,z]=state.backend.ducks.find(d=>d.id===member).position;
- const point=new THREE.Vector3(x,z+.03,-y).project(camera);
+ // Aim at the broad head shell, not the narrow neck gap; tiny CPU-dependent
+ // posture differences must not turn this pointer test into a miss.
+ const point=new THREE.Vector3(x,z+.10,-y).project(camera);
  await page.mouse.click(rect.x+(point.x+1)*rect.width/2,rect.y+(1-point.y)*rect.height/2);
 }
 test('thirteenth show completes measured gathering, roll and shared-clock dance',{tag:'@stage'},async({page})=>{
