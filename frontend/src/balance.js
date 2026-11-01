@@ -13,6 +13,13 @@ import {measurement,loadMetrics,afterFrame} from './experience.js';
 
 const $=id=>document.getElementById(id),titles=['跟着圆盘站稳','转盘转，我不转','从边缘回到中心'];
 let level=1,observedLevel=1,viewer,ready=false,loading=false,selectedRun='',records=[],detail=null,sample=null,sampleStep=null,term='center',socket,timer,closed=false,revision=null;
+let reconnectTimer,ackTimer,lastStateKey='',lastObservation=null,lastObservationAt=0,detailKey=null,optionsKey='';
+const lifetime=new AbortController();
+window.addEventListener('pagehide',()=>{
+ closed=true;lifetime.abort();clearInterval(timer);clearTimeout(reconnectTimer);clearTimeout(ackTimer);
+ if(socket){socket.onclose=null;socket.close();socket=null}viewer?.dispose();
+},{once:true});
+window.addEventListener('pageshow',event=>{if(event.persisted)location.reload()});
 const loader=createPhysicsModelLoader();
 const notify=text=>{$('notice').hidden=false;$('notice').textContent=text};
 function appendLog(text,label='实际执行'){
@@ -26,7 +33,8 @@ function controls(){
  document.querySelectorAll('[data-level]').forEach(b=>{b.disabled=loading;b.setAttribute('aria-pressed',String(Number(b.dataset.level)===level))});
 }
 function renderState(state){
- const b=state?.balance;if(!b)return;
+ const b=state?.balance;if(!b||closed)return;
+ const key=state.revision+JSON.stringify(b);if(key===lastStateKey)return;lastStateKey=key;
  if(b.level!==observedLevel){observedLevel=b.level;level=b.level;selectedRun='';sampleStep=null;controls();void refresh()}
  viewer?.update(state);const r=b.result;
  $('disc-rpm').textContent=r?`${r.rpm.toFixed(2)} RPM`:'—';
@@ -39,28 +47,31 @@ function renderState(state){
  const name={baseline:'官方步态基线',early:'训练步数 0 的任务网络＋官方步态',trained:'已评估反馈力度 PPO＋官方步态'}[b.controller];
  $('controller-source').textContent=`MuJoCo ${b.execution==='running'?'计算中':'已暂停'} · ${name}${b.policy_steps!=null?` · ${b.policy_steps.toLocaleString()} 训练步`:''}。训练过程见下方独立记录。`;
  $('scene-title').textContent=`第 ${b.level} 关 · ${b.title}`;
- if(state.observation)renderObservation(state.observation,state.task_action);
+ if(state.observation){lastObservation=[state.observation,state.task_action];updateObservation(b.execution!=='running')}
 }
 async function prepare(){
- if(loading)return;loading=true;controls();$('notice').hidden=true;
+ if(loading||closed)return;loading=true;controls();$('notice').hidden=true;
  $('scene-placeholder').hidden=false;$('scene-placeholder').textContent='正在加载官方模型与有惯量的圆盘…';
  const experience=measurement('load'),metrics={};
  try{
-  if(!viewer)viewer=physicsView($('physics-viewport'));
-  const state=await api('api/balance/prepare',currentRoom,{body:{}});
-  if(revision!==state.backend.revision){const data=await loader(appURL('api/scenes/model.dkm.gz'),state.backend.revision,{signal:AbortSignal.timeout(60000),metrics});const started=performance.now();viewer.load(data);viewer.frameScene('balance');metrics.assemble_ms=performance.now()-started;revision=state.backend.revision}else metrics.cache='memory';
-  renderState(state.backend);const firstFrame=performance.now();await afterFrame();viewer.renderNow();await afterFrame();metrics.first_frame_ms=Math.round(performance.now()-firstFrame);$('scene-placeholder').hidden=true;ready=true;
+  const signal=lifetime.signal,state=await api('api/balance/prepare',currentRoom,{body:{},signal});signal.throwIfAborted();
+  if(revision!==state.backend.revision){const data=await loader(appURL('api/scenes/model.dkm.gz'),state.backend.revision,{signal:AbortSignal.any([signal,AbortSignal.timeout(60000)]),metrics});signal.throwIfAborted();const started=performance.now();if(!viewer)viewer=physicsView($('physics-viewport'));viewer.load(data);viewer.frameScene('balance');metrics.assemble_ms=performance.now()-started;revision=state.backend.revision}else metrics.cache='memory';
+  lastStateKey='';renderState(state.backend);const firstFrame=performance.now();await afterFrame();signal.throwIfAborted();viewer.renderNow();await afterFrame();signal.throwIfAborted();metrics.first_frame_ms=Math.round(performance.now()-firstFrame);$('scene-placeholder').hidden=true;ready=true;
   experience.finish('completed',{...loadMetrics(metrics),scene_ms:Math.round(performance.now()-experience.started)},{cache:metrics.cache,scene:'balance'});
   if(!socket)connect();appendLog('圆盘已准备，可连接灵矽；按钮操作标记为本地排练。');
- }catch(e){experience.finish('failed');notify(e.message);$('scene-placeholder').textContent='加载未完成，可重试。'}finally{loading=false;controls()}
+ }catch(e){experience.finish('failed');if(!closed){notify(e.message);$('scene-placeholder').textContent='加载未完成，可重试。'}}finally{loading=false;if(!closed)controls()}
 }
 function connect(){
- if(closed)return;socket=createSocket('scene-ws');
- socket.onmessage=e=>{try{const state=JSON.parse(e.data);if(state.type==='state'){
+ if(closed)return;const ws=socket=createSocket('scene-ws');
+ ws.onmessage=e=>{let active=false;try{if(closed)return;const state=JSON.parse(e.data);if(state.type==='state'){
+   active=state.backend.balance?.execution==='running';
    if(state.backend.scene==='balance')renderState(state.backend);
    else{ready=false;controls();notify('本房间已切到其他场景，请重新准备圆盘。')}
-  }}catch(error){notify(error.message)}finally{if(socket.readyState===1)socket.send('next')}};
- socket.onclose=()=>{socket=null;if(!closed){$('challenge-status').textContent='状态连接中断，正在重新连接';setTimeout(connect,1500)}};
+  }}catch(error){if(!closed)notify(error.message)}finally{
+   // Preserve one-snapshot backpressure; paused/hidden scenes need only a heartbeat.
+   clearTimeout(ackTimer);if(!closed)ackTimer=setTimeout(()=>{if(ws===socket&&ws.readyState===1)ws.send('next')},document.hidden?1000:active?0:250);
+  }};
+ ws.onclose=()=>{clearTimeout(ackTimer);if(ws!==socket)return;socket=null;if(!closed){$('challenge-status').textContent='状态连接中断，正在重新连接';reconnectTimer=setTimeout(connect,1500)}};
 }
 async function command(body){
  try{const result=await api('api/balance/command',currentRoom,{body});appendLog(`第 ${result.level} 关 · ${result.phase} · ${result.controller}`,'本地排练');return result}catch(e){notify(e.message)}
@@ -111,8 +122,17 @@ function renderParameters(){
   ['并行采样环境','独立 CPU 采样进程数；梯度优化使用 1 个 Torch 线程。',manifest?.envs??'尚无记录'],
  ]){const tr=document.createElement('tr');for(const text of [label,description,value]){const td=document.createElement('td');td.textContent=String(text);tr.append(td)}$('parameter-table').append(tr)}
 }
+const observationDetails=$('observation-table').closest('details');
+const observationCells=observationGroups.map(([, ,title,explanation])=>{const tr=document.createElement('tr');for(const text of [title,explanation,'等待物理场景']){const td=document.createElement('td');td.textContent=text;tr.append(td)}$('observation-table').append(tr);return tr.lastChild});
+function updateObservation(force=false){
+ if(closed||!lastObservation||!observationDetails.open||document.hidden)return;
+ if(!force&&performance.now()-lastObservationAt<200)return;
+ lastObservationAt=performance.now();renderObservation(...lastObservation);
+}
+observationDetails.addEventListener('toggle',()=>updateObservation(true));
+document.addEventListener('visibilitychange',()=>{if(!document.hidden){updateObservation(true);void refresh()}});
 function renderObservation(values=[],actions=[]){
- $('observation-table').replaceChildren();for(const[start,end,title,explanation]of observationGroups){const tr=document.createElement('tr');for(const text of [title,explanation,values.length?values.slice(start,end).map(v=>v.toFixed(3)).join(' / '):'等待物理场景']){const td=document.createElement('td');td.textContent=text;tr.append(td)}$('observation-table').append(tr)}
+ observationGroups.forEach(([start,end],i)=>{const text=values.length?values.slice(start,end).map(v=>v.toFixed(3)).join(' / '):'等待物理场景';if(observationCells[i].textContent!==text)observationCells[i].textContent=text});
  $('action-values').textContent=actions.length?`PPO 反馈力度 g：${values.slice(20,23).map(v=>Math.max(0,v).toFixed(3)).join(' / ')}。实际任务指令：前后 ${actions[0].toFixed(3)} m/s；横移 ${actions[1].toFixed(3)} m/s；转向 ${actions[2].toFixed(3)} rad/s。限幅 ±0.18 / ±0.12 / ±1.8，另有每步变化限幅。`:'等待物理场景';
 }
 function charts(){
@@ -139,17 +159,25 @@ function renderRun(){
  $('run-evidence').textContent=detail?JSON.stringify({id:detail.id,manifest:detail.manifest,status:state,baseline_test:detail.baseline_test?{...detail.baseline_test,results:undefined}:null,test:test?{...test,results:undefined}:null},null,2):'尚无记录';
  $('run-download').hidden=!detail;if(detail)$('run-download').href=appURL(`api/balance/runs/${encodeURIComponent(detail.id)}`);
 }
-let refreshing=false;
+let refreshing=false,refreshAgain=false;
 async function refresh(){
- if(refreshing||closed)return;refreshing=true;
+ if(closed||document.hidden)return;if(refreshing){refreshAgain=true;return}refreshing=true;
+ const requestedLevel=level;
  try{
-  const list=await api('api/balance/runs',currentRoom);records=compatibleRuns(list,level);
+  const list=await api('api/balance/runs',currentRoom,{signal:lifetime.signal});
+  if(closed)return;if(level!==requestedLevel){refreshAgain=true;return}records=compatibleRuns(list,level);
   if(!records.some(r=>r.id===selectedRun))selectedRun=records[0]?.id??'';
-  options($('run-select'),records.length?records.map(r=>[r.id,`${r.id} · ${r.steps??0} 步`]):[['','本关尚无训练记录']]);$('run-select').value=selectedRun;
-  detail=selectedRun?await api(`api/balance/runs/${encodeURIComponent(selectedRun)}`,currentRoom):null;
+  const entries=records.length?records.map(r=>[r.id,`${r.id} · ${r.steps??0} 步`]):[['','本关尚无训练记录']],nextOptions=JSON.stringify(entries);
+  if(nextOptions!==optionsKey){options($('run-select'),entries);optionsKey=nextOptions}$('run-select').value=selectedRun;
+  const run=selectedRun,nextKey=JSON.stringify(records.find(r=>r.id===run)??null),changed=nextKey!==detailKey;
+  if(changed){
+   const next=run?await api(`api/balance/runs/${encodeURIComponent(run)}`,currentRoom,{signal:lifetime.signal}):null;
+   if(closed)return;if(level!==requestedLevel||selectedRun!==run){refreshAgain=true;return}
+   detail=next;detailKey=nextKey;renderRun();
+  }
   $('start-training').disabled=!list.training_enabled;$('cancel-training').disabled=!list.training_enabled||list.active_run!==selectedRun||!['preparing','baseline','training','evaluating','testing','baseline-testing'].includes(detail?.status?.phase);
-  $('training-capability').textContent=list.training_enabled?'一次运行一个 CPU 任务；关卡切换不会伪造或清除训练记录。':'此服务展示训练记录；管理员可按训练文档启用 CPU 任务。';renderRun();
- }catch(e){notify(e.message)}finally{refreshing=false}
+  const capability=list.training_enabled?'一次运行一个 CPU 任务；关卡切换不会伪造或清除训练记录。':'此服务展示训练记录；管理员可按训练文档启用 CPU 任务。';if($('training-capability').textContent!==capability)$('training-capability').textContent=capability;
+ }catch(e){if(!closed)notify(e.message)}finally{refreshing=false;if(refreshAgain&&!closed){refreshAgain=false;void refresh()}}
 }
 $('run-select').addEventListener('change',async()=>{selectedRun=$('run-select').value;sampleStep=null;await refresh()});
 $('start-training').addEventListener('click',async()=>{
@@ -162,5 +190,4 @@ function example(){
  const e=clippedExample(ratio,advantage,epsilon);$('example-result').textContent=`未裁剪项 ${e.raw.toFixed(3)}，裁剪项 ${e.clipped.toFixed(3)}；取较小值 ${e.objective.toFixed(3)}。${advantage>=0?'好动作的概率增大到一定程度后，继续增大不再增加这一项收益。':'对坏动作同样取较小值；不是无论优势正负都把结果夹进同一个区间。'}`;
 }
 for(const id of ['example-ratio','example-advantage','example-epsilon'])$(id).addEventListener('input',example);
-example();termInfo();renderParameters();renderObservation();charts();await refresh();timer=setInterval(refresh,5000);
-window.addEventListener('pagehide',()=>{closed=true;clearInterval(timer);if(socket){socket.onclose=null;socket.close()}viewer?.dispose()},{once:true});
+example();termInfo();renderParameters();renderObservation();charts();await refresh();if(!closed)timer=setInterval(refresh,5000);

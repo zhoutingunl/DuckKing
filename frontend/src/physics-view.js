@@ -1,28 +1,32 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import {appearanceControls,appearanceFor,studioEnvironment} from './duck-appearance.js';
+import {renderScheduler} from './render-scheduler.js';
 
 export function physicsView(container) {
-  let interaction=null,interactionMode="select",latest=null,pointerStart=null,selection=null,visible=true;
+  let interaction=null,interactionMode="select",latest=null,pointerStart=null,selection=null,visible=true,disposed=false,scheduler;
+  const invalidate=()=>scheduler?.invalidate();
   const raycaster=new THREE.Raycaster(),cursor=new THREE.Vector2();
   const scene=new THREE.Scene();scene.background=new THREE.Color('#edf0e5');
   const renderer=new THREE.WebGLRenderer({antialias:true});renderer.setPixelRatio(Math.min(devicePixelRatio,2));
   const gl=renderer.getContext(),debug=gl.getExtension('WEBGL_debug_renderer_info');
-  let reduced=/swiftshader|llvmpipe|softpipe|software/i.test(debug?gl.getParameter(debug.UNMASKED_RENDERER_WEBGL):'');
+  const reduced=/swiftshader|llvmpipe|softpipe|software/i.test(debug?gl.getParameter(debug.UNMASKED_RENDERER_WEBGL):'');
   container.dataset.renderQuality=reduced?'reduced':'full';
   renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1;
   renderer.shadowMap.enabled=!reduced;renderer.shadowMap.type=THREE.PCFShadowMap;
+  renderer.shadowMap.autoUpdate=false;
   container.append(renderer.domElement);renderer.domElement.setAttribute('aria-label','官方 MicroDuck 模型，位置与关节姿态来自 MuJoCo');
   const camera=new THREE.PerspectiveCamera(38,1,.01,30);camera.position.set(.85,.62,.95);
   const controls=new OrbitControls(camera,renderer.domElement);controls.target.set(0,.13,0);controls.minDistance=.35;controls.maxDistance=6;controls.maxPolarAngle=Math.PI/2.02;controls.enableDamping=true;controls.update();controls.saveState();
-  let manualView=false,floorFramed=false,seatedView=false;controls.addEventListener('start',()=>{manualView=true});
+  let manualView=false,floorFramed=false,seatedView=false;
+  const manual=()=>{manualView=true};controls.addEventListener('start',manual);controls.addEventListener('change',invalidate);
   scene.add(new THREE.HemisphereLight(0xffffff,0x71815a,1.2));
   const sun=new THREE.DirectionalLight(0xfff6df,2);sun.position.set(1,2,1);sun.castShadow=true;sun.shadow.mapSize.set(1024,1024);sun.shadow.camera.left=-2;sun.shadow.camera.right=2;sun.shadow.camera.top=2;sun.shadow.camera.bottom=-2;sun.shadow.bias=-.0001;sun.shadow.normalBias=.001;scene.add(sun);
   const disposeEnvironment=studioEnvironment(renderer,scene,{reduced});
   const floor=new THREE.Mesh(new THREE.PlaneGeometry(20,20),new THREE.MeshStandardMaterial({color:'#edf0e5',roughness:1}));floor.rotation.x=-Math.PI/2;floor.receiveShadow=true;scene.add(floor);
   const grid=new THREE.GridHelper(8,80,0xcbd6bd,0xe0e6d7);grid.position.y=.0001;scene.add(grid);
   const world=new THREE.Group();world.rotation.x=-Math.PI/2;scene.add(world);
-  let objects=new Map(),labels=new Map(),textures=[],geometries=[],materials=[],frame,timer,revision=null,slowFrames=0,lastFrame=performance.now(),pixelBudget=reduced?320:640,drawCost=0,drawPause=0;
+  let objects=new Map(),labels=new Map(),textures=[],geometries=[],materials=[],revision=null;
   let renderBatches=[],readyToRender=false;
   const appearance=appearanceControls(container,repaint);
   function repaint(){
@@ -30,11 +34,22 @@ export function physicsView(container) {
       geoms.forEach((geom,index)=>object.setColorAt(index,appearanceFor(geom,appearance.colours).color));
       object.instanceColor.needsUpdate=true;
     }
+    invalidate();
   }
   const instanceMatrix=new THREE.Matrix4();
-  const visibility=new IntersectionObserver(entries=>{visible=entries[0]?.isIntersecting??true});visibility.observe(renderer.domElement);
-  function clear(){world.clear();geometries.forEach(g=>g.dispose());materials.forEach(m=>m.dispose());textures.forEach(t=>t.dispose());geometries=[];materials=[];textures=[];renderBatches=[];readyToRender=false;objects.clear();labels.clear();appearance.setDucks([]);delete container.dataset.renderedScene;}
+  const setVisibility=()=>scheduler?.visible(visible&&!document.hidden);
+  const visibility=new IntersectionObserver(entries=>{visible=entries[0]?.isIntersecting??true;setVisibility()});visibility.observe(renderer.domElement);
+  document.addEventListener('visibilitychange',setVisibility);
+  function clear(){
+    // Geometry disposal does not release InstancedMesh's matrix/colour buffers.
+    for(const {object} of renderBatches)object.dispose();
+    world.clear();geometries.forEach(g=>g.dispose());materials.forEach(m=>m.dispose());textures.forEach(t=>t.dispose());
+    geometries=[];materials=[];textures=[];renderBatches=[];readyToRender=false;revision=null;latest=null;selection=null;
+    objects.clear();labels.clear();renderer.renderLists.dispose();appearance.setDucks([]);delete container.dataset.renderedScene;
+    renderer.shadowMap.needsUpdate=true;invalidate();
+  }
   function load(model){
+    if(disposed)return;
     clear();const meshes=new Map(),shared=new Map();
     const decode=value=>Uint8Array.from(atob(value),char=>char.charCodeAt(0)).buffer;
     for(const [id,value] of Object.entries(model.meshes)){
@@ -73,24 +88,29 @@ export function physicsView(container) {
     revision=model.revision;
   }
   function update(state){
+    if(disposed)return;
     latest=state;
-    if(state.stage&&(selection?.instance!==state.stage.instance||state.stage.selection_version>=selection.selection_version))selection=state.stage;
+    if(state.stage&&(selection?.instance!==state.stage.instance||state.stage.selection_version>selection.selection_version)){selection=state.stage;invalidate()}
     if(state.revision!==revision)return;
     for(const duck of state.ducks){
       if(!labels.has(duck.id)){
         const canvas=document.createElement('canvas');canvas.width=192;canvas.height=72;const context=canvas.getContext('2d');context.fillStyle=({a:'#526d32',b:'#3f6580',c:'#987033',d:'#865872'}[duck.id]??'#526d32');context.fillRect(0,0,192,72);context.font='40px sans-serif';context.textAlign='center';context.fillStyle='#fff';context.fillText(`鸭 ${duck.id.toUpperCase()}`,96,51);
-        const texture=new THREE.CanvasTexture(canvas);textures.push(texture);const material=new THREE.SpriteMaterial({map:texture,depthTest:false});materials.push(material);const sprite=new THREE.Sprite(material);sprite.scale.set(.105,.04,1);world.add(sprite);labels.set(duck.id,sprite);
+        const texture=new THREE.CanvasTexture(canvas);textures.push(texture);const material=new THREE.SpriteMaterial({map:texture,depthTest:false});materials.push(material);const sprite=new THREE.Sprite(material);sprite.scale.set(.105,.04,1);world.add(sprite);labels.set(duck.id,sprite);invalidate();
       }
       const [x,y,z]=duck.position;labels.get(duck.id).position.set(x,y,z+.20);
     }
     const changed=new Set();
     for(const geom of state.geoms){const entry=objects.get(geom.id);if(!entry)continue;
       const {object,index}=entry,r=geom.rotation;
+      // Paused backends still send snapshots. Do not upload identical transforms.
+      if(entry.pose&&geom.position.every((v,i)=>v===entry.pose.position[i])&&r.every((v,i)=>v===entry.pose.rotation[i]))continue;
+      entry.pose=geom;
       instanceMatrix.set(r[0],r[1],r[2],geom.position[0],r[3],r[4],r[5],geom.position[1],r[6],r[7],r[8],geom.position[2],0,0,0,1);
       object.setMatrixAt(index,instanceMatrix);changed.add(object);
     }
-    for(const object of changed){object.instanceMatrix.needsUpdate=true;object.computeBoundingSphere()}
-    readyToRender=changed.size>0;
+    // Raycasting computes the bounds lazily; rendering has frustumCulled=false.
+    for(const object of changed){object.instanceMatrix.needsUpdate=true;object.boundingSphere=null}
+    if(changed.size){readyToRender=true;renderer.shadowMap.needsUpdate=true;invalidate()}
     // Reveal the real fall without cropping feet on a narrow screen. Enlarge
     // the view only as needed; a user's orbit/zoom always takes precedence.
     if(state.scene==='table'&&state.tabletop?.dropped_at!=null&&!manualView){
@@ -119,33 +139,44 @@ export function physicsView(container) {
       if(id){stick.position.copy(candidate.point).add(new THREE.Vector3(.1,.15,0));stick.visible=interactionMode!=='select';return id;}
     }stick.visible=false;return null;
   }
-  renderer.domElement.addEventListener('pointerdown',event=>{pointerStart={x:event.clientX,y:event.clientY}});
-  renderer.domElement.addEventListener('pointermove',event=>{if(!pointerStart&&interactionMode!=='select')hit(event)});
-  renderer.domElement.addEventListener('pointerleave',()=>{stick.visible=false});
+  const events=new AbortController(),listen={signal:events.signal};
+  renderer.domElement.addEventListener('pointerdown',event=>{pointerStart={x:event.clientX,y:event.clientY}},listen);
+  renderer.domElement.addEventListener('pointermove',event=>{if(!pointerStart&&interactionMode!=='select'){hit(event);invalidate()}},listen);
+  renderer.domElement.addEventListener('pointerleave',()=>{stick.visible=false;invalidate()},listen);
+  renderer.domElement.addEventListener('pointercancel',()=>{pointerStart=null},listen);
   renderer.domElement.addEventListener('pointerup',event=>{
-    if(!pointerStart||Math.hypot(event.clientX-pointerStart.x,event.clientY-pointerStart.y)>6)return;
-    pointerStart=null;const target=hit(event);if(target)interaction?.({target,order:screenOrder(),mode:interactionMode,revision:latest.revision,instance:latest.stage.instance});
-  });
-  function resize(){const {width,height}=container.getBoundingClientRect();if(width&&height){renderer.setPixelRatio(reduced?Math.min(1,pixelBudget/width):Math.min(devicePixelRatio,seatedView?1:2));renderer.setSize(width,height);camera.aspect=width/height;camera.updateProjectionMatrix();}}
+    const start=pointerStart;pointerStart=null;
+    if(!start||Math.hypot(event.clientX-start.x,event.clientY-start.y)>6)return;
+    const target=hit(event);invalidate();if(target)interaction?.({target,order:screenOrder(),mode:interactionMode,revision:latest.revision,instance:latest.stage.instance});
+  },listen);
+  // Keep at least one physical pixel per CSS pixel, including on software GPUs.
+  // Model parsing, shader compilation and background-tab delays are not evidence
+  // that the image should be permanently shrunk to a 160px-wide thumbnail.
+  function resize(){if(disposed)return;const {width,height}=container.getBoundingClientRect();if(width&&height){renderer.setPixelRatio(reduced?1:Math.min(devicePixelRatio,2));renderer.setSize(width,height);camera.aspect=width/height;camera.updateProjectionMatrix();invalidate();}}
   const observer=new ResizeObserver(resize);observer.observe(container);
-  function animate(){
-    const started=performance.now();controls.update();
+  function draw(){
+    const moving=controls.update();
     for(const [id,ring] of rings){
-      const chosen=latest?.scene==='stage'&&selection?.selected.includes(id)?latest.ducks.find(d=>d.id===id):null;
+      const chosen=latest?.scene==='stage'&&selection?.selected?.includes(id)?latest.ducks.find(d=>d.id===id):null;
       ring.visible=Boolean(chosen&&interaction);if(chosen)ring.position.set(chosen.position[0],.007,-chosen.position[1]);
     }
-    if(visible){renderer.render(scene,camera);if(readyToRender)container.dataset.renderedScene=latest.scene;}
-    // WebGL can submit quickly while a software GPU blocks the next frame.
-    // Include that delay, excluding our own idle interval, in the draw budget.
-    const elapsed=Math.max(performance.now()-started,started-lastFrame-drawPause);
-    drawCost=Math.max(drawCost*.85,elapsed);
-    slowFrames=elapsed>70?slowFrames+1:0;lastFrame=started;
-    if(!reduced&&slowFrames>=3){reduced=true;scene.environment=null;renderer.shadowMap.enabled=false;floor.material.needsUpdate=true;materials.forEach(m=>m.needsUpdate=true);resize();container.dataset.renderQuality='reduced';}
-    if(reduced&&(slowFrames>=3||elapsed>250)&&pixelBudget>160){pixelBudget=Math.max(160,Math.floor(pixelBudget/2));slowFrames=0;resize();}
-    // Leave an idle interval after each draw so software GPUs cannot starve input,
-    // voice audio or the stream of physical state. Physics remains at 200 Hz.
-    drawPause=reduced?Math.max(100,Math.min(2000,drawCost*2)):seatedView?66:33;
-    timer=setTimeout(()=>{frame=requestAnimationFrame(animate);},drawPause);
-  }animate();
-  return {load,update,clear,screenOrder,selection(value){selection=value},interaction(callback,mode="select"){interaction=callback;interactionMode=mode;if(!callback){stick.visible=false;for(const ring of rings.values())ring.visible=false}},renderNow(){controls.update();renderer.render(scene,camera);},frameScene(scene){manualView=false;floorFramed=false;seatedView=scene==='seated';resize();const close=scene==='carry',seated=scene==='seated',table=scene==='table';camera.position.set(...(scene==='stage'?[2.7,2.1,0]:seated?[1.05,.90,-1.05]:table?[1.35,.98,-1.35]:close?[.6,.4,.65]:[.85,.62,.95]));controls.target.set(close ? .12 : table ? .20 : 0,scene==='balance' ? .30 : seated ? .52 : table ? .25 : .13,table ? -.10 : 0);controls.update();controls.saveState();},reset(){manualView=false;floorFramed=false;controls.reset();},dispose(){clearTimeout(timer);cancelAnimationFrame(frame);observer.disconnect();visibility.disconnect();clear();appearance.dispose();disposeEnvironment();controls.dispose();renderer.dispose();ringGeometry.dispose();ringMaterial.dispose();stick.geometry.dispose();stick.material.dispose();}};
+    renderer.render(scene,camera);if(readyToRender)container.dataset.renderedScene=latest.scene;
+    return moving;
+  }
+  scheduler=renderScheduler(draw,{interval:()=>reduced?100:seatedView?66:33});setVisibility();resize();
+  return {load,update,clear,screenOrder,
+    selection(value){selection=value;invalidate()},
+    interaction(callback,mode="select"){interaction=callback;interactionMode=mode;if(!callback){stick.visible=false;for(const ring of rings.values())ring.visible=false}invalidate()},
+    renderNow(){scheduler.flush()},
+    frameScene(scene){if(disposed)return;manualView=false;floorFramed=false;seatedView=scene==='seated';resize();controls.enableDamping=false;controls.update();const close=scene==='carry',seated=scene==='seated',table=scene==='table';camera.position.set(...(scene==='stage'?[2.7,2.1,0]:seated?[1.05,.90,-1.05]:table?[1.35,.98,-1.35]:close?[.6,.4,.65]:[.85,.62,.95]));controls.target.set(close ? .12 : table ? .20 : 0,scene==='balance' ? .30 : seated ? .52 : table ? .25 : .13,table ? -.10 : 0);controls.update();controls.saveState();controls.enableDamping=true;invalidate()},
+    reset(){if(disposed)return;manualView=false;floorFramed=false;controls.enableDamping=false;controls.update();controls.reset();controls.enableDamping=true;invalidate()},
+    dispose(){
+      if(disposed)return;disposed=true;scheduler.dispose();events.abort();observer.disconnect();visibility.disconnect();document.removeEventListener('visibilitychange',setVisibility);
+      controls.removeEventListener('start',manual);controls.removeEventListener('change',invalidate);controls.dispose();
+      clear();appearance.dispose();disposeEnvironment();sun.shadow.dispose();
+      floor.geometry.dispose();floor.material.dispose();grid.geometry.dispose();grid.material.dispose();
+      ringGeometry.dispose();ringMaterial.dispose();stick.geometry.dispose();stick.material.dispose();
+      scene.clear();renderer.dispose();renderer.forceContextLoss();renderer.domElement.remove();
+    },
+  };
 }
