@@ -421,6 +421,16 @@
       "persona": "human",
       "rate": 205,
       "processing": "none"
+    },
+    {
+      "id": "table-start",
+      "text": "请开始桌上四鸭合唱表演，完成后报告真实结果。",
+      "role": "预录指令",
+      "bytes": 149664,
+      "voice": "Tingting",
+      "persona": "human",
+      "rate": 205,
+      "processing": "none"
     }
   ]
 }

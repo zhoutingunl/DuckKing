@@ -32,15 +32,51 @@ test('stop and rapid replacement cannot continue or report success for the old s
  await page.locator('#stop-demo').click();await expect(page.locator('#show-status')).toHaveText('演示已停止');
  await page.waitForTimeout(1500);await expect(page.locator('#theatre-result')).toHaveCount(0);
 });
-test('real cloud mode exposes connection failure and never silently runs local actions',async({page})=>{
+for(const demo of ['identity','tabletop'])test(`real cloud ${demo} exposes connection failure and never silently runs local actions`,async({page})=>{
  test.setTimeout(60000);
  const previous=await page.request.get('/api/scenes/state?room=1');const before=previous.ok()?(await previous.json()).events.at(-1)?.id??0:0;
  await page.goto('/demos.html?room=1');await page.locator('#demo-mode').selectOption('live');
- await page.locator('[data-demo="identity"]').click();
+ await page.locator(`[data-demo="${demo}"]`).click();
  await expect(page.locator('#show-status')).toHaveText('本幕未完成 · 点击节目重试',{timeout:45000});
  await expect(page.locator('#demo-notice')).toBeVisible();await expect(page.locator('#theatre-result')).toHaveCount(0);
  const s=await (await page.request.get('/api/scenes/state?room=1')).json();
  expect(s.events.filter(e=>e.id>before&&e.kind==='action'&&e.text.includes('nod'))).toHaveLength(0);
+ if(demo==='tabletop'){
+  expect(s.events.filter(e=>e.id>before&&e.kind==='action'&&e.text.includes('table_show'))).toHaveLength(0);
+  expect(s.backend.tabletop.dropped_at).toBeNull();
+  await expect(page.locator('#voice-source')).toContainText('灵矽开演');
+ }
+});
+test('table live protocol fixture starts real physics without a browser action fallback',async({page,request})=>{
+ test.setTimeout(100000);let calls=0;const browserActions=[];
+ page.on('request',r=>{if(r.method()==='POST'&&new URL(r.url()).pathname==='/api/scenes/actions')browserActions.push(r.postDataJSON().name)});
+ await page.route('**/demo-audio/*.wav*',route=>route.fulfill({contentType:'audio/wav',body:silentFixture()}));
+ // Only the cloud protocol is a fixture; the action and contacts use real MuJoCo.
+ await page.routeWebSocket('**/scene-voice',socket=>{
+  const send=data=>socket.send(JSON.stringify(data));
+  socket.onMessage(async message=>{
+   if(typeof message!=='string')return;const d=JSON.parse(message);
+   if(d.type==='connect')send({type:'voice_status',state:'ready'});
+   if(d.type==='listen_start')send({type:'voice_status',state:'listening'});
+   if(d.type==='listen_stop'){
+    calls++;send({type:'transcript',role:'user',text:'协议测试：开始桌上合唱'});
+    send({type:'voice_status',state:'thinking'});
+    let rec=await(await request.post('/api/scenes/actions?room=1',{data:{name:'table_show',request_id:'table-cloud-fixture'}})).json();
+    while(rec.status==='running'){await new Promise(r=>setTimeout(r,150));rec=await(await request.get(`/api/scenes/actions/${rec.id}?room=1`)).json()}
+    send({type:'transcript',role:'assistant',text:'协议测试：'+rec.status});
+    send({type:'audio',sample_rate:24000,pcm:Buffer.alloc(4800).toString('base64')});
+    send({type:'playback_end',aborted:false});send({type:'voice_status',state:'ready'});
+   }
+  });
+ });
+ await page.goto('/demos.html?room=1');await page.selectOption('#demo-mode','live');
+ await page.locator('[data-table-song="tigers"]').click();
+ await expect(page.locator('#show-status')).toHaveText('本幕完成 · 可重演或进入下一幕',{timeout:85000});
+ const proof=JSON.parse(await page.locator('#theatre-result').textContent());
+ expect(proof.mode).toBe('live_linx');expect(proof.cloud_audio_frames).toBeGreaterThan(0);
+ expect(calls).toBe(1);expect(browserActions).not.toContain('table_show');
+ expect(proof.results.find(r=>r.name==='table_show').status).toBe('completed');
+ await expect(page.locator('#table-song-title')).toContainText('两只老虎');
 });
 test('mobile program and stage stay inside the viewport',async({page})=>{
  await page.setViewportSize({width:390,height:844});await page.goto('/demos.html?room=1');

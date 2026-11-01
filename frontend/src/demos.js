@@ -267,12 +267,20 @@ async function runStep(run,step){
     const tracks=tableTracks??await loadBuiltinSong($('table-song').value,output.context(),run.signal),offset=Number($('table-offset').value);checkOffset(tracks,offset);
     $('table-panel').hidden=false;$('table-song-title').textContent=tracks?(tracks.title??'本机音源 · '+tracks.names.join(' / ')):'桌边的星光 · 独立原创练声曲';
     message(tracks?.notes?'熟悉旋律 · 本地合成四声部':tracks?(tracks.title?'预录歌曲 · 四鸭物理编排':'本机歌曲 · 四鸭物理编排'):'独立原创曲 · 本地合成',tracks?.description??'四位歌手，请留意脚下的舞台。');
-    const movement=perform(run,currentRoom,'table_show');
-    const music=playTableChoir(output,run.signal,()=>stages.get(currentRoom)?.latest?.backend.tabletop,frame=>{
+    const movement=run.live?command(run,currentRoom,step).then(()=>{
+      const result=run.results.findLast(r=>r.name==='table_show');
+      if(!result||result.status!=='completed')throw Error('未取得本轮灵矽桌上合唱完成结果');
+      return result;
+    }):perform(run,currentRoom,'table_show');
+    const music=(async()=>{
+    // STT/tool selection may take longer than the music player's startup bound.
+    // Only the actual running physics state can start the browser soundtrack.
+    if(run.live)await until(()=>stages.get(currentRoom)?.latest?.backend.tabletop?.running,{signal:run.signal,timeout:60000});
+    return playTableChoir(output,run.signal,()=>stages.get(currentRoom)?.latest?.backend.tabletop,frame=>{
       $('table-beat').textContent=`${Math.min(TABLE_SECONDS,Math.floor(frame.elapsed))} / ${TABLE_SECONDS} 秒`;
       $('table-cue').textContent=frame.returning?(frame.floorDancing?'楼下那位，继续踏步、继续唱。':'楼下那位，站稳后继续踏步。'):frame.landed?'已确认落地，另外三只仍在桌上。':frame.dropped?'等一下，怎么少了一个声部？':tracks?.description??'四只鸭交替踏步、点头、摇摆。';
       $('table-seats').replaceChildren(...(tracks?.parts??TABLE_PARTS).map((part,i)=>{const seat=document.createElement('div');seat.className='table-seat';seat.dataset.duck='abcd'[i];seat.dataset.fallen=String(i===3&&frame.dropped);seat.dataset.active=String(frame.activeParts[i]);const name=document.createElement('strong');name.textContent='鸭 '+'ABCD'[i];const label=document.createElement('span');label.textContent=i===3&&frame.dropped?(frame.returning?(frame.floorDancing?'楼下踏步':'楼下站稳'):'暂离桌面'):!frame.activeParts[i]?'等待入唱':tracks?.buffers?.length===1?'歌曲混音':part;seat.append(name,label);return seat}));
-    },{tracks,offset});
+    },{tracks,offset});})();
     const [result,audio]=await Promise.all([movement,music]);
     run.results.push({name:'table_music',status:'completed',outcome:audio});
     $('table-beat').textContent=`${TABLE_SECONDS} / ${TABLE_SECONDS} 秒`;
@@ -315,7 +323,7 @@ function start(index){
   const run=new DemoRun();run.live=$('demo-mode').value==='live';current=run;selected=index;
   status('正在准备节目…');$('theatre-result')?.remove();$('demo-notice').hidden=true;$('stop-demo').disabled=false;$('next-demo').disabled=index>=DEMOS.length-1;$('demo-mode').disabled=true;
   $('demo-timeline').replaceChildren();$('result-summary').textContent='等待本轮动作结果。';$('chorale-panel').hidden=true;$('table-panel').hidden=true;$('stage-panel').hidden=DEMOS[index].id!=='stage';$('demo-second').hidden=true;
-  const demo=DEMOS[index];$('stage-play').disabled=true;$('stage-voice').hidden=!stageInteractive;for(const b of document.querySelectorAll('.stage-tools button'))b.disabled=!stageInteractive;mode();if(['chorale','tabletop','seated'].includes(demo.id)){run.live=false;$('voice-source').textContent='本幕：本地音乐 + 物理编排'}$('show-number').textContent=`第 ${String(index+1).padStart(2,'0')} 幕 · ${demo.duration}`;$('show-title').textContent=demo.title;
+  const demo=DEMOS[index];$('stage-play').disabled=true;$('stage-voice').hidden=!stageInteractive;for(const b of document.querySelectorAll('.stage-tools button'))b.disabled=!stageInteractive;mode();if(['chorale','seated'].includes(demo.id)){run.live=false;$('voice-source').textContent='本幕：本地音乐 + 物理编排'}if(demo.id==='tabletop')$('voice-source').textContent=run.live?'预录指令 → 灵矽开演 · 本地音乐 + 实时物理':'本幕：本地音乐 + 物理编排';$('show-number').textContent=`第 ${String(index+1).padStart(2,'0')} 幕 · ${demo.duration}`;$('show-title').textContent=demo.title;
   for(const b of document.querySelectorAll('.program-item'))b.setAttribute('aria-current',String(b.dataset.demo===demo.id));
   run.promise=(async()=>{
     try{

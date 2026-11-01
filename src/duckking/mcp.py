@@ -92,6 +92,15 @@ TOOLS += [
     }
     for name, (_, description) in BASIC_EXTRA.items()
 ]
+TABLE_TOOLS = [{
+    "name": "duck_table_show",
+    "description": (
+        "开始当前桌面上四只小鸭的合唱与踏步表演，约36秒。"
+        "等待真实物理验收：鸭D离桌、落地后站稳续舞，其他三只留桌。"
+        "音乐由浏览器播放已选曲目，不是云端生成歌声；失败时如实说明。"
+    ),
+    "inputSchema": {"type": "object", "properties": {}, "additionalProperties": False},
+}]
 SKILL_TOOLS = {
     "duck_roulade": ("roulade", "动作练习场 skills：执行官方前滚翻，验证翻转并恢复站稳，最多6秒。"),
     "duck_yawn": ("yawn", "动作练习场 skills：本地抬头张嘴打哈欠，约4.5秒，不生成声音。"),
@@ -299,6 +308,10 @@ class DeviceMCP:
             tools = TOOLS
             if self.motion.backend.kind == "mujoco":
                 tools = TOOLS + SCENE_TOOLS
+                if self.motion.backend.scene == "table":
+                    tools = [t for t in TOOLS if t["name"] in {
+                        "duck_stop", "duck_get_status"
+                    }] + TABLE_TOOLS
                 if self.motion.backend.scene == "stage":
                     tools = [
                         t for t in TOOLS if t["name"] in {"duck_stop", "duck_get_status"}
@@ -323,6 +336,14 @@ class DeviceMCP:
                 raise ValueError("工具名称必须是字符串")
             if not isinstance(arguments, dict):
                 raise ValueError("工具参数必须为对象")
+            if name == "duck_table_show" and (
+                self.motion.backend.kind != "mujoco" or self.motion.backend.scene != "table"
+            ):
+                raise ValueError("请先准备桌上四鸭合唱舞台")
+            if (self.motion.backend.kind == "mujoco"
+                    and self.motion.backend.scene == "table"
+                    and name not in {"duck_table_show", "duck_stop", "duck_get_status"}):
+                raise ValueError("桌上合唱请使用开演、停止或状态工具")
             if (self.motion.backend.kind == "mujoco"
                     and self.motion.backend.scene == "balance"):
                 if name == "duck_balance":
@@ -420,6 +441,7 @@ class DeviceMCP:
                     "duck_stage_gather": "stage_gather",
                     "duck_stage_roll": "stage_roll",
                     "duck_stage_dance": "stage_dance",
+                    "duck_table_show": "table_show",
                     "duck_nod": "nod",
                     "duck_walk_short": "walk",
                     "duck_turn_left": "turn_left",
