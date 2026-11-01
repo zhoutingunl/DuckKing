@@ -1,5 +1,52 @@
 import {test,expect} from '@playwright/test';
 
+test('duration and seed settings have stacked labels, bound the real run and follow server voice settings',async({page,request})=>{
+ test.setTimeout(90000);
+ const created=await request.post('/api/rooms');expect(created.ok()).toBe(true);
+ const {room}=await created.json(),commands=[],errors=[];
+ page.on('pageerror',error=>errors.push(error.message));
+ page.on('request',req=>{if(req.method()==='POST'&&new URL(req.url()).pathname==='/api/balance/command')commands.push(req.postDataJSON())});
+ await page.goto(`/balance.html?room=${room}`);
+ const seed=page.getByLabel('对照种子',{exact:true}),duration=page.getByLabel('运行时长（秒）',{exact:true});
+ await seed.fill('1');await duration.fill('6');
+ await expect(page.locator('#duration-note')).toContainText('3 秒扰动＋3 秒减速');
+ await expect(page.locator('#duration-note')).toContainText('训练成功率仍仅对应 13 秒');
+ await page.locator('#prepare-balance').click();
+ await expect(page.locator('#start-challenge')).toBeEnabled({timeout:45000});
+ await expect(seed).toHaveValue('1');await expect(duration).toHaveValue('6');
+ await expect(page.locator('#seed-summary')).toContainText('逆时针');
+ await page.selectOption('#controller','baseline');await page.locator('#start-challenge').click();
+ await expect(page.locator('#comparison-status')).toContainText('/ 6 s');
+ await expect(page.locator('#comparison-status')).toContainText('对照结束',{timeout:15000});
+ const finished=(await(await request.get(`/api/scenes/state?room=${room}`)).json()).backend;
+ expect(finished.sim_time).toBeCloseTo(6);expect(finished.comparison.baseline.sim_time).toBeCloseTo(6);
+ expect(commands.filter(c=>c.operation==='start')).toEqual([expect.objectContaining({duration_seconds:6,seed:1})]);
+ const before=commands.length;
+ for(const value of ['100','5','6.5','']){
+  await duration.fill(value);await page.locator('#start-challenge').click();
+  expect(await duration.evaluate(input=>input.validity.valid)).toBe(false);
+ }
+ expect(commands.length).toBe(before);
+ await duration.fill('20');await page.waitForTimeout(800);await expect(duration).toHaveValue('20');
+ await page.locator('[data-level="2"]').click();
+ await expect(page.locator('#scene-title')).toContainText('第 2 关');await expect(duration).toHaveValue('20');
+ // The voice tool reaches this same backend operation; no cloud ASR is mocked as real.
+ const selected=await request.post(`/api/balance/command?room=${room}`,{data:{operation:'select',duration_seconds:8,seed:0}});
+ expect(selected.ok()).toBe(true);expect((await selected.json()).phase).toBe('idle');
+ await expect(duration).toHaveValue('8');await expect(seed).toHaveValue('0');
+ await expect(page.locator('#seed-summary')).toContainText('顺时针');
+ await expect(page.locator('#disc-time')).toHaveText('0.0 s');
+ // Desktop and phone retain labels above the fields, duration to seed's right.
+ for(const width of [1440,390]){
+  await page.setViewportSize({width,height:1050});
+  const s=await seed.boundingBox(),d=await duration.boundingBox();
+  const label=await page.locator('label[for="challenge-seed"]').boundingBox();
+  expect(s.y).toBeGreaterThan(label.y+10);expect(d.y).toBeCloseTo(s.y);expect(d.x).toBeGreaterThan(s.x+s.width);
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+ }
+ expect(errors).toEqual([]);
+});
+
 test('rejected scene socket falls back to real HTTP physics; start, offline stop and reconnection recover',async({page,request})=>{
  test.setTimeout(120000);
  const errors=[],commands=[];page.on('pageerror',e=>errors.push(e.message));

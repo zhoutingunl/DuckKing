@@ -310,6 +310,99 @@ async def test_select_prepares_correct_level_for_the_next_voice_command(backend)
         await backend.invoke({"operation": "status", "shell": "ignored?"})
 
 
+@pytest.mark.parametrize("duration", [6, 20, 33])
+async def test_custom_duration_advances_both_real_worlds_to_the_same_bounded_finish(
+    backend, duration
+):
+    # Skip wall-clock waits, but run every real MuJoCo and policy step.
+    await backend.invoke({"operation": "select", "level": 1, "duration_seconds": duration})
+    for _ in range(duration * 10):
+        backend._advance_pair()
+    assert backend.world.done and backend.baseline.done
+    assert backend.world.data.time == pytest.approx(duration)
+    assert backend.baseline.data.time == backend.world.data.time
+    assert backend.info["disk_stopped"] and backend.baseline_info["disk_stopped"]
+    assert backend.info["reason"] == "success"
+    summary = backend.summary()
+    assert summary["duration_seconds"] == duration
+    assert summary["challenge_seconds"] == duration - 3
+    assert summary["stop_seconds"] == 3
+    assert summary["comparison"]["baseline"]["duration_seconds"] == duration
+    assert summary["evaluation_duration_seconds"] == 13
+    with pytest.raises(RuntimeError, match="已结束"):
+        backend.world.step(np.zeros(3))
+
+
+async def test_invalid_duration_never_cancels_or_resets_a_running_challenge(backend):
+    await backend.invoke({"operation": "start", "controller": "baseline", "duration_seconds": 20})
+    task, config = backend.task, backend.world.config
+    await asyncio.sleep(0.12)
+    before = backend.world.data.time
+    for duration in (0, 5, 34, 600, True, "20", None, 13.5, float("nan"), float("inf")):
+        with pytest.raises(ValueError, match="运行时长"):
+            await backend.invoke({"operation": "start", "duration_seconds": duration})
+        assert backend.task is task and not task.done()
+        assert backend.world.config is config
+        assert backend.world.data.time >= before
+    await asyncio.wait_for(backend.stop(), 6)
+    assert backend.world.data.time < 20
+    assert backend.phase == backend.baseline_phase == "cancelled"
+    assert not backend.info["success"] and not backend.baseline_info["success"]
+
+
+async def test_seed_changes_direction_and_physics_but_keeps_pair_repeatable(backend):
+    starts, targets, directions = [], [], []
+    for seed in (0, 1, 0):
+        await backend.invoke({"operation": "select", "level": 3, "seed": seed})
+        starts.append(backend.world.data.qpos.copy())
+        directions.append(backend.summary()["seed_info"]["rotation"])
+        for _ in range(15):
+            backend._advance_pair()
+        targets.append(backend.world.target.copy())
+        np.testing.assert_array_equal(backend.world.target, backend.baseline.target)
+    assert directions == ["clockwise", "counterclockwise", "clockwise"]
+    assert not np.allclose(starts[0], starts[1])
+    assert not np.allclose(targets[0], targets[1])
+    np.testing.assert_array_equal(starts[0], starts[2])
+    np.testing.assert_array_equal(targets[0], targets[2])
+
+
+async def test_voice_duration_setting_start_and_duplicate_call_preserve_exactly_one_run(backend):
+    motion = MotionController(backend)
+    mcp = DeviceMCP(motion, "test")
+    listing = await mcp.handle({"jsonrpc": "2.0", "id": 1, "method": "tools/list"})
+    tool = next(t for t in listing["result"]["tools"] if t["name"] == "duck_balance")
+    schema = tool["inputSchema"]
+    assert "select" in schema["properties"]["operation"]["enum"]
+    assert schema["properties"]["duration_seconds"]["minimum"] == 6
+    assert schema["properties"]["duration_seconds"]["maximum"] == 33
+
+    async def call(number, **args):
+        return await mcp.handle({"jsonrpc": "2.0", "id": number, "method": "tools/call",
+                                 "params": {"name": "duck_balance", "arguments": args}})
+
+    configured = await call(2, operation="select", level=1, duration_seconds=6, seed=1)
+    assert not configured["result"]["isError"]
+    assert backend.phase == "idle" and backend.task is None
+    assert backend.summary()["duration_seconds"] == 6
+    assert backend.summary()["seed"] == 1
+    version = backend.summary()["command_revision"]
+    started = await call(3, operation="start", controller="baseline")
+    assert not started["result"]["isError"]
+    task = backend.task
+    assert await call(3, operation="start", controller="baseline") == started
+    assert backend.task is task
+    assert backend.summary()["command_revision"] == version + 1
+    await asyncio.wait_for(task, 15)
+    assert backend.world.data.time == pytest.approx(6)
+    assert backend.baseline.data.time == backend.world.data.time
+    assert backend.summary()["comparison"]["phase"] == "completed"
+    invalid = await call(4, operation="start", duration_seconds=100)
+    assert invalid["result"]["isError"]
+    assert backend.task is task and task.done()
+    await motion.close()
+
+
 async def test_balance_mcp_discovery_replay_and_protocol_failure(backend):
     motion = MotionController(backend)
     mcp = DeviceMCP(motion, "test")
@@ -486,6 +579,8 @@ def test_balance_api_preparation_is_room_scoped_and_voice_blocks_scene_replaceme
             {"operation": []},
             {"operation": "start", "controller": []},
             {"operation": "start", "level": 4},
+            {"operation": "start", "duration_seconds": 34},
+            {"operation": "select", "duration_seconds": "20"},
         ):
             assert client.post("/api/balance/command?room=1", json=body).status_code == 422
         assert (

@@ -328,7 +328,7 @@ class DeviceMCP:
                 if name == "duck_balance":
                     if "run" in arguments:
                         raise ValueError("语音工具不接受工件路径或记录编号")
-                    if arguments.get("operation") not in ("start", "stop", "status"):
+                    if arguments.get("operation") not in ("start", "stop", "status", "select"):
                         raise ValueError("无效平衡教练语音操作")
                     result = await self.motion.backend.invoke(arguments)
                     return response | {"result": {"content": [{"type": "text", "text":

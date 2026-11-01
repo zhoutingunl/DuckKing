@@ -9,25 +9,42 @@ from .balance import DT, LEVELS, BalanceConfig, BalanceWorld
 from .balance_policy import BalancePolicy
 from .model_assets import geometry
 
+DEFAULT_DURATION_SECONDS = 13
+MIN_DURATION_SECONDS = 6
+MAX_DURATION_SECONDS = 33
+STOP_SECONDS = 3
+
 BALANCE_TOOLS = [
     {
         "name": "duck_balance",
         "description": (
             "语音平衡教练：start 开始一关；stop 平滑减速并保持控制至停稳；status 读取真实结果。"
+            "select 只设置关卡、种子或运行时长，平滑停止当前挑战后回到待机，不开始下一轮。"
             "level 1 随盘站稳、2 保持面向观众、3 从偏心位置回中心。"
             "controller trained 是已训练任务 PPO＋官方步态；early 是训练步数0的任务网络＋官方步态；"
             "baseline 只有官方步态。无策略时报错，不能声称现场一句话就学会了。"
             "默认与左侧官方基线同步对照：同种子、同目标节奏、独立物理受力；"
             "一侧结束后定格，另一侧继续。comparison.baseline 是左侧成绩，外层是右侧成绩。"
-            "成功须完成10秒扰动及3秒减速。只能根据返回的数据报告成绩。"
+            "duration_seconds 是包含最后3秒减速的总仿真时长，整数6至33秒，初始13秒。"
+            "例如‘第二关运行20秒’使用start、level=2、duration_seconds=20；"
+            "‘时长设为20秒，先别开始’使用select、duration_seconds=20。"
+            "省略关卡、种子或时长时沿用当前设置。种子改变运动节奏、方向和起点，不代表难度。"
+            "训练成功率只对应13秒标准回合，其他时长属于自定义试跑。"
+            "成功须完整经历设定时长且实际停稳，提前跌倒会结束。只能根据返回的数据报告成绩。"
         ),
         "inputSchema": {
             "type": "object",
             "properties": {
-                "operation": {"type": "string", "enum": ["start", "stop", "status"]},
+                "operation": {"type": "string", "enum": ["start", "stop", "status", "select"]},
                 "level": {"type": "integer", "minimum": 1, "maximum": 3},
                 "controller": {"type": "string", "enum": ["trained", "early", "baseline"]},
-                "seed": {"type": "integer", "minimum": 0, "maximum": 9999},
+                "seed": {"type": "integer", "minimum": 0, "maximum": 9999,
+                         "description": "对照种子；同种子可重复比较，不是难度等级"},
+                "duration_seconds": {
+                    "type": "integer", "minimum": MIN_DURATION_SECONDS,
+                    "maximum": MAX_DURATION_SECONDS,
+                    "description": "总仿真时长（秒），含最后3秒减速；省略沿用当前设置",
+                },
                 "compare": {"type": "boolean", "description": "与官方基线同步对照，默认开启"},
             },
             "required": ["operation"],
@@ -104,6 +121,7 @@ class BalanceBackend:
             "seed",
             "run",
             "compare",
+            "duration_seconds",
         }:
             raise ValueError("不支持的平衡教练参数")
         if not isinstance(args.get("operation"), str):
@@ -121,7 +139,9 @@ class BalanceBackend:
             return await self._invoke(args, self.request_version)
 
     async def _invoke(self, args, version):
-        if set(args) - {"operation", "level", "controller", "seed", "run", "compare"}:
+        if set(args) - {
+            "operation", "level", "controller", "seed", "run", "compare", "duration_seconds"
+        }:
             raise ValueError("不支持的平衡教练参数")
         operation = args.get("operation")
         if operation == "status":
@@ -132,7 +152,16 @@ class BalanceBackend:
         if operation not in {"start", "select"}:
             raise ValueError("未知平衡教练操作")
         level = args.get("level", self.world.config.level)
-        seed = args.get("seed", 0)
+        seed = args.get("seed", self.world.seed)
+        duration = args.get(
+            "duration_seconds", self.world.config.challenge_seconds + self.world.config.stop_seconds
+        )
+        # Existing configuration is numeric; an explicitly submitted duration must
+        # be a bounded integer, never a bool, string, NaN or silently clipped value.
+        if ("duration_seconds" in args and type(duration) is not int) or not (
+            MIN_DURATION_SECONDS <= duration <= MAX_DURATION_SECONDS
+        ):
+            raise ValueError("运行时长须为 6–33 秒的整数，包含最后 3 秒减速")
         controller = args.get("controller", "trained")
         compare = args.get("compare", True)
         if (
@@ -157,7 +186,9 @@ class BalanceBackend:
         self.generation += 1
         generation = self.generation
         async with self.lock:
-            self.world.config = BalanceConfig(level=level)
+            self.world.config = BalanceConfig(
+                level=level, challenge_seconds=duration - STOP_SECONDS, stop_seconds=STOP_SECONDS
+            )
             self.world.reset(seed)
             self.baseline.config = self.world.config
             self.baseline.reset(seed)
@@ -250,6 +281,7 @@ class BalanceBackend:
     def summary(self):
         result = self._summary(self.world, self.info, self.phase, self.error, self.controller)
         result["run"] = self.run_id
+        result["command_revision"] = self.generation
         result["policy_steps"] = getattr(self.policy, "steps", None)
         result["comparison"] = {
             "enabled": self.compare,
@@ -281,6 +313,14 @@ class BalanceBackend:
             "phase": phase,
             "controller": controller,
             "seed": world.seed,
+            "duration_seconds": world.config.challenge_seconds + world.config.stop_seconds,
+            "challenge_seconds": world.config.challenge_seconds,
+            "stop_seconds": world.config.stop_seconds,
+            "evaluation_duration_seconds": DEFAULT_DURATION_SECONDS,
+            "seed_info": {
+                "rotation": "counterclockwise" if world.direction > 0 else "clockwise",
+                "friction": world.friction,
+            },
             "result": info,
             "error": error,
             "sim_time": float(world.data.time),

@@ -14,6 +14,7 @@ import {measurement,loadMetrics,afterFrame} from './experience.js';
 const $=id=>document.getElementById(id),titles=['跟着圆盘站稳','转盘转，我不转','从边缘回到中心'];
 let level=1,observedLevel=1,levelChosen=false,viewer,baselineViewer,lastBackend,ready=false,loading=false,selectedRun='',records=[],detail=null,sample=null,sampleStep=null,term='center',stateFeed,timer,closed=false,revision=null;
 let lastStateKey='',lastObservation=null,lastObservationAt=0,detailKey=null,optionsKey='';
+let settingsKey='',seedEdited=false,durationEdited=false;
 const lifetime=new AbortController();
 window.addEventListener('pagehide',()=>{
  closed=true;lifetime.abort();clearInterval(timer);stateFeed?.close();viewer?.dispose();baselineViewer?.dispose();
@@ -30,7 +31,18 @@ function controls(){
  $('start-challenge').disabled=!ready||loading||!stateFeed?.fresh();$('stop-balance').disabled=!ready;
  $('prepare-balance').disabled=loading;$('prepare-balance').textContent=ready?'圆盘已准备 · 重新加载':'准备圆盘';
  document.querySelectorAll('[data-level]').forEach(b=>{b.disabled=loading;b.setAttribute('aria-pressed',String(Number(b.dataset.level)===level))});
+ for(const id of ['controller','challenge-seed','challenge-duration'])$(id).disabled=loading;
 }
+function validSettings(){return ['challenge-seed','challenge-duration'].every(id=>$(id).reportValidity())}
+function formSettings(){return {seed:Number($('challenge-seed').value),duration_seconds:Number($('challenge-duration').value)}}
+function durationNote(){
+ const input=$('challenge-duration'),seconds=Number(input.value);
+ $('duration-note').textContent=input.validity.valid?`${seconds} 秒仿真：${seconds-3} 秒扰动＋3 秒减速；失稳会提前结束。${seconds===13?'与训练评估时长一致。':'自定义试跑，训练成功率仍仅对应 13 秒。'}`:'请输入 6–33 秒的整数，包含最后 3 秒减速。';
+}
+for(const id of ['challenge-seed','challenge-duration'])$(id).addEventListener('input',()=>{
+ if(id==='challenge-seed')seedEdited=true;else{durationEdited=true;durationNote()}
+});
+durationNote();
 function renderSide(b,prefix,status){
  const r=b.result;
  $(prefix+'-rpm').textContent=r?`${r.rpm.toFixed(2)} RPM`:'—';
@@ -51,13 +63,19 @@ function updateLabels(controller){
 function renderState(state){
  const b=state?.balance;if(!b||closed)return;
  const key=state.revision+JSON.stringify(b);if(key===lastStateKey)return;lastStateKey=key;lastBackend=b;
+ const nextSettings=JSON.stringify([state.revision,b.command_revision,b.level,b.seed,b.duration_seconds]);
+ if(settingsKey!==nextSettings){
+  settingsKey=nextSettings;$('challenge-seed').value=b.seed;$('challenge-duration').value=b.duration_seconds??13;
+  seedEdited=durationEdited=false;durationNote();
+ }
+ $('seed-summary').textContent=b.seed_info?`本轮种子 ${b.seed} · 俯视${b.seed_info.rotation==='counterclockwise'?'逆时针':'顺时针'}旋转 · 盘面摩擦系数 ${b.seed_info.friction.toFixed(2)}`:'';
  if(b.level!==observedLevel){observedLevel=b.level;level=b.level;selectedRun='';sampleStep=null;controls();void refresh()}
  viewer?.update(state);renderSide(b,'disc','challenge-status');
  const comparison=b.comparison,baseline=state.comparison?.baseline;
  if(baseline){baselineViewer?.update(baseline);renderSide(baseline.balance,'baseline','baseline-status')}
  updateLabels(b.phase==='idle'?$('controller').value:b.controller);
  const phases={idle:'等待同时开始',running:'同步挑战中',stopping:'两侧正在减速',completed:'对照结束',cancelled:'对照已停止',failed:'对照计算异常，物理已暂停'};
- $('comparison-status').textContent=comparison?.enabled?`${phases[comparison.phase]??comparison.phase} · 共同进度 ${comparison.sim_time.toFixed(1)} s · 种子 ${b.seed} · 左侧官方基线 / 右侧${$('trained-label').textContent}`:'本轮仅运行右侧策略，左侧未参与';
+ $('comparison-status').textContent=comparison?.enabled?`${phases[comparison.phase]??comparison.phase} · 共同进度 ${comparison.sim_time.toFixed(1)} / ${b.duration_seconds??13} s · 种子 ${b.seed} · 左侧官方基线 / 右侧${$('trained-label').textContent}`:'本轮仅运行右侧策略，左侧未参与';
  const name={baseline:'官方步态基线',early:'训练步数 0 的任务网络＋官方步态',trained:'已评估反馈力度 PPO＋官方步态'}[b.controller];
  $('controller-source').textContent=`右侧：${b.phase==='idle'?'等待本轮策略加载':name}${b.policy_steps!=null&&b.phase!=='idle'?` · ${b.policy_steps.toLocaleString()} 训练步`:''}。${comparison?.enabled?'同一仿真时钟，独立计算两侧物理。':''}训练过程见下方记录。`;
  $('scene-title').textContent=`第 ${b.level} 关 · ${b.title}`;
@@ -65,19 +83,19 @@ function renderState(state){
 }
 function placeholders(text){for(const node of document.querySelectorAll('.balance-placeholder')){node.hidden=!text;if(text)node.textContent=text}}
 async function prepare(){
- if(loading||closed)return;loading=true;controls();$('notice').hidden=true;
+ if(loading||closed||!validSettings())return;
+ const inputs=formSettings(),requested={...(levelChosen?{level}:{}),...(seedEdited?{seed:inputs.seed}:{}),...(durationEdited?{duration_seconds:inputs.duration_seconds}:{})};
+ loading=true;controls();$('notice').hidden=true;
  placeholders('正在加载官方模型与左右对照圆盘…');
  const experience=measurement('load'),metrics={};
  try{
-  const signal=lifetime.signal,requestedLevel=levelChosen?level:null;
+  const signal=lifetime.signal;
   let state=await api('api/balance/prepare',currentRoom,{body:{},signal});signal.throwIfAborted();
-  if(requestedLevel!==null){
-   if(state.backend.balance.level!==requestedLevel){
-    await api('api/balance/command',currentRoom,{body:{operation:'select',level:requestedLevel},signal});
-    state=await api('api/scenes/state',currentRoom,{signal});signal.throwIfAborted();
-   }
-   observedLevel=requestedLevel;
+  if(Object.entries(requested).some(([key,value])=>state.backend.balance[key]!==value)){
+   await api('api/balance/command',currentRoom,{body:{operation:'select',...requested},signal});
+   state=await api('api/scenes/state',currentRoom,{signal});signal.throwIfAborted();
   }
+  if(requested.level!=null)observedLevel=requested.level;
   if(!state.backend.comparison?.baseline)throw Error('服务尚未支持左右对照，请更新并重启本地后端。');
   if(revision!==state.backend.revision){
    const data=await loader(appURL('api/scenes/model.dkm.gz'),state.backend.revision,{signal:AbortSignal.any([signal,AbortSignal.timeout(60000)]),metrics});signal.throwIfAborted();const started=performance.now();
@@ -112,15 +130,15 @@ async function command(body){
  try{
   const result=await api('api/balance/command',currentRoom,{body,signal:lifetime.signal});
   if(closed)return;
-  $('command-feedback').textContent=`${{start:'挑战',stop:'停盘',select:'切换关卡'}[body.operation]??'操作'}请求已受理 · 进度见对照画面`;
+  $('command-feedback').textContent=`${{start:'挑战',stop:'停盘',select:'设置'}[body.operation]??'操作'}请求已受理 · 进度见对照画面`;
   appendLog(`第 ${result.level} 关 · ${result.phase} · ${result.controller}`,'本地排练');void stateFeed?.refresh();return result;
  }catch(e){if(!closed){$('command-feedback').textContent='请求未确认，请查看提示及实际进度。';notify(e.message)}}
 }
 $('prepare-balance').addEventListener('click',prepare);
 $('start-challenge').addEventListener('click',async()=>{
- if(loading||!ready||!stateFeed?.fresh())return;
+ if(loading||!ready||!stateFeed?.fresh()||!validSettings())return;
  loading=true;controls();$('notice').hidden=true;
- try{await command({operation:'start',compare:true,level,controller:$('controller').value,seed:Number($('challenge-seed').value),...(selectedRun?{run:selectedRun}:{})})}finally{loading=false;controls()}
+ try{await command({operation:'start',compare:true,level,controller:$('controller').value,...formSettings(),...(selectedRun?{run:selectedRun}:{})})}finally{loading=false;controls()}
 });
 $('stop-balance').addEventListener('click',()=>{void voice.interrupt();void command({operation:'stop'})});
 window.addEventListener('keydown',e=>{if(e.code==='Escape'&&ready)void command({operation:'stop'})});
@@ -128,8 +146,8 @@ $('reset-camera').addEventListener('click',()=>{viewer?.reset();baselineViewer?.
 $('controller').addEventListener('change',()=>{if(!lastBackend||lastBackend.phase==='idle')updateLabels($('controller').value)});
 $('clear-log').addEventListener('click',()=>$('activity-log').replaceChildren());
 for(const button of document.querySelectorAll('[data-level]'))button.addEventListener('click',async()=>{
- if(loading)return;level=Number(button.dataset.level);levelChosen=true;controls();
- if(ready)await command({operation:'select',level});
+ if(loading||!validSettings())return;level=Number(button.dataset.level);levelChosen=true;controls();
+ if(ready)await command({operation:'select',level,...formSettings()});
  if(!ready)$('scene-title').textContent=`待挑战第 ${level} 关 · ${titles[level-1]}`;
  selectedRun='';sampleStep=null;await refresh();
 });
