@@ -260,4 +260,6 @@ function example(){
  const e=clippedExample(ratio,advantage,epsilon);$('example-result').textContent=`未裁剪项 ${e.raw.toFixed(3)}，裁剪项 ${e.clipped.toFixed(3)}；取较小值 ${e.objective.toFixed(3)}。${advantage>=0?'好动作的概率增大到一定程度后，继续增大不再增加这一项收益。':'对坏动作同样取较小值；不是无论优势正负都把结果夹进同一个区间。'}`;
 }
 for(const id of ['example-ratio','example-advantage','example-epsilon'])$(id).addEventListener('input',example);
-example();termInfo();renderParameters();renderObservation();charts();await refresh();if(!closed)timer=setInterval(refresh,5000);
+// The initial HTML keeps controls disabled until room setup and all handlers
+// are ready. A fast click during the asynchronous room request must not vanish.
+controls();example();termInfo();renderParameters();renderObservation();charts();await refresh();if(!closed)timer=setInterval(refresh,5000);
