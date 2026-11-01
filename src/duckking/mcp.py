@@ -308,6 +308,11 @@ class DeviceMCP:
 
                     tools = [t for t in TOOLS if t["name"] in {"duck_stop", "duck_get_status"}]
                     tools += BALANCE_TOOLS
+                if self.motion.backend.scene == "seesaw":
+                    from .seesaw_backend import SEESAW_TOOLS
+
+                    tools = [t for t in TOOLS if t["name"] in {"duck_stop", "duck_get_status"}]
+                    tools += SEESAW_TOOLS
             if self.motion.studio:
                 if self.motion.studio.active not in {None, "voice", "persona"}:
                     tools = [t for t in tools if t["name"] in {"duck_stop", "duck_get_status"}]
@@ -323,6 +328,20 @@ class DeviceMCP:
                 raise ValueError("工具名称必须是字符串")
             if not isinstance(arguments, dict):
                 raise ValueError("工具参数必须为对象")
+            if (self.motion.backend.kind == "mujoco"
+                    and self.motion.backend.scene == "seesaw"):
+                if name in {"duck_seesaw", "duck_get_status"}:
+                    if name == "duck_get_status" and arguments:
+                        raise ValueError("状态查询不接受参数")
+                    result = await self.motion.backend.invoke(
+                        {"operation": "status"} if name == "duck_get_status" else arguments
+                    )
+                    result = {key: value for key, value in result.items() if key != "trace"}
+                    return response | {"result": {"content": [{"type": "text", "text":
+                        json.dumps(result, ensure_ascii=False)}],
+                        "isError": result.get("operation_failed", False)}}
+                if name not in {"duck_stop", "duck_get_status"}:
+                    raise ValueError("跷跷板上只能使用教练与停止工具")
             if (self.motion.backend.kind == "mujoco"
                     and self.motion.backend.scene == "balance"):
                 if name == "duck_balance":

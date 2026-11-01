@@ -21,6 +21,14 @@ function harness(reader=async()=>snapshot(),extra={}){
  };
 }
 
+test('active seesaw HTTP fallback follows physics at 10 Hz and slows after pause',async()=>{
+ let execution='running';const h=harness(async()=>({backend:{scene:'seesaw',seesaw:{execution}}}),{socketFactory:()=>{throw Error('blocked')}});
+ await flush();const before=h.requests.length;await h.advance(500);assert.equal(h.requests.length-before,5);
+ execution='paused';await h.advance(100);const paused=h.requests.length;
+ await h.advance(749);assert.equal(h.requests.length,paused);await h.advance(1);assert.equal(h.requests.length,paused+1);
+ h.feed.close();assert.equal(h.timers.size,0);
+});
+
 test('rejected socket keeps real snapshots flowing, bounded retries, no command replay',async()=>{
  const h=harness(async(_,n)=>snapshot(n,'running'));await flush();h.sockets[0].close();await flush();
  assert.equal(h.statuses.at(-1).mode,'http');assert.equal(h.feed.fresh(),true);

@@ -99,6 +99,9 @@ def create_app(
     from .balance_api import install_balance_api
 
     install_balance_api(app, get_room, ROOT)
+    from .seesaw_api import install_seesaw_api
+
+    install_seesaw_api(app, get_room, ROOT)
 
     async def socket_room(ws):
         # Selection is a protocol frame so existing HTTPS bridges need no changes.
@@ -197,7 +200,7 @@ def create_app(
     ):
         allowed = {
             "traffic": {"all", "interactive", "demo", "verification", "unattributed"},
-            "page": {"all", "home", "scenarios", "demos", "studio", "balance", "unknown"},
+            "page": {"all", "home", "scenarios", "demos", "studio", "balance", "seesaw", "unknown"},
             "device": {"all", "mobile", "desktop", "unknown"},
             "cache": {"all", "network", "http", "persistent", "memory", "unknown"},
             "backend": {"all", "preview", "mujoco", "robotd", "unknown"},
@@ -212,6 +215,7 @@ def create_app(
                 "seated",
                 "stage",
                 "balance",
+                "seesaw",
                 "unknown",
             },
         }
@@ -303,7 +307,8 @@ def create_app(
         selected = get_room(room)
         async with selected.scene_lock:
             if (selected.scene_motion
-                    and getattr(selected.scene_motion.backend, "scene", None) == "balance"):
+                    and getattr(selected.scene_motion.backend, "scene", None)
+                    in {"balance", "seesaw"}):
                 if selected.voice:
                     raise HTTPException(409, "请先断开当前房间语音，再切换物理世界")
                 await selected.scene_motion.close()
@@ -637,8 +642,9 @@ def create_app(
                         if mode not in {"cloud", "local_first"}:
                             raise ValueError("未知语音模式")
                         if (mode != "cloud"
-                                and getattr(voice_motion.backend, "scene", None) == "balance"):
-                            raise ValueError("平衡教练使用灵矽理解，请选择灵矽模式")
+                                and getattr(voice_motion.backend, "scene", None)
+                                in {"balance", "seesaw"}):
+                            raise ValueError("平衡与跷跷板教练使用灵矽理解，请选择灵矽模式")
                         if (mode == "local_first" and voice_motion.studio
                                 and voice_motion.studio.active):
                             raise ValueError("现场互动节目使用灵矽理解，请选择灵矽模式")

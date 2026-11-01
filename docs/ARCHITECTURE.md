@@ -14,6 +14,8 @@ DuckKing 是可本地运行或部署在 HTTPS 入口后的语音、动作与自�
 
 赛后新增的“语音平衡教练”使用独立 CPU PPO 训练进程和共享物理引擎；学习范围、三关验收、工件契约和验证边界见 [平衡教练设计](PPO_BALANCE_COACH.md)。竞赛期间的云端联调记录不自动证明新增口令已经完成现场验收。
 
+赛后新增的[语音跷跷板教练](SEESAW_COACH.md)复用房间、模型流和灵矽通道；板面没有执行器，任务动作通过接触改变环境，不能套用转盘的电机目标同步逻辑。
+
 ## 架构
 
 ```mermaid
@@ -54,6 +56,7 @@ robotd 路径的物理计算在官方 MuJoCo body 中完成，官方 robotd 运�
 | 本地应用与房间 | `src/duckking/app.py`、`rooms.py` | HTTP API、状态 WS、语音 WS | 默认只绑定 loopback；同源校验；默认最多 10 个房间、4 个物理世界，每房间一个页面拥有语音 |
 | 动作调度 | `motion.py` | Action → 执行记录 / 状态 | 限时、取消、去重、失败反馈；不直接控制舵机 |
 | 语音平衡教练 | `balance.py`、`balance_backend.py`、`balance_api.py` | 仿真状态＋PPO 工件 → 有界反馈力度／真实圆盘结果 | 与训练共享 200 Hz MuJoCo、50 Hz 官方步态、10 Hz 任务控制；单房间状态与渐进停盘 |
+| 语音跷跷板教练 | `seesaw.py`、`seesaw_backend.py`、`seesaw_api.py`、`seesaw_policy.py` | 前进／站定／后退 → 被动铰链与接触响应 | 独立左右物理状态；同初态不同板角；有界任务、停止暂停及明确失败；CLI 训练与数值工件推理分离 |
 | 离线 PPO 与工件 | `training/train_balance.py`、`balance_policy.py`、`balance_runs.py` | CPU 采样／SB3 PPO → 数值策略 JSON、验证和测试记录 | 独立训练解释器与进程；服务只做数值推理；模型/契约/关卡校验，未达门槛不标收敛 |
 | 组合动作 | `choreography.py` | 动作名 / 时间 → 高层意图帧 | 闪身步与狗熊哆嗦毛；有界、连续的阶段编排 |
 | 预览后端 | `motion.py:PreviewBackend` | 速度 / 头部意图 → 动画状态 | 运动学示意，不计算接触、平衡与真实步态 |
