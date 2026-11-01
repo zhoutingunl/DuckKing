@@ -44,14 +44,36 @@ def main():
     proof = json.loads(args.recording.read_text())
     if not proof.get("completed") or proof["page_errors"]:
         raise ValueError("Recording must complete without page errors; inspect evidence first")
-    balance = next(c for c in proof["chapters"] if c["id"] == "balance")
-    for name, expected_seconds in [("standard", 13), ("custom", 30)]:
-        state = balance[name]
-        if state["duration_seconds"] != expected_seconds:
-            raise ValueError(f"{name} has the wrong challenge duration")
-        for side in [state, state["comparison"]["baseline"]]:
-            if side["phase"] not in {"completed", "failed"} or not side.get("result"):
-                raise ValueError(f"{name} still has an unfinished side")
+    if proof.get("validation_type") == "live_tabletop":
+        table = next(c for c in proof["chapters"] if c["id"] == "tabletop")
+        if table["result"]["mode"] != "live_linx" or not table["result"]["cloud_audio_frames"]:
+            raise ValueError("Missing real cloud response")
+        if not any(
+            a["tool"] == "duck_table_show" and a["result"] == "completed"
+            for r in proof["new_rounds"]
+            for a in r["actions"]
+        ):
+            raise ValueError("Missing real table tool result in statistics")
+        if len(proof["new_rounds"]) < 2 or any(
+            r["status"] != "completed" for r in proof["new_rounds"]
+        ):
+            raise ValueError("An actual cloud round timed out or did not finish")
+        if not any(
+            e["event"] == "tool_end"
+            and e.get("tool") == "duck_get_status"
+            and e.get("result") == "ok"
+            for e in proof["cloud_tool_events"]
+        ):
+            raise ValueError("Missing real status query")
+    else:
+        balance = next(c for c in proof["chapters"] if c["id"] == "balance")
+        for name, expected_seconds in [("standard", 13), ("custom", 30)]:
+            state = balance[name]
+            if state["duration_seconds"] != expected_seconds:
+                raise ValueError(f"{name} has the wrong challenge duration")
+            for side in [state, state["comparison"]["baseline"]]:
+                if side["phase"] not in {"completed", "failed"} or not side.get("result"):
+                    raise ValueError(f"{name} still has an unfinished side")
     script = json.loads(args.script.read_text())
     args.work.mkdir(parents=True, exist_ok=True)
     args.output.parent.mkdir(parents=True, exist_ok=True)
@@ -60,7 +82,10 @@ def main():
         .astimezone(ZoneInfo("Asia/Shanghai"))
         .strftime("%Y-%m-%d")
     )
-    identity = f"{beijing_date}（北京时间） · 线上 {proof['release']['commit'][:7]}"
+    release = proof.get("release")
+    version = release["commit"][:7] if release else proof["source_commit"][:7]
+    location = "线上" if release else "本地候选版本"
+    identity = f"{beijing_date}（北京时间） · {location} {version}"
     run(
         [
             "node",
@@ -73,6 +98,11 @@ def main():
 
     def narrate(item):
         i, chapter = item
+        if chapter.get("audio") == "page":
+            original = next(c for c in proof["chapters"] if c["id"] == chapter["id"])
+            if len(original.get("audio", [])) != 1:
+                raise ValueError("Expected exactly one captured page audio context")
+            return Path(original["audio"][0]["file"]), "Captured actual browser playback"
         target = args.work / f"{i}.mp3"
         text = args.work / f"{i}.txt"
         text.write_text(chapter["narration"])
@@ -114,7 +144,9 @@ def main():
     for i, (c, (voice, provider)) in enumerate(zip(script["chapters"], voices, strict=True)):
         card = args.work / f"{i}.png"
         part = args.work / f"part-{i}.mp4"
-        audio_duration = duration(voice)
+        # MediaRecorder's streaming WebM audio need not contain a duration header.
+        # The captured performance is bounded by its recorded video segment.
+        audio_duration = 0.0 if c.get("audio") == "page" else duration(voice)
         source, start, original_seconds, clock_offset = None, 0.0, 0.0, 0.0
         if c.get("segment"):
             chapter = next(x for x in proof["chapters"] if x["id"] == c["id"])
@@ -126,11 +158,27 @@ def main():
             # Anchor the final retained frame; this is editorial alignment,
             # never a measurement of browser/audio/physics latency.
             raw_seconds = duration(source)
-            clock_offset = chapter["segments"][-1]["end_seconds"] - raw_seconds
+            clock_offset = chapter.get(
+                "video_start_elapsed_seconds", chapter["segments"][-1]["end_seconds"] - raw_seconds
+            )
             start = max(0, segment["start_seconds"] - clock_offset)
             end = min(raw_seconds, segment["end_seconds"] - clock_offset)
             original_seconds = end - start
-        seconds = math.ceil(max(original_seconds, audio_duration + 1.0) * 25) / 25
+        page_audio = c.get("audio") == "page"
+        seconds = (
+            math.ceil(
+                (original_seconds if page_audio else max(original_seconds, audio_duration + 1.0))
+                * 25
+            )
+            / 25
+        )
+        audio_filter = "loudnorm=I=-18:TP=-2:LRA=9,apad"
+        if page_audio:
+            audio = chapter["audio"][0]
+            offset = audio["started_elapsed_seconds"] - clock_offset - start
+            trim = max(0, -offset)
+            delay = round(max(0, offset) * 1000)
+            audio_filter = f"atrim=start={trim},asetpts=PTS-STARTPTS,adelay={delay}:all=1,apad"
         if source:
             command = [
                 "ffmpeg",
@@ -151,9 +199,10 @@ def main():
                 str(voice),
                 "-filter_complex",
                 "[0:v]fps=25:start_time=0,setpts=PTS-STARTPTS,"
+                "scale=1600:1000:force_original_aspect_ratio=decrease:force_divisible_by=2,"
                 "pad=1600:1100:0:0:color=0x182226,"
                 f"tpad=stop_mode=clone:stop_duration={seconds},trim=duration={seconds}[v];"
-                "[v][1:v]overlay=0:0:shortest=1[out];[2:a]loudnorm=I=-18:TP=-2:LRA=9,apad[a]",
+                f"[v][1:v]overlay=0:0:shortest=1[out];[2:a]{audio_filter}[a]",
             ]
         else:
             command = [
@@ -255,14 +304,18 @@ def main():
         "recorded_at": proof["recorded_at"],
         "base_url": proof["base_url"],
         "source": proof["source"],
-        "audio": proof["audio"],
+        "audio": proof.get(
+            "audio", "Actual page audio in the performance; synthetic chapter narration"
+        ),
+        "source_commit": proof.get("source_commit"),
         "duration_seconds": duration(args.output),
         "chapters": entries,
         "sha256": hashlib.sha256(args.output.read_bytes()).hexdigest(),
         "editing": (
             "Loading waits omitted between marked segments; all action footage at original "
             "wall-clock speed. End holds are disclosed per chapter. Captions occupy a "
-            "separate 100 px band; app state and pixels are not altered."
+            "separate 100 px band; source frames are scaled to fit 1600x1000, "
+            "with recorded app state and displayed values preserved."
         ),
         "validation": "ffmpeg full video/audio decode passed",
     }
@@ -275,12 +328,21 @@ def main():
         raw = Path(chapter["video"])
         chapter["video_sha256"] = hashlib.sha256(raw.read_bytes()).hexdigest()
         chapter["video"] = raw.name
+        for audio in chapter.get("audio", []):
+            source = Path(audio["file"])
+            audio["sha256"] = hashlib.sha256(source.read_bytes()).hexdigest()
+            audio["file"] = source.name
         for screenshot in chapter["screenshots"]:
             source = Path(screenshot["file"])
             shutil.copyfile(source, args.output.parent / source.name)
             screenshot["file"] = source.name
             screenshot["sha256"] = hashlib.sha256(source.read_bytes()).hexdigest()
-    (args.output.parent / "current-demo-recording.json").write_text(
+    evidence_name = (
+        "current-demo-recording.json"
+        if args.output.stem == "duckking-current-demo"
+        else args.output.stem + "-recording.json"
+    )
+    (args.output.parent / evidence_name).write_text(
         json.dumps(public_proof, ensure_ascii=False, indent=2) + "\n"
     )
 

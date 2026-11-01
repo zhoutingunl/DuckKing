@@ -8,8 +8,9 @@ const base=new URL(process.env.DUCKKING_DEMO_URL??'http://127.0.0.1:8895/');
 if(!base.pathname.endsWith('/'))base.pathname+='/';
 const output=resolve(process.env.DUCKKING_DEMO_OUTPUT??'../.duckking/competition-live');await mkdir(output,{recursive:true});
 const room=process.env.DUCKKING_DEMO_ROOM??'1';
-const browser=await chromium.launch({channel:process.env.DUCKKING_BROWSER_CHANNEL??'chrome',args:['--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader']});
-const context=await browser.newContext({viewport:{width:1600,height:1000},recordVideo:{dir:resolve(output,'raw'),size:{width:1600,height:1000}}});
+const angle=process.env.DUCKKING_CAPTURE_ANGLE??(process.platform==='darwin'?'metal':'default');
+const browser=await chromium.launch({channel:process.env.DUCKKING_BROWSER_CHANNEL??'chrome',args:angle==='default'?[]:['--use-gl=angle',`--use-angle=${angle}`,...(angle==='swiftshader'?['--enable-unsafe-swiftshader']:[])]});
+const context=await browser.newContext({viewport:{width:1600,height:1000}});
 await context.addInitScript(()=>{
  window.recordedAudio=[];const native=AudioNode.prototype.connect,taps=new Map();
  AudioNode.prototype.connect=function(target,...args){
@@ -36,9 +37,23 @@ const health=await(await context.request.get(new URL('api/health',base).href)).j
 const proof={recorded_at:new Date().toISOString(),base_url:base.href,release:health.release,source_commit:execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim(),room,validation_type:'live_tabletop',source:'Real Linx STT/MCP/TTS from shipped prerecorded command; actual MuJoCo; browser synthesis of Two Tigers',chapters:[],page_errors:[]};
 const request=async path=>{const r=await context.request.get(new URL(path,base).href);if(!r.ok())throw Error(`${path}: ${r.status()}`);return r.json()};
 const save=()=>writeFile(resolve(output,'recording.json'),JSON.stringify(proof,null,2)+'\n');
-let page,chapter,started;
+let page,chapter,started,capture;
 async function open(id,path){
  page=await context.newPage();started=Date.now();chapter={id,page:path,started_at:new Date(started).toISOString(),segments:[],screenshots:[]};proof.chapters.push(chapter);
+ // Keep Chrome's actual frame timestamps: inferring a clock from a WebM's
+ // final frame can misalign separately captured page audio and event markers.
+ const session=await context.newCDPSession(page),directory=resolve(output,'raw',id);await mkdir(directory,{recursive:true});
+ capture={session,directory,frames:[],writes:[],accepting:true};const current=capture;
+ session.on('Page.screencastFrame',event=>{
+  void session.send('Page.screencastFrameAck',{sessionId:event.sessionId}).catch(()=>{});
+  if(!current.accepting)return;
+  const time=event.metadata.timestamp*1000;
+  if(!Number.isFinite(time)||Math.abs(Date.now()-time)>10000)throw Error('Invalid capture wall clock');
+  if(current.frames.length&&time-current.frames.at(-1).time<40)return;
+  const file=resolve(directory,`frame-${String(current.frames.length).padStart(6,'0')}.jpg`);
+  current.frames.push({file,time});current.writes.push(writeFile(file,Buffer.from(event.data,'base64')));
+ });
+ await session.send('Page.enable');await session.send('Page.startScreencast',{format:'jpeg',quality:90,maxWidth:1600,maxHeight:1000,everyNthFrame:1});
  page.on('pageerror',e=>proof.page_errors.push({chapter:id,message:e.message}));
  await page.goto(new URL(`${path}?room=${room}&measurement=verification`,base).href,{waitUntil:'domcontentloaded'});await save();
 }
@@ -51,10 +66,24 @@ async function mark(name,work){const segment={name,start_seconds:(Date.now()-sta
 async function close(){
  const audio=await page.evaluate(()=>window.finishRecordedAudio());chapter.audio=[];
  for(const [i,a] of audio.entries()){const file=resolve(output,`${chapter.id}-${i}.webm`);await writeFile(file,Buffer.from(a.base64,'base64'));chapter.audio.push({file,mime:a.mime,started_elapsed_seconds:(a.started_at-started)/1000})}
- const video=page.video();await page.close();chapter.video=await video.path();
+ const ended=Date.now();capture.accepting=false;await capture.session.send('Page.stopScreencast');await Promise.all(capture.writes);await page.close();
+ const frames=capture.frames;if(!frames.length)throw Error('No actual screencast frames');
+ const gaps=frames.slice(1).map((frame,i)=>(frame.time-frames[i].time)/1000);
+ chapter.video_start_elapsed_seconds=(frames[0].time-started)/1000;
+ chapter.capture={method:'Chrome CDP screencast with original wall-clock timestamps',frames:frames.length,max_frame_gap_seconds:Math.max(0,...gaps)};
+ const show=chapter.result?.results.find(r=>r.name==='table_show');
+ if(show){
+  const moving=frames.filter(f=>f.time>=show.started_at*1000&&f.time<=show.finished_at*1000);
+  const gaps=moving.slice(1).map((f,i)=>(f.time-moving[i].time)/1000);
+  chapter.capture.performance_frames=moving.length;chapter.capture.performance_fps=moving.length/(show.finished_at-show.started_at);chapter.capture.performance_max_gap_seconds=Math.max(0,...gaps);
+  if(chapter.capture.performance_fps<8||chapter.capture.performance_max_gap_seconds>2)throw Error('Actual performance capture is too sparse; retain this attempt and rerecord with GPU acceleration');
+ }
+ const listing=frames.flatMap((frame,i)=>[`file '${frame.file}'`,`duration ${Math.max(.001,((frames[i+1]?.time??ended)-frame.time)/1000)}`]);listing.push(`file '${frames.at(-1).file}'`);
+ const listFile=resolve(capture.directory,'frames.txt');await writeFile(listFile,listing.join('\n')+'\n');chapter.video=resolve(capture.directory,'capture.webm');
+ execFileSync('ffmpeg',['-y','-loglevel','error','-f','concat','-safe','0','-i',listFile,'-vf','fps=25','-c:v','libvpx-vp9','-deadline','realtime','-cpu-used','8','-crf','20','-b:v','0',chapter.video]);
  if(chapter.id==='tabletop'){
   const seconds=Number(execFileSync('ffprobe',['-v','error','-show_entries','format=duration','-of','default=noprint_wrappers=1:nokey=1',chapter.video],{encoding:'utf8'}));
-  const offset=chapter.segments.at(-1).end_seconds-seconds;
+  const offset=chapter.video_start_elapsed_seconds;
   for(const shot of chapter.screenshots)execFileSync('ffmpeg',['-y','-loglevel','error','-ss',String(Math.min(seconds-.05,Math.max(0,shot.at_seconds-offset))),'-i',chapter.video,'-frames:v','1',shot.file]);
  }
  chapter.finished_at=new Date().toISOString();await save();
@@ -68,14 +97,16 @@ try{
  await open('tabletop','demos.html');await expect(page.locator('[data-demo]')).toHaveCount(13);
  await page.selectOption('#demo-mode','live');
  await mark('live-tabletop-two-tigers',async()=>{
-  await shot('competition-live-selection');await page.locator('[data-table-song="tigers"]').click();
+  await shot('competition-live-selection');await page.waitForTimeout(1500);await page.locator('[data-table-song="tigers"]').click();
   await expect(page.locator('#table-panel')).toBeVisible({timeout:90000});await expect(page.locator('#table-song-title')).toContainText('两只老虎');
+  await page.locator('.theatre-stage').scrollIntoViewIfNeeded();
+  await expect.poll(async()=>(await request(`api/scenes/state?room=${room}`)).backend.tabletop?.elapsed??0,{timeout:60000}).toBeGreaterThan(3);
   await shot('competition-live-running');
   await expect(page.locator('#table-cue')).toContainText('楼下',{timeout:60000});await shot('competition-live-fall');
   await expect(page.locator('#show-status')).toHaveText('本幕完成 · 可重演或进入下一幕',{timeout:75000});
   const result=JSON.parse(await page.locator('#theatre-result').textContent());
   if(result.mode!=='live_linx'||result.cloud_audio_frames<1||!result.results.some(r=>r.name==='table_show'&&r.status==='completed'))throw Error('Missing actual cloud/physics result');
-  chapter.result=result;chapter.timeline=await page.locator('#demo-timeline li').allTextContents();await shot('competition-live-result');await page.waitForTimeout(2000);
+  chapter.result=result;chapter.timeline=await page.locator('#demo-timeline li').allTextContents();await page.locator('.show-results').scrollIntoViewIfNeeded();await page.waitForTimeout(2500);await shot('competition-live-result');await page.waitForTimeout(2000);
  });await close();
  const after=await request(`api/voice/statistics?room=${room}&backend=mujoco`);
  proof.new_rounds=after.rounds.filter(r=>!proof.before_turns.includes(r.turn));

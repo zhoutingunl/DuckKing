@@ -1,8 +1,20 @@
 # 演示媒体来源
 
-## 2026-11-02 当前版本录屏
+## 第 11 幕灵矽实连竞赛主片
 
-`duckking-current-demo.mp4` 为当前公网发布 `62c6784` 的真实 Chrome 录屏剪辑，主入口见 [视频说明](../DEMO_VIDEO.md)。首页是脚本动画；物理实验室、四鸭互动、工坊和平衡对照读取实际 MuJoCo/官方策略状态。没有拦截 API、生成假成绩或以预设姿态替代物理结果。旁白单独合成，页面原声未收录；本次没有调用灵矽云端或使用真人麦克风。
+`duckking-competition-live.mp4` 面向竞赛“复刻 Micro Duck 并通过灵矽语音交互”的主题：选择“灵矽实连 · 预录指令”，第 11 幕《桌上不掉拍》使用《两只老虎》，随后展示本次真实调用产生的持续使用体验与交互统计。版本与发布状态见 [主片说明](../DEMO_VIDEO.md)。
+
+演出段保留浏览器实际播放的预录输入、真实灵矽下行声音和本地合成音乐；不是用剪辑旁白替代云端回答。新增的章节解说另标合成来源。截图中的“自动化 / 验收”表示录制方式，所记录的云端请求、工具受理和物理终态均为真实运行。模型及其改编仍遵循 CC BY-NC-SA 4.0；《两只老虎》为本地电子合成传统轮唱，不是灵矽生成歌声。
+
+- `competition-live-selection.png`、`competition-live-running.png`、`competition-live-fall.png`、`competition-live-result.png`：主片录屏取帧，保留模式、曲目及实际状态。
+- `competition-experience.png`、`competition-experience-server.png`：同一轮的浏览器/服务器持久化观测；不能相加当作用户数。
+- `competition-statistics.png`、`competition-statistics-latency.png`：当前房间的真实识别、工具动作、逐轮时间线和延迟。
+- `duckking-competition-live-recording.json`：实际两轮调用、物理结果、脱敏工具事件、统计快照及媒体摘要；`duckking-competition-live.json`：章节、源片段、原声/解说来源与校验；`competition-live-script.json`：章节解说。
+
+
+## 2026-11-02 功能导览录屏
+
+`duckking-current-demo.mp4` 为当前公网发布 `62c6784` 的真实 Chrome 录屏剪辑，入口见 [功能导览说明](../PRODUCT_TOUR_VIDEO.md)。首页是脚本动画；物理实验室、四鸭互动、工坊和平衡对照读取实际 MuJoCo/官方策略状态。没有拦截 API、生成假成绩或以预设姿态替代物理结果。旁白单独合成，页面原声未收录；本次没有调用灵矽云端或使用真人麦克风。
 
 - `current-workbench.png`、`current-physics.png`、`current-practice.png`：当前配色、实际踢球／翻滚页面。
 - `current-theatre.png`、`current-stage-lineup.png`、`current-studio.png`：第十三幕现场点选与工坊本地排练。
@@ -14,7 +26,7 @@
 
 ## 2026-10-26 竞赛视频与 2026-10-27 自然配音版
 
-`hackathon-video.png` 是本次实际桌上合唱录屏截图；`hackathon-video.json` 包含源提交、动作验收、20 轮延迟样本、10 路真实云端会话与加载对比。完整 MP4 存放于 GitHub Release，入口和剪辑说明见 [演示视频](../DEMO_VIDEO.md)。视频中的官方模型及改编画面遵循 CC BY-NC-SA 4.0，不由根目录 MIT 许可替代。
+`hackathon-video.png` 是当时实际桌上合唱录屏截图；`hackathon-video.json` 包含源提交、动作验收、20 轮延迟样本、10 路真实云端会话与加载对比。完整 MP4 存放于 GitHub Release，入口和剪辑说明见 [竞赛视频存档](../DEMO_VIDEO_ARCHIVE.md)。视频中的官方模型及改编画面遵循 CC BY-NC-SA 4.0，不由根目录 MIT 许可替代。
 
 `hackathon-video-natural.json` 记录自然配音版的文件摘要、章节起点、合成旁白及原演示保留校验。新版为 4 分 46 秒，使用 Microsoft `zh-CN-XiaoxiaoNeural` 合成章节旁白，不是真人配音或声音克隆。原演示片段、页面声音和实测样本保持来源不变，原始 `hackathon-video.json` 保留用于素材溯源；GitHub 仅提供新版 MP4，观看入口统一指向新版。
 

@@ -1,0 +1,791 @@
+{
+  "recorded_at": "2026-11-01T18:37:16.594Z",
+  "base_url": "http://127.0.0.1:8897/",
+  "release": null,
+  "source_commit": "c834335044d0e126aa76e4bfc1dbc3a8b72eff55",
+  "room": "1",
+  "validation_type": "live_tabletop",
+  "source": "Real Linx STT/MCP/TTS from shipped prerecorded command; actual MuJoCo; browser synthesis of Two Tigers",
+  "chapters": [
+    {
+      "id": "tabletop",
+      "page": "demos.html",
+      "started_at": "2026-11-01T18:37:17.036Z",
+      "segments": [
+        {
+          "name": "live-tabletop-two-tigers",
+          "start_seconds": 0.252,
+          "status": "completed",
+          "end_seconds": 88.262
+        }
+      ],
+      "screenshots": [
+        {
+          "file": "competition-live-selection.png",
+          "at_seconds": 0.261,
+          "capture": "recorded_video_frame",
+          "sha256": "642ffbc9c4a30ee3c595d6d24f45c1718c4b26510565f0e1581d848e8852847d"
+        },
+        {
+          "file": "competition-live-running.png",
+          "at_seconds": 25.707,
+          "capture": "recorded_video_frame",
+          "sha256": "c1c5a2e39aa88bcd3af1b5357ee9f295fa496e8fa06c96b571b9935e29e7238f"
+        },
+        {
+          "file": "competition-live-fall.png",
+          "at_seconds": 40.609,
+          "capture": "recorded_video_frame",
+          "sha256": "c92afb068a753c07f36731bb1948724e135c99b8e1a4c89732911b95c9f5592b"
+        },
+        {
+          "file": "competition-live-result.png",
+          "at_seconds": 86.262,
+          "capture": "recorded_video_frame",
+          "sha256": "e39edf60228d4c4f7aa18efe8ac94df773a4392a3d4e2bece67bc900cde77a43"
+        }
+      ],
+      "result": {
+        "scene": "tabletop",
+        "mode": "live_linx",
+        "status": "completed",
+        "results": [
+          {
+            "id": "93a74893b3e7:3",
+            "name": "table_show",
+            "input": {
+              "name": "table_show",
+              "duration": 36,
+              "speed": null,
+              "target": "a",
+              "member": "selected",
+              "members": null
+            },
+            "status": "completed",
+            "started_at": 1793558258.711019,
+            "outcome": {
+              "phase": "completed",
+              "elapsed": 36,
+              "duration": 36,
+              "tempo": 72,
+              "running": false,
+              "table_height_m": 0.4,
+              "falling_duck": "d",
+              "dropped_at": 17.379999999997487,
+              "landed_at": 17.499999999997463,
+              "table_contacts": [
+                16937,
+                16989,
+                16886,
+                10968
+              ],
+              "ground_contacts": [
+                0,
+                0,
+                0,
+                11610
+              ],
+              "supported": [
+                true,
+                true,
+                true,
+                false
+              ],
+              "min_root_height_m": [
+                0.5123968674695449,
+                0.5115398666776662,
+                0.5122537576033711,
+                0.056640219976284975
+              ],
+              "knee_excursion_deg": [
+                [
+                  45.9342312285554,
+                  39.99350283219811
+                ],
+                [
+                  48.51141606801227,
+                  43.91221810648583
+                ],
+                [
+                  47.80200967156829,
+                  41.515504033492604
+                ],
+                [
+                  45.024371574170374,
+                  36.60632426475851
+                ]
+              ],
+              "ankle_vertical_excursion_m": [
+                [
+                  0.024206126236746228,
+                  0.0226745614487196
+                ],
+                [
+                  0.02469204361570515,
+                  0.022808746430685367
+                ],
+                [
+                  0.024601121471829357,
+                  0.022422767657523712
+                ],
+                [
+                  0.022549600065103648,
+                  0.02203695924602117
+                ]
+              ],
+              "dance_max_drift_m": [
+                0.054783423052748345,
+                0.05809704489282265,
+                0.04997451605818806,
+                0.046273121242616316
+              ],
+              "floor_dance": {
+                "started_at": 19.119999999997468,
+                "knee_excursion_deg": [
+                  45.03480864976198,
+                  39.419694732778694
+                ],
+                "ankle_vertical_excursion_m": [
+                  0.023302249391766963,
+                  0.022334111466956533
+                ],
+                "max_drift_m": 0.051676243218854404
+              },
+              "source": "scripted_gait_real_contacts_gravity",
+              "departure_stable": true,
+              "verified": true,
+              "message": "鸭 D 已真实落地并恢复踏步，其余三只留在桌上"
+            },
+            "finished_at": 1793558294.718826,
+            "room": "1"
+          },
+          {
+            "name": "table_music",
+            "status": "completed",
+            "outcome": {
+              "source": "traditional_frere_jacques_canon",
+              "parts": 4,
+              "duration": 36,
+              "physical_ducks": 4,
+              "fall_cue": true,
+              "ble": false
+            }
+          }
+        ],
+        "cloud_audio_frames": 412
+      },
+      "timeline": [
+        "识别：请开始桌上四鸭合唱表演。",
+        "灵矽：好的，桌上四鸭合唱表演已开演受理，",
+        "灵矽：正在演出中，请稍候。",
+        "灵矽：我稍后为您确认实际完成情况。",
+        "灵矽开演已受理；等待实际物理结果",
+        "灵矽开演动作 · 实际物理表演已完成",
+        "真实跌落验收通过：桌面支撑 → 离桌 → 地面接触；其余三只留在桌上",
+        "识别：请读取当前状态，告诉我桌上表演的真实结果。",
+        "灵矽：桌上四鸭合唱表演已完成。",
+        "灵矽：演出时长36秒，四只鸭子都参与了踏步演出，鸭D在中间阶段落地后继续完成了地板舞步，整体演出正常结束，没有出现异常。",
+        "本幕完成"
+      ],
+      "audio": [
+        {
+          "file": "tabletop-0.webm",
+          "mime": "audio/webm;codecs=opus",
+          "started_elapsed_seconds": 2.115,
+          "sha256": "7c15a7340f34768efba3ed45557796f58c3d1db7401e97f9612fc0dce0bdc4a9"
+        }
+      ],
+      "video_start_elapsed_seconds": 0.2101259765625,
+      "capture": {
+        "method": "Chrome CDP screencast with original wall-clock timestamps",
+        "frames": 1177,
+        "max_frame_gap_seconds": 7.93310498046875,
+        "performance_frames": 594,
+        "performance_fps": 16.49642255997177,
+        "performance_max_gap_seconds": 0.116663818359375
+      },
+      "video": "capture.webm",
+      "finished_at": "2026-11-01T18:38:56.890Z",
+      "video_sha256": "21121d549540f8d63dba6e9194490711b67e741019d13476ef8bf9d059386385"
+    },
+    {
+      "id": "experience",
+      "page": "experience.html",
+      "started_at": "2026-11-01T18:38:57.160Z",
+      "segments": [
+        {
+          "name": "persistent-experience",
+          "start_seconds": 0.354,
+          "status": "completed",
+          "end_seconds": 15.599
+        }
+      ],
+      "screenshots": [
+        {
+          "file": "competition-experience.png",
+          "at_seconds": 0.356,
+          "capture": "browser_screenshot",
+          "sha256": "f87317f640d960e7892ef0868ecf7630f90ac7ceb393e5bbff597119f562fefb"
+        },
+        {
+          "file": "competition-experience-server.png",
+          "at_seconds": 7.498,
+          "capture": "browser_screenshot",
+          "sha256": "606f030faf679ec8adc3ba6f2d2e8ac080d56c586ddd490762f4827ce2e89109"
+        }
+      ],
+      "summary": {
+        "storage_ok": true,
+        "dropped_since_start": 0,
+        "queued": 0,
+        "retention_days": 90,
+        "capacity": 50000,
+        "collection_started_at": 1793558241.36215,
+        "from": 1793554737.627341,
+        "to": 1793558337.627341,
+        "filters": {
+          "traffic": "verification",
+          "page": "demos",
+          "device": "all",
+          "cache": "all",
+          "room": "1",
+          "release": "all",
+          "backend": "mujoco",
+          "scene": "all"
+        },
+        "releases": [
+          "development"
+        ],
+        "samples": 5,
+        "statuses": {
+          "completed": 5
+        },
+        "hidden_samples": 0,
+        "groups": [
+          {
+            "source": "browser",
+            "metric": "action_ms",
+            "route": "cloud",
+            "count": 1,
+            "mean_ms": 1732,
+            "p90_ms": 1732,
+            "p50_ms": 1732,
+            "p95_ms": 1732
+          },
+          {
+            "source": "browser",
+            "metric": "assemble_ms",
+            "route": "pending",
+            "count": 1,
+            "mean_ms": 71,
+            "p90_ms": 71,
+            "p50_ms": 71,
+            "p95_ms": 71
+          },
+          {
+            "source": "browser",
+            "metric": "asset_ms",
+            "route": "pending",
+            "count": 1,
+            "mean_ms": 665,
+            "p90_ms": 665,
+            "p50_ms": 665,
+            "p95_ms": 665
+          },
+          {
+            "source": "browser",
+            "metric": "audio_ms",
+            "route": "cloud",
+            "count": 2,
+            "mean_ms": 3174.5,
+            "p90_ms": 3518,
+            "p50_ms": 2831,
+            "p95_ms": 3518
+          },
+          {
+            "source": "browser",
+            "metric": "first_frame_ms",
+            "route": "pending",
+            "count": 1,
+            "mean_ms": 82,
+            "p90_ms": 82,
+            "p50_ms": 82,
+            "p95_ms": 82
+          },
+          {
+            "source": "browser",
+            "metric": "parse_ms",
+            "route": "pending",
+            "count": 1,
+            "mean_ms": 1,
+            "p90_ms": 1,
+            "p50_ms": 1,
+            "p95_ms": 1
+          },
+          {
+            "source": "browser",
+            "metric": "reply_ms",
+            "route": "cloud",
+            "count": 2,
+            "mean_ms": 15548,
+            "p90_ms": 18016,
+            "p50_ms": 13080,
+            "p95_ms": 18016
+          },
+          {
+            "source": "browser",
+            "metric": "scene_ms",
+            "route": "pending",
+            "count": 1,
+            "mean_ms": 8179,
+            "p90_ms": 8179,
+            "p50_ms": 8179,
+            "p95_ms": 8179
+          },
+          {
+            "source": "browser",
+            "metric": "stt_cloud_ms",
+            "route": "cloud",
+            "count": 2,
+            "mean_ms": 295,
+            "p90_ms": 324,
+            "p50_ms": 266,
+            "p95_ms": 324
+          },
+          {
+            "source": "server",
+            "metric": "action_ms",
+            "route": "cloud",
+            "count": 1,
+            "mean_ms": 1730,
+            "p90_ms": 1730,
+            "p50_ms": 1730,
+            "p95_ms": 1730
+          },
+          {
+            "source": "server",
+            "metric": "audio_ms",
+            "route": "cloud",
+            "count": 2,
+            "mean_ms": 3171,
+            "p90_ms": 3515,
+            "p50_ms": 2827,
+            "p95_ms": 3515
+          },
+          {
+            "source": "server",
+            "metric": "reply_ms",
+            "route": "cloud",
+            "count": 2,
+            "mean_ms": 15545,
+            "p90_ms": 18013,
+            "p50_ms": 13077,
+            "p95_ms": 18013
+          },
+          {
+            "source": "server",
+            "metric": "stt_cloud_ms",
+            "route": "cloud",
+            "count": 2,
+            "mean_ms": 292,
+            "p90_ms": 320,
+            "p50_ms": 264,
+            "p95_ms": 320
+          }
+        ],
+        "trend": [
+          {
+            "at": "2026-11-01T18:00:00Z",
+            "source": "browser",
+            "metric": "action_ms",
+            "route": "cloud",
+            "count": 1,
+            "mean_ms": 1732,
+            "p90_ms": 1732,
+            "p50_ms": 1732,
+            "p95_ms": 1732
+          },
+          {
+            "at": "2026-11-01T18:00:00Z",
+            "source": "browser",
+            "metric": "assemble_ms",
+            "route": "pending",
+            "count": 1,
+            "mean_ms": 71,
+            "p90_ms": 71,
+            "p50_ms": 71,
+            "p95_ms": 71
+          },
+          {
+            "at": "2026-11-01T18:00:00Z",
+            "source": "browser",
+            "metric": "asset_ms",
+            "route": "pending",
+            "count": 1,
+            "mean_ms": 665,
+            "p90_ms": 665,
+            "p50_ms": 665,
+            "p95_ms": 665
+          },
+          {
+            "at": "2026-11-01T18:00:00Z",
+            "source": "browser",
+            "metric": "audio_ms",
+            "route": "cloud",
+            "count": 2,
+            "mean_ms": 3174.5,
+            "p90_ms": 3518,
+            "p50_ms": 2831,
+            "p95_ms": 3518
+          },
+          {
+            "at": "2026-11-01T18:00:00Z",
+            "source": "browser",
+            "metric": "first_frame_ms",
+            "route": "pending",
+            "count": 1,
+            "mean_ms": 82,
+            "p90_ms": 82,
+            "p50_ms": 82,
+            "p95_ms": 82
+          },
+          {
+            "at": "2026-11-01T18:00:00Z",
+            "source": "browser",
+            "metric": "parse_ms",
+            "route": "pending",
+            "count": 1,
+            "mean_ms": 1,
+            "p90_ms": 1,
+            "p50_ms": 1,
+            "p95_ms": 1
+          },
+          {
+            "at": "2026-11-01T18:00:00Z",
+            "source": "browser",
+            "metric": "reply_ms",
+            "route": "cloud",
+            "count": 2,
+            "mean_ms": 15548,
+            "p90_ms": 18016,
+            "p50_ms": 13080,
+            "p95_ms": 18016
+          },
+          {
+            "at": "2026-11-01T18:00:00Z",
+            "source": "browser",
+            "metric": "scene_ms",
+            "route": "pending",
+            "count": 1,
+            "mean_ms": 8179,
+            "p90_ms": 8179,
+            "p50_ms": 8179,
+            "p95_ms": 8179
+          },
+          {
+            "at": "2026-11-01T18:00:00Z",
+            "source": "browser",
+            "metric": "stt_cloud_ms",
+            "route": "cloud",
+            "count": 2,
+            "mean_ms": 295,
+            "p90_ms": 324,
+            "p50_ms": 266,
+            "p95_ms": 324
+          },
+          {
+            "at": "2026-11-01T18:00:00Z",
+            "source": "server",
+            "metric": "action_ms",
+            "route": "cloud",
+            "count": 1,
+            "mean_ms": 1730,
+            "p90_ms": 1730,
+            "p50_ms": 1730,
+            "p95_ms": 1730
+          },
+          {
+            "at": "2026-11-01T18:00:00Z",
+            "source": "server",
+            "metric": "audio_ms",
+            "route": "cloud",
+            "count": 2,
+            "mean_ms": 3171,
+            "p90_ms": 3515,
+            "p50_ms": 2827,
+            "p95_ms": 3515
+          },
+          {
+            "at": "2026-11-01T18:00:00Z",
+            "source": "server",
+            "metric": "reply_ms",
+            "route": "cloud",
+            "count": 2,
+            "mean_ms": 15545,
+            "p90_ms": 18013,
+            "p50_ms": 13077,
+            "p95_ms": 18013
+          },
+          {
+            "at": "2026-11-01T18:00:00Z",
+            "source": "server",
+            "metric": "stt_cloud_ms",
+            "route": "cloud",
+            "count": 2,
+            "mean_ms": 292,
+            "p90_ms": 320,
+            "p50_ms": 264,
+            "p95_ms": 320
+          }
+        ],
+        "outcomes": [
+          {
+            "source": "browser",
+            "kind": "load",
+            "route": "pending",
+            "status": "completed",
+            "count": 1
+          },
+          {
+            "source": "browser",
+            "kind": "voice",
+            "route": "cloud",
+            "status": "completed",
+            "count": 2
+          },
+          {
+            "source": "server",
+            "kind": "voice",
+            "route": "cloud",
+            "status": "completed",
+            "count": 2
+          }
+        ]
+      },
+      "audio": [],
+      "video_start_elapsed_seconds": 0.019205810546875,
+      "capture": {
+        "method": "Chrome CDP screencast with original wall-clock timestamps",
+        "frames": 7,
+        "max_frame_gap_seconds": 7.1164609375
+      },
+      "video": "capture.webm",
+      "finished_at": "2026-11-01T18:39:15.998Z",
+      "video_sha256": "83160bff36b417c4f8a26743573387fe22dbc6ff4948b5b8089e6c0c9f4c1c01"
+    },
+    {
+      "id": "statistics",
+      "page": "statistics.html",
+      "started_at": "2026-11-01T18:39:16.264Z",
+      "segments": [
+        {
+          "name": "round-timeline-and-latency",
+          "start_seconds": 0.321,
+          "status": "completed",
+          "end_seconds": 15.653
+        }
+      ],
+      "screenshots": [
+        {
+          "file": "competition-statistics.png",
+          "at_seconds": 0.322,
+          "capture": "browser_screenshot",
+          "sha256": "3d16af074297a3309bf9ed6b3016bc52bf7940df1cbbd4df111a7733de70f9b2"
+        },
+        {
+          "file": "competition-statistics-latency.png",
+          "at_seconds": 7.52,
+          "capture": "browser_screenshot",
+          "sha256": "acb2971239669c432471c42125bb7556d43379df39d0180352dd541e3a02c071"
+        }
+      ],
+      "audio": [],
+      "video_start_elapsed_seconds": 0.185071044921875,
+      "capture": {
+        "method": "Chrome CDP screencast with original wall-clock timestamps",
+        "frames": 7,
+        "max_frame_gap_seconds": 5.01652099609375
+      },
+      "video": "capture.webm",
+      "finished_at": "2026-11-01T18:39:33.627Z",
+      "video_sha256": "cfe44b26fe6378060444146679dda4e5ed331a11f83de813626c60047059ba21"
+    }
+  ],
+  "page_errors": [],
+  "before_turns": [],
+  "new_rounds": [
+    {
+      "turn": 2,
+      "time": "2026-11-01T18:38:14.853+00:00",
+      "backend": "mujoco",
+      "status": "completed",
+      "text": "请读取当前状态，告诉我桌上表演的真实结果。",
+      "timings": {
+        "listen_stop": 4502,
+        "stt": 4766,
+        "cloud_stt": 4766,
+        "first_audio": 8017,
+        "reply_end": 22515
+      },
+      "actions": [],
+      "uplink_frames": 73,
+      "downlink_frames": 241,
+      "mode": "cloud",
+      "route": "cloud",
+      "experience_sequence": 10
+    },
+    {
+      "turn": 1,
+      "time": "2026-11-01T18:37:34.360+00:00",
+      "backend": "mujoco",
+      "status": "completed",
+      "text": "请开始桌上四鸭合唱表演。",
+      "timings": {
+        "listen_stop": 2620,
+        "stt": 2940,
+        "cloud_stt": 2940,
+        "action_start": 4350,
+        "first_audio": 5447,
+        "reply_end": 15697
+      },
+      "actions": [
+        {
+          "call": 14,
+          "tool": "duck_table_show",
+          "at_ms": 4350,
+          "result": "completed",
+          "duration_ms": 36008
+        }
+      ],
+      "uplink_frames": 42,
+      "downlink_frames": 171,
+      "mode": "cloud",
+      "route": "cloud",
+      "experience_sequence": 10
+    }
+  ],
+  "cloud_tool_events": [
+    {
+      "id": 4,
+      "time": "2026-11-01T18:37:34.269+00:00",
+      "event": "tool_start",
+      "state": "ready",
+      "turn": 0,
+      "uplink_frames": 0,
+      "downlink_frames": 0,
+      "elapsed_ms": 0,
+      "backend": "mujoco",
+      "method": "initialize"
+    },
+    {
+      "id": 5,
+      "time": "2026-11-01T18:37:34.270+00:00",
+      "event": "tool_start",
+      "state": "ready",
+      "turn": 0,
+      "uplink_frames": 0,
+      "downlink_frames": 0,
+      "elapsed_ms": 0,
+      "backend": "mujoco",
+      "method": "tools/list"
+    },
+    {
+      "id": 6,
+      "time": "2026-11-01T18:37:34.271+00:00",
+      "event": "tool_end",
+      "state": "ready",
+      "turn": 0,
+      "uplink_frames": 0,
+      "downlink_frames": 0,
+      "elapsed_ms": 0,
+      "backend": "mujoco",
+      "result": "ok"
+    },
+    {
+      "id": 7,
+      "time": "2026-11-01T18:37:34.272+00:00",
+      "event": "tool_end",
+      "state": "ready",
+      "turn": 0,
+      "uplink_frames": 0,
+      "downlink_frames": 0,
+      "elapsed_ms": 0,
+      "backend": "mujoco",
+      "result": "ok"
+    },
+    {
+      "id": 14,
+      "time": "2026-11-01T18:37:38.710+00:00",
+      "event": "tool_start",
+      "state": "thinking",
+      "turn": 1,
+      "uplink_frames": 42,
+      "downlink_frames": 0,
+      "elapsed_ms": 4349,
+      "backend": "mujoco",
+      "method": "tools/call",
+      "tool": "duck_table_show"
+    },
+    {
+      "id": 15,
+      "time": "2026-11-01T18:37:38.711+00:00",
+      "event": "action_start",
+      "turn": 1,
+      "call": 14,
+      "backend": "mujoco",
+      "elapsed_ms": 4350,
+      "tool": "duck_table_show"
+    },
+    {
+      "id": 16,
+      "time": "2026-11-01T18:37:38.712+00:00",
+      "event": "tool_end",
+      "state": "thinking",
+      "turn": 1,
+      "uplink_frames": 42,
+      "downlink_frames": 0,
+      "elapsed_ms": 4351,
+      "backend": "mujoco",
+      "tool": "duck_table_show",
+      "result": "ok"
+    },
+    {
+      "id": 25,
+      "time": "2026-11-01T18:38:14.718+00:00",
+      "event": "action_end",
+      "turn": 1,
+      "call": 14,
+      "backend": "mujoco",
+      "elapsed_ms": 40358,
+      "tool": "duck_table_show",
+      "result": "completed"
+    },
+    {
+      "id": 32,
+      "time": "2026-11-01T18:38:21.398+00:00",
+      "event": "tool_start",
+      "state": "thinking",
+      "turn": 2,
+      "uplink_frames": 73,
+      "downlink_frames": 0,
+      "elapsed_ms": 6544,
+      "backend": "mujoco",
+      "method": "tools/call",
+      "tool": "duck_get_status"
+    },
+    {
+      "id": 33,
+      "time": "2026-11-01T18:38:21.414+00:00",
+      "event": "tool_end",
+      "state": "thinking",
+      "turn": 2,
+      "uplink_frames": 73,
+      "downlink_frames": 0,
+      "elapsed_ms": 6561,
+      "backend": "mujoco",
+      "tool": "duck_get_status",
+      "result": "ok"
+    }
+  ],
+  "completed": true
+}
