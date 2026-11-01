@@ -23,14 +23,24 @@ test('real disk renders, a missing policy stays explicit, stop and scene switchi
  await page.locator('#prepare-balance').click();
  await expect(page.locator('#start-challenge')).toBeEnabled({timeout:45000});
  await expect(page.locator('#physics-viewport')).toHaveAttribute('data-rendered-scene','balance',{timeout:20000});
+ await expect(page.locator('#baseline-viewport')).toHaveAttribute('data-rendered-scene','balance',{timeout:20000});
+ await expect(page.locator('#baseline-viewport')).toHaveAttribute('data-duck-label','未训练');
+ await expect(page.locator('#physics-viewport')).toHaveAttribute('data-duck-label','训练后');
  await page.locator('#start-challenge').click();
  await expect(page.locator('#notice')).toContainText('尚无');
  await page.selectOption('#controller','baseline');
  await page.locator('#start-challenge').click();
  await expect(page.locator('#challenge-status')).toContainText('挑战中');
  await expect(page.locator('#disc-time')).not.toHaveText('0.0 s');
+ await expect(page.locator('#baseline-status')).toContainText('挑战中');
+ const running=(await(await request.get('/api/scenes/state?room=2')).json()).backend;
+ expect(running.balance.comparison.clock).toBe('shared_task_ticks');
+ expect(running.comparison.baseline.sim_time).toBe(running.sim_time);
+ expect(running.comparison.baseline.disc_target).toEqual(running.disc_target);
  await page.locator('#stop-balance').click();
  await expect(page.locator('#challenge-status')).toContainText('人为干预不计成功',{timeout:10000});
+ await expect(page.locator('#baseline-status')).toContainText('人为干预不计成功');
+ await expect(page.locator('#comparison-status')).toContainText('对照已停止');
  const response=await request.post('/api/scenes/start?room=2',{data:{name:'scene_ball',request_id:crypto.randomUUID()}});
  expect(response.ok()).toBe(true);
  await page.locator('#prepare-balance').click();
@@ -56,10 +66,16 @@ test('balance stays sharp and sleeps when static; orbit, colour and repeated sce
   }
  });
  await page.goto('/balance.html?room=2');
- const view=page.locator('#physics-viewport'),canvas=view.locator('canvas');
+ const view=page.locator('#physics-viewport'),canvas=view.locator('canvas'),left=page.locator('#baseline-viewport canvas');
+ await page.locator('[data-level="3"]').click();
  await page.locator('#prepare-balance').click();
  await expect(view).toHaveAttribute('data-rendered-scene','balance',{timeout:45000});
  await expect(page.locator('#start-challenge')).toBeEnabled();
+ await expect(page.locator('#scene-title')).toContainText('第 3 关');
+ const prepared=(await(await request.get('/api/scenes/state?room=2')).json()).backend;
+ expect(prepared.balance.level).toBe(3);expect(prepared.comparison.baseline.balance.level).toBe(3);
+ expect(prepared.ducks).toEqual(prepared.comparison.baseline.ducks);
+ expect(Math.hypot(...prepared.ducks[0].position.slice(0,2))).toBeGreaterThan(.1);
  await page.evaluate(()=>new MutationObserver(m=>window.renderProbe.observations+=m.length).observe(document.querySelector('#observation-table'),{childList:true,subtree:true}));
  // Wait for the initial OrbitControls damping to settle, then observe a quiet window.
  await page.waitForTimeout(1500);
@@ -67,13 +83,17 @@ test('balance stays sharp and sleeps when static; orbit, colour and repeated sce
  await page.waitForTimeout(1500);
  expect(await page.evaluate(()=>({...window.renderProbe}))).toEqual(first);
  expect(await canvas.evaluate(c=>c.width>=Math.floor(c.clientWidth)&&c.height>=Math.floor(c.clientHeight))).toBe(true);
- const before=await canvas.screenshot(),rect=await canvas.boundingBox();
+ const before=await canvas.screenshot(),leftBefore=await left.screenshot(),rect=await canvas.boundingBox(),leftRect=await left.boundingBox();
+ expect(leftRect.x+leftRect.width).toBeLessThan(rect.x);
+ expect(Math.abs(leftRect.width-rect.width)).toBeLessThan(1);
  await page.mouse.move(rect.x+rect.width*.5,rect.y+rect.height*.4);await page.mouse.down();
  await page.mouse.move(rect.x+rect.width*.7,rect.y+rect.height*.55,{steps:6});await page.mouse.up();
  await expect.poll(async()=>!before.equals(await canvas.screenshot())).toBe(true);
+ await expect.poll(async()=>!leftBefore.equals(await left.screenshot())).toBe(true);
  await page.waitForTimeout(1500);
  await page.locator('#reset-camera').click();
  await expect.poll(async()=>before.equals(await canvas.screenshot()),{timeout:10000}).toBe(true);
+ await expect.poll(async()=>leftBefore.equals(await left.screenshot()),{timeout:10000}).toBe(true);
  await view.getByRole('button',{name:'天空蓝 · Sky',exact:true}).click();
  await expect.poll(async()=>!before.equals(await canvas.screenshot())).toBe(true);
  await page.mouse.move(rect.x+rect.width*.5,rect.y+rect.height*.4);const coloured=await canvas.screenshot();
@@ -84,11 +104,13 @@ test('balance stays sharp and sleeps when static; orbit, colour and repeated sce
   await page.locator('#prepare-balance').click();
   await expect(view).toHaveAttribute('data-rendered-scene','balance',{timeout:45000});
   await expect(page.locator('#start-challenge')).toBeEnabled({timeout:45000});
+  await expect(page.locator('#scene-title')).toContainText('第 3 关');
   const resources=await page.evaluate(()=>({buffers:window.renderProbe.buffers,textures:window.renderProbe.textures}));
   expect(resources).toEqual({buffers:first.buffers,textures:first.textures});
  }
  await page.evaluate(()=>dispatchEvent(new PageTransitionEvent('pagehide')));
  await expect(canvas).toHaveCount(0);await expect(view.locator('.duck-appearance')).toHaveCount(0);
+ await expect(left).toHaveCount(0);await expect(page.locator('#baseline-viewport .duck-appearance')).toHaveCount(0);
  const disposed=await page.evaluate(()=>({...window.renderProbe}));await page.waitForTimeout(1000);
  expect(await page.evaluate(()=>({...window.renderProbe}))).toEqual(disposed);
  expect(errors).toEqual([]);

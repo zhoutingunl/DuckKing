@@ -3,9 +3,10 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import {appearanceControls,appearanceFor,studioEnvironment} from './duck-appearance.js';
 import {renderScheduler} from './render-scheduler.js';
 
-export function physicsView(container) {
+export function physicsView(container,{label=null,onCameraChange}={}) {
   let interaction=null,interactionMode="select",latest=null,pointerStart=null,selection=null,visible=true,disposed=false,scheduler;
   const invalidate=()=>scheduler?.invalidate();
+  let syncingCamera=false;
   const raycaster=new THREE.Raycaster(),cursor=new THREE.Vector2();
   const scene=new THREE.Scene();scene.background=new THREE.Color('#edf0e5');
   const renderer=new THREE.WebGLRenderer({antialias:true});renderer.setPixelRatio(Math.min(devicePixelRatio,2));
@@ -19,7 +20,9 @@ export function physicsView(container) {
   const camera=new THREE.PerspectiveCamera(38,1,.01,30);camera.position.set(.85,.62,.95);
   const controls=new OrbitControls(camera,renderer.domElement);controls.target.set(0,.13,0);controls.minDistance=.35;controls.maxDistance=6;controls.maxPolarAngle=Math.PI/2.02;controls.enableDamping=true;controls.update();controls.saveState();
   let manualView=false,floorFramed=false,seatedView=false;
-  const manual=()=>{manualView=true};controls.addEventListener('start',manual);controls.addEventListener('change',invalidate);
+  const cameraState=()=>({position:camera.position.toArray(),target:controls.target.toArray(),zoom:camera.zoom});
+  const cameraChanged=()=>{invalidate();if(!syncingCamera)onCameraChange?.(cameraState())};
+  const manual=()=>{manualView=true};controls.addEventListener('start',manual);controls.addEventListener('change',cameraChanged);
   scene.add(new THREE.HemisphereLight(0xffffff,0x71815a,1.2));
   const sun=new THREE.DirectionalLight(0xfff6df,2);sun.position.set(1,2,1);sun.castShadow=true;sun.shadow.mapSize.set(1024,1024);sun.shadow.camera.left=-2;sun.shadow.camera.right=2;sun.shadow.camera.top=2;sun.shadow.camera.bottom=-2;sun.shadow.bias=-.0001;sun.shadow.normalBias=.001;scene.add(sun);
   const disposeEnvironment=studioEnvironment(renderer,scene,{reduced});
@@ -37,6 +40,12 @@ export function physicsView(container) {
     invalidate();
   }
   const instanceMatrix=new THREE.Matrix4();
+  function paintLabel(canvas,id){const context=canvas.getContext('2d');context.clearRect(0,0,192,72);context.fillStyle=({a:'#526d32',b:'#3f6580',c:'#987033',d:'#865872'}[id]??'#526d32');context.fillRect(0,0,192,72);context.font='40px sans-serif';context.textAlign='center';context.fillStyle='#fff';context.fillText(label??`鸭 ${id.toUpperCase()}`,96,51)}
+  function setLabel(text){
+    if(disposed||text===label)return;label=text;container.dataset.duckLabel=text??'';
+    for(const [id,sprite] of labels){paintLabel(sprite.material.map.image,id);sprite.material.map.needsUpdate=true}invalidate();
+  }
+  if(label)container.dataset.duckLabel=label;
   const setVisibility=()=>scheduler?.visible(visible&&!document.hidden);
   const visibility=new IntersectionObserver(entries=>{visible=entries[0]?.isIntersecting??true;setVisibility()});visibility.observe(renderer.domElement);
   document.addEventListener('visibilitychange',setVisibility);
@@ -94,7 +103,7 @@ export function physicsView(container) {
     if(state.revision!==revision)return;
     for(const duck of state.ducks){
       if(!labels.has(duck.id)){
-        const canvas=document.createElement('canvas');canvas.width=192;canvas.height=72;const context=canvas.getContext('2d');context.fillStyle=({a:'#526d32',b:'#3f6580',c:'#987033',d:'#865872'}[duck.id]??'#526d32');context.fillRect(0,0,192,72);context.font='40px sans-serif';context.textAlign='center';context.fillStyle='#fff';context.fillText(`鸭 ${duck.id.toUpperCase()}`,96,51);
+        const canvas=document.createElement('canvas');canvas.width=192;canvas.height=72;paintLabel(canvas,duck.id);
         const texture=new THREE.CanvasTexture(canvas);textures.push(texture);const material=new THREE.SpriteMaterial({map:texture,depthTest:false});materials.push(material);const sprite=new THREE.Sprite(material);sprite.scale.set(.105,.04,1);world.add(sprite);labels.set(duck.id,sprite);invalidate();
       }
       const [x,y,z]=duck.position;labels.get(duck.id).position.set(x,y,z+.20);
@@ -164,7 +173,11 @@ export function physicsView(container) {
     return moving;
   }
   scheduler=renderScheduler(draw,{interval:()=>reduced?100:seatedView?66:33});setVisibility();resize();
-  return {load,update,clear,screenOrder,
+  return {load,update,clear,screenOrder,setLabel,
+    syncCamera(state){
+      if(disposed)return;syncingCamera=true;manualView=true;controls.enableDamping=false;controls.update();
+      camera.position.fromArray(state.position);controls.target.fromArray(state.target);camera.zoom=state.zoom;camera.updateProjectionMatrix();controls.update();controls.enableDamping=true;syncingCamera=false;invalidate();
+    },
     selection(value){selection=value;invalidate()},
     interaction(callback,mode="select"){interaction=callback;interactionMode=mode;if(!callback){stick.visible=false;for(const ring of rings.values())ring.visible=false}invalidate()},
     renderNow(){scheduler.flush()},
@@ -172,11 +185,12 @@ export function physicsView(container) {
     reset(){if(disposed)return;manualView=false;floorFramed=false;controls.enableDamping=false;controls.update();controls.reset();controls.enableDamping=true;invalidate()},
     dispose(){
       if(disposed)return;disposed=true;scheduler.dispose();events.abort();observer.disconnect();visibility.disconnect();document.removeEventListener('visibilitychange',setVisibility);
-      controls.removeEventListener('start',manual);controls.removeEventListener('change',invalidate);controls.dispose();
+      controls.removeEventListener('start',manual);controls.removeEventListener('change',cameraChanged);controls.dispose();
       clear();appearance.dispose();disposeEnvironment();sun.shadow.dispose();
       floor.geometry.dispose();floor.material.dispose();grid.geometry.dispose();grid.material.dispose();
       ringGeometry.dispose();ringMaterial.dispose();stick.geometry.dispose();stick.material.dispose();
       scene.clear();renderer.dispose();renderer.forceContextLoss();renderer.domElement.remove();
+      delete container.dataset.duckLabel;
     },
   };
 }

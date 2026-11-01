@@ -12,12 +12,12 @@ import {drawChart} from './balance-chart.js';
 import {measurement,loadMetrics,afterFrame} from './experience.js';
 
 const $=id=>document.getElementById(id),titles=['跟着圆盘站稳','转盘转，我不转','从边缘回到中心'];
-let level=1,observedLevel=1,viewer,ready=false,loading=false,selectedRun='',records=[],detail=null,sample=null,sampleStep=null,term='center',socket,timer,closed=false,revision=null;
+let level=1,observedLevel=1,levelChosen=false,viewer,baselineViewer,lastBackend,ready=false,loading=false,selectedRun='',records=[],detail=null,sample=null,sampleStep=null,term='center',socket,timer,closed=false,revision=null;
 let reconnectTimer,ackTimer,lastStateKey='',lastObservation=null,lastObservationAt=0,detailKey=null,optionsKey='';
 const lifetime=new AbortController();
 window.addEventListener('pagehide',()=>{
  closed=true;lifetime.abort();clearInterval(timer);clearTimeout(reconnectTimer);clearTimeout(ackTimer);
- if(socket){socket.onclose=null;socket.close();socket=null}viewer?.dispose();
+ if(socket){socket.onclose=null;socket.close();socket=null}viewer?.dispose();baselineViewer?.dispose();
 },{once:true});
 window.addEventListener('pageshow',event=>{if(event.persisted)location.reload()});
 const loader=createPhysicsModelLoader();
@@ -32,39 +32,70 @@ function controls(){
  $('prepare-balance').disabled=loading;$('prepare-balance').textContent=ready?'圆盘已准备 · 重新加载':'准备圆盘';
  document.querySelectorAll('[data-level]').forEach(b=>{b.disabled=loading;b.setAttribute('aria-pressed',String(Number(b.dataset.level)===level))});
 }
+function renderSide(b,prefix,status){
+ const r=b.result;
+ $(prefix+'-rpm').textContent=r?`${r.rpm.toFixed(2)} RPM`:'—';
+ $(prefix+'-radius').textContent=r?`${(r.radius*100).toFixed(1)} cm`:'—';
+ $(prefix+'-contact').textContent=r?`${r.contacts} / 2 脚`:'—';
+ $(prefix+'-time').textContent=`${b.sim_time.toFixed(1)} s`;
+ const reasons={fell_or_left_disc:'身体失稳、触地或脚部越过盘缘，物理已暂停',criteria_not_met:'挑战结束，但中心位置、朝向或停盘条件未全部达标'};
+ const phases={idle:'等待指令',running:'挑战中',stopping:'正在减速停盘',completed:'挑战成功',failed:'本轮未完成 · 画面已定格',cancelled:'已停止 · 人为干预不计成功'};
+ $(status).textContent=`${phases[b.phase]??b.phase}${r?.reason&&reasons[r.reason]?' · '+reasons[r.reason]:''}${r?` · 朝向达标 ${(r.heading_fraction*100).toFixed(0)}% · 脚边缘余量 ${(r.rim_margin*100).toFixed(1)} cm · ${r.disk_stopped?'圆盘已停稳':'尚未物理停稳'}`:''}${b.error?' · '+b.error:''}`;
+ $(status).dataset.phase=b.phase;
+}
+function updateLabels(controller){
+ const text={trained:'训练后',early:'训练前',baseline:'未训练'}[controller];
+ $('trained-label').textContent=text;
+ $('trained-caption').textContent={trained:'PPO＋官方步态',early:'任务网络 0 步＋官方步态',baseline:'官方步态基线'}[controller];
+ viewer?.setLabel(text);
+}
 function renderState(state){
  const b=state?.balance;if(!b||closed)return;
- const key=state.revision+JSON.stringify(b);if(key===lastStateKey)return;lastStateKey=key;
+ const key=state.revision+JSON.stringify(b);if(key===lastStateKey)return;lastStateKey=key;lastBackend=b;
  if(b.level!==observedLevel){observedLevel=b.level;level=b.level;selectedRun='';sampleStep=null;controls();void refresh()}
- viewer?.update(state);const r=b.result;
- $('disc-rpm').textContent=r?`${r.rpm.toFixed(2)} RPM`:'—';
- $('disc-radius').textContent=r?`${(r.radius*100).toFixed(1)} cm`:'—';
- $('disc-contact').textContent=r?`${r.contacts} / 2 脚`:'—';
- $('disc-time').textContent=`${b.sim_time.toFixed(1)} s`;
- const reasons={fell_or_left_disc:'身体失稳、触地或脚部越过盘缘，物理已暂停',criteria_not_met:'挑战结束，但中心位置、朝向或停盘条件未全部达标'};
- const phases={idle:'等待指令',running:'挑战中',stopping:'正在减速停盘',completed:'挑战成功',failed:'本轮未完成',cancelled:'已停止 · 人为干预不计成功'};
- $('challenge-status').textContent=`${phases[b.phase]??b.phase}${r?.reason&&reasons[r.reason]?' · '+reasons[r.reason]:''}${r?` · 朝向达标 ${(r.heading_fraction*100).toFixed(0)}% · 脚边缘余量 ${(r.rim_margin*100).toFixed(1)} cm · ${r.disk_stopped?'圆盘已停稳':'圆盘仍在运动'}`:''}${b.error?' · '+b.error:''}`;
+ viewer?.update(state);renderSide(b,'disc','challenge-status');
+ const comparison=b.comparison,baseline=state.comparison?.baseline;
+ if(baseline){baselineViewer?.update(baseline);renderSide(baseline.balance,'baseline','baseline-status')}
+ updateLabels(b.phase==='idle'?$('controller').value:b.controller);
+ const phases={idle:'等待同时开始',running:'同步挑战中',stopping:'两侧正在减速',completed:'对照结束',cancelled:'对照已停止',failed:'对照计算异常，物理已暂停'};
+ $('comparison-status').textContent=comparison?.enabled?`${phases[comparison.phase]??comparison.phase} · 共同进度 ${comparison.sim_time.toFixed(1)} s · 种子 ${b.seed} · 左侧官方基线 / 右侧${$('trained-label').textContent}`:'本轮仅运行右侧策略，左侧未参与';
  const name={baseline:'官方步态基线',early:'训练步数 0 的任务网络＋官方步态',trained:'已评估反馈力度 PPO＋官方步态'}[b.controller];
- $('controller-source').textContent=`MuJoCo ${b.execution==='running'?'计算中':'已暂停'} · ${name}${b.policy_steps!=null?` · ${b.policy_steps.toLocaleString()} 训练步`:''}。训练过程见下方独立记录。`;
+ $('controller-source').textContent=`右侧：${b.phase==='idle'?'等待本轮策略加载':name}${b.policy_steps!=null&&b.phase!=='idle'?` · ${b.policy_steps.toLocaleString()} 训练步`:''}。${comparison?.enabled?'同一仿真时钟，独立计算两侧物理。':''}训练过程见下方记录。`;
  $('scene-title').textContent=`第 ${b.level} 关 · ${b.title}`;
  if(state.observation){lastObservation=[state.observation,state.task_action];updateObservation(b.execution!=='running')}
 }
+function placeholders(text){for(const node of document.querySelectorAll('.balance-placeholder')){node.hidden=!text;if(text)node.textContent=text}}
 async function prepare(){
  if(loading||closed)return;loading=true;controls();$('notice').hidden=true;
- $('scene-placeholder').hidden=false;$('scene-placeholder').textContent='正在加载官方模型与有惯量的圆盘…';
+ placeholders('正在加载官方模型与左右对照圆盘…');
  const experience=measurement('load'),metrics={};
  try{
-  const signal=lifetime.signal,state=await api('api/balance/prepare',currentRoom,{body:{},signal});signal.throwIfAborted();
-  if(revision!==state.backend.revision){const data=await loader(appURL('api/scenes/model.dkm.gz'),state.backend.revision,{signal:AbortSignal.any([signal,AbortSignal.timeout(60000)]),metrics});signal.throwIfAborted();const started=performance.now();if(!viewer)viewer=physicsView($('physics-viewport'));viewer.load(data);viewer.frameScene('balance');metrics.assemble_ms=performance.now()-started;revision=state.backend.revision}else metrics.cache='memory';
-  lastStateKey='';renderState(state.backend);const firstFrame=performance.now();await afterFrame();signal.throwIfAborted();viewer.renderNow();await afterFrame();signal.throwIfAborted();metrics.first_frame_ms=Math.round(performance.now()-firstFrame);$('scene-placeholder').hidden=true;ready=true;
+  const signal=lifetime.signal,requestedLevel=levelChosen?level:null;
+  let state=await api('api/balance/prepare',currentRoom,{body:{},signal});signal.throwIfAborted();
+  if(requestedLevel!==null){
+   if(state.backend.balance.level!==requestedLevel){
+    await api('api/balance/command',currentRoom,{body:{operation:'select',level:requestedLevel},signal});
+    state=await api('api/scenes/state',currentRoom,{signal});signal.throwIfAborted();
+   }
+   observedLevel=requestedLevel;
+  }
+  if(!state.backend.comparison?.baseline)throw Error('服务尚未支持左右对照，请更新并重启本地后端。');
+  if(revision!==state.backend.revision){
+   const data=await loader(appURL('api/scenes/model.dkm.gz'),state.backend.revision,{signal:AbortSignal.any([signal,AbortSignal.timeout(60000)]),metrics});signal.throwIfAborted();const started=performance.now();
+   if(!viewer)viewer=physicsView($('physics-viewport'),{label:'训练后',onCameraChange:state=>baselineViewer?.syncCamera(state)});
+   if(!baselineViewer)baselineViewer=physicsView($('baseline-viewport'),{label:'未训练',onCameraChange:state=>viewer?.syncCamera(state)});
+   viewer.load(data);baselineViewer.load(data);viewer.frameScene('balance');baselineViewer.frameScene('balance');
+   metrics.assemble_ms=performance.now()-started;revision=state.backend.revision;
+  }else metrics.cache='memory';
+  lastStateKey='';renderState(state.backend);const firstFrame=performance.now();await afterFrame();signal.throwIfAborted();viewer.renderNow();baselineViewer.renderNow();await afterFrame();signal.throwIfAborted();metrics.first_frame_ms=Math.round(performance.now()-firstFrame);placeholders(null);ready=true;
   experience.finish('completed',{...loadMetrics(metrics),scene_ms:Math.round(performance.now()-experience.started)},{cache:metrics.cache,scene:'balance'});
-  if(!socket)connect();appendLog('圆盘已准备，可连接灵矽；按钮操作标记为本地排练。');
- }catch(e){experience.finish('failed');if(!closed){notify(e.message);$('scene-placeholder').textContent='加载未完成，可重试。'}}finally{loading=false;if(!closed)controls()}
+  if(!socket)connect();appendLog('左右圆盘已准备：左侧官方基线，右侧所选策略；按钮或灵矽口令均可同时发起挑战。');
+ }catch(e){experience.finish('failed');if(!closed){notify(e.message);placeholders('加载未完成，可重试。')}}finally{loading=false;if(!closed)controls()}
 }
 function connect(){
  if(closed)return;const ws=socket=createSocket('scene-ws');
  ws.onmessage=e=>{let active=false;try{if(closed)return;const state=JSON.parse(e.data);if(state.type==='state'){
-   active=state.backend.balance?.execution==='running';
+   active=(state.backend.balance?.comparison?.execution??state.backend.balance?.execution)==='running';
    if(state.backend.scene==='balance')renderState(state.backend);
    else{ready=false;controls();notify('本房间已切到其他场景，请重新准备圆盘。')}
   }}catch(error){if(!closed)notify(error.message)}finally{
@@ -79,14 +110,15 @@ async function command(body){
 $('prepare-balance').addEventListener('click',prepare);
 $('start-challenge').addEventListener('click',async()=>{
  loading=true;controls();$('notice').hidden=true;
- try{await command({operation:'start',level,controller:$('controller').value,seed:Number($('challenge-seed').value),...(selectedRun?{run:selectedRun}:{})})}finally{loading=false;controls()}
+ try{await command({operation:'start',compare:true,level,controller:$('controller').value,seed:Number($('challenge-seed').value),...(selectedRun?{run:selectedRun}:{})})}finally{loading=false;controls()}
 });
 $('stop-balance').addEventListener('click',()=>{void voice.interrupt();void command({operation:'stop'})});
 window.addEventListener('keydown',e=>{if(e.code==='Escape'&&ready)void command({operation:'stop'})});
-$('reset-camera').addEventListener('click',()=>viewer?.reset());
+$('reset-camera').addEventListener('click',()=>{viewer?.reset();baselineViewer?.reset()});
+$('controller').addEventListener('change',()=>{if(!lastBackend||lastBackend.phase==='idle')updateLabels($('controller').value)});
 $('clear-log').addEventListener('click',()=>$('activity-log').replaceChildren());
 for(const button of document.querySelectorAll('[data-level]'))button.addEventListener('click',async()=>{
- if(loading)return;level=Number(button.dataset.level);controls();
+ if(loading)return;level=Number(button.dataset.level);levelChosen=true;controls();
  if(ready)await command({operation:'select',level});
  $('scene-title').textContent=`待挑战第 ${level} 关 · ${titles[level-1]}`;
  selectedRun='';sampleStep=null;await refresh();

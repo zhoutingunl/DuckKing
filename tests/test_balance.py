@@ -141,9 +141,11 @@ def test_artifact_rejects_wrong_level_model_or_invalid_weights(tmp_path, world):
 @pytest.fixture
 def backend(tmp_path, monkeypatch, world):
     # Reuse compiled geometry/session, but all dynamic state belongs to the new room.
-    def create(assets):
+    def create(assets, *, compiled=None, session=None):
         return BalanceWorld(
-            assets, compiled=(world.model, world.fingerprint), session=world.session
+            assets,
+            compiled=compiled or (world.model, world.fingerprint),
+            session=session or world.session,
         )
 
     monkeypatch.setattr("duckking.balance_backend.BalanceWorld", create)
@@ -173,6 +175,111 @@ async def test_live_stop_serializes_physics_and_reset_does_not_revive_actions(ba
     await asyncio.sleep(0.15)
     assert backend.world.data.time == 0
     await backend.close()
+
+
+async def test_comparison_shares_initial_conditions_and_ticks_but_not_dynamic_state(backend):
+    await backend.invoke({"operation": "select", "level": 3, "seed": 37})
+    assert backend.world.model is backend.baseline.model
+    assert backend.world.session is backend.baseline.session
+    assert backend.world.data is not backend.baseline.data
+    assert backend.world.driver is not backend.baseline.driver
+    assert not np.shares_memory(backend.world.driver.last, backend.baseline.driver.last)
+    np.testing.assert_array_equal(backend.world.data.qpos, backend.baseline.data.qpos)
+    assert backend.world.friction == backend.baseline.friction
+    np.testing.assert_array_equal(backend.world.phase, backend.baseline.phase)
+    await backend.invoke({"operation": "start", "controller": "baseline", "level": 3, "seed": 37})
+    await asyncio.sleep(0.25)
+    state = await backend.snapshot()
+    left = state["comparison"]["baseline"]
+    assert state["balance"]["comparison"]["clock"] == "shared_task_ticks"
+    assert state["sim_time"] > 0
+    assert state["sim_time"] == left["sim_time"]
+    assert state["disc_target"] == left["disc_target"]
+    np.testing.assert_array_equal(backend.world.data.qpos, backend.baseline.data.qpos)
+    await backend.stop()
+    assert backend.world.stop_at == backend.baseline.stop_at
+    assert backend.phase == backend.baseline_phase == "cancelled"
+    assert backend.summary()["comparison"]["execution"] == "paused"
+    await backend.reset()
+    assert backend.world.data.time == backend.baseline.data.time == 0
+    assert backend.summary()["comparison"]["tick"] == 0
+    await backend.close()
+
+
+async def test_missing_comparison_policy_does_not_restart_either_running_side(backend):
+    await backend.invoke({"operation": "start", "controller": "baseline"})
+    task = backend.task
+    await asyncio.sleep(0.12)
+    time = backend.world.data.time
+    with pytest.raises(ValueError, match="尚无"):
+        await backend.invoke({"operation": "start", "level": 2, "controller": "trained"})
+    assert backend.task is task and not task.done()
+    assert backend.world.data.time >= time
+    assert backend.baseline.config.level == backend.world.config.level == 1
+    with pytest.raises(ValueError):
+        await backend.invoke({"operation": "start", "controller": "baseline", "compare": 1})
+    await backend.stop()
+
+
+async def test_explicit_single_side_diagnostic_does_not_animate_or_score_the_baseline(backend):
+    await backend.invoke({"operation": "start", "controller": "baseline", "compare": False})
+    await asyncio.sleep(0.2)
+    state = await backend.snapshot()
+    assert not state["balance"]["comparison"]["enabled"]
+    assert state["sim_time"] > 0
+    assert state["comparison"]["baseline"]["sim_time"] == 0
+    await backend.stop()
+    assert backend.phase == "cancelled"
+    assert backend.baseline_phase == "idle"
+    assert backend.baseline_info is None
+
+
+async def test_one_failed_side_freezes_while_the_other_continues_then_both_stop(backend):
+    await backend.invoke({"operation": "start", "controller": "baseline"})
+    # Fault injection only: place the baseline outside the rim to exercise the
+    # real physical failure detector. Runtime never rewrites a robot's pose.
+    async with backend.lock:
+        backend.baseline.data.qpos[backend.baseline.driver.root] = 0.7
+        mujoco.mj_forward(backend.baseline.model, backend.baseline.data)
+    for _ in range(30):
+        if backend.baseline_phase == "failed":
+            break
+        await asyncio.sleep(0.05)
+    assert backend.baseline_phase == "failed"
+    time, info = backend.baseline.data.time, backend.baseline_info.copy()
+    await asyncio.sleep(0.25)
+    state = await backend.snapshot()
+    assert state["balance"]["comparison"]["execution"] == "running"
+    assert state["sim_time"] > time
+    assert state["comparison"]["baseline"]["sim_time"] == time
+    assert backend.baseline_info == info and not info["success"]
+    await backend.stop()
+    assert backend.baseline_phase == "failed"
+    assert backend.phase == "cancelled"
+    assert backend.summary()["comparison"]["phase"] == "cancelled"
+    time = backend.world.data.time
+    await asyncio.sleep(0.15)
+    assert backend.world.data.time == time
+
+
+async def test_bundled_policy_comparison_finishes_with_two_measured_results(backend, tmp_path):
+    backend.runs = BalanceRuns(tmp_path, ASSETS.parent / "training/results")
+    await backend.invoke({"operation": "start", "level": 2, "seed": 0, "controller": "trained"})
+    # Neither side's contacts may change the deterministic target programme.
+    for _ in range(3):
+        await asyncio.sleep(0.2)
+        state = await backend.snapshot()
+        left = state["comparison"]["baseline"]
+        assert state["sim_time"] == left["sim_time"]
+        assert state["disc_target"] == left["disc_target"]
+    await asyncio.wait_for(backend.task, 30)
+    summary = backend.summary()
+    assert summary["comparison"]["phase"] == "completed"
+    assert summary["result"]["success"]
+    assert not summary["comparison"]["baseline"]["result"]["success"]
+    assert summary["phase"] == "completed"
+    assert summary["comparison"]["baseline"]["phase"] == "failed"
+    assert summary["comparison"]["sim_time"] <= 13.1
 
 
 async def test_stop_supersedes_a_start_waiting_for_previous_deceleration(backend, monkeypatch):
