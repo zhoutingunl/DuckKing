@@ -1,5 +1,17 @@
 # 演示媒体来源
 
+## 2026-11-02 当前版本录屏
+
+`duckking-current-demo.mp4` 为当前公网发布 `62c6784` 的真实 Chrome 录屏剪辑，主入口见 [视频说明](../DEMO_VIDEO.md)。首页是脚本动画；物理实验室、四鸭互动、工坊和平衡对照读取实际 MuJoCo/官方策略状态。没有拦截 API、生成假成绩或以预设姿态替代物理结果。旁白单独合成，页面原声未收录；本次没有调用灵矽云端或使用真人麦克风。
+
+- `current-workbench.png`、`current-physics.png`、`current-practice.png`：当前配色、实际踢球／翻滚页面。
+- `current-theatre.png`、`current-stage-lineup.png`、`current-studio.png`：第十三幕现场点选与工坊本地排练。
+- `current-balance-running.png`、`current-balance-result.png`、`current-balance-custom.png`：本次第 2 关、种子 0 的 13 秒／30 秒试跑，不是离线 100 种子统计。
+- `current-training.png`、`current-learning.png`：保存的 CPU 训练曲线、奖励和 PPO 函数说明；不是录制期间新训练。
+- `current-demo-recording.json`：版本、实际操作和结果；`duckking-current-demo.json`：章节时刻、源片段、停帧长度、配音来源、文件哈希和解码校验；`current-demo-script.json`：解说文案。
+
+片段只剪去章节之间的准备等待，动作按录制时墙钟速度播放；解说超过片段时长时延长末帧，逐章记录延长量。底部另加 100 px 解说栏，不遮盖或修改网页中的数据。官方模型及改编画面遵循 CC BY-NC-SA 4.0；配色与材质映射来源见 [THIRD_PARTY.md](../../THIRD_PARTY.md)。历史媒体保留原日期，不覆盖成新版证据。
+
 ## 2026-10-26 竞赛视频与 2026-10-27 自然配音版
 
 `hackathon-video.png` 是本次实际桌上合唱录屏截图；`hackathon-video.json` 包含源提交、动作验收、20 轮延迟样本、10 路真实云端会话与加载对比。完整 MP4 存放于 GitHub Release，入口和剪辑说明见 [演示视频](../DEMO_VIDEO.md)。视频中的官方模型及改编画面遵循 CC BY-NC-SA 4.0，不由根目录 MIT 许可替代。

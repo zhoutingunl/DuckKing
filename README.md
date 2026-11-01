@@ -1,18 +1,18 @@
 # DuckKing
 
-让用户在购买硬件之前，先在浏览器里了解 MicroDuck、体验灵矽语音交互。通过语音和按钮控制仿真小鸭，完成踢球、搬运、前滚翻、轮滑与四鸭合唱。支持服务器离线识别优先、真实灵矽语音、动态独立房间和十三幕自动演示。
+让用户在购买硬件之前，先在浏览器里了解 MicroDuck、体验灵矽语音交互。通过语音和按钮控制仿真小鸭，完成踢球、搬运、前滚翻、轮滑、四鸭演出，还能对比官方步态基线与 PPO 平衡策略。支持服务器离线识别优先、真实灵矽语音、独立房间、十三幕自动演示和十项互动工坊任务。
 
 [在线体验](https://ztmonitor.qbox.net/duckking/) · [演示场景](https://ztmonitor.qbox.net/duckking/demos.html) · [物理实验室](https://ztmonitor.qbox.net/duckking/scenarios.html) · [部署记录](https://ztmonitor.qbox.net/duckking/deploys.html)
 
-![语音工作台：官方 MicroDuck 外观、动作按钮与语音模式](docs/media/workbench.png)
+![当前线上工作台：官方配色、动画预览与语音入口](docs/media/current-workbench.png)
 
-本文三张界面截图采集于 2026-10-25 的 `a8a6675`，展示当时运行画面；新增 UI 以当前页面和下文说明为准。[截图来源与版本](docs/media/README.md)
+本文新版截图与演示视频从当前公网页面重新采集；线上发布提交为 `62c6784`（2026-11-01），与本次文档基线 `e82948e` 的应用文件相同。[本次录制、结果与版本](docs/DEMO_VIDEO.md) · [媒体来源](docs/media/README.md)。历史截图和竞赛视频保留各自日期，不作为新版界面证明。
 
 当前工作台使用官方模型外观，动作由本项目脚本驱动，属于**动画预览**。物理实验室与演示剧场使用**真实 MuJoCo CPU + 官方 ONNX 策略**；另有独立的官方 **robotd / MuJoCo** 适配。三条路径分别标识，连接失败会明确报错。项目目前是软件仿真，没有实体机器人验收。
 
 **赛后外观更新（2026-11-01）：** 首页、物理实验室、演示剧场与互动工坊支持四种官方配色：奶油白 Cream、石墨灰 Graphite、薰衣草紫 Lavender、天空蓝 Sky。画面左下角可换色，多鸭场景先选择鸭子；默认 A/B/C/D 分别对应这四种颜色，走动、换位与重置不会交换身份。外壳、金属关节和镜头使用不同材质及环境反射；选择保存在当前浏览器，只影响外观，不改变运动策略或接触物理。四鸭共享模型网格，换色无需重新下载模型。
 
-**竞赛演示视频：** [观看 4 分 46 秒自然配音版](https://github.com/zhoutingunl/DuckKing/releases/download/deploy-yzh737-20261025T165552Z/duckking-hackathon-20261027-natural.mp4) · [章节、量化数据与来源](docs/DEMO_VIDEO.md)
+**当前版本演示：** [观看新版视频](docs/media/duckking-current-demo.mp4) · [章节、实际结果与复录方法](docs/DEMO_VIDEO.md)。新片展示当前网页和按钮／本地排练，配音为解说；真实云端语音的历史素材见[竞赛视频存档](docs/DEMO_VIDEO_ARCHIVE.md)。
 
 ## 商业价值与产品设计
 
@@ -32,7 +32,9 @@
 | [物理实验室](https://ztmonitor.qbox.net/duckking/scenarios.html) | 单鸭踢球、双鸭互动、嘴部搬运、动作练习场、轮滑；按钮无需启用语音 |
 | [演示场景](https://ztmonitor.qbox.net/duckking/demos.html) | 十三幕逐幕点播；预录对白本地编排与灵矽实连预录指令可现场切换 |
 | [现场互动工坊](https://ztmonitor.qbox.net/duckking/studio.html) | 十项语音任务、本地排练、临场改序与任务控制；真人语音固定走灵矽，见 [使用说明](docs/INTERACTIVE_STUDIO.md) |
-| [语音平衡教练（实验）](docs/PPO_BALANCE_COACH.md) | `balance.html`：旋转倾斜圆盘三关、真实 CPU PPO 训练记录、成功率/参数曲线与可交互函数说明；PPO 学习反馈力度，底层复用官方步态 |
+| [语音平衡教练（实验）](https://ztmonitor.qbox.net/duckking/balance.html) | 同种子左右对照、三关旋转倾斜圆盘、6–33 秒试跑、真实 CPU PPO 训练记录和函数课堂；[学习范围与限制](docs/PPO_BALANCE_COACH.md) |
+| [转盘 PPO 教学说明](http://aiops.qbox.net/files/0d187b39c88d5359/balance_ppo_explainer.html) | 面向无 AI 背景读者的自包含单页文档：RL 与 PPO 预备知识 → 转盘物理 → 观测/动作/奖励 → PPO 与 GAE → 真实训练曲线与诚实的边界；含 18 张内联图与 16 个公式块，[在线永久链接](http://aiops.qbox.net/files/0d187b39c88d5359/balance_ppo_explainer.html) |
+| [10 个 RL 动作场景设计](http://aiops.qbox.net/files/0c4d8708235c8482/rl_scenario_top10.html) | 后续玩法设计清单，尚未实现／评估，不能把未测结果写成成功率。包含四算法赛马、带球闯彩门等概念和风险；[图文版](http://aiops.qbox.net/files/0c4d8708235c8482/rl_scenario_top10.html) |
 | [使用体验](https://ztmonitor.qbox.net/duckking/experience.html) | 持续保存浏览器加载/语音与服务器处理时延；均值、P50/P90/P95、趋势、来源及版本筛选，跨重启保留，见 [口径说明](docs/EXPERIENCE_METRICS.md) |
 | [交互统计](https://ztmonitor.qbox.net/duckking/statistics.html) | 识别文本、实际动作、逐轮时间线、本地/灵矽识别均值及 P50/P90/P95、本地命中与云端回退；按房间和后端查看 |
 | [部署记录](https://ztmonitor.qbox.net/duckking/deploys.html) | 版本、验收结果、变更提交与 GitHub 对比、对应提交的后端行／分支覆盖率 |
@@ -122,7 +124,7 @@ uv run duckking-setup --room 2
 
 ## 五类物理场景
 
-![动作练习场：官方物理模型、前滚翻、啄取和自然待机](docs/media/practice-current.png)
+![当前动作练习场：官方模型、真实 MuJoCo 前滚翻与动作结果](docs/media/current-practice.png)
 
 | 场景 | 当前能力与边界 |
 |---|---|
@@ -138,7 +140,7 @@ uv run duckking-setup --room 2
 
 ## 十三幕自动演示
 
-![四鸭坐姿合唱：轮到独唱的鸭子站起来，唱完坐回](docs/media/theatre-current.png)
+![当前第十三幕：四种配色、集结、选中成员与现场操作](docs/media/current-stage-lineup.png)
 
 点选节目即可自动准备场景、播放预录指令／角色对白并执行动作，无需真人讲话。两种演出方式分别是“自动演示 · 预录对白”和“灵矽实连 · 预录指令”；后者实际调用云端 STT、工具和 TTS。人类指令与小鸭台词使用不同系统合成音色。任何失败都会停止并显示原因。
 
@@ -158,6 +160,24 @@ uv run duckking-setup --room 2
 13. 黄仁勋的四只小鸭：随机散落、集结排队后坐下、点名前滚翻就地坐下、选中鸭同拍齐舞；另有真人语音、指挥棒点选与物理轻戳。
 
 第 10—12 幕在两种模式下均明确标为本地音乐与物理编排，不是灵矽生成歌声或官方 BLE 合唱。桌上跌落是预设剧情，结果由 MuJoCo 决定；个别跌落姿态可能无法恢复，届时会报失败。第 7 幕需要两个空闲房间。节目来源、音源处理与效果说明见 [演示剧场](docs/DEMO_THEATRE.md)。
+
+## 现场互动与平衡学习实验
+
+`studio.html` 的十项任务可先点本地排练，再连接灵矽说话：受限动作编排、搬运暂停续送、四鸭改序演唱、声音身份、动作暗号、分步踢球教练、口令游戏、橡皮鸭追问、专注计时和角色切换。排练按钮不会调用云端；声音试听也不代表已经完成声音克隆。任务能力与例外见 [互动工坊](docs/INTERACTIVE_STUDIO.md)。
+
+![当前平衡实验：相同初态的官方步态基线与任务 PPO 对照](docs/media/current-balance-result.png)
+
+平衡页三关分别为随盘站稳、保持朝向、偏心回中心。左右两侧使用相同关卡、种子、时长与盘面目标，动态状态独立；左侧未经过本项任务训练，但仍使用已训练的官方步态。右侧可切换已评估 PPO、训练第 0 步网络或同一基线。PPO 只学习三个反馈力度，底层复用冻结的官方 `velstand.onnx`；没有从零训练走路或接入实体圆盘。
+
+| 固定 13 秒评估 | 官方基线（100 种子） | 任务 PPO（相同 100 种子） | 可以得出的结论 |
+|---|---:|---:|---|
+| 第 1 关 | 100/100 | 100/100 | 官方步态已能完成，不能归因于新增 PPO |
+| 第 2 关 | 0/100 | 89/100 | 有提升，尚未达到连续两次验证 ≥90% 的门槛 |
+| 第 3 关 | 0/100 | 59/100 | 仍不稳定，不能承诺可靠通关 |
+
+以上为 2026-11-01 原训练环境的离线测试，不是在线观众成功率。在线试跑支持 6–33 秒；改变时长不会重新训练，也不能沿用 13 秒成功率。失败侧保留判分成绩，继续展示最多 4 秒实际跌落／接触过程，再定格；另一侧可以继续。停盘属于人为干预，不计通关。
+
+页面提供真实训练曲线、奖励分量、PPO 参数说明和原始记录；公网展示已有记录，默认不接受新训练任务。完整配置、哈希、种子和限制见 [平衡教练](docs/PPO_BALANCE_COACH.md) 与 [CPU 实测](training/results/README.md)。本次视频的单轮结果单独记录，不混入上述 100 种子统计。
 
 ## 官方 robotd 与 Linux 部署
 

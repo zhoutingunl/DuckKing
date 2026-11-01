@@ -1,19 +1,23 @@
 # 演示与复现
 
-## 当前竞赛视频
+## 当前版本视频
 
-完整视频、章节导航、本地／灵矽延迟数据和采集范围见 [Hackathon 演示视频](DEMO_VIDEO.md)。历史视频继续保留其原始来源与时间。
+当前公网实录、章节导航、当次物理结果与复录方法见 [当前版本演示视频](DEMO_VIDEO.md)。[2026-10 竞赛视频](DEMO_VIDEO_ARCHIVE.md)及当时的本地／灵矽延迟样本独立保存，不作为新版功能验收。
 
 ## 当前演示入口与截图版本
 
 运行步骤见 [README](../README.md)；打开 `/demos.html` 可依次点播十三幕，无需真人讲话。页面保留“自动演示 · 预录对白”与“灵矽实连 · 预录指令”，第 10—12 幕音乐始终是本地编排。节目说明、三首桌上曲目、四鸭坐站独唱见 [演示剧场](DEMO_THEATRE.md)。手动动作、前滚翻与轮滑在 `/scenarios.html`，也支持服务器本地优先语音。
 
-- [工作台截图](media/workbench.png)：官方外观的动画预览。
-- [动作练习场截图](media/practice-current.png)：MuJoCo 实际模型与动作结果。
-- [四鸭合唱截图](media/theatre-current.png)：预录模式、真实物理坐站与本地合成音乐。
-- [截图采集记录](media/current-screenshots.json)：应用提交、视口、来源与实际演出结果。
+- [工作台截图](media/current-workbench.png)：当前四种配色与动画预览。
+- [动作练习场截图](media/current-practice.png)：实际 MuJoCo 模型和动作结果。
+- [四鸭互动截图](media/current-stage-lineup.png)：第十三幕本地点选、集结与成员选择。
+- [互动工坊截图](media/current-studio.png)：受限动作的本地排练。
+- [平衡对照截图](media/current-balance-result.png)、[训练曲线](media/current-training.png)：同种子对照及保存的 CPU 训练证据。
+- [本次采集记录](media/current-demo-recording.json)：发布提交、操作、结果、截图和录制范围。
 
-这组三张截图采集于 2026-10-25，应用提交为 `a8a6675309738844caf8956fb669e71c8994ad7c`，来自当时独立本地生产服务，未伪造云端连接或编辑画面。它们展示上述交互，不代表后来新增的第 13 幕、动态房间、持续体验统计或球速提示已在图中出现。当前行为以文字说明和代码为准。重拍时完成生产构建、等待官方模型显示，运行实际动作与节目，并同步采集记录；不要用旧图片替代新功能证明。
+新版采集来自公网 `62c6784`，不拦截 API、不改写动作或画面状态。本次通过按钮和本地排练操作，没有把它们写成灵矽现场理解。录制当次结果与离线训练评估分开计数。旧的 `workbench.png`、`practice-current.png`、`theatre-current.png` 和 `current-screenshots.json` 继续保存 2026-10-25 的 `a8a6675` 来源；文件名中的 current 仅为当时命名。
+
+平衡实验入口为 `/balance.html`，独立于五类物理实验室和十三幕节目。它提供三关、相同种子的左右对照与 6–33 秒本地试跑；参数、失败后的真实跌落展示和训练/评估口径见 [平衡教练](PPO_BALANCE_COACH.md)。公网默认不接受训练任务。本轮没有新增真人麦克风、云端平衡口令或实体机验收。
 
 ## 历史录制视频
 
@@ -27,6 +31,8 @@
 这些视频保留历史 UI，不用于说明当前页面布局。录制时间与准确验证结果见视频旁的 JSON 和 [VALIDATION.md](VALIDATION.md)。不把合成语音输入描述为真人现场讲话，也不把本地动画预览描述为实体机器人。
 
 ## 重录本地演示
+
+新版全片使用 [record-current-demo.mjs](../frontend/scripts/record-current-demo.mjs) 和 [build_current_demo.py](../scripts/build_current_demo.py)。精确命令、依赖、配音与剪辑口径见 [新版视频说明](DEMO_VIDEO.md#重新录制)。下面的 `record:demo` 仍只生成历史用途的首页短片，不会自动覆盖新版全片。
 
 在一个终端启动默认预览：
 
