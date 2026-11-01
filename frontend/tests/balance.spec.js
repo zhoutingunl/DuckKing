@@ -7,6 +7,27 @@ test.afterEach(async({page,request})=>{
  if(room)expect((await request.post(`/api/scenes/close?room=${room}`)).status()).toBe(204);
 });
 
+test('balance controls wait for room initialization before accepting the first click',async({page,request})=>{
+ test.setTimeout(60000);
+ const created=await request.post('/api/rooms');expect(created.ok()).toBe(true);
+ const {room}=await created.json();let releaseRoom,prepares=0;
+ const gate=new Promise(resolve=>{releaseRoom=resolve});
+ await page.route('**/api/rooms',async route=>{await gate;await route.continue()});
+ page.on('request',req=>{if(req.method()==='POST'&&new URL(req.url()).pathname==='/api/balance/prepare')prepares++});
+ try{
+  await page.goto(`/balance.html?room=${room}`,{waitUntil:'domcontentloaded'});
+  await expect(page.locator('#room-label')).toHaveText('正在选择房间…');
+  await expect(page.locator('#prepare-balance')).toBeDisabled();
+  await expect(page.locator('#prepare-balance')).toContainText('正在准备页面');
+  for(const selector of ['[data-level="2"]','#controller','#challenge-seed','#challenge-duration'])await expect(page.locator(selector)).toBeDisabled();
+  expect(prepares).toBe(0);
+ }finally{releaseRoom()}
+ await expect(page.locator('#prepare-balance')).toBeEnabled();
+ await page.locator('#prepare-balance').click();
+ await expect(page.locator('#start-challenge')).toBeEnabled({timeout:45000});
+ expect(prepares).toBe(1);
+});
+
 test('a real boundary failure continues falling, shows an in-scene result and clears on retry',async({page,request})=>{
  test.setTimeout(90000);
  const errors=[];page.on('pageerror',e=>errors.push(e.message));
