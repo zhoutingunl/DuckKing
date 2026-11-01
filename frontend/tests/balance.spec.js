@@ -1,5 +1,40 @@
 import {test,expect} from '@playwright/test';
 
+test('a real boundary failure continues falling, shows an in-scene result and clears on retry',async({page,request})=>{
+ test.setTimeout(90000);
+ const errors=[];page.on('pageerror',e=>errors.push(e.message));
+ const created=await request.post('/api/rooms');expect(created.ok()).toBe(true);
+ const {room}=await created.json();
+ await page.goto(`/balance.html?room=${room}`);
+ await page.locator('[data-level="2"]').click();
+ await page.getByLabel('运行时长（秒）',{exact:true}).fill('20');
+ await page.locator('#prepare-balance').click();
+ await expect(page.locator('#start-challenge')).toBeEnabled({timeout:45000});
+ await page.selectOption('#controller','baseline');await page.locator('#start-challenge').click();
+ await expect(page.locator('#disc-result')).toBeHidden();
+ await expect(page.locator('#disc-result')).toHaveAttribute('data-state','falling',{timeout:25000});
+ await expect(page.locator('#disc-result')).toContainText('已掉落触地',{timeout:10000});
+ await expect(page.locator('#baseline-result')).toContainText('挑战失败');
+ await expect(page.locator('#comparison-status')).toContainText('对照结束',{timeout:10000});
+ const b=(await(await request.get(`/api/scenes/state?room=${room}`)).json()).backend.balance;
+ expect(b.result.seconds).toBeCloseTo(13.4);expect(b.sim_time).toBeCloseTo(13.4);
+ expect(b.physics_time).toBeGreaterThan(b.sim_time);
+ expect(b.aftermath.ground_contact).toBe(true);expect(b.aftermath.seconds).toBeLessThanOrEqual(4);
+ expect(b.aftermath.phase).toBe('finished');expect(b.aftermath.counts_toward_score).toBe(false);
+ await expect(page.locator('#disc-time-label')).toHaveText('判定失败时刻');
+ // Outcome overlays cannot intercept orbit gestures, including on a phone.
+ expect(await page.locator('#disc-result').evaluate(e=>getComputedStyle(e).pointerEvents)).toBe('none');
+ await page.setViewportSize({width:390,height:844});
+ const banner=await page.locator('#disc-result').boundingBox();expect(banner.x).toBeGreaterThanOrEqual(0);expect(banner.x+banner.width).toBeLessThanOrEqual(390);
+ await page.locator('#start-challenge').click();
+ await expect(page.locator('#disc-result')).toBeHidden();await expect(page.locator('#baseline-result')).toBeHidden();
+ await page.locator('#stop-balance').click();
+ await expect(page.locator('#disc-result')).toContainText('人为停止',{timeout:10000});
+ await page.locator('[data-level="1"]').click();
+ await expect(page.locator('#disc-result')).toBeHidden();await expect(page.locator('#baseline-result')).toBeHidden();
+ expect(errors).toEqual([]);
+});
+
 test('duration and seed settings have stacked labels, bound the real run and follow server voice settings',async({page,request})=>{
  test.setTimeout(90000);
  const created=await request.post('/api/rooms');expect(created.ok()).toBe(true);

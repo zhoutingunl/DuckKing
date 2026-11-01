@@ -7,7 +7,7 @@ import {setupRoom} from './room.js';
 import {appURL,currentRoom} from './urls.js';
 import {sceneStateFeed} from './scene-state-feed.js';
 import {api} from './demo-runtime.js';
-import {rewardTerms,hyperparameters,observationGroups,metricLabels,ppoSymbols,clippedExample,compatibleRuns,balanceFailureReason} from './balance-explain.js';
+import {rewardTerms,hyperparameters,observationGroups,metricLabels,ppoSymbols,clippedExample,compatibleRuns,balanceFailureReason,balanceOutcome} from './balance-explain.js';
 import {drawChart} from './balance-chart.js';
 import {measurement,loadMetrics,afterFrame} from './experience.js';
 
@@ -44,17 +44,20 @@ for(const id of ['challenge-seed','challenge-duration'])$(id).addEventListener('
 });
 durationNote();
 function renderSide(b,prefix,status){
- const r=b.result,terminal=['completed','failed','cancelled'].includes(b.phase);
- $(prefix+'-time-label').textContent=terminal?(b.phase==='failed'?'终止时刻 · 已定格':'结束时刻'):'本侧仿真时间';
- $(prefix+'-rpm-label').textContent=terminal?'定格时盘速':'实际盘速';
- $(prefix+'-rpm').textContent=r?`${r.rpm.toFixed(2)} RPM`:'—';
- $(prefix+'-radius').textContent=r?`${(r.radius*100).toFixed(1)} cm`:'—';
- $(prefix+'-contact').textContent=r?`${r.contacts} / 2 脚`:'—';
+ const r=b.result,a=b.aftermath,current=a?.measurements??r,terminal=['completed','failed','cancelled'].includes(b.phase),settling=a?.phase==='running';
+ $(prefix+'-time-label').textContent=terminal?(b.phase==='failed'?'判定失败时刻':'结束时刻'):'本侧仿真时间';
+ $(prefix+'-rpm-label').textContent=terminal&&!settling?'定格时盘速':'实际盘速';
+ $(prefix+'-rpm').textContent=current?`${current.rpm.toFixed(2)} RPM`:'—';
+ $(prefix+'-radius').textContent=current?`${(current.radius*100).toFixed(1)} cm`:'—';
+ $(prefix+'-contact').textContent=current?`${current.contacts} / 2 脚`:'—';
  $(prefix+'-time').textContent=`${b.sim_time.toFixed(1)} s`;
  const reason=balanceFailureReason(r);
- const phases={idle:'等待指令',running:'挑战中',stopping:'正在减速停盘',completed:'挑战成功',failed:'本轮未完成 · 画面已定格',cancelled:'已停止 · 人为干预不计成功'};
- $(status).textContent=`${phases[b.phase]??b.phase}${reason?' · '+reason:''}${r?` · 朝向达标 ${(r.heading_fraction*100).toFixed(0)}% · 脚边缘余量 ${(r.rim_margin*100).toFixed(1)} cm · ${r.disk_stopped?'圆盘已停稳':'尚未物理停稳'}`:''}${b.error?' · '+b.error:''}`;
+ const phases={idle:'等待指令',running:'挑战中',stopping:'正在减速停盘',completed:'挑战成功',failed:'挑战失败',cancelled:'已停止 · 人为干预不计成功'};
+ const physical=a?` · ${settling?'后续物理展示中':'画面已定格'} ${a.seconds.toFixed(1)} s（不计成绩）`:(terminal?' · 画面已定格':'');
+ $(status).textContent=`${phases[b.phase]??b.phase}${reason?' · '+reason:''}${r?` · ${terminal?'判分时':''}朝向达标 ${(r.heading_fraction*100).toFixed(0)}% · 脚边缘余量 ${(r.rim_margin*100).toFixed(1)} cm`:''}${physical}${b.error?' · '+b.error:''}`;
  $(status).dataset.phase=b.phase;
+ const outcome=balanceOutcome(b),banner=$(prefix+'-result');banner.hidden=!outcome;
+ if(outcome){banner.dataset.state=outcome.state;banner.querySelector('strong').textContent=outcome.title;banner.querySelector('span').textContent=outcome.detail}
 }
 function updateLabels(controller){
  const text={trained:'训练后',early:'训练前',baseline:'未训练'}[controller];
@@ -76,8 +79,8 @@ function renderState(state){
  const comparison=b.comparison,baseline=state.comparison?.baseline;
  if(baseline){baselineViewer?.update(baseline);renderSide(baseline.balance,'baseline','baseline-status')}
  updateLabels(b.phase==='idle'?$('controller').value:b.controller);
- const phases={idle:'等待同时开始',running:'同步挑战中',stopping:'两侧正在减速',completed:'对照结束',cancelled:'对照已停止',failed:'对照计算异常，物理已暂停'};
- const frozen=[['左侧',baseline?.balance],['右侧',b]].filter(([,side])=>side?.phase==='failed').map(([name,side])=>`${name} ${side.sim_time.toFixed(1)} s 已定格`);
+ const phases={idle:'等待同时开始',running:'同步挑战中',stopping:'两侧正在减速',settling:'判分结束 · 正在显示后续物理过程',completed:'对照结束',cancelled:'对照已停止',failed:'对照计算异常，物理已暂停'};
+ const frozen=[['左侧',baseline?.balance],['右侧',b]].filter(([,side])=>side?.phase==='failed').map(([name,side])=>`${name} ${side.sim_time.toFixed(1)} s 判定失败${side.aftermath?.phase==='running'?'（物理继续）':'（已定格）'}`);
  $('comparison-status').textContent=(comparison?.enabled?`${phases[comparison.phase]??comparison.phase} · 共同进度 ${comparison.sim_time.toFixed(1)} / ${b.duration_seconds??13} s · 种子 ${b.seed} · 左侧官方基线 / 右侧${$('trained-label').textContent}`:'本轮仅运行右侧策略，左侧未参与')+(frozen.length?' · '+frozen.join('；'):'');
  $('heading-guide-note').textContent=b.level>=2?'蓝色箭头标记躯干应保持的目标朝向。箭头固定在场景中；拖动视角只改变观看位置，不改变目标方向。':'本关允许随盘转动，不要求保持固定朝向。';
  const name={baseline:'官方步态基线',early:'训练步数 0 的任务网络＋官方步态',trained:'已评估反馈力度 PPO＋官方步态'}[b.controller];

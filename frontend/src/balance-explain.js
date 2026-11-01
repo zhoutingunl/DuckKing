@@ -79,5 +79,18 @@ export function balanceFailureReason(result){
  if(result.rim_margin<0)causes.push(`脚部越过盘缘 ${(-result.rim_margin*1000).toFixed(1)} mm`);
  if(result.body_contact)causes.push('非脚部触盘或机器人触地');
  if(result.upright<.65||result.height<.075)causes.push('身体失稳');
- return (causes.length?causes.join('、'):'身体失稳或连续失去脚部支撑')+'，物理已暂停';
+ return causes.length?causes.join('、'):'身体失稳或连续失去脚部支撑';
+}
+
+export function balanceOutcome(b){
+ if(b.error)return {state:'failed',title:'运行异常',detail:'物理已暂停，请重试'};
+ if(b.phase==='completed')return {state:'completed',title:'挑战成功',detail:'完成挑战，圆盘已停稳'};
+ if(b.phase==='cancelled')return {state:'cancelled',title:'已停止',detail:'人为停止，本轮不计成功'};
+ if(b.phase!=='failed')return null;
+ const a=b.aftermath,m=a?.measurements;
+ if(a?.ground_contact)return {state:'failed',title:'挑战失败',detail:'已掉落触地'};
+ if(a?.reason==='user_stop')return {state:'failed',title:'挑战失败',detail:'已停止后续物理展示'};
+ if(m?.body_contact)return {state:'failed',title:'挑战失败',detail:'已失去平衡，倒在盘面上'};
+ if(a?.phase==='running')return {state:'falling',title:'失去平衡…',detail:'正在显示后续物理过程，成绩已记录'};
+ return {state:'failed',title:'挑战失败',detail:b.result?.rim_margin<0?'脚部越过盘缘':'未满足本关条件'};
 }

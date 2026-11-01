@@ -6,6 +6,7 @@ import time
 import numpy as np
 
 from .balance import DT, LEVELS, BalanceConfig, BalanceWorld
+from .balance_aftermath import BalanceAftermath
 from .balance_policy import BalancePolicy
 from .model_assets import geometry
 
@@ -24,7 +25,9 @@ BALANCE_TOOLS = [
             "controller trained 是已训练任务 PPO＋官方步态；early 是训练步数0的任务网络＋官方步态；"
             "baseline 只有官方步态。无策略时报错，不能声称现场一句话就学会了。"
             "默认与左侧官方基线同步对照：同种子、同目标节奏、独立物理受力；"
-            "一侧结束后定格，另一侧继续。comparison.baseline 是左侧成绩，外层是右侧成绩。"
+            "一侧失败后保留成绩，再显示最多4秒真实跌落物理；另一侧继续。"
+            "aftermath不计入成绩，只有ground_contact为真才能说已落地。"
+            "comparison.baseline 是左侧成绩，外层是右侧成绩。"
             "duration_seconds 是包含最后3秒减速的总仿真时长，整数6至33秒，初始13秒。"
             "例如‘第二关运行20秒’使用start、level=2、duration_seconds=20；"
             "‘时长设为20秒，先别开始’使用select、duration_seconds=20。"
@@ -94,6 +97,8 @@ class BalanceBackend:
         self.baseline_info = self.baseline_error = None
         self.baseline_phase = self.comparison_phase = "idle"
         self.comparison_ticks = 0
+        self.aftermath = self.baseline_aftermath = None
+        self.stop_requested = False
 
     def geometry(self):
         return self.visual
@@ -112,6 +117,8 @@ class BalanceBackend:
             self.baseline_info = self.baseline_error = None
             self.baseline_phase = self.comparison_phase = "idle"
             self.comparison_ticks = 0
+            self.aftermath = self.baseline_aftermath = None
+            self.stop_requested = False
 
     async def invoke(self, args):
         if not isinstance(args, dict) or set(args) - {
@@ -194,6 +201,8 @@ class BalanceBackend:
             self.baseline.reset(seed)
             self.compare = compare
             self.comparison_ticks = 0
+            self.aftermath = self.baseline_aftermath = None
+            self.stop_requested = False
             self.baseline_info = self.baseline_error = None
             self.baseline_phase = "running" if compare and operation == "start" else "idle"
             self.comparison_phase = "running" if operation == "start" else "idle"
@@ -213,25 +222,28 @@ class BalanceBackend:
 
     async def _loop(self, generation):
         try:
-            while generation == self.generation and (
-                not self.world.done or (self.compare and not self.baseline.done)
-            ):
+            while generation == self.generation and self._has_work():
                 began = time.monotonic()
                 async with self.lock:
                     # Publish only after BOTH worlds have advanced this tick.
                     # Wall-clock overload slows the pair together, not one side.
                     await asyncio.to_thread(self._advance_pair)
                     self.comparison_ticks += 1
+                    if (self.world.done and (not self.compare or self.baseline.done)
+                            and self._has_work()):
+                        self.comparison_phase = "settling"
                 await asyncio.sleep(max(0, DT - (time.monotonic() - began)))
             self.comparison_phase = (
                 "cancelled"
-                if self.world.stop_at is not None
-                or (self.compare and self.baseline.stop_at is not None)
+                if self.stop_requested
                 else "completed"
             )
         except Exception as exc:
             self.error = f"{type(exc).__name__}: {exc}"
             self.comparison_phase = "failed"
+            for aftermath in (self.aftermath, self.baseline_aftermath):
+                if aftermath and aftermath.active:
+                    aftermath.finish("physics_error")
             if self.phase in {"running", "stopping"}:
                 self.phase = "failed"
             if self.compare and self.baseline_phase in {"running", "stopping"}:
@@ -257,10 +269,23 @@ class BalanceBackend:
             _, _, _, _, self.info = self.world.step(action)
             if self.world.done:
                 self.phase = self._terminal_phase(self.world, self.info)
+                if self.info["reason"] == "fell_or_left_disc" and not self.stop_requested:
+                    self.aftermath = BalanceAftermath(self.world)
+        elif self.aftermath:
+            self.aftermath.step()
         if self.compare and not self.baseline.done:
             _, _, _, _, self.baseline_info = self.baseline.step(np.zeros(3))
             if self.baseline.done:
                 self.baseline_phase = self._terminal_phase(self.baseline, self.baseline_info)
+                if self.baseline_info["reason"] == "fell_or_left_disc" and not self.stop_requested:
+                    self.baseline_aftermath = BalanceAftermath(self.baseline)
+        elif self.compare and self.baseline_aftermath:
+            self.baseline_aftermath.step()
+
+    def _has_work(self):
+        return (not self.world.done or bool(self.aftermath and self.aftermath.active)
+                or (self.compare and (not self.baseline.done
+                    or bool(self.baseline_aftermath and self.baseline_aftermath.active))))
 
     async def stop(self):
         self.request_version += 1
@@ -269,6 +294,10 @@ class BalanceBackend:
     async def _halt(self):
         if self.task and not self.task.done():
             async with self.lock:
+                self.stop_requested = True
+                for aftermath in (self.aftermath, self.baseline_aftermath):
+                    if aftermath and aftermath.active:
+                        aftermath.finish("user_stop")
                 if not self.world.done:
                     self.world.request_stop()
                     self.phase = "stopping"
@@ -279,7 +308,9 @@ class BalanceBackend:
             await asyncio.shield(self.task)
 
     def summary(self):
-        result = self._summary(self.world, self.info, self.phase, self.error, self.controller)
+        result = self._summary(
+            self.world, self.info, self.phase, self.error, self.controller, self.aftermath
+        )
         result["run"] = self.run_id
         result["command_revision"] = self.generation
         result["policy_steps"] = getattr(self.policy, "steps", None)
@@ -287,26 +318,30 @@ class BalanceBackend:
             "enabled": self.compare,
             "phase": self.comparison_phase,
             "execution": "running"
-            if self.comparison_phase in {"running", "stopping"}
+            if self.comparison_phase in {"running", "stopping", "settling"}
             else "paused",
             "clock": "shared_task_ticks",
             "tick": self.comparison_ticks,
-            "sim_time": round(self.comparison_ticks * DT, 6),
+            "sim_time": max(result["sim_time"], self.baseline_info["seconds"]
+                            if self.compare and self.baseline_info else 0),
+            "physics_time": round(self.comparison_ticks * DT, 6),
             "disturbance": "same_seed_and_motor_targets; independent_contact_dynamics",
-            "terminal_behavior": "freeze_finished_side",
+            "terminal_behavior": "bounded_physics_after_failure; score_frozen",
             "baseline": self._summary(
                 self.baseline,
                 self.baseline_info,
                 self.baseline_phase,
                 self.baseline_error,
                 "baseline",
+                self.baseline_aftermath,
             ),
         }
         result["operation_failed"] |= self.comparison_phase == "failed"
         return result
 
     @staticmethod
-    def _summary(world, info, phase, error, controller):
+    def _summary(world, info, phase, error, controller, aftermath=None):
+        settling = bool(aftermath and aftermath.active)
         return {
             "level": world.config.level,
             "title": LEVELS[world.config.level]["title"],
@@ -323,12 +358,15 @@ class BalanceBackend:
             },
             "result": info,
             "error": error,
-            "sim_time": float(world.data.time),
+            "sim_time": info["seconds"] if world.done and info else float(world.data.time),
+            "physics_time": float(world.data.time),
+            "aftermath": aftermath.snapshot() if aftermath else None,
             "operation_failed": phase == "failed",
             "source": "MuJoCo; PPO feedback-gain inference + official gait"
             if controller != "baseline"
             else "MuJoCo; frozen official gait baseline, no task PPO",
-            "execution": "running" if phase in {"running", "stopping"} else "paused",
+            "execution": "settling" if settling else "running"
+            if phase in {"running", "stopping"} else "paused",
         }
 
     async def snapshot(self):

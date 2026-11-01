@@ -12,6 +12,7 @@ from fastapi.testclient import TestClient
 
 from duckking.app import create_app
 from duckking.balance import BalanceConfig, BalanceWorld, point_velocity
+from duckking.balance_aftermath import MAX_SECONDS, BalanceAftermath
 from duckking.balance_backend import BalanceBackend
 from duckking.balance_policy import BalancePolicy
 from duckking.balance_runs import BalanceRuns
@@ -234,7 +235,7 @@ async def test_explicit_single_side_diagnostic_does_not_animate_or_score_the_bas
     assert backend.baseline_info is None
 
 
-async def test_one_failed_side_freezes_while_the_other_continues_then_both_stop(backend):
+async def test_one_failed_side_falls_while_the_other_continues_and_stop_cancels_aftermath(backend):
     await backend.invoke({"operation": "start", "controller": "baseline"})
     # Fault injection only: place the baseline outside the rim to exercise the
     # real physical failure detector. Runtime never rewrites a robot's pose.
@@ -251,15 +252,72 @@ async def test_one_failed_side_freezes_while_the_other_continues_then_both_stop(
     state = await backend.snapshot()
     assert state["balance"]["comparison"]["execution"] == "running"
     assert state["sim_time"] > time
-    assert state["comparison"]["baseline"]["sim_time"] == time
+    assert state["comparison"]["baseline"]["sim_time"] > time
+    assert state["comparison"]["baseline"]["balance"]["sim_time"] == info["seconds"]
+    assert backend.baseline_aftermath.active
+    assert state["comparison"]["baseline"]["balance"]["execution"] == "settling"
     assert backend.baseline_info == info and not info["success"]
     await backend.stop()
     assert backend.baseline_phase == "failed"
     assert backend.phase == "cancelled"
     assert backend.summary()["comparison"]["phase"] == "cancelled"
+    assert not backend.baseline_aftermath.active
+    assert backend.baseline_aftermath.reason == "user_stop"
     time = backend.world.data.time
     await asyncio.sleep(0.15)
     assert backend.world.data.time == time
+
+
+async def test_real_rim_failure_continues_to_floor_without_changing_score_or_forcing_pose(backend):
+    await backend.invoke({"operation": "select", "level": 2, "duration_seconds": 30})
+    while not backend.world.done:
+        backend._advance_pair()
+    score = backend.info.copy()
+    assert score["seconds"] == pytest.approx(13.4)
+    assert score["rim_margin"] < 0 and not score["body_contact"]
+    joint_targets = backend.world.data.ctrl[backend.world.driver.ids].copy()
+    initial_pose = backend.world.data.qpos.copy()
+    for _ in range(round(MAX_SECONDS * 10)):
+        backend._advance_pair()
+    assert not backend._has_work()
+    assert backend.aftermath.ground_contact and backend.baseline_aftermath.ground_contact
+    assert 0 < backend.aftermath.seconds <= MAX_SECONDS
+    assert backend.info == backend.baseline_info == score
+    assert not np.allclose(initial_pose, backend.world.data.qpos)
+    np.testing.assert_array_equal(joint_targets, backend.world.data.ctrl[backend.world.driver.ids])
+    np.testing.assert_array_equal(backend.world.data.qpos, backend.baseline.data.qpos)
+    assert not np.any(backend.world.data.xfrc_applied)
+    assert not np.any(backend.world.data.qfrc_applied)
+    summary = backend.summary()
+    assert summary["sim_time"] == score["seconds"]
+    assert summary["physics_time"] > summary["sim_time"]
+    assert summary["comparison"]["sim_time"] == score["seconds"]
+    assert summary["aftermath"]["counts_toward_score"] is False
+    before = backend.world.data.time
+    backend._advance_pair()
+    assert backend.world.data.time == before
+    await backend.reset()
+    assert backend.aftermath is backend.baseline_aftermath is None
+    assert backend.world.data.time == 0
+
+
+def test_aftermath_is_bounded_even_without_a_fall_and_rejects_physics_clock_reset(
+    world, monkeypatch
+):
+    world.config = BalanceConfig(level=1)
+    world.reset(0)
+    aftermath = BalanceAftermath(world)
+    for _ in range(round(MAX_SECONDS * 10) + 1):
+        aftermath.step()
+    assert not aftermath.active and aftermath.seconds <= MAX_SECONDS
+    assert not aftermath.ground_contact
+    assert aftermath.reason == "time_limit"
+    world.reset(0)
+    aftermath = BalanceAftermath(world)
+    # Fault injection: a reset clock must not be mistaken for an endless fall.
+    monkeypatch.setattr("duckking.balance_aftermath.mujoco.mj_step", lambda *_: None)
+    with pytest.raises(FloatingPointError, match="时钟异常"):
+        aftermath.step()
 
 
 async def test_bundled_policy_comparison_finishes_with_two_measured_results(backend, tmp_path):
