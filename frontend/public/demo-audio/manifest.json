@@ -424,9 +424,19 @@
     },
     {
       "id": "table-start",
-      "text": "请开始桌上四鸭合唱表演，完成后报告真实结果。",
+      "text": "请开始桌上四鸭合唱表演。",
       "role": "预录指令",
-      "bytes": 149664,
+      "bytes": 79076,
+      "voice": "Tingting",
+      "persona": "human",
+      "rate": 205,
+      "processing": "none"
+    },
+    {
+      "id": "table-result",
+      "text": "请读取当前状态，告诉我桌上表演的真实结果。",
+      "role": "预录指令",
+      "bytes": 138520,
       "voice": "Tingting",
       "persona": "human",
       "rate": 205,

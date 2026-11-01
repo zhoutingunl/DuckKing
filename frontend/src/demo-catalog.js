@@ -23,7 +23,7 @@ export const DEMOS=[
  {id:'chorale',title:'四声部谢幕',hook:'从两条旋律，到四层和声。听见成员的加入。',scene:'duo',source:'方案 1 · 幕三',duration:'约 35 秒',
   steps:[line('chorale-intro','这次不是两只鸭唱同一个音。低音和高音先开场，中音和次中音依次加入。','旁白'),{kind:'music'},line('chorale-end','有人加入，其他成员不换声部。有人离开，留住他的席位。这就是合唱团的默契。')]},
  {id:'tabletop',title:'桌上不掉拍',hook:'四只鸭一张桌。掉下去，也要把歌唱完。',scene:'table',source:'新增桌上四鸭合唱',duration:'约 45 秒',
-  steps:[line('table-intro','四位歌手，一张桌子。请把掌声留到最后，桌子的面积有限。','旁白'),{kind:'table_music',id:'table-start',text:'请开始桌上四鸭合唱表演，完成后报告真实结果。',actions:['table_show']},line('table-end','我没掉队，只是把低音部，搬到了楼下。')]},
+  steps:[line('table-intro','四位歌手，一张桌子。请把掌声留到最后，桌子的面积有限。','旁白'),{kind:'table_music',id:'table-start',text:'请开始桌上四鸭合唱表演。',actions:['table_show']},command('table-result','请读取当前状态，告诉我桌上表演的真实结果。',[]),line('table-end','我没掉队，只是把低音部，搬到了楼下。')]},
  {id:'seated',title:'轮到我开唱',hook:'一起坐着唱，轮到谁，谁站起来。',scene:'seated',source:'新增坐姿合唱',duration:'约 45 秒',
   steps:[{kind:'seated_music'}]},
  {id:'stage',title:'黄仁勋的四只小鸭',hook:'散落、哈欠、排队。选几只翻跟头，翻完就地坐下，再让选中鸭齐舞。',scene:'stage',source:'GTC 互动桥段 · 中文改编',duration:'约 60–100 秒',

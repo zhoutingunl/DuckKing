@@ -96,7 +96,7 @@ TABLE_TOOLS = [{
     "name": "duck_table_show",
     "description": (
         "开始当前桌面上四只小鸭的合唱与踏步表演，约36秒。"
-        "等待真实物理验收：鸭D离桌、落地后站稳续舞，其他三只留桌。"
+        "本工具返回开演受理，不等于完成；之后用duck_get_status读取真实结果。"
         "音乐由浏览器播放已选曲目，不是云端生成歌声；失败时如实说明。"
     ),
     "inputSchema": {"type": "object", "properties": {}, "additionalProperties": False},
@@ -267,6 +267,7 @@ class DeviceMCP:
         self.voice = voice
         self.session_key = session_key
         self.requests: OrderedDict[str, tuple[str, asyncio.Task]] = OrderedDict()
+        self.deferred: dict[str, asyncio.Task] = {}
 
     async def handle(self, request: dict, *, observe=None) -> dict | None:
         if "id" not in request:
@@ -498,6 +499,20 @@ class DeviceMCP:
                 await self.motion.submit(action)
                 if observe:
                     observe("action_start", tool=name)
+                if name == "duck_table_show":
+                    async def finished():
+                        completed = await self.motion.wait(action.request_id)
+                        if observe:
+                            observe("action_end", tool=name, result=completed['status'])
+                    monitor = asyncio.create_task(finished())
+                    self.deferred[action.request_id] = monitor
+                    monitor.add_done_callback(
+                        lambda task: self.deferred.pop(action.request_id, None)
+                    )
+                    result = dict(self.motion.records[action.request_id])
+                    result['message'] = '开演已受理；请等待实际完成结果，不能声称演出已完成'
+                    return response | {'result': {'content': [{'type': 'text',
+                        'text': json.dumps(result, ensure_ascii=False)}], 'isError': False}}
                 try:
                     result = await self.motion.wait(action.request_id)
                 except asyncio.CancelledError:
@@ -519,6 +534,10 @@ class DeviceMCP:
             }
 
     async def close(self):
+        if self.motion.current and self.motion.current['id'] in self.deferred:
+            stopped = await self.motion.submit(Action(name='stop'))
+            await self.motion.wait(stopped['id'])
+        await asyncio.gather(*tuple(self.deferred.values()), return_exceptions=True)
         tasks = [task for _, task in self.requests.values() if not task.done()]
         for task in tasks:
             task.cancel()

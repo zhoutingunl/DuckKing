@@ -42,7 +42,10 @@ async def test_table_mcp_waits_for_real_outcome_and_records_the_voice_action(bac
         assert results[0] == results[1] and len(motion.records) == 1
         response = results[0]["result"]
         assert not response["isError"]
-        record = json.loads(response["content"][0]["text"])
+        accepted = json.loads(response["content"][0]["text"])
+        assert accepted["status"] == "running"
+        record = await motion.wait(accepted['id'])
+        await asyncio.sleep(0)
         assert record["status"] == "completed"
         assert record["outcome"]["landed_at"] > record["outcome"]["dropped_at"]
         events = [e for e in journal.events if e["event"] in {"action_start", "action_end"}]
@@ -67,11 +70,30 @@ async def test_table_mcp_rejects_wrong_scene_arguments_and_cancels(backend):
         await asyncio.sleep(0.1)
         assert backend.tabletop.running
         assert not (await mcp.handle(call(4, "duck_stop")))["result"]["isError"]
-        assert (await pending)["result"]["isError"]
+        acknowledged = (await pending)["result"]
+        assert not acknowledged['isError']  # acceptance was truthful, not completion
+        ident = json.loads(acknowledged['content'][0]['text'])['id']
+        assert (await motion.wait(ident))['status'] == 'cancelled'
         assert not backend.tabletop.running
         backend.load("ball")
         assert (await mcp.handle(call(5)))["result"]["isError"]
         assert backend.scene == "ball"
+    finally:
+        await mcp.close()
+        await motion.close()
+
+
+async def test_closing_mcp_cancels_its_accepted_table_show(backend):
+    motion = MotionController(backend)
+    mcp = DeviceMCP(motion, 'table-close')
+    try:
+        response = await mcp.handle({'jsonrpc': '2.0', 'id': 1, 'method': 'tools/call',
+            'params': {'name': 'duck_table_show', 'arguments': {}}})
+        accepted = json.loads(response['result']['content'][0]['text'])
+        assert accepted['status'] == 'running'
+        await mcp.close()
+        assert (await motion.wait(accepted['id']))['status'] == 'cancelled'
+        assert not mcp.deferred and not backend.tabletop.running
     finally:
         await mcp.close()
         await motion.close()

@@ -42,17 +42,29 @@ async function open(id,path){
  page.on('pageerror',e=>proof.page_errors.push({chapter:id,message:e.message}));
  await page.goto(new URL(`${path}?room=${room}&measurement=verification`,base).href,{waitUntil:'domcontentloaded'});await save();
 }
-async function shot(name){const file=resolve(output,name+'.png');await page.screenshot({path:file});chapter.screenshots.push({file,at_seconds:(Date.now()-started)/1000})}
+async function shot(name){
+ const file=resolve(output,name+'.png'),at_seconds=(Date.now()-started)/1000;
+ if(chapter.id!=='tabletop')await page.screenshot({path:file});
+ chapter.screenshots.push({file,at_seconds,capture:chapter.id==='tabletop'?'recorded_video_frame':'browser_screenshot'});
+}
 async function mark(name,work){const segment={name,start_seconds:(Date.now()-started)/1000};chapter.segments.push(segment);await save();console.log('Recording',name);try{await work();segment.status='completed'}catch(e){segment.status='failed';segment.error=e.message;throw e}finally{segment.end_seconds=(Date.now()-started)/1000;await save()}}
 async function close(){
  const audio=await page.evaluate(()=>window.finishRecordedAudio());chapter.audio=[];
  for(const [i,a] of audio.entries()){const file=resolve(output,`${chapter.id}-${i}.webm`);await writeFile(file,Buffer.from(a.base64,'base64'));chapter.audio.push({file,mime:a.mime,started_elapsed_seconds:(a.started_at-started)/1000})}
- const video=page.video();await page.close();chapter.video=await video.path();chapter.finished_at=new Date().toISOString();await save();
+ const video=page.video();await page.close();chapter.video=await video.path();
+ if(chapter.id==='tabletop'){
+  const seconds=Number(execFileSync('ffprobe',['-v','error','-show_entries','format=duration','-of','default=noprint_wrappers=1:nokey=1',chapter.video],{encoding:'utf8'}));
+  const offset=chapter.segments.at(-1).end_seconds-seconds;
+  for(const shot of chapter.screenshots)execFileSync('ffmpeg',['-y','-loglevel','error','-ss',String(Math.min(seconds-.05,Math.max(0,shot.at_seconds-offset))),'-i',chapter.video,'-frames:v','1',shot.file]);
+ }
+ chapter.finished_at=new Date().toISOString();await save();
 }
 try{
  const rooms=await request('api/rooms'),active=rooms.rooms.find(r=>r.id===room);
  if(!active||active.voice_busy||active.viewers)throw Error('Recording room is in use; select an idle bound room');
  const before=await request(`api/voice/statistics?room=${room}&backend=mujoco`);proof.before_turns=before.rounds.map(r=>r.turn);
+ const beforeDiagnostics=await request(`api/voice/diagnostics?room=${room}`);
+ const beforeEvent=beforeDiagnostics.events.at(-1)?.id??0;
  await open('tabletop','demos.html');await expect(page.locator('[data-demo]')).toHaveCount(13);
  await page.selectOption('#demo-mode','live');
  await mark('live-tabletop-two-tigers',async()=>{
@@ -67,7 +79,11 @@ try{
  });await close();
  const after=await request(`api/voice/statistics?room=${room}&backend=mujoco`);
  proof.new_rounds=after.rounds.filter(r=>!proof.before_turns.includes(r.turn));
+ if(proof.new_rounds.length<2||proof.new_rounds.some(r=>r.status!=='completed'))throw Error('Cloud rounds did not all finish normally');
+ const diagnostics=await request(`api/voice/diagnostics?room=${room}`);
+ proof.cloud_tool_events=diagnostics.events.filter(e=>e.id>beforeEvent&&['tool_start','tool_end','action_start','action_end'].includes(e.event));
  if(!proof.new_rounds.some(r=>r.actions.some(a=>a.tool==='duck_table_show'&&a.result==='completed')))throw Error('Missing real table tool action in statistics');
+ if(!proof.cloud_tool_events.some(e=>e.event==='tool_end'&&e.tool==='duck_get_status'&&e.result==='ok'))throw Error('Missing real status query after the show');
  await open('experience','experience.html');await expect(page.locator('#experience-updated')).not.toBeEmpty();
  for(const [name,value] of [['hours','1'],['traffic','verification'],['page','demos'],['room',room],['backend','mujoco']])await page.selectOption(`select[name="${name}"]`,value);
  await page.locator('#refresh-experience').click();await expect(page.locator('#browser-experience')).toContainText('灵矽',{timeout:20000});

@@ -2,7 +2,7 @@ import {measurement,loadMetrics,afterFrame} from './experience.js';
 import './style.css';
 import './demos.css';
 import { DEMOS, ACTION_NAMES, AUDIO_VERSION } from './demo-catalog.js';
-import { DemoRun, DemoVoice, api, action, until, pause, pcmWave, stopped, matchesCloudActions } from './demo-runtime.js';
+import { DemoRun, DemoVoice, api, action, waitAction, until, pause, pcmWave, stopped, matchesCloudActions } from './demo-runtime.js';
 import { VoiceAudio } from './audio-output.js';
 import { physicsView } from './physics-view.js';
 import { createPhysicsModelLoader } from './model-loader.js';
@@ -191,6 +191,21 @@ async function command(run,room,step){
     for(const name of step.actions)await perform(run,room,name,name==='stage_roll'?{member:'selected'}:{});
   }
 }
+async function liveTableShow(run,step){
+  const room=currentRoom,voice=await voiceFor(run,room);
+  const state=await api('api/scenes/state',room,{signal:run.signal}),before=state.events.at(-1)?.id??0;
+  const pcm=await speak(step.id,step.text,'预录指令 → 灵矽',run,{wait:false});
+  await voice.turn(pcm,run.signal);
+  const accepted=await api('api/scenes/state',room,{signal:run.signal});
+  const ids=accepted.events.filter(e=>e.id>before&&e.kind==='action').map(e=>e.action_id);
+  const records=await Promise.all(ids.map(id=>api('api/scenes/actions/'+id,room,{signal:run.signal})));
+  const shows=records.filter(r=>r.name==='table_show');
+  if(shows.length!==1||records.some(r=>!['table_show','stop'].includes(r.name)))throw Error('本轮未取得唯一的灵矽开演动作；不会补造本地表演');
+  entry('灵矽开演已受理；等待实际物理结果','running');
+  const result=await waitAction(room,shows[0],run.signal);run.results.push({...result,room});
+  if(result.status!=='completed')throw Error(result.error??'灵矽开演后的物理验收未完成');
+  entry('灵矽开演动作 · 实际物理表演已完成');return result;
+}
 async function interrupt(run,step){
   const room=currentRoom,next=step.next??'nod';let old;
   const initial=await api('api/scenes/state',room,{signal:run.signal}),baseline=initial.events.at(-1)?.id??0;
@@ -267,11 +282,7 @@ async function runStep(run,step){
     const tracks=tableTracks??await loadBuiltinSong($('table-song').value,output.context(),run.signal),offset=Number($('table-offset').value);checkOffset(tracks,offset);
     $('table-panel').hidden=false;$('table-song-title').textContent=tracks?(tracks.title??'本机音源 · '+tracks.names.join(' / ')):'桌边的星光 · 独立原创练声曲';
     message(tracks?.notes?'熟悉旋律 · 本地合成四声部':tracks?(tracks.title?'预录歌曲 · 四鸭物理编排':'本机歌曲 · 四鸭物理编排'):'独立原创曲 · 本地合成',tracks?.description??'四位歌手，请留意脚下的舞台。');
-    const movement=run.live?command(run,currentRoom,step).then(()=>{
-      const result=run.results.findLast(r=>r.name==='table_show');
-      if(!result||result.status!=='completed')throw Error('未取得本轮灵矽桌上合唱完成结果');
-      return result;
-    }):perform(run,currentRoom,'table_show');
+    const movement=run.live?liveTableShow(run,step):perform(run,currentRoom,'table_show');
     const music=(async()=>{
     // STT/tool selection may take longer than the music player's startup bound.
     // Only the actual running physics state can start the browser soundtrack.
