@@ -1,3 +1,4 @@
+import './site-nav.js';
 import './style.css';
 import './statistics.css';
 import './experience.css';

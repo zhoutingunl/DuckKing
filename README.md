@@ -29,10 +29,10 @@
 | 页面 | 可以做什么 |
 |---|---|
 | [语音工作台](https://ztmonitor.qbox.net/duckking/) | 点头、摇头、歪头、前后移动、横移、左右转、两个舞步；连接语音或选择本地优先 |
-| [物理实验室](https://ztmonitor.qbox.net/duckking/scenarios.html) | 单鸭踢球、双鸭互动、嘴部搬运、动作练习场、轮滑；按钮无需启用语音 |
+| [动作训练场](https://ztmonitor.qbox.net/duckking/scenarios.html) | 单鸭踢球、双鸭互动、嘴部搬运、动作练习场、轮滑；按钮无需启用语音 |
 | [演示场景](https://ztmonitor.qbox.net/duckking/demos.html) | 十三幕逐幕点播；预录对白本地编排与灵矽实连预录指令可现场切换 |
 | [现场互动工坊](https://ztmonitor.qbox.net/duckking/studio.html) | 十项语音任务、本地排练、临场改序与任务控制；真人语音固定走灵矽，见 [使用说明](docs/INTERACTIVE_STUDIO.md) |
-| [训练新动作](https://ztmonitor.qbox.net/duckking/training.html) | 选择转盘或跷跷板；语音发起挑战、查看 PPO 训练过程，跷跷板支持真人控制左鸭与 AI PK |
+| [训练新动作](https://ztmonitor.qbox.net/duckking/training.html) | 选择转盘或跷跷板；语音发起挑战、查看 PPO 训练过程，跷跷板可语音或方向键（←前进、→后退、↓站定）控制左鸭并选择辅助站定，与 AI PK；转盘和跷跷板均默认每轮随机、左右同初态 |
 | [语音平衡教练（实验）](https://ztmonitor.qbox.net/duckking/balance.html) | 同种子左右对照、三关旋转倾斜圆盘、6–33 秒试跑、真实 CPU PPO 训练记录和函数课堂；[学习范围与限制](docs/PPO_BALANCE_COACH.md) |
 | [语音跷跷板教练（实验）](docs/SEESAW_COACH.md) | `seesaw.html`：鸭子压板引导自由配重滑动、反向制动并停靠；板面与配重均无电机；语音／手动探索、真人或回中规则与任务 PPO 对照、实际训练曲线 |
 | [转盘 PPO 教学说明](http://aiops.qbox.net/files/0d187b39c88d5359/balance_ppo_explainer.html) | 面向无 AI 背景读者的自包含单页文档：RL 与 PPO 预备知识 → 转盘物理 → 观测/动作/奖励 → PPO 与 GAE → 真实训练曲线与诚实的边界；含 18 张内联图与 16 个公式块，[在线永久链接](http://aiops.qbox.net/files/0d187b39c88d5359/balance_ppo_explainer.html) |
@@ -177,7 +177,7 @@ uv run duckking-setup --room 2
 | 第 2 关 | 0/100 | 89/100 | 有提升，尚未达到连续两次验证 ≥90% 的门槛 |
 | 第 3 关 | 0/100 | 59/100 | 仍不稳定，不能承诺可靠通关 |
 
-以上为 2026-11-01 原训练环境的离线测试，不是在线观众成功率。在线试跑支持 6–33 秒；改变时长不会重新训练，也不能沿用 13 秒成功率。失败侧保留判分成绩，继续展示最多 4 秒实际跌落／接触过程，再定格；另一侧可以继续。停盘属于人为干预，不计通关。
+以上为 2026-11-01 原训练环境的离线测试，不是在线观众成功率。现场演示按关卡目标验收：第一关站稳，第二关保持朝向（无回中心要求），第三关回到盘面红色目标区（半径8 cm）并连续保持1秒到结束。原训练曲线保留三关都需回中心、第2、3关都需保持朝向的严格标准。在线试跑支持 6–33 秒；改变时长不会重新训练，也不能沿用 13 秒成功率。失败侧保留判分成绩，继续展示最多 4 秒实际跌落／接触过程，再定格；另一侧可以继续。停盘属于人为干预，不计通关。
 
 页面提供真实训练曲线、奖励分量、PPO 参数说明和原始记录；公网展示已有记录，默认不接受新训练任务。完整配置、哈希、种子和限制见 [平衡教练](docs/PPO_BALANCE_COACH.md) 与 [CPU 实测](training/results/README.md)。本次视频的单轮结果单独记录，不混入上述 100 种子统计。
 
@@ -194,7 +194,7 @@ uv run duckking --backend robotd --socket ~/.cache/duck-sim/duck-a.sock
 
 `DUCKKING_SIM_DIR` 可指定外部资源目录，`DUCK_SIM_VIEWER=0` 可无窗口运行。首页此时仍是动画示意，真实物理画面查看官方 MuJoCo 窗口；不在适配失败时切回预览。适配器已做仿真联调，未做实体机器人测试。
 
-Linux 在 YZH737 上使用独立 DuckKing / ASR systemd 服务，现通过 `http://duck.qbox.net/` 的前置 OpenResty 直连 8765，提供页面、API 与原生 WebSocket，不经过 ai_gateway。直连配置在升级后保留；浏览器麦克风仍需要独立 HTTPS 入口。原有 `ztmonitor.qbox.net` 网关接入方式保留在部署指南中。发布包带固定模型、来源与 SHA-256；安装自检、公网检查、真实语音验收分别记录，暂存不等于验收成功。步骤见 [部署指南](deploy/README.md)。
+Linux 在 YZH737 上使用独立 DuckKing / ASR systemd 服务，现通过 `https://duck.qbox.net/` 的前置 OpenResty 直连 8765，提供页面、API 与原生 WebSocket，不经过 ai_gateway。直连配置在升级后保留，浏览器麦克风使用该域名的 HTTPS 安全上下文。原有 `ztmonitor.qbox.net` 网关接入方式保留在部署指南中。发布包带固定模型、来源与 SHA-256；安装自检、公网检查、真实语音验收分别记录，暂存不等于验收成功。步骤见 [部署指南](deploy/README.md)。
 
 ## 开发检查与文档
 

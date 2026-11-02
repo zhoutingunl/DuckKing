@@ -1,6 +1,24 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { DuckSocket } from '../src/transport.js';
+import {readFileSync} from 'node:fs';
+import {runInNewContext} from 'node:vm';
+
+test('certificated public entries upgrade HTTP while preserving page, room and fragment',()=>{
+ const source=readFileSync(new URL('../public/secure-entry.js',import.meta.url),'utf8');
+ for(const href of ['http://duck.qbox.net/','http://duck.qbox.net/balance.html?room=4#results',
+   'http://ztmonitor.qbox.net/duckking','http://ztmonitor.qbox.net/duckking/seesaw.html?room=6#controls']){
+   const redirects=[];
+   runInNewContext(source,{URL,window:{location:{href,replace:url=>redirects.push(url)}}});
+   assert.deepEqual(redirects,[href.replace(/^http:/,'https:')]);
+ }
+ for(const href of ['https://duck.qbox.net/','http://127.0.0.1:8898/seesaw.html',
+   'http://localhost:5173/','http://192.168.1.10/','http://custom.test/',
+   'http://ztmonitor.qbox.net/','http://ztmonitor.qbox.net/duckking-other/',
+   'http://duck.qbox.net.evil.test/','http://duck.qbox.net:8898/']){
+   runInNewContext(source,{URL,window:{location:{href,replace:()=>assert.fail(`unexpected redirect: ${href}`)}}});
+ }
+});
 
 const tick=()=>new Promise(resolve=>setTimeout(resolve,25));
 const until=async predicate=>{for(let i=0;i<100;i++){if(predicate())return;await tick()}assert.fail('timed out')};

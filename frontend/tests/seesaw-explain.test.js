@@ -1,6 +1,17 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {outcome,humanStatus,trainingMatches} from '../src/seesaw-explain.js';
+import {outcome,humanStatus,humanMotion,trainingMatches} from '../src/seesaw-explain.js';
+
+test('issued direction never masks measured drift or calls zero speed stationary',()=>{
+ const state={mode:'duel',human_command:{direction:'forward',actual_motion:'backward',actual_speed_m_s:-.08}};
+ assert.match(humanMotion(state),/前进指令；实际向后 8.0 cm\/s/);
+ state.human_command.direction='hold';
+ assert.match(humanMotion(state),/零速指令 · 未辅助；实际向后/);
+ state.human_command.assist_enabled=true;
+ assert.match(humanMotion(state),/辅助站定 · 小步纠偏；实际向后/);
+ state.human_command.actual_motion='paused';
+ assert.match(humanMotion(state),/物理已暂停/);
+});
 
 test('human PK preserves terminal results and reports each side independently',()=>{
  const state={mode:'duel',execution:'running',comparison:{execution:'paused',phase:'failed',measurement:{edge_margin_m:-.01}}};

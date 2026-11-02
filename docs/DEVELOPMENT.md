@@ -4,7 +4,7 @@
 
 ## YZH737 直接入口
 
-访问 `http://duck.qbox.net/`，由前置 OpenResty 直连 YZH737:8765，页面、API 与原生 WebSocket 不经过 ai_gateway。后端 Host 白名单包含 `duck.qbox.net`。服务器以 systemd drop-in 监听 `0.0.0.0:8765`，允许指定 IP / 域名且保留同源检查；配置与回滚见 [部署指南](../deploy/README.md#直接访问-8765)。HTTP 直连可使用页面和动作控制，但浏览器麦克风需要独立 HTTPS 安全上下文。
+访问 `https://duck.qbox.net/`，由前置 OpenResty 直连 YZH737:8765，页面、API 与原生 WebSocket 不经过 ai_gateway。后端 Host 白名单包含 `duck.qbox.net`。服务器以 systemd drop-in 监听 `0.0.0.0:8765`，允许指定 IP / 域名且保留同源检查；配置与回滚见 [部署指南](../deploy/README.md#直接访问-8765)。该域名通过 HTTPS 提供浏览器麦克风所需的安全上下文；裸域名的 HTTP 页面会自动转到 HTTPS。本地与局域网 HTTP 开发地址不受此跳转影响。
 
 ## 原有 YZH737 HTTPS 网关入口
 
@@ -147,6 +147,8 @@ tail -n 50 ~/.local/share/duckking/voice.jsonl
 浏览器自动化测试使用 `.duckking/browser-tests/` 的独立数据目录和无云端凭证的本地测试配置，不把协议替身记录混入用户的语音日志。
 
 ## 移动端声音排查
+
+点击连接时立即向浏览器申请麦克风，再加载录音组件；不会等待灵矽连接完成后才申请。授权或组件准备超过 12 秒时会停止等待，在语音卡片内保留具体原因并显示「重新启用麦克风」，可直接重试，无需刷新页面。录音组件单次加载另有 10 秒上限。拒绝授权、断开、超时后迟到的授权结果都会释放音轨；未按住说话时输入保持静音。浏览器权限请求可能一直不返回，参见 [getUserMedia 文档](https://developer.mozilla.org/en-US/docs/Web/API/MediaDevices/getUserMedia)。
 
 麦克风权限只说明可以采集输入；小鸭能执行语音命令，不代表手机已经允许或正确路由回复声音。iPhone 的 Chrome / 企业微信中，刷新到当前版本后，在页面前台点「启用 / 测试声音」。这个按钮播放本地短提示音，无需连接灵矽，不上传录音。
 

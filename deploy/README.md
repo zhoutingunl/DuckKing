@@ -37,7 +37,9 @@ bash scripts/install_release.sh <archive> <sha256> <tag> <完整commit>
 
 ## 直接访问 8765
 
-对外入口为 `http://duck.qbox.net/`：域名指向前置 OpenResty（OR），OR 上游为 YZH737 的 `8765`，不经过 ai_gateway。应用启动参数必须包含 `--allowed-host duck.qbox.net`；仅开放监听地址仍会返回 `Invalid host header`。OR 应保留 Host / Origin，并传递 WebSocket Upgrade / Connection。
+对外入口为 `https://duck.qbox.net/`：域名指向前置 OpenResty（OR），OR 上游为 YZH737 的 `8765`，不经过 ai_gateway。应用启动参数必须包含 `--allowed-host duck.qbox.net`；仅开放监听地址仍会返回 `Invalid host header`。OR 应保留 Host / Origin，并传递 WebSocket Upgrade / Connection。
+
+分享链接时使用完整的 HTTPS 地址。微信内打开裸域名可能进入 HTTP；此前体验统计直接调用仅安全上下文可用的 `crypto.randomUUID()`，会中断模型初始化。当前构建在应用模块启动前，将 `duck.qbox.net` 的 HTTP 页面自动切换为 HTTPS，保留页面、房间参数和锚点；同时兼容旧的 `ztmonitor.qbox.net/duckking/` 页面入口。不修改 ai_gateway 的其他页面，也不重定向 localhost、局域网地址或自定义端口。请求与统计 ID 同时兼容只有 `crypto.getRandomValues()` 的环境；远程 HTTP 页面仍不能因此获得麦克风权限。
 
 也可从获准的网络访问 `http://<服务器IP>:8765/`。路径从 `/` 开始，不带 `/duckking/`。页面、API 和原生 WebSocket 都由 DuckKing 提供。ASR worker 仍只监听 `127.0.0.1:8768`。
 
@@ -53,8 +55,8 @@ ss -ltn 'sport = :8765'
 从服务器外部检查健康状态，并使用当前 `release.json` 的完整提交运行验收：
 
 ```sh
-curl --fail http://duck.qbox.net/api/health
-python scripts/release_smoke.py --url http://duck.qbox.net/ --commit <运行中的完整commit>
+curl --fail https://duck.qbox.net/api/health
+python scripts/release_smoke.py --url https://duck.qbox.net/ --commit <运行中的完整commit>
 ```
 
 验收包含页面资源、状态与语音 WebSocket 握手、有界停止动作；不表示真实云端语音已通过。非 localhost 的 HTTP 页面不具备浏览器麦克风所需的安全上下文；需要网页录音时，应在独立 HTTPS 入口直接代理 DuckKing 并保留 WebSocket Upgrade，无需经过 ai_gateway。
@@ -64,6 +66,8 @@ python scripts/release_smoke.py --url http://duck.qbox.net/ --commit <运行中�
 2026-11-02 配置验证：运行版本仍为 `deploy-yzh737-20261102T065603Z`（`3f943bf26a08bc9b719bb9af929b4d328aeccbb6`），systemd 配置校验通过，监听为 `0.0.0.0:8765`。在 YZH737 上通过非 loopback 网卡地址运行完整 release smoke，页面资源、原生状态/语音 WebSocket 握手与有界停止均通过；错误 Host 返回 400，跨来源写请求返回 403。ASR 保持 `127.0.0.1:8768`，ai_gateway 的 18345 监听进程未变。操作端电脑直连各公网 IP 及私网 IP 的 8765 均超时，未将服务器自检记作外部连通成功，也未验收真实云端语音。
 
 随后接入 `duck.qbox.net`：初次访问返回 400 `Invalid host header`，在上述 drop-in 追加 `--allowed-host duck.qbox.net` 并重启后，操作端电脑通过 OR 访问首页与健康 API 返回 200。release smoke 的页面和资源阶段通过，但原生 WebSocket 握手返回 404，完整验收未通过；需要核对 OR 的 WebSocket 转发。不能将页面恢复记作语音/状态连接已恢复。
+
+2026-11-03 复核：`https://duck.qbox.net/` 的首页、模型资源可用，`wss://duck.qbox.net/` 下 `ws`、`scene-ws`、`voice`、`scene-voice` 均完成握手并返回对应状态消息，早先的握手 404 未再复现。该检查不包含真实灵矽识别与合成语音验收。
 
 OR 的现有代理 location 需要包含以下设置，并保留既有访问保护；修改后先校验配置再平滑 reload：
 

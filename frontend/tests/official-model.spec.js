@@ -1,5 +1,16 @@
 import { test, expect } from '@playwright/test';
 
+test('missing secure-context UUID API does not block the official model or action submission',async({page})=>{
+ const errors=[];page.on('pageerror',e=>errors.push(e.message));
+ await page.addInitScript(()=>Object.defineProperty(crypto,'randomUUID',{configurable:true,value:undefined}));
+ await page.goto('/?room=1');
+ await expect(page.locator('#viewport')).toHaveAttribute('data-model','official',{timeout:45000});
+ const submission=page.waitForRequest(r=>new URL(r.url()).pathname==='/api/actions'&&r.method()==='POST');
+ await page.locator('[data-action="nod"]').click();
+ expect((await submission).postDataJSON().request_id).toMatch(/^[0-9a-f-]{36}$/);
+ expect(errors).toEqual([]);
+});
+
 test('homepage loads the official rig and still labels scripted motion as preview',async({page},testInfo)=>{
   test.setTimeout(60000);
   const errors=[];page.on('pageerror',e=>errors.push(e.message));

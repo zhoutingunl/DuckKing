@@ -30,7 +30,7 @@ export function physicsView(container,{label=null,onCameraChange}={}) {
   const grid=new THREE.GridHelper(8,80,0xcbd6bd,0xe0e6d7);grid.position.y=.0001;scene.add(grid);
   const world=new THREE.Group();world.rotation.x=-Math.PI/2;scene.add(world);
   let objects=new Map(),labels=new Map(),textures=[],geometries=[],materials=[],revision=null;
-  let renderBatches=[],readyToRender=false,headingGuide=null;
+  let renderBatches=[],readyToRender=false,headingGuide=null,centerGuide=null;
   const appearance=appearanceControls(container,repaint);
   function repaint(){
     for(const {object,geoms} of renderBatches){
@@ -80,6 +80,28 @@ export function physicsView(container,{label=null,onCameraChange}={}) {
       renderer.domElement.setAttribute('aria-label','官方 MicroDuck 模型，位置与关节姿态来自 MuJoCo'+(active?'；地面蓝色目标朝向标记固定在圆盘外，躯干应沿箭头方向保持朝向':''));
     }
   }
+  function updateCenterGuide(state){
+    const target=state.scene==='balance'&&state.balance?.level===3?state.center_target:null;
+    if(target&&!centerGuide){
+      centerGuide=new THREE.Group();centerGuide.matrixAutoUpdate=false;world.add(centerGuide);
+      // The fill and its inner boundary both use the physical target radius.
+      // This is paint on the moving disc, with no collision geometry.
+      for(const [geometry,opacity] of [[new THREE.CircleGeometry(1,64),.24],[new THREE.RingGeometry(.95,1,64),1]]){
+        const material=new THREE.MeshBasicMaterial({color:0xc04929,transparent:true,opacity,side:THREE.DoubleSide,depthWrite:false});
+        const mesh=new THREE.Mesh(geometry,material);mesh.renderOrder=8;centerGuide.add(mesh);geometries.push(geometry);materials.push(material);
+      }
+    }
+    if(centerGuide){
+      if(centerGuide.visible!==Boolean(target)){centerGuide.visible=Boolean(target);invalidate()}
+      if(target){
+        const r=target.rotation,p=target.position,s=target.radius_m;
+        instanceMatrix.set(r[0]*s,r[1]*s,r[2],p[0],r[3]*s,r[4]*s,r[5],p[1],r[6]*s,r[7]*s,r[8],p[2],0,0,0,1);
+        if(!centerGuide.matrix.equals(instanceMatrix)){centerGuide.matrix.copy(instanceMatrix);centerGuide.matrixWorldNeedsUpdate=true;invalidate()}
+      }
+    }
+    container.dataset.centerTarget=target?String(target.radius_m):'none';
+    container.dataset.centerSurface=target?'disc':'none';
+  }
   const setVisibility=()=>scheduler?.visible(visible&&!document.hidden);
   const visibility=new IntersectionObserver(entries=>{visible=entries[0]?.isIntersecting??true;setVisibility()});visibility.observe(renderer.domElement);
   document.addEventListener('visibilitychange',setVisibility);
@@ -87,10 +109,12 @@ export function physicsView(container,{label=null,onCameraChange}={}) {
     // Geometry disposal does not release InstancedMesh's matrix/colour buffers.
     for(const {object} of renderBatches)object.dispose();
     world.clear();geometries.forEach(g=>g.dispose());materials.forEach(m=>m.dispose());textures.forEach(t=>t.dispose());
-    geometries=[];materials=[];textures=[];renderBatches=[];readyToRender=false;revision=null;latest=null;selection=null;headingGuide=null;
+    geometries=[];materials=[];textures=[];renderBatches=[];readyToRender=false;revision=null;latest=null;selection=null;headingGuide=null;centerGuide=null;
     objects.clear();labels.clear();renderer.renderLists.dispose();appearance.setDucks([]);delete container.dataset.renderedScene;
     delete container.dataset.headingTarget;
     delete container.dataset.headingSurface;
+    delete container.dataset.centerTarget;
+    delete container.dataset.centerSurface;
     renderer.shadowMap.needsUpdate=true;invalidate();
   }
   function load(model){
@@ -138,6 +162,7 @@ export function physicsView(container,{label=null,onCameraChange}={}) {
     if(state.stage&&(selection?.instance!==state.stage.instance||state.stage.selection_version>selection.selection_version)){selection=state.stage;invalidate()}
     if(state.revision!==revision)return;
     updateHeadingGuide(state);
+    updateCenterGuide(state);
     for(const duck of state.ducks){
       if(!labels.has(duck.id)){
         const canvas=document.createElement('canvas');canvas.width=192;canvas.height=72;paintLabel(canvas,duck.id);

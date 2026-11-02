@@ -53,3 +53,13 @@ test('visible outcome waits for measured contact and clears for a new run',()=>{
  assert.equal(balanceOutcome({phase:'completed'}).title,'挑战成功');
  assert.equal(balanceOutcome({phase:'cancelled'}).title,'已停止');
 });
+
+test('failure copy names only the goal for that level and reports hold time without rounding to a pass',()=>{
+ const r={reason:'criteria_not_met',radius:.2,center_hold:.98,heading_fraction:.84,disk_stopped:true};
+ assert.doesNotMatch(balanceFailureReason(r,1),/8 cm|保持|朝向/);
+ assert.match(balanceFailureReason(r,2),/84.0%（需至少85%）/);
+ assert.doesNotMatch(balanceFailureReason(r,2),/中心|保持/);
+ assert.match(balanceFailureReason(r,3),/不足1.0秒/);
+ assert.doesNotMatch(balanceFailureReason(r,3),/朝向/);
+ assert.match(balanceOutcome({phase:'failed',level:3,result:r}).detail,/需至少1秒/);
+});

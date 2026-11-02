@@ -23,7 +23,14 @@ export class VoiceAudio {
     return this.ctx;
   }
   captureWorklet(url){
-    this.workletReady??=this.context().audioWorklet.addModule(url).catch(error=>{this.workletReady=null;throw error});
+    if(!this.workletReady){
+      let timer;
+      const pending=Promise.race([this.context().audioWorklet.addModule(url),new Promise((_,reject)=>{
+        timer=setTimeout(()=>reject(new Error('录音组件加载超时，请重新启用麦克风。')),10000);
+      })]).catch(error=>{if(this.workletReady===pending)this.workletReady=null;throw error})
+        .finally(()=>clearTimeout(timer));
+      this.workletReady=pending;
+    }
     return this.workletReady;
   }
   get busy(){return this.pending.length>0||[...this.sources.values()].some(local=>!local)}

@@ -1,3 +1,4 @@
+import './site-nav.js';
 import './style.css';
 import './balance.css';
 import {physicsView} from './physics-view.js';
@@ -7,7 +8,7 @@ import {setupRoom} from './room.js';
 import {appURL,currentRoom} from './urls.js';
 import {sceneStateFeed} from './scene-state-feed.js';
 import {api} from './demo-runtime.js';
-import {rewardTerms,hyperparameters,observationGroups,metricLabels,ppoSymbols,clippedExample,compatibleRuns,balanceFailureReason,balanceOutcome} from './balance-explain.js';
+import {rewardTerms,hyperparameters,observationGroups,metricLabels,ppoSymbols,clippedExample,compatibleRuns,balanceFailureReason,balanceOutcome,balanceHoldTime} from './balance-explain.js';
 import {drawChart} from './balance-chart.js';
 import {measurement,loadMetrics,afterFrame} from './experience.js';
 
@@ -15,6 +16,7 @@ const $=id=>document.getElementById(id),titles=['跟着圆盘站稳','转盘转�
 let level=1,observedLevel=1,levelChosen=false,viewer,baselineViewer,lastBackend,ready=false,loading=false,selectedRun='',records=[],detail=null,sample=null,sampleStep=null,term='center',stateFeed,timer,closed=false,revision=null;
 let lastStateKey='',lastObservation=null,lastObservationAt=0,detailKey=null,optionsKey='';
 let settingsKey='',seedEdited=false,durationEdited=false,preparing=false;
+let needsSwitch=false,prepareFailed=false;
 const lifetime=new AbortController();
 window.addEventListener('pagehide',()=>{
  closed=true;lifetime.abort();clearInterval(timer);stateFeed?.close();viewer?.dispose();baselineViewer?.dispose();
@@ -29,15 +31,20 @@ await setupRoom();
 const voice=setupVoice({appendLog,notify,endpoint:'scene-voice',cloudOnly:true});
 function controls(){
  $('start-challenge').disabled=!ready||loading||!stateFeed?.fresh();$('stop-balance').disabled=!ready;
- $('prepare-balance').disabled=loading;$('prepare-balance').textContent=ready?'圆盘已准备 · 重新加载':'准备圆盘';
+ $('prepare-balance').disabled=loading;$('prepare-balance').textContent=preparing?'正在准备圆盘…':needsSwitch?'切换为圆盘':prepareFailed?'重试准备圆盘':ready?'圆盘已准备 · 重新加载':'准备圆盘';
  document.querySelectorAll('[data-level]').forEach(b=>{b.disabled=loading;b.setAttribute('aria-pressed',String(Number(b.dataset.level)===level))});
- for(const id of ['controller','challenge-seed','challenge-duration'])$(id).disabled=loading;
+ for(const id of ['controller','fixed-seed','challenge-duration'])$(id).disabled=loading;
+ $('challenge-seed').disabled=loading||!$('fixed-seed').checked;
+ $('connect-voice').disabled=(!ready||loading)&&!['connecting','recovering','interrupting','ready','listening','thinking','speaking'].includes(voice.state)||voice.state==='disconnecting';
 }
-function validSettings(){return ['challenge-seed','challenge-duration'].every(id=>$(id).reportValidity())}
-function formSettings(){return {seed:Number($('challenge-seed').value),duration_seconds:Number($('challenge-duration').value)}}
+window.addEventListener('duckking-voice-state',controls,{signal:lifetime.signal});
+function validSettings(){return $('challenge-duration').reportValidity()&&(!$('fixed-seed').checked||$('challenge-seed').reportValidity())}
+function formSettings(){return {...($('fixed-seed').checked?{seed:Number($('challenge-seed').value)}:{}),duration_seconds:Number($('challenge-duration').value)}}
+$('fixed-seed').addEventListener('change',controls);
 function durationNote(){
  const input=$('challenge-duration'),seconds=Number(input.value);
- $('duration-note').textContent=input.validity.valid?`${seconds} 秒仿真：${seconds-3} 秒扰动＋3 秒减速；失稳会提前结束。${seconds===13?'与训练评估时长一致。':'自定义试跑，训练成功率仍仅对应 13 秒。'}`:'请输入 6–33 秒的整数，包含最后 3 秒减速。';
+ $('duration-note').textContent=input.validity.valid?`${seconds} 秒仿真：${seconds-3} 秒扰动＋3 秒减速；失稳会提前结束。训练曲线使用原13秒严格标准，与演示通关条件不同。`:'请输入 6–33 秒的整数，包含最后 3 秒减速。';
+ $('center-deadline').textContent=input.validity.valid?`若本轮运行${seconds}秒，最迟须在${seconds-1}秒进入目标区，并一直保持到结束。`:'';
 }
 for(const id of ['challenge-seed','challenge-duration'])$(id).addEventListener('input',()=>{
  if(id==='challenge-seed')seedEdited=true;else{durationEdited=true;durationNote()}
@@ -51,10 +58,13 @@ function renderSide(b,prefix,status){
  $(prefix+'-radius').textContent=current?`${(current.radius*100).toFixed(1)} cm`:'—';
  $(prefix+'-contact').textContent=current?`${current.contacts} / 2 脚`:'—';
  $(prefix+'-time').textContent=`${b.sim_time.toFixed(1)} s`;
- const reason=balanceFailureReason(r);
+ $(prefix+'-goal-fact').hidden=b.level===1;
+ $(prefix+'-goal-label').textContent=b.level===3?'目标区内连续保持（需≥1秒）':'朝向达标率（需≥85%）';
+ $(prefix+'-goal-value').textContent=b.level===3?`${balanceHoldTime(r?.center_hold)} s`:Number.isFinite(r?.heading_fraction)?`${(r.heading_fraction*100).toFixed(1)}%`:'—';
+ const reason=balanceFailureReason(r,b.level);
  const phases={idle:'等待指令',running:'挑战中',stopping:'正在减速停盘',completed:'挑战成功',failed:'挑战失败',cancelled:'已停止 · 人为干预不计成功'};
  const physical=a?` · ${settling?'后续物理展示中':'画面已定格'} ${a.seconds.toFixed(1)} s（不计成绩）`:(terminal?' · 画面已定格':'');
- $(status).textContent=`${phases[b.phase]??b.phase}${reason?' · '+reason:''}${r?` · ${terminal?'判分时':''}朝向达标 ${(r.heading_fraction*100).toFixed(0)}% · 脚边缘余量 ${(r.rim_margin*100).toFixed(1)} cm`:''}${physical}${b.error?' · '+b.error:''}`;
+ $(status).textContent=`${phases[b.phase]??b.phase}${reason?' · '+reason:''}${r?` · ${terminal?'判分时':''}脚边缘余量 ${(r.rim_margin*100).toFixed(1)} cm`:''}${physical}${b.error?' · '+b.error:''}`;
  $(status).dataset.phase=b.phase;
  const outcome=balanceOutcome(b),banner=$(prefix+'-result');banner.hidden=!outcome;
  if(outcome){banner.dataset.state=outcome.state;banner.querySelector('strong').textContent=outcome.title;banner.querySelector('span').textContent=outcome.detail}
@@ -71,6 +81,7 @@ function renderState(state){
  const nextSettings=JSON.stringify([state.revision,b.command_revision,b.level,b.seed,b.duration_seconds]);
  if(settingsKey!==nextSettings){
   settingsKey=nextSettings;$('challenge-seed').value=b.seed;$('challenge-duration').value=b.duration_seconds??13;
+  if(b.phase!=='idle')$('controller').value=b.controller;
   seedEdited=durationEdited=false;durationNote();
  }
  $('seed-summary').textContent=b.seed_info?`本轮种子 ${b.seed} · 俯视${b.seed_info.rotation==='counterclockwise'?'逆时针':'顺时针'}旋转 · 盘面摩擦系数 ${b.seed_info.friction.toFixed(2)}`:'';
@@ -82,22 +93,24 @@ function renderState(state){
  const phases={idle:'等待同时开始',running:'同步挑战中',stopping:'两侧正在减速',settling:'判分结束 · 正在显示后续物理过程',completed:'对照结束',cancelled:'对照已停止',failed:'对照计算异常，物理已暂停'};
  const frozen=[['左侧',baseline?.balance],['右侧',b]].filter(([,side])=>side?.phase==='failed').map(([name,side])=>`${name} ${side.sim_time.toFixed(1)} s 判定失败${side.aftermath?.phase==='running'?'（物理继续）':'（已定格）'}`);
  $('comparison-status').textContent=(comparison?.enabled?`${phases[comparison.phase]??comparison.phase} · 共同进度 ${comparison.sim_time.toFixed(1)} / ${b.duration_seconds??13} s · 种子 ${b.seed} · 左侧官方基线 / 右侧${$('trained-label').textContent}`:'本轮仅运行右侧策略，左侧未参与')+(frozen.length?' · '+frozen.join('；'):'');
- $('heading-guide-note').textContent=b.level===2?'圆盘外地面的蓝色标记表示目标朝向。拖动视角只改变观看位置，不改变目标方向。':b.level===3?'从偏心起点走回圆盘中心，观察距中心的变化。':'本关允许随盘转动，不要求保持固定朝向。';
+ $('heading-guide-note').textContent=b.level===2?'圆盘外地面的蓝色标记表示目标朝向。拖动视角只改变观看位置，不改变目标方向。':b.level===3?'盘面红色圆区是目标范围：半径8 cm，以躯干投影计；标记随盘面倾斜。进入后须连续保持1秒，离开即重新计时。':'本关允许随盘转动，不要求保持固定朝向。';
+ $('challenge-goal').textContent=b.goal?.description??'正在读取本关验收条件…';
+ $('center-deadline').hidden=b.level!==3;
  const name={baseline:'官方步态基线',early:'训练步数 0 的任务网络＋官方步态',trained:'已评估反馈力度 PPO＋官方步态'}[b.controller];
  $('controller-source').textContent=`右侧：${b.phase==='idle'?'等待本轮策略加载':name}${b.policy_steps!=null&&b.phase!=='idle'?` · ${b.policy_steps.toLocaleString()} 训练步`:''}。${comparison?.enabled?'同一仿真时钟，独立计算两侧物理。':''}训练过程见下方记录。`;
  $('scene-title').textContent=`第 ${b.level} 关 · ${b.title}`;
  if(state.observation){lastObservation=[state.observation,state.task_action];updateObservation(b.execution!=='running')}
 }
 function placeholders(text){for(const node of document.querySelectorAll('.balance-placeholder')){node.hidden=!text;if(text)node.textContent=text}}
-async function prepare(){
+async function prepare({replace=false}={}){
  if(loading||closed||!validSettings())return;
- const inputs=formSettings(),requested={...(levelChosen?{level}:{}),...(seedEdited?{seed:inputs.seed}:{}),...(durationEdited?{duration_seconds:inputs.duration_seconds}:{})};
- loading=preparing=true;controls();$('notice').hidden=true;
+ const inputs=formSettings(),requested={...(levelChosen?{level}:{}),...(seedEdited&&inputs.seed!=null?{seed:inputs.seed}:{}),...(durationEdited?{duration_seconds:inputs.duration_seconds}:{})};
+ loading=preparing=true;prepareFailed=false;controls();$('notice').hidden=true;
  placeholders('正在加载官方模型与左右对照圆盘…');
  const experience=measurement('load'),metrics={};
  try{
   const signal=lifetime.signal;
-  let state=await api('api/balance/prepare',currentRoom,{body:{},signal});signal.throwIfAborted();
+  let state=await api(`api/balance/prepare?replace=${replace}`,currentRoom,{body:{},signal});signal.throwIfAborted();needsSwitch=false;
   if(Object.entries(requested).some(([key,value])=>state.backend.balance[key]!==value)){
    await api('api/balance/command',currentRoom,{body:{operation:'select',...requested},signal});
    state=await api('api/scenes/state',currentRoom,{signal});signal.throwIfAborted();
@@ -114,7 +127,7 @@ async function prepare(){
   lastStateKey='';renderState(state.backend);const firstFrame=performance.now();await afterFrame();signal.throwIfAborted();viewer.renderNow();baselineViewer.renderNow();await afterFrame();signal.throwIfAborted();metrics.first_frame_ms=Math.round(performance.now()-firstFrame);placeholders(null);ready=true;
   experience.finish('completed',{...loadMetrics(metrics),scene_ms:Math.round(performance.now()-experience.started)},{cache:metrics.cache,scene:'balance'});
   if(!stateFeed)connect();else void stateFeed.refresh();appendLog('左右圆盘已准备：左侧官方基线，右侧所选策略；按钮或灵矽口令均可同时发起挑战。');
- }catch(e){experience.finish('failed');if(!closed){notify(e.message);placeholders('加载未完成，可重试。')}}finally{loading=preparing=false;if(!closed)controls()}
+ }catch(e){experience.finish(e.code==='scene_conflict'?'cancelled':'failed');if(!closed){ready=false;needsSwitch=e.code==='scene_conflict';prepareFailed=!needsSwitch;notify(e.message);placeholders(needsSwitch?'房间中已有其他场景，等待手动切换。':'加载未完成，请点击“重试准备圆盘”。')}}finally{loading=preparing=false;if(!closed)controls()}
 }
 function connect(){
  if(closed)return;
@@ -125,7 +138,7 @@ function connect(){
    // requested settings are restored. Do not let that frame overwrite them.
    if(preparing)return;
    if(state.backend?.scene==='balance')renderState(state.backend);
-   else{ready=false;notify('本房间已切到其他场景，请重新准备圆盘。')}
+   else{ready=false;needsSwitch=!!state.backend;notify('本房间已切到其他场景。可切换回圆盘，或新建房间。')}
    controls();
   },
   onStatus:({mode,reason})=>{
@@ -144,7 +157,7 @@ async function command(body){
   appendLog(`第 ${result.level} 关 · ${result.phase} · ${result.controller}`,'本地排练');void stateFeed?.refresh();return result;
  }catch(e){if(!closed){$('command-feedback').textContent='请求未确认，请查看提示及实际进度。';notify(e.message)}}
 }
-$('prepare-balance').addEventListener('click',prepare);
+$('prepare-balance').addEventListener('click',()=>prepare({replace:needsSwitch}));
 $('start-challenge').addEventListener('click',async()=>{
  if(loading||!ready||!stateFeed?.fresh()||!validSettings())return;
  loading=true;controls();$('notice').hidden=true;
@@ -262,4 +275,4 @@ function example(){
 for(const id of ['example-ratio','example-advantage','example-epsilon'])$(id).addEventListener('input',example);
 // The initial HTML keeps controls disabled until room setup and all handlers
 // are ready. A fast click during the asynchronous room request must not vanish.
-controls();example();termInfo();renderParameters();renderObservation();charts();await refresh();if(!closed)timer=setInterval(refresh,5000);
+controls();example();termInfo();renderParameters();renderObservation();charts();void refresh();void prepare();if(!closed)timer=setInterval(refresh,5000);

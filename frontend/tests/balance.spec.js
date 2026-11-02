@@ -1,5 +1,11 @@
 import {test,expect} from '@playwright/test';
 
+async function fixedSeed(page,value='0'){
+ await page.locator('.balance-replay summary').click();
+ await page.locator('#fixed-seed').check();
+ await page.locator('#challenge-seed').fill(value);
+}
+
 test.afterEach(async({page,request})=>{
  // New-room tests share the real server with other specs. Release our world
  // explicitly instead of exhausting the production four-world capacity.
@@ -7,7 +13,36 @@ test.afterEach(async({page,request})=>{
  if(room)expect((await request.post(`/api/scenes/close?room=${room}`)).status()).toBe(204);
 });
 
-test('balance controls wait for room initialization before accepting the first click',async({page,request})=>{
+test('default starts randomize the paired seed and explain available voice controls',async({page,request})=>{
+ test.setTimeout(60000);
+ const created=await request.post('/api/rooms'),{room}=await created.json();
+ await page.goto(`/balance.html?room=${room}`);
+ await expect(page.locator('#challenge-seed')).not.toBeVisible();
+ await expect(page.locator('.balance-voice-help')).toContainText('选关、时长、策略、开始和停盘');
+ await expect(page.locator('.balance-voice-help a')).toHaveAttribute('href',new RegExp(`seesaw\\.html\\?room=${room}$`));
+ await page.locator('#challenge-duration').fill('6');await page.locator('#prepare-balance').click();
+ await expect(page.locator('#start-challenge')).toBeEnabled({timeout:45000});
+ await page.selectOption('#controller','baseline');
+ const state=async()=> (await(await request.get(`/api/scenes/state?room=${room}`)).json()).backend;
+ let seed=(await state()).balance.seed;
+ for(let i=0;i<2;i++){
+  await page.locator('#start-challenge').click();
+  await expect.poll(async()=> (await state()).balance.seed).not.toBe(seed);
+  const b=await state();seed=b.balance.seed;
+  expect(b.comparison.baseline.balance.seed).toBe(seed);expect(b.disc_target).toEqual(b.comparison.baseline.disc_target);
+  await page.locator('#stop-balance').click();
+  await expect(page.locator('#comparison-status')).toContainText('对照已停止',{timeout:10000});
+ }
+ // A cloud tool uses the same operation; the form must reflect its real choice.
+ await page.selectOption('#controller','trained');
+ const start=await request.post(`/api/balance/command?room=${room}`,{data:{operation:'start',controller:'baseline',duration_seconds:6}});
+ expect(start.ok()).toBe(true);
+ await expect(page.locator('#controller')).toHaveValue('baseline');
+ await page.locator('#stop-balance').click();
+ await expect(page.locator('#comparison-status')).toContainText('对照已停止',{timeout:10000});
+});
+
+test('automatic preparation waits for room initialization and sends just one request',async({page,request})=>{
  test.setTimeout(60000);
  const created=await request.post('/api/rooms');expect(created.ok()).toBe(true);
  const {room}=await created.json();let releaseRoom,prepares=0;
@@ -22,8 +57,6 @@ test('balance controls wait for room initialization before accepting the first c
   for(const selector of ['[data-level="2"]','#controller','#challenge-seed','#challenge-duration'])await expect(page.locator(selector)).toBeDisabled();
   expect(prepares).toBe(0);
  }finally{releaseRoom()}
- await expect(page.locator('#prepare-balance')).toBeEnabled();
- await page.locator('#prepare-balance').click();
  await expect(page.locator('#start-challenge')).toBeEnabled({timeout:45000});
  expect(prepares).toBe(1);
 });
@@ -35,6 +68,7 @@ test('a real boundary failure continues falling, shows an in-scene result and cl
  const {room}=await created.json();
  await page.goto(`/balance.html?room=${room}`);
  await page.locator('[data-level="2"]').click();
+ await fixedSeed(page);
  await page.getByLabel('运行时长（秒）',{exact:true}).fill('20');
  await page.locator('#prepare-balance').click();
  await expect(page.locator('#start-challenge')).toBeEnabled({timeout:45000});
@@ -75,9 +109,9 @@ test('duration and seed settings have stacked labels, bound the real run and fol
  page.on('request',req=>{if(req.method()==='POST'&&new URL(req.url()).pathname==='/api/balance/command')commands.push(req.postDataJSON())});
  await page.goto(`/balance.html?room=${room}`);
  const seed=page.getByLabel('对照种子',{exact:true}),duration=page.getByLabel('运行时长（秒）',{exact:true});
- await seed.fill('1');await duration.fill('6');
+ await fixedSeed(page,'1');await duration.fill('6');
  await expect(page.locator('#duration-note')).toContainText('3 秒扰动＋3 秒减速');
- await expect(page.locator('#duration-note')).toContainText('训练成功率仍仅对应 13 秒');
+ await expect(page.locator('#duration-note')).toContainText('训练曲线使用原13秒严格标准');
  await page.locator('#prepare-balance').click();
  await expect(page.locator('#start-challenge')).toBeEnabled({timeout:45000});
  await expect(seed).toHaveValue('1');await expect(duration).toHaveValue('6');
@@ -105,24 +139,35 @@ test('duration and seed settings have stacked labels, bound the real run and fol
  }
  await page.locator('[data-level="3"]').click();
  await expect(page.locator('#scene-title')).toContainText('第 3 关');
+ await expect(page.locator('#challenge-goal')).toContainText('连续保持至少1秒');
+ await expect(page.locator('#center-deadline')).toContainText('19秒进入目标区');
+ await expect(page.locator('#disc-goal-label')).toContainText('需≥1秒');
+ for(const id of ['physics-viewport','baseline-viewport']){
+  await expect(page.locator('#'+id)).toHaveAttribute('data-center-target','0.08');
+  await expect(page.locator('#'+id)).toHaveAttribute('data-center-surface','disc');
+ }
  for(const id of ['physics-viewport','baseline-viewport']){
   await expect(page.locator('#'+id)).toHaveAttribute('data-heading-target','none');
   await expect(page.locator('#'+id)).toHaveAttribute('data-heading-surface','none');
  }
  await page.locator('[data-level="2"]').click();
  await expect(page.locator('#physics-viewport')).toHaveAttribute('data-heading-surface','ground');
+ await expect(page.locator('#physics-viewport')).toHaveAttribute('data-center-target','none');
+ await expect(page.locator('#center-deadline')).toBeHidden();
+ await expect(page.locator('#challenge-goal')).toContainText('不要求回中心');
  // The voice tool reaches this same backend operation; no cloud ASR is mocked as real.
  const selected=await request.post(`/api/balance/command?room=${room}`,{data:{operation:'select',duration_seconds:8,seed:0}});
  expect(selected.ok()).toBe(true);expect((await selected.json()).phase).toBe('idle');
  await expect(duration).toHaveValue('8');await expect(seed).toHaveValue('0');
  await expect(page.locator('#seed-summary')).toContainText('顺时针');
  await expect(page.locator('#disc-time')).toHaveText('0.0 s');
- // Desktop and phone retain labels above the fields, duration to seed's right.
+ // Reproduction is optional; both fields retain labels above them at each width.
  for(const width of [1440,390]){
   await page.setViewportSize({width,height:1050});
   const s=await seed.boundingBox(),d=await duration.boundingBox();
   const label=await page.locator('label[for="challenge-seed"]').boundingBox();
-  expect(s.y).toBeGreaterThan(label.y+10);expect(d.y).toBeCloseTo(s.y);expect(d.x).toBeGreaterThan(s.x+s.width);
+  expect(s.y).toBeGreaterThan(label.y+10);expect(d.width).toBeGreaterThan(50);
+  const durationLabel=await page.locator('label[for="challenge-duration"]').boundingBox();expect(d.y).toBeGreaterThan(durationLabel.y+10);
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
  }
  expect(errors).toEqual([]);
@@ -219,6 +264,7 @@ test('real disk renders, a missing policy stays explicit, stop and scene switchi
  await expect(page.locator('#comparison-status')).toContainText('对照已停止');
  const response=await request.post('/api/scenes/start?room=2',{data:{name:'scene_ball',request_id:crypto.randomUUID()}});
  expect(response.ok()).toBe(true);
+ await expect(page.locator('#prepare-balance')).toHaveText('切换为圆盘');
  await page.locator('#prepare-balance').click();
  await expect(page.locator('#start-challenge')).toBeEnabled({timeout:45000});
  await expect(page.locator('#challenge-status')).toContainText('等待指令');
@@ -248,6 +294,13 @@ test('balance stays sharp and sleeps when static; orbit, colour and repeated sce
  await expect(view).toHaveAttribute('data-rendered-scene','balance',{timeout:45000});
  await expect(page.locator('#start-challenge')).toBeEnabled();
  await expect(page.locator('#scene-title')).toContainText('第 3 关');
+ await expect(page.locator('#challenge-goal')).toContainText('连续保持至少1秒');
+ await expect(page.locator('#center-deadline')).toContainText('12秒进入目标区');
+ await expect(page.locator('#disc-goal-label')).toContainText('需≥1秒');
+ for(const id of ['physics-viewport','baseline-viewport']){
+  await expect(page.locator('#'+id)).toHaveAttribute('data-center-target','0.08');
+  await expect(page.locator('#'+id)).toHaveAttribute('data-center-surface','disc');
+ }
  for(const id of ['physics-viewport','baseline-viewport'])await expect(page.locator('#'+id)).toHaveAttribute('data-heading-target','none');
  const prepared=(await(await request.get('/api/scenes/state?room=2')).json()).backend;
  expect(prepared.balance.level).toBe(3);expect(prepared.comparison.baseline.balance.level).toBe(3);
@@ -285,10 +338,15 @@ test('balance stays sharp and sleeps when static; orbit, colour and repeated sce
  for(let i=0;i<3;i++){
   expect((await request.post('/api/scenes/start?room=2',{data:{name:'scene_ball',request_id:crypto.randomUUID()}})).ok()).toBe(true);
   await expect(page.locator('#notice')).toContainText('本房间已切到其他场景');
+  await expect(page.locator('#prepare-balance')).toHaveText('切换为圆盘');
   await page.locator('#prepare-balance').click();
   await expect(view).toHaveAttribute('data-rendered-scene','balance',{timeout:45000});
   await expect(page.locator('#start-challenge')).toBeEnabled({timeout:45000});
   await expect(page.locator('#scene-title')).toContainText('第 3 关');
+  for(const id of ['physics-viewport','baseline-viewport']){
+   await expect(page.locator('#'+id)).toHaveAttribute('data-center-target','0.08');
+   await expect(page.locator('#'+id)).toHaveAttribute('data-center-surface','disc');
+  }
   const resources=await page.evaluate(()=>({buffers:window.renderProbe.buffers,textures:window.renderProbe.textures}));
   expect(resources).toEqual({buffers:first.buffers,textures:first.textures});
  }
@@ -319,7 +377,7 @@ test('leaving during model download cannot create a renderer or reconnect later'
  test.setTimeout(60000);let release,entered;
  const pending=new Promise(resolve=>entered=resolve),hold=new Promise(resolve=>release=resolve);
  await page.route('**/api/scenes/model.dkm.gz*',async route=>{entered();await hold;await route.abort()});
- await page.goto('/balance.html?room=2');await page.locator('#prepare-balance').click();await pending;
+ await page.goto('/balance.html?room=2');await pending;
  await page.evaluate(()=>dispatchEvent(new PageTransitionEvent('pagehide')));release();
  await expect(page.locator('#physics-viewport canvas')).toHaveCount(0);
  await page.waitForTimeout(1600);await expect(page.locator('#physics-viewport canvas')).toHaveCount(0);

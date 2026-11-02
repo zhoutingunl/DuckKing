@@ -12,12 +12,21 @@ export const rewards={
  success:['+25 × 是否完成','18 秒无跌倒结束，最后连续 1 秒配重在 ±4 cm 内、速度低于 2.5 cm/s，板角和支撑均达标，才发放终局奖励。'],
 };
 export const controllers={trained:'训练后 · PPO',early:'本轮训练前',rule:'仅配平板面规则',baseline:'官方站定',center:'回中站定规则',manual:'你来控制',human:'你来控制 · 真人'};
+export function humanMotion(s){
+ const h=s.human_command;
+ if(!h||!['duel','explore'].includes(s.mode))return '前进朝绿色端，后退朝赭色端；方向不随镜头改变。';
+ if(h.actual_motion==='paused')return '本侧物理已暂停；末帧速度不代表还在移动。';
+ const request=h.direction==='hold'?(h.assist_enabled?'辅助站定 · 小步纠偏':'零速指令 · 未辅助'):{forward:'前进指令',backward:'后退指令'}[h.direction];
+ const actual={forward:'实际向前',backward:'实际向后',slow:'实际移动缓慢'}[h.actual_motion]??'等候测量';
+ return `${request}；${actual} ${Math.abs(h.actual_speed_m_s??0)*100>=1?(Math.abs(h.actual_speed_m_s)*100).toFixed(1)+' cm/s':''}`.trim();
+}
 export function humanStatus(s){
+ if(s.mode==='explore')return `左鸭单独练习 · ${outcome(s.comparison).text}右侧保持站定。`;
  if(s.mode!=='duel')return '选择“真人 vs AI”开始；语音或按钮只控制左鸭。';
  const right=s.execution==='running'?'右侧继续自主控制':'右侧本轮已结束';
  if(s.comparison.execution!=='running')return `左鸭${outcome(s.comparison).badge||'本轮已结束'} · ${right}。重开挑战后可继续控制左鸭。`;
  const human=s.human_command;
- return `左鸭：${{hold:'站定',forward:'前进',backward:'后退'}[human.direction]}${human.remaining_seconds>0?`，剩余 ${human.remaining_seconds.toFixed(1)} 秒`:''} · ${right}`;
+ return `左鸭：${{hold:human.assist_enabled?'辅助站定（小步纠偏）':'零速指令（可能漂移）',forward:'前进',backward:'后退'}[human.direction]}${human.remaining_seconds>0?`，剩余 ${human.remaining_seconds.toFixed(1)} 秒`:''} · ${right}`;
 }
 export function outcome(side){
  const p=side?.measurement??{},phase=side?.phase;

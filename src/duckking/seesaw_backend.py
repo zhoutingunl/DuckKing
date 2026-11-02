@@ -2,6 +2,8 @@
 
 import asyncio
 import json
+import logging
+import secrets
 import time
 from pathlib import Path
 
@@ -9,50 +11,44 @@ from .model_assets import geometry
 from .seesaw import DT, DURATION, WEIGHT_MASS, SeesawWorld
 from .seesaw_policy import SeesawPolicy
 
+logger = logging.getLogger("uvicorn.error")
+HOLD_DEADBAND_M = 0.008
+
 SEESAW_TOOLS = [
     {
         "name": "duck_seesaw",
         "description": (
-            "语音跷跷板教练：用脚步把橙色280克自由配重送回红色停靠区。"
-            "板面和配重均没有电机、没有预设轨迹。鸭子走位压低一端，"
-            "配重沿斜坡滑动；需要反向调整制动，再把配重停稳。"
-            "start 重新开始18秒左右对照；controller trained 是已训练PPO。"
-            "early 是本轮开始时的PPO，可能继承前一阶段任务策略。"
-            "rule 是只配平板面的人工规则，不规划配重停靠；"
-            "center 是只回中站定的规则，baseline 是官方站定。"
-            "start mode=duel 开始人机PK：左侧由用户控制，右侧使用所选策略；"
-            "mode=compare（默认）左侧为回中站定规则。两侧同初态但独立受力；"
-            "不同走位会导致配重轨迹不同，这正是需要展示的结果。"
-            "PK进行中 nudge 只控制左侧，不暂停或重启右侧PPO。"
-            "新指令替换上一条，时长按仿真时间计算，到时站定。"
-            "用户说前进、后退、站住时先status确认模式；PK中不能调用start重开。"
-            "其他模式下 nudge 手动探索只指挥右侧，左侧保持站定并推进物理；"
-            "进行中的规则对照不能插入手动探索，请先stop。"
-            "direction forward 向绿色前端走、backward 向赭色后端退、"
-            "hold 站定观察，seconds 整数1至3秒，默认2秒；保持当前物理状态，不重置。"
-            "reset 重置两侧；stop 停止任务并暂停两侧仿真，不能声称已自然停稳；status 读取真实测量。"
-            "正倾角为绿色前端下沉；position_m 是鸭子相对支点的前后位置，正为绿色前端。"
-            "成功需要18秒无摔倒，最后连续1秒配重中心在红色区正负4厘米内、"
-            "配重速度小于2.5厘米每秒，板角小于2度、角速度小于4度每秒且有脚部支撑。"
-            "经过红色区但未停稳不算成功。开始返回只表示受理；"
-            "只有phase success才成功；failed是失败，explored是手动探索结束"
-            "不计分。"
-            "请用status读取最终结果，不要根据发出的步速推断已走动。观察来自MuJoCo真值，不是摄像头。"
-            "例如‘把配重送回红色区，再停稳’调用start trained；‘向前一点，看看板会怎样’"
-            "调用nudge forward。"
+            "跷跷板人机PK：左鸭听用户指挥，右鸭由PPO自主控制。"
+            "说前进、向前走请调用duck_walk_short；后退用duck_backward；"
+            "站住用duck_hold_position。也可以nudge direction=forward/backward/hold，"
+            "首次移动会从待开始状态启动18秒真人PK；比赛中只改变左鸭，不重开或暂停右鸭。"
+            "动作默认2秒、可指定1至3秒，到时结束定时移动；新指令替换旧指令。"
+            "左侧默认有工程辅助站定：到时或说站住后，用小步纠偏保持当时位置。"
+            "这不是PPO，也不保证瞬间静止或不摔倒；右侧PPO保持原样。"
+            "start assist=false可关闭辅助，届时零速步态可能沿斜板漂移。"
+            "start开始新一轮，默认mode=duel，controller=trained；seed不传则随机，左右同种子。"
+            "mode=compare是规则基线对照，不接受人类插入控制；需明确重新开始PK。"
+            "controller early/center/rule/baseline分别为早期PPO/回中/配平板面/官方站定。"
+            "explore是左鸭不计分练习、右鸭站定，不会执行PPO。"
+            "停止或失败后不能用移动指令偷偷重置：请明确start重开；reset仅重置，stop暂停两侧。"
+            "status查询真实结果；只有phase=success才成功，start返回仅表示受理。"
+            "鸭脚接触改变板角，橙色280克配重沿无电机滑轨移动；目标是最后连续1秒"
+            "停在红色区±4厘米、速度低于2.5厘米/秒，板角小于2度且有脚支撑。"
+            "forward向绿色端，backward向赭色端；不随摄像机角度改变。"
         ),
         "inputSchema": {
             "type": "object",
             "properties": {
                 "operation": {
                     "type": "string",
-                    "enum": ["start", "stop", "status", "reset", "nudge"],
+                    "enum": ["start", "stop", "status", "reset", "nudge", "explore"],
                 },
                 "controller": {
                     "type": "string",
                     "enum": ["trained", "early", "baseline", "center", "rule"],
                 },
                 "mode": {"type": "string", "enum": ["compare", "duel"]},
+                "assist": {"type": "boolean", "description": "左侧工程辅助站定，默认开启"},
                 "seed": {"type": "integer", "minimum": 0, "maximum": 9999},
                 "direction": {"type": "string", "enum": ["forward", "backward", "hold"]},
                 "seconds": {"type": "integer", "minimum": 1, "maximum": 3},
@@ -61,6 +57,36 @@ SEESAW_TOOLS = [
             "additionalProperties": False,
         },
     }
+]
+
+
+# Scene-specific aliases keep familiar motion words discoverable to the cloud.
+# They never enter the generic motion queue or move the PPO-controlled right duck.
+SEESAW_MOVES = {
+    "duck_walk_short": ("forward", "向前走、前进、往前一点：只控制左鸭向绿色端走。"),
+    "duck_backward": ("backward", "后退、向后走、往后一点：只控制左鸭向赭色端退。"),
+    "duck_hold_position": ("hold", "站住、站定、不走了：左鸭结束定时移动，"
+                           "按本轮设置辅助站定或给零速指令，右侧PPO继续。"),
+}
+SEESAW_TOOLS += [
+    {
+        "name": name,
+        "description": description + (
+            "默认2秒，可用duration指定1至3秒；到时按本轮辅助设置尽量站定，可能仍有漂移。"
+            "首次移动会自动开始真人PK，比赛中不会重置任何一侧。"
+            "返回只表示指令受理，不能声称走动完成或停靠成功；失败或暂停后需明确重新开始。"
+            if direction != "hold" else
+            "只改变站定指令，不保证瞬间停稳；不重开比赛，停止整个场景请用duck_stop。"
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {} if direction == "hold" else {
+                "duration": {"type": "integer", "minimum": 1, "maximum": 3, "default": 2}
+            },
+            "additionalProperties": False,
+        },
+    }
+    for name, (direction, description) in SEESAW_MOVES.items()
 ]
 
 
@@ -124,6 +150,9 @@ class SeesawBackend:
         self.request_version = 0
         self.trace = []
         self.human_action, self.human_until = 0, 0.0
+        self.human_assist = True
+        self.human_hold_target = None
+        self.human_speed = 0.0
 
     def geometry(self):
         return self.visual
@@ -141,9 +170,10 @@ class SeesawBackend:
             raise ValueError("无效跷跷板参数")
         op = args.get("operation")
         fields = {
-            "start": {"controller", "seed", "mode"},
+            "start": {"controller", "seed", "mode", "assist"},
             "reset": {"seed"},
-            "nudge": {"direction", "seconds"},
+            "nudge": {"direction", "seconds", "controller", "seed", "assist"},
+            "explore": {"direction", "seconds", "assist"},
             "status": set(),
             "stop": set(),
         }
@@ -160,10 +190,14 @@ class SeesawBackend:
             "center",
         ):
             raise ValueError("未知任务控制器")
-        if op == "nudge" and args.get("direction") not in ("forward", "backward", "hold"):
+        if op in {"nudge", "explore"} and args.get("direction") not in (
+            "forward", "backward", "hold"
+        ):
             raise ValueError("请选择前进、后退或站定")
         if "mode" in args and args["mode"] not in ("compare", "duel"):
             raise ValueError("请选择规则对照或人机PK")
+        if "assist" in args and type(args["assist"]) is not bool:
+            raise ValueError("辅助站定必须为布尔值")
         return op
 
     async def invoke(self, args):
@@ -179,23 +213,31 @@ class SeesawBackend:
         async with self.commands:
             if self.closed:
                 raise ValueError("场景已关闭，请重新准备")
+            first_move = None
             if op == "nudge":
                 async with self.lock:
                     if self.mode == "duel":
+                        if {"seed", "controller", "assist"} & args.keys():
+                            raise ValueError("进行中的移动不能改变种子、辅助或右侧控制器")
                         if self.stopping or self.baseline_phase != "running":
-                            raise ValueError("左侧PK已结束或暂停，请重新开始PK")
-                        self.human_action = {"hold": 0, "forward": 1, "backward": 2}[
-                            args["direction"]
-                        ]
-                        self.human_until = float(self.baseline.data.time) + (
-                            args.get("seconds", 2) if self.human_action else 0
-                        )
+                            raise ValueError("左侧PK已结束或暂停，请明确重新开始PK")
+                        self._human_command(args)
                         self.revision_number += 1
                         return self.summary()
-                    if self.mode == "compare" and (
-                        self.phase == "running" or self.baseline_phase == "running"
-                    ):
-                        raise ValueError("规则对照进行中；请先停止，或重新开始人机PK")
+                    if self.phase == "running" or self.baseline_phase == "running":
+                        raise ValueError("规则对照进行中或正在练习；请先停止，再开始人机PK")
+                    if (self.phase != "idle" or self.baseline_phase != "idle"
+                            or self.world.data.time or self.baseline.data.time):
+                        raise ValueError("本轮已结束或暂停，请明确重新开始人机PK")
+                    if args["direction"] == "hold":
+                        return self.summary()
+                first_move = args
+                op, args = "start", {"operation": "start", "mode": "duel", **{
+                    key: args[key] for key in ("controller", "seed", "assist") if key in args
+                }}
+            elif op == "explore" and self.mode != "explore" and (
+                    self.phase == "running" or self.baseline_phase == "running"):
+                raise ValueError("挑战进行中，请先停止再练习左鸭")
             controller = args.get("controller", "trained")
             # Reject unavailable/incompatible policies BEFORE altering the current task.
             policy = (
@@ -210,7 +252,12 @@ class SeesawBackend:
                 if self.closed or version != self.request_version:
                     raise ValueError("本次请求已被停止或场景关闭取消")
                 if op in {"start", "reset"}:
-                    seed = args.get("seed", self.world.seed)
+                    seed = args.get("seed")
+                    if seed is None:
+                        seed = (
+                            (self.world.seed + 1 + secrets.randbelow(9999)) % 10000
+                            if op == "start" else self.world.seed
+                        )
                     self.world.reset(seed)
                     self.baseline.reset(seed)
                     self.info = self.baseline_info = self.error = None
@@ -218,13 +265,18 @@ class SeesawBackend:
                     self.trace = []
                     self.mode = "compare"
                     self.human_action, self.human_until = 0, 0.0
-                elif self.world.done or self.error:
+                    self.human_hold_target = None
+                    self.human_speed = 0.0
+                elif self.world.done or self.baseline.done or self.error:
                     raise ValueError("本轮已结束，请先重置跷跷板")
                 self.revision_number += 1
                 if op != "reset":
-                    self.controller = controller if op == "start" else "manual"
+                    self.controller = controller if op == "start" else "baseline"
                     self.mode = args.get("mode", "compare") if op == "start" else "explore"
+                    self.human_assist = args.get("assist", True)
                     self.policy = policy
+                    if first_move or op == "explore":
+                        self._human_command(first_move or args)
                     self.phase = "running"
                     if not self.baseline.done:
                         self.baseline_phase = "running"
@@ -232,18 +284,46 @@ class SeesawBackend:
                     self.task = asyncio.create_task(
                         self._loop(
                             int(args.get("seconds", 2) / DT)
-                            if op == "nudge"
+                            if op == "explore"
                             else int(DURATION / DT),
                             {"hold": 0, "forward": 1, "backward": 2}.get(args.get("direction"), 0),
                         )
                     )
             return self.summary()
 
+    def _human_command(self, args):
+        self.human_action = {"hold": 0, "forward": 1, "backward": 2}[args["direction"]]
+        self.human_until = float(self.baseline.data.time) + (
+            args.get("seconds", 2) if self.human_action else 0
+        )
+        position = self.baseline.measure()["position_m"]
+        self.human_hold_target = position if not self.human_action else None
+        logger.info(
+            "seesaw_left_command seed=%s direction=%s seconds=%s sim_time=%.2f x_m=%.4f assist=%s",
+            self.baseline.seed, args["direction"], args.get("seconds", 2),
+            self.baseline.data.time, position, self.human_assist,
+        )
+
+    def _human_control(self, position):
+        if self.human_action and self.baseline.data.time >= self.human_until - 1e-9:
+            self.human_action = 0
+            self.human_hold_target = position
+            logger.info("seesaw_left_move_expired seed=%s sim_time=%.2f hold_x_m=%.4f assist=%s",
+                        self.baseline.seed, self.baseline.data.time, position, self.human_assist)
+        if self.human_action or not self.human_assist:
+            return self.human_action
+        if self.human_hold_target is None:
+            self.human_hold_target = position
+        error = self.human_hold_target - position
+        # Explicit human-side engineering aid. Reuses the existing discrete gait
+        # commands; never changes poses, forces, trained PPO or its evaluation.
+        return 1 if error > HOLD_DEADBAND_M else 2 if error < -HOLD_DEADBAND_M else 0
+
     def _tick(self, manual_action):
         if not self.world.done:
             obs = self.world.observation()
             action = (
-                manual_action
+                0
                 if self.mode == "explore"
                 else self.policy(obs)
                 if self.policy
@@ -260,21 +340,24 @@ class SeesawBackend:
                     self.phase = "explored"
                     self.info.update(success=False, reason="exploration_limit")
         if not self.baseline.done:
-            if float(self.baseline.data.time) >= self.human_until - 1e-9:
-                self.human_action = 0
+            before = self.baseline.measure()["position_m"]
             action = (
-                self.human_action
-                if self.mode == "duel"
+                self._human_control(before)
+                if self.mode in {"duel", "explore"}
                 else self.baseline.center_action(self.baseline.observation())
                 if self.mode == "compare"
                 else 0
             )
             _, _, _, _, self.baseline_info = self.baseline.step(action)
+            self.human_speed = (self.baseline_info["position_m"] - before) / DT
             if self.baseline.done:
                 self.baseline_phase = "success" if self.baseline_info["success"] else "failed"
                 if self.mode == "explore" and self.baseline_info["reason"] != "fell_or_left_board":
                     self.baseline_phase = "explored"
                     self.baseline_info.update(success=False, reason="exploration_limit")
+                logger.info("seesaw_left_result seed=%s seconds=%.2f x_m=%.4f reason=%s",
+                            self.baseline.seed, self.baseline.data.time,
+                            self.baseline_info["position_m"], self.baseline_info["reason"])
         self.trace.append(
             {
                 "seconds": max(float(self.world.data.time), float(self.baseline.data.time)),
@@ -286,6 +369,9 @@ class SeesawBackend:
                 "weight_position_cm": self.info["weight_position_m"] * 100,
                 "net_gravity_torque_nm": self.info["net_gravity_torque_nm"],
                 "baseline_weight_position_cm": self.baseline_info["weight_position_m"] * 100,
+                "baseline_position_cm": self.baseline_info["position_m"] * 100,
+                "baseline_command_cm_s": float(self.baseline.command[0]) * 100,
+                "baseline_actual_speed_cm_s": self.human_speed * 100,
             }
         )
         self.trace = self.trace[-int(DURATION / DT) :]
@@ -362,8 +448,14 @@ class SeesawBackend:
             "human_command": {
                 "direction": ["hold", "forward", "backward"][self.human_action],
                 "remaining_seconds": max(0, self.human_until - float(self.baseline.data.time))
-                if self.mode == "duel" and self.baseline_phase == "running"
+                if self.mode in {"duel", "explore"} and self.baseline_phase == "running"
                 else 0,
+                "assist_enabled": self.human_assist,
+                "hold_target_m": self.human_hold_target,
+                "actual_speed_m_s": self.human_speed,
+                "actual_motion": "paused" if self.baseline_phase != "running" else
+                "forward" if self.human_speed > 0.01 else
+                "backward" if self.human_speed < -0.01 else "slow",
             },
             "error": self.error,
             "operation_failed": self.phase == "failed",
@@ -379,7 +471,7 @@ class SeesawBackend:
                 if self.mode == "duel"
                 else "center"
                 if self.mode == "compare"
-                else "baseline",
+                else "manual",
             ),
         }
 

@@ -9,6 +9,13 @@ const target = `http://127.0.0.1:${apiPort}`;
 
 export default defineConfig({
   base: './',
+  plugins: [{
+    name: 'secure-public-entry',
+    // Runs before application modules, in both development HTML and every built page.
+    transformIndexHtml() {
+      return [{tag:'script',attrs:{src:'./secure-entry.js'},injectTo:'head-prepend'}];
+    },
+  }],
   build: {
     rolldownOptions: {
       input: {

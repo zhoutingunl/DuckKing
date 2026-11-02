@@ -72,8 +72,21 @@ export function compatibleRuns(list,level){
 }
 // Termination groups several physical guards. Report the measured cause when
 // available, without calling every foot-boundary violation a visible fall.
-export function balanceFailureReason(result){
- if(result?.reason==='criteria_not_met')return '挑战结束，但中心位置、朝向或停盘条件未全部达标';
+export function balanceHoldTime(seconds){
+ if(!Number.isFinite(seconds))return '—';
+ return seconds<1-1e-6&&seconds>=.95?'不足1.0':seconds.toFixed(1);
+}
+export function balanceFailureReason(result,level){
+ if(result?.reason==='criteria_not_met'){
+  const causes=[];
+  const checks=result.acceptance?.checks;
+  if(checks?.duration===false)causes.push('未完成设定时长');
+  if(level===3&&Number.isFinite(result.radius)&&result.radius>=.08)causes.push(`距中心 ${(result.radius*100).toFixed(1)} cm（需小于8 cm）`);
+  if(level===3&&Number.isFinite(result.center_hold)&&result.center_hold<1-1e-6)causes.push(`中心8 cm内仅连续保持${balanceHoldTime(result.center_hold)}秒（需至少1秒）`);
+  if(level===2&&Number.isFinite(result.heading_fraction)&&result.heading_fraction<.85)causes.push(`朝向达标率 ${(result.heading_fraction*100).toFixed(1)}%（需至少85%）`);
+  if(result.disk_stopped===false)causes.push('圆盘尚未停稳（需盘速小于0.25 RPM、倾角均小于1°）');
+  return causes.length?causes.join('；'):'挑战结束，但本关条件未全部达标';
+ }
  if(result?.reason!=='fell_or_left_disc')return '';
  const causes=[];
  if(result.rim_margin<0)causes.push(`脚部越过盘缘 ${(-result.rim_margin*1000).toFixed(1)} mm`);
@@ -87,6 +100,7 @@ export function balanceOutcome(b){
  if(b.phase==='completed')return {state:'completed',title:'挑战成功',detail:'完成挑战，圆盘已停稳'};
  if(b.phase==='cancelled')return {state:'cancelled',title:'已停止',detail:'人为停止，本轮不计成功'};
  if(b.phase!=='failed')return null;
+ if(b.result?.reason==='criteria_not_met')return {state:'failed',title:'挑战失败',detail:balanceFailureReason(b.result,b.level)};
  const a=b.aftermath,m=a?.measurements;
  if(a?.ground_contact)return {state:'failed',title:'挑战失败',detail:'已掉落触地'};
  if(a?.reason==='user_stop')return {state:'failed',title:'挑战失败',detail:'已停止后续物理展示'};

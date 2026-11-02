@@ -1,5 +1,22 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
+import {requestId} from '../src/ids.js';
+
+test('request and measurement IDs work without the secure-context randomUUID API',async()=>{
+ const descriptor=Object.getOwnPropertyDescriptor(globalThis.crypto,'randomUUID');
+ Object.defineProperty(globalThis.crypto,'randomUUID',{configurable:true,value:undefined});
+ try{
+   const ids=Array.from({length:128},()=>requestId());
+   assert.equal(new Set(ids).size,128);
+   assert.ok(ids.every(id=>/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(id)));
+   globalThis.location=new URL('http://local.test/');
+   const {context}=await import('../src/experience.js');
+   assert.match(context().id,/^[0-9a-f-]{36}$/);
+ }finally{
+   if(descriptor)Object.defineProperty(globalThis.crypto,'randomUUID',descriptor);
+   else delete globalThis.crypto.randomUUID;
+ }
+});
 
 test('interruption, recovery, queued start and unavailable telemetry do not fabricate completion',async()=>{
  const window=new EventTarget(),document=new EventTarget();document.hidden=false;

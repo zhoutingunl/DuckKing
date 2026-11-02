@@ -16,7 +16,7 @@ test('live director cancels old plan and keeps prerecorded theatre available',as
  const state=await page.request.get('/api/studio?room=1').then(r=>r.json());
  expect(state.task.results.map(r=>r.name)).toEqual(['tilt_head','look_down','shake_head']);
  expect(state.task.results.every(r=>r.status==='completed')).toBe(true);
- await page.getByRole('link',{name:'自动剧场',exact:true}).click();
+ await page.getByRole('link',{name:'演示场景',exact:true}).click();
  await expect(page.locator('#demo-mode option')).toHaveCount(2);
  expect(errors).toEqual([]);
 });

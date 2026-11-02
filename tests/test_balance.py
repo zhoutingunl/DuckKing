@@ -221,7 +221,7 @@ async def test_comparison_shares_initial_conditions_and_ticks_but_not_dynamic_st
 
 
 async def test_missing_comparison_policy_does_not_restart_either_running_side(backend):
-    await backend.invoke({"operation": "start", "controller": "baseline"})
+    await backend.invoke({"operation": "start", "controller": "baseline", "seed": 0})
     task = backend.task
     await asyncio.sleep(0.12)
     time = backend.world.data.time
@@ -249,7 +249,7 @@ async def test_explicit_single_side_diagnostic_does_not_animate_or_score_the_bas
 
 
 async def test_one_failed_side_falls_while_the_other_continues_and_stop_cancels_aftermath(backend):
-    await backend.invoke({"operation": "start", "controller": "baseline"})
+    await backend.invoke({"operation": "start", "controller": "baseline", "seed": 0})
     # Fault injection only: place the baseline outside the rim to exercise the
     # real physical failure detector. Runtime never rewrites a robot's pose.
     async with backend.lock:
@@ -356,6 +356,43 @@ async def test_bundled_policy_comparison_finishes_with_two_measured_results(back
     assert summary["comparison"]["sim_time"] <= 13.1
 
 
+async def test_reported_18_second_facing_round_and_disc_goal_follow_actual_physics(
+    backend, tmp_path
+):
+    await backend.invoke({"operation": "select", "level": 2, "seed": 8181,
+                          "duration_seconds": 18})
+    runs = BalanceRuns(tmp_path, ASSETS.parent / "training/results")
+    path, _ = runs.policy(2, None, "trained", backend.world.manifest()["contract"])
+    backend.policy = BalancePolicy(path, backend.world.manifest())
+    for _ in range(180):
+        backend._advance_pair()
+    assert backend.phase == "completed"
+    # CPU/platform differences change the trajectory (94% on Linux vs 100%
+    # on this Mac). Verify the published goal, not one machine's exact pose.
+    assert backend.info["success"] and 0.85 <= backend.info["heading_fraction"] <= 1
+    assert backend.info["seconds"] == pytest.approx(18)
+    assert backend.info["acceptance"]["checks"] == {
+        "duration": True, "safe": True, "uninterrupted": True,
+        "disk_stopped": True, "heading": True,
+    }
+    assert backend.info["training_evaluation"]["contract"] == "balance-v4-gain-bodyframe"
+    assert backend.baseline_phase == "failed"
+    assert (await backend.snapshot())["center_target"] is None
+
+    await backend.invoke({"operation": "select", "level": 3, "seed": 0})
+    for _ in range(10):
+        backend._advance_pair()
+    state = await backend.snapshot()
+    for w, frame in [(backend.world, state), (backend.baseline, state["comparison"]["baseline"])]:
+        target = frame["center_target"]
+        assert target["radius_m"] == 0.08
+        rotation = np.array(target["rotation"]).reshape(3, 3)
+        assert not np.allclose(rotation[:, 2], [0, 0, 1])
+        local = rotation.T @ (np.array(target["position"]) - w.data.geom_xpos[w.surface])
+        np.testing.assert_allclose(local, [0, 0, 0.0265], atol=1e-8)
+        assert frame["balance"]["goal"]["center_hold_seconds"] == 1
+
+
 async def test_stop_supersedes_a_start_waiting_for_previous_deceleration(backend, monkeypatch):
     entered, release = asyncio.Event(), asyncio.Event()
 
@@ -364,7 +401,9 @@ async def test_stop_supersedes_a_start_waiting_for_previous_deceleration(backend
         await release.wait()
 
     monkeypatch.setattr(backend, "_halt", halt)
-    pending = asyncio.create_task(backend.invoke({"operation": "start", "controller": "baseline"}))
+    pending = asyncio.create_task(backend.invoke({
+        "operation": "start", "controller": "baseline", "seed": 0
+    }))
     await entered.wait()
     stop = asyncio.create_task(backend.stop())
     await asyncio.sleep(0)
@@ -424,6 +463,30 @@ async def test_invalid_duration_never_cancels_or_resets_a_running_challenge(back
     assert not backend.info["success"] and not backend.baseline_info["success"]
 
 
+async def test_omitted_start_seed_randomizes_both_sides_and_mcp_replay_is_idempotent(
+    backend, monkeypatch
+):
+    monkeypatch.setattr("duckking.balance_backend.secrets.randbelow", lambda limit: 10)
+    await backend.invoke({"operation": "select", "seed": 37})
+    assert backend.world.seed == 37
+    mcp = DeviceMCP(MotionController(backend), "random-seed")
+    request = {"jsonrpc": "2.0", "id": 1, "method": "tools/call", "params": {
+        "name": "duck_balance", "arguments": {"operation": "start", "controller": "baseline"}
+    }}
+    result = await mcp.handle(request)
+    assert not result["result"]["isError"]
+    assert backend.world.seed == backend.baseline.seed == 48
+    task = backend.task
+    assert await mcp.handle(request) == result
+    assert backend.task is task and backend.world.seed == 48
+    await backend.invoke({"operation": "start", "controller": "baseline"})
+    assert backend.world.seed == backend.baseline.seed == 59
+    await backend.invoke({"operation": "start", "controller": "baseline", "seed": 37})
+    assert backend.world.seed == backend.baseline.seed == 37
+    np.testing.assert_array_equal(backend.world.data.qpos, backend.baseline.data.qpos)
+    await backend.stop()
+
+
 async def test_seed_changes_direction_and_physics_but_keeps_pair_repeatable(backend):
     starts, targets, directions = [], [], []
     for seed in (0, 1, 0):
@@ -461,10 +524,10 @@ async def test_voice_duration_setting_start_and_duplicate_call_preserve_exactly_
     assert backend.summary()["duration_seconds"] == 6
     assert backend.summary()["seed"] == 1
     version = backend.summary()["command_revision"]
-    started = await call(3, operation="start", controller="baseline")
+    started = await call(3, operation="start", controller="baseline", seed=1)
     assert not started["result"]["isError"]
     task = backend.task
-    assert await call(3, operation="start", controller="baseline") == started
+    assert await call(3, operation="start", controller="baseline", seed=1) == started
     assert backend.task is task
     assert backend.summary()["command_revision"] == version + 1
     await asyncio.wait_for(task, 15)
@@ -628,7 +691,7 @@ async def test_running_balance_is_not_reallocated_as_an_idle_room(backend, tmp_p
     app = create_app(settings=Settings(data_dir=tmp_path))
     room = app.state.rooms["1"]
     room.scene_motion = MotionController(backend)
-    await backend.invoke({"operation": "start", "controller": "baseline"})
+    await backend.invoke({"operation": "start", "controller": "baseline", "seed": 0})
     assert RoomRegistry.busy(room)
     assert await app.state.room_registry.claim() == {"room": "2"}
     await backend.stop()
@@ -642,9 +705,13 @@ def test_balance_api_preparation_is_room_scoped_and_voice_blocks_scene_replaceme
     monkeypatch.setattr("duckking.balance_backend.BalanceBackend", lambda *_: backend)
     app = create_app(settings=Settings(data_dir=tmp_path, max_physics_rooms=1))
     with TestClient(app) as client:
-        result = client.post("/api/balance/prepare?room=1", json={})
+        result = client.post("/api/balance/prepare?room=1&replace=false", json={})
         assert result.status_code == 200
         assert result.json()["backend"]["scene"] == "balance"
+        assert result.json()["backend"]["balance"]["phase"] == "idle"
+        assert backend.task is None
+        assert client.post("/api/balance/prepare?replace=false", json={}).status_code == 200
+        assert backend.task is None
         assert client.post("/api/balance/prepare?room=1", json={}).status_code == 200
         assert client.post("/api/balance/prepare?room=2", json={}).status_code == 409
         assert client.get("/api/scenes/model?room=1").status_code == 200

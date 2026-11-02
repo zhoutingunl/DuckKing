@@ -204,7 +204,7 @@ async def test_missing_policy_and_bad_commands_leave_current_run_intact(backend)
 
 
 async def test_stop_and_reset_are_bounded_and_no_delayed_motion_revives(backend):
-    await backend.invoke({"operation": "nudge", "direction": "forward", "seconds": 3})
+    await backend.invoke({"operation": "explore", "direction": "forward", "seconds": 3})
     room = SimpleNamespace(
         viewers=0,
         voice=None,
@@ -237,7 +237,7 @@ async def test_pause_freezes_moving_weight_without_zeroing_its_physical_velocity
             loop.call_soon_threadsafe(moved.set)
 
     monkeypatch.setattr(backend, "_tick", observe_tick)
-    await backend.invoke({"operation": "nudge", "direction": "hold", "seconds": 3})
+    await backend.invoke({"operation": "explore", "direction": "hold", "seconds": 3})
     await asyncio.wait_for(moved.wait(), 5)
     await backend.stop()
     data, index = backend.world.data, backend.world.slider_v
@@ -292,7 +292,9 @@ async def test_human_pk_commands_only_left_expire_replace_and_cancel(backend, wo
         await release.wait()
 
     monkeypatch.setattr(backend, "_loop", parked_loop)
-    await backend.invoke({"operation": "start", "mode": "duel", "controller": "baseline"})
+    await backend.invoke({
+        "operation": "start", "mode": "duel", "controller": "baseline", "seed": 0
+    })
     task = backend.task
     world.reset(0)
     try:
@@ -362,6 +364,169 @@ async def test_compare_cannot_be_replaced_by_accidental_voice_nudge(backend):
     await backend.close()
 
 
+async def test_plain_voice_moves_auto_start_pk_and_only_drive_left(backend, world, monkeypatch):
+    parked = asyncio.Event()
+    monkeypatch.setattr("duckking.seesaw_backend.secrets.randbelow", lambda limit: 0)
+
+    async def wait_loop(*_):
+        await parked.wait()
+
+    monkeypatch.setattr(backend, "_loop", wait_loop)
+    backend.artifacts = SeesawArtifacts(ASSETS.parent / "training/seesaw_results")
+    mcp = DeviceMCP(MotionController(backend), "plain-voice")
+    request = {"jsonrpc": "2.0", "id": 81, "method": "tools/call",
+               "params": {"name": "duck_backward", "arguments": {"duration": 1}}}
+    try:
+        first = await mcp.handle(request)
+        assert not first["result"]["isError"]
+        assert backend.mode == "duel" and backend.controller == "trained"
+        world.reset(backend.world.seed)
+        original_task, until = backend.task, backend.human_until
+        for _ in range(5):
+            backend._tick(0)
+            world.step(backend.policy(world.observation()))
+        assert await mcp.handle(request) == first
+        assert backend.human_until == until and backend.task is original_task
+        for _ in range(6):
+            backend._tick(0)
+            world.step(backend.policy(world.observation()))
+        np.testing.assert_array_equal(backend.world.data.qpos, world.data.qpos)
+        assert backend.baseline.last_action == 0
+        assert backend.human_action == 0
+        assert backend.world.data.time == backend.baseline.data.time
+        for index, arguments in enumerate(({"duration": 4}, {"duration": True},
+                                            {"duration": 1.5}, {"seed": 4})):
+            invalid = await mcp.handle({
+                **request, "id": 90 + index,
+                "params": {"name": "duck_walk_short", "arguments": arguments},
+            })
+            assert invalid["result"]["isError"]
+            assert backend.task is original_task
+        hold = await mcp.handle({**request, "id": 99, "params": {"name": "duck_hold_position"}})
+        assert not hold["result"]["isError"] and backend.task is original_task
+    finally:
+        parked.set()
+        await backend.stop()
+    before, seed = backend.baseline.data.qpos.copy(), backend.world.seed
+    rejected = await mcp.handle({**request, "id": 100})
+    assert rejected["result"]["isError"] and backend.world.seed == seed
+    np.testing.assert_array_equal(before, backend.baseline.data.qpos)
+    await backend.close()
+
+
+async def test_exploration_moves_left_while_right_keeps_official_stand(backend, world, monkeypatch):
+    parked = asyncio.Event()
+
+    async def wait_loop(*_):
+        await parked.wait()
+
+    monkeypatch.setattr(backend, "_loop", wait_loop)
+    await backend.invoke({"operation": "explore", "direction": "backward", "seconds": 1})
+    world.reset(backend.world.seed)
+    try:
+        for _ in range(11):
+            backend._tick(0)
+            world.step(0)
+        np.testing.assert_array_equal(backend.world.data.qpos, world.data.qpos)
+        assert backend.baseline.measure()["position_m"] < world.measure()["position_m"] - .02
+        assert backend.baseline.last_action == 0
+        assert backend.summary()["comparison"]["controller"] == "manual"
+    finally:
+        parked.set()
+        await backend.close()
+
+
+@pytest.mark.parametrize("assist", [False, True])
+async def test_reported_seed_forward_then_hold_exposes_drift_and_assist_keeps_right_ppo(
+    backend, world, monkeypatch, assist
+):
+    parked = asyncio.Event()
+
+    async def wait_loop(*_):
+        await parked.wait()
+
+    monkeypatch.setattr(backend, "_loop", wait_loop)
+    backend.artifacts = SeesawArtifacts(ASSETS.parent / "training/seesaw_results")
+    await backend.invoke({"operation": "nudge", "direction": "forward", "seconds": 2,
+                          "seed": 8852, "assist": assist})
+    world.reset(8852)
+    try:
+        start = backend.baseline.measure()["position_m"]
+        for _ in range(20):
+            backend._tick(0)
+            world.step(backend.policy(world.observation()))
+        target = backend.baseline.measure()["position_m"]
+        assert target > start + .07  # Forward really moves toward +X, before expiry.
+        for _ in range(160):
+            backend._tick(0)
+            if not world.done:
+                world.step(backend.policy(world.observation()))
+        np.testing.assert_array_equal(backend.world.data.qpos, world.data.qpos)
+        assert backend.human_action == 0  # Expired user command, not endless forward.
+        result = backend.baseline_info
+        if assist:
+            assert result["seconds"] == pytest.approx(18)
+            assert abs(result["position_m"] - target) < .06
+            assert result["reason"] == "not_docked"  # Aid never fabricates a win.
+        else:
+            assert result["seconds"] < 9 and result["position_m"] < -.45
+            assert result["reason"] == "fell_or_left_board"
+        assert any(row["baseline_command_cm_s"] > 0 for row in backend.trace)
+        assert any(row["baseline_actual_speed_cm_s"] < -1 for row in backend.trace)
+        before = backend.baseline.data.qpos.copy()
+    finally:
+        parked.set()
+        await backend.stop()
+    await asyncio.sleep(.15)
+    np.testing.assert_array_equal(before, backend.baseline.data.qpos)
+    await backend.reset()
+    assert backend.human_hold_target is None and backend.human_speed == 0
+    await backend.close()
+
+
+async def test_first_move_honors_opponent_and_seed_without_later_reset(backend, monkeypatch):
+    parked = asyncio.Event()
+
+    async def wait_loop(*_):
+        await parked.wait()
+
+    monkeypatch.setattr(backend, "_loop", wait_loop)
+    idle = await backend.invoke({"operation": "nudge", "direction": "hold"})
+    assert idle["phase"] == "idle" and backend.task is None
+    try:
+        await backend.invoke({"operation": "nudge", "direction": "forward", "seconds": 1,
+                              "seed": 17, "controller": "baseline"})
+        assert backend.world.seed == backend.baseline.seed == 17
+        assert backend.controller == "baseline" and backend.mode == "duel"
+        assert backend.human_action == 1 and backend.human_until == 1
+        backend._tick(0)
+        before = backend.baseline.data.qpos.copy()
+        task = backend.task
+        for extra in ({"seed": 99}, {"controller": "trained"}):
+            with pytest.raises(ValueError, match="不能改变"):
+                await backend.invoke({"operation": "nudge", "direction": "backward", **extra})
+            np.testing.assert_array_equal(before, backend.baseline.data.qpos)
+            assert backend.task is task and backend.human_action == 1
+    finally:
+        parked.set()
+        await backend.close()
+
+
+async def test_random_rounds_share_one_seed_and_explicit_seed_reproduces(backend, monkeypatch):
+    monkeypatch.setattr("duckking.seesaw_backend.secrets.randbelow", lambda limit: 12)
+    await backend.invoke({"operation": "start", "controller": "baseline"})
+    first = backend.world.seed
+    assert first == backend.baseline.seed == 13
+    await backend.stop()
+    await backend.invoke({"operation": "start", "controller": "baseline"})
+    assert backend.world.seed == backend.baseline.seed == 26
+    await backend.stop()
+    await backend.invoke({"operation": "start", "controller": "baseline", "seed": first})
+    assert backend.world.seed == backend.baseline.seed == first
+    np.testing.assert_array_equal(backend.world.data.qpos, backend.baseline.data.qpos)
+    await backend.close()
+
+
 def test_red_dock_is_display_only_and_does_not_invalidate_evaluated_policy(backend):
     original = backend.world.model.geom_rgba.copy()
     red = [
@@ -393,6 +558,9 @@ async def test_mcp_tools_are_scene_specific_and_replays_do_not_restart(backend):
     listing = await mcp.handle({"jsonrpc": "2.0", "id": 1, "method": "tools/list"})
     assert {t["name"] for t in listing["result"]["tools"]} == {
         "duck_seesaw",
+        "duck_walk_short",
+        "duck_backward",
+        "duck_hold_position",
         "duck_stop",
         "duck_get_status",
     }
@@ -402,7 +570,7 @@ async def test_mcp_tools_are_scene_specific_and_replays_do_not_restart(backend):
         "method": "tools/call",
         "params": {
             "name": "duck_seesaw",
-            "arguments": {"operation": "nudge", "direction": "backward"},
+            "arguments": {"operation": "explore", "direction": "backward"},
         },
     }
     first = await mcp.handle(request)
@@ -411,7 +579,7 @@ async def test_mcp_tools_are_scene_specific_and_replays_do_not_restart(backend):
     request["params"]["arguments"]["direction"] = "forward"
     assert "error" in await mcp.handle(request)
     denied = await mcp.handle(
-        {"jsonrpc": "2.0", "id": 3, "method": "tools/call", "params": {"name": "duck_walk_short"}}
+        {"jsonrpc": "2.0", "id": 3, "method": "tools/call", "params": {"name": "duck_turn_left"}}
     )
     assert denied["result"]["isError"]
     status = await mcp.handle(
@@ -483,11 +651,32 @@ def test_api_uses_room_ownership_and_never_exposes_unprepared_state(
             ).status_code
             == 403
         )
-        result = client.post("/api/seesaw/prepare", json={})
+        result = client.post("/api/seesaw/prepare?replace=false", json={})
         assert result.status_code == 200 and result.json()["backend"]["scene"] == "seesaw"
+        current = app.state.rooms["1"].scene_motion
+        assert current.backend.task is None
+        assert result.json()["backend"]["seesaw"]["phase"] == "idle"
+        assert client.post("/api/seesaw/prepare?replace=false", json={}).status_code == 200
+        assert current is app.state.rooms["1"].scene_motion
+        assert current.backend.task is None
         assert client.post("/api/seesaw/command", json={"operation": "start"}).status_code == 422
         assert client.post("/api/seesaw/prepare?room=99", json={}).status_code == 404
         assert client.get("/api/seesaw/training").headers["cache-control"] == "no-store"
+
+
+@pytest.mark.parametrize("scene", ["balance", "seesaw"])
+def test_auto_prepare_cannot_replace_another_scene_inside_the_room_lock(tmp_path, scene):
+    app = create_app(settings=Settings(data_dir=tmp_path))
+    with TestClient(app) as client:
+        # The existing scene may have been installed by another tab just before
+        # this request. The prepare endpoint itself must refuse replacement.
+        current = SimpleNamespace(backend=SimpleNamespace(scene="duo"), close=AsyncMock())
+        app.state.rooms["1"].scene_motion = current
+        result = client.post(f"/api/{scene}/prepare?replace=false", json={})
+        assert result.status_code == 409
+        assert result.json()["detail"]["code"] == "scene_conflict"
+        assert app.state.rooms["1"].scene_motion is current
+        current.close.assert_not_awaited()
 
 
 def test_bundled_policy_and_report_match_actual_contract(world):

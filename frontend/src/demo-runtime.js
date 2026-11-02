@@ -1,3 +1,4 @@
+import {requestId} from './ids.js';
 import {VoiceExperience} from './experience.js';
 import { appURL } from './urls.js';
 import { DuckSocket } from './transport.js';
@@ -18,7 +19,12 @@ export async function api(path,room,{body,signal}={}){
   const url=appURL(path);url.searchParams.set('room',room);
   const response=await fetch(url,{method:body?'POST':'GET',headers:body?{'Content-Type':'application/json'}:{},
     body:body?JSON.stringify(body):undefined,signal:signal?AbortSignal.any([signal,AbortSignal.timeout(60000)]):AbortSignal.timeout(60000),cache:'no-store'});
-  const data=response.status===204?null:await response.json();if(!response.ok)throw new Error(typeof data.detail==='string'?data.detail:'演示请求失败');return data;
+  const data=response.status===204?null:await response.json();
+  if(!response.ok){
+    const error=new Error(typeof data?.detail==='string'?data.detail:data?.detail?.message??'演示请求失败');
+    error.status=response.status;error.code=data?.detail?.code;throw error;
+  }
+  return data;
 }
 export function pcmWave(buffer){
   const v=new DataView(buffer),str=(i,n)=>String.fromCharCode(...new Uint8Array(buffer,i,n));
@@ -95,7 +101,7 @@ export class DemoRun {
 }
 export async function action(room,name,signal,options={}){
   signal.throwIfAborted();
-  const submitted=await api('api/scenes/actions',room,{body:{name,request_id:crypto.randomUUID(),...options},signal});
+  const submitted=await api('api/scenes/actions',room,{body:{name,request_id:requestId(),...options},signal});
   return waitAction(room,submitted,signal);
 }
 export async function waitAction(room,submitted,signal){
