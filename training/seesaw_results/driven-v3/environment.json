@@ -1,0 +1,12 @@
+{
+  "python": "3.12.12",
+  "platform": "macOS-26.5.2-x86_64-i386-64bit",
+  "packages": {
+    "torch": "2.2.2",
+    "stable-baselines3": "2.4.1",
+    "gymnasium": "1.0.0",
+    "numpy": "1.26.4",
+    "mujoco": "3.3.7",
+    "onnxruntime": "1.19.2"
+  }
+}

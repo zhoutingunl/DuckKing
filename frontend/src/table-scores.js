@@ -21,7 +21,9 @@ export function tigerCanonScore(){
   return [0,-12,0,12].flatMap((transpose,part)=>{
     const notes=[];
     for(let start=part*8;start<60;start+=32)notes.push(...line(part,melody.map(n=>({...n,midi:n.midi+transpose})),start));
-    return [...notes.filter(n=>n.beat<60).map(n=>({...n,duration:Math.min(n.duration,60-n.beat)})),{part,midi:[60,48,64,72][part],beat:60,duration:4}];
+    // Hold the final chord through 36 seconds (64.8 beats at 108 BPM),
+    // rather than leaving 0.44 seconds of silence while the ducks still dance.
+    return [...notes.filter(n=>n.beat<60).map(n=>({...n,duration:Math.min(n.duration,60-n.beat)})),{part,midi:[60,48,64,72][part],beat:60,duration:4.8}];
   });
 }
 export const TABLE_SCORES={

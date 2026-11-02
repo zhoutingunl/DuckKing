@@ -1,0 +1,72 @@
+{
+  "title": "DuckKing · 决赛演示",
+  "voice": "zh-CN-XiaoxiaoNeural",
+  "rate": "-3%",
+  "chapters": [
+    {
+      "id": "intro",
+      "title": "让灵矽，真的指挥小鸭开演。",
+      "caption": "竞赛主题：复刻一台 Micro Duck，并在其内装上灵矽通过语音交互。",
+      "narration": "竞赛题目是复刻一台 Micro Duck，并在其内装上灵矽，通过语音交互。目前还没有实体机，下面用真实灵矽和 MuJoCo 仿真，展示语音到动作，再到结果和统计的完整链路。"
+    },
+    {
+      "id": "tabletop",
+      "segment": "live-tabletop-two-tigers",
+      "audio": "page",
+      "title": "01 灵矽实连 · 预录指令：桌上不掉拍",
+      "caption": "真实 STT → MCP 开演 → MuJoCo 验收 → 云端回复；《两只老虎》由浏览器合成。",
+      "narration": ""
+    },
+    {
+      "id": "local_asr",
+      "segment": "real-local-asr-and-two-actions",
+      "title": "02 本地优先：离线识别，也能驱动真实动作",
+      "caption": "合成口令经麦克风接口注入；真实 SenseVoice 推理和 MuJoCo 动作；本轮云端音频收发为零。",
+      "narration": "本地优先在服务器上运行离线识别，手机不需要装模型。这里注入合成口令，前滚翻，再打个哈欠。经过真实识别和动作执行，两项都完成，云端音频收发为零。未匹配的整句指令，才交给灵矽。"
+    },
+    {
+      "id": "balance",
+      "segment": "paired-standard-13-seconds",
+      "title": "03 转盘平衡：同种子，左右真实对照",
+      "caption": "公网 62c6784 实录 · 第 2 关、种子 0、标准 13 秒；左为官方基线，右加任务 PPO。",
+      "narration": "转盘平衡的左右两侧，从相同种子开始。左边是官方步态基线，右边叠加任务 PPO 反馈。第二关要求转盘转，小鸭仍然面向观众。这次标准十三秒，基线未通过，PPO 通过。结果以真实物理判分为准。"
+    },
+    {
+      "id": "training",
+      "segment": "saved-cpu-training-and-ppo-explanation",
+      "title": "04 PPO 训练：曲线、测试和公式，都能追溯",
+      "caption": "公网 62c6784 · 已保存的 CPU 训练记录，本次未启动新训练；未见测试与训练奖励分别展示。",
+      "narration": "训练在 CPU 上进行。PPO 学习三个反馈力度，底层仍是官方步态。曲线来自保存的训练记录，第二关未见种子测试一百次，八十九次成功，仍未达到连续验证门槛。页面还能拆开奖励和 PPO 更新公式，让学习过程可以解释。"
+    },
+    {
+      "id": "experience",
+      "segment": "persistent-experience",
+      "title": "05 持续使用体验：把等待和变化，长期记下来",
+      "caption": "当前服务的真实调用：浏览器与服务器分别观测，样本条数不能当作用户数。",
+      "narration": "持续使用体验把浏览器和服务器的等待分开保存，可以按页面、房间、后端和版本筛选。两边是同几轮真实调用的不同观测，不能把样本条数当作用户数。自动化验收只是触发方式标签，样本少时不能承诺稳定性能。"
+    },
+    {
+      "id": "statistics",
+      "segment": "round-timeline-and-latency",
+      "title": "06 交互统计：识别原话、工具动作与实际结果",
+      "caption": "结束录音为零点；开演受理不等于完成；36 秒物理动作终态有记录，缺失值留空。",
+      "narration": "交互统计可以逐轮追到识别原话、实际工具和执行结果。开演受理不等于完成，这次桌上演出有真实落地与恢复验收。识别返回、动作受理和首段声音各有边界；缺失数据留空，不补成零毫秒。"
+    },
+    {
+      "id": "coverage",
+      "segment": "commit-bound-test-coverage",
+      "title": "07 测试覆盖率：有数字，也有提交和 CI 依据",
+      "caption": "公网 62c6784 · Python 后端：行 5600/5837 = 95.94%，分支 1853/2046 = 90.57%；含单元与集成测试。",
+      "narration": "发布页还能核验测试覆盖率。当前公网版本，后端行覆盖百分之九十五点九四，分支覆盖百分之九十点五七。它涵盖单元和集成测试，绑定具体提交和 CI；不能当作全项目或全前端的覆盖率。"
+    },
+    {
+      "id": "outro",
+      "audio": "silent",
+      "duration_seconds": 3,
+      "title": "让语音、动作、学习与验证，连成一条链。",
+      "caption": "智能硬件：复刻一台 Micro Duck，并在其内装上灵矽通过语音交互。当前仍为软件仿真。模型 © Pollen Robotics · CC BY-NC-SA 4.0。",
+      "narration": ""
+    }
+  ],
+  "identity_note": "决赛材料 · 多次真实录制 · 各章版本见记录"
+}

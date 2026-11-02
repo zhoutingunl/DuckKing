@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>DuckKing · 训练新动作</title><link rel="icon" href="./favicon.svg"></head>
+<body class="training-page">
+<header class="topbar"><a class="brand" href="./">DuckKing</a><nav class="home-nav" aria-label="工作台导航"><a href="./training.html" aria-current="page">训练新动作</a><a href="./demos.html">演示场景</a><a href="./scenarios.html">动作练习场</a></nav><a class="repo-link" href="https://github.com/zhoutingunl/DuckKing" target="_blank" rel="noopener">源代码 ↗</a></header>
+<main><section class="training-intro"><h1>训练新动作</h1><p>用声音给小鸭一个任务，看它怎样从尝试中学会。<br>选一个场景：先亲眼比较，再打开奖励函数和训练曲线。</p></section>
+<div class="training-choices">
+<a class="training-choice turntable-choice" href="./balance.html">
+ <svg viewBox="0 0 480 230" role="img" aria-label="圆盘旋转，小鸭调整脚步保持稳定"><ellipse cx="240" cy="164" rx="153" ry="39" fill="#8eafbe"/><ellipse cx="240" cy="151" rx="153" ry="39" fill="#c6dce5"/><path d="M115 145l48 4m154 0l47-4M240 117v15m0 38v16" stroke="#fff" stroke-width="4"/><path d="M116 195q120 51 245-1m-20-2 20 2-10 14" fill="none" stroke="#315c70" stroke-width="4"/><g fill="none" stroke="#315c70" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"><path d="M220 121l-12 20 19 15m32-35 14 20-19 15"/><path d="M216 104h48v20h-48z" fill="#edf4f5"/><path d="M241 105V79"/><path d="M212 73q-9-38 29-38t29 38z" fill="#edf4f5"/><circle cx="251" cy="56" r="9"/><path d="M213 81h54" stroke="#dca74e"/></g></svg>
+ <div class="training-choice-copy"><span class="training-kind">转盘平衡教练</span><h2>环境在动，我来适应。</h2><p>圆盘变速、倾斜，小鸭要站稳、保持朝向，再从边缘走回中心。三关逐步挑战，同步比较训练前后。</p><p class="training-voice">试着说：“第二关运行二十秒，面向我站稳。”</p><strong>进入转盘三关 <span aria-hidden="true">↗</span></strong></div>
+</a>
+<a class="training-choice seesaw-choice" href="./seesaw.html">
+ <svg viewBox="0 0 480 230" role="img" aria-label="小鸭走动压低跷跷板，橙色配重向红色停靠区滑动"><path d="M240 145l-35 58h70z" fill="#869b87"/><g transform="rotate(-7 240 145)"><rect x="74" y="141" width="332" height="17" rx="3" fill="#9cad91"/><path d="M81 133h315" stroke="#718877" stroke-width="4"/><path d="M225 122v22m30-22v22" stroke="#d92035" stroke-width="5"/><rect x="324" y="106" width="34" height="28" rx="3" fill="#e58b40"/><path d="M316 114h-38l10-7m-10 7 10 7" fill="none" stroke="#ad612f" stroke-width="3"/><g fill="none" stroke="#365541" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"><path d="M153 104l-15 19 17 12m34-31 11 20-14 10"/><path d="M148 84h47v21h-47z" fill="#f1f4ec"/><path d="M172 85V61"/><path d="M145 56q-8-37 28-37t29 37z" fill="#f1f4ec"/><circle cx="184" cy="39" r="9"/><path d="M146 64h53" stroke="#dca74e"/></g></g></svg>
+ <div class="training-choice-copy"><span class="training-kind">语音跷跷板教练</span><h2>我走一步，世界跟着动。</h2><p>用脚步倾斜板面，把自由配重送进红色区，再反向制动。左边听你指挥，右边交给 PPO，看看谁能停稳。</p><p class="training-voice">试着说：“开始人机 PK。左边后退两秒。”</p><strong>进入跷跷板挑战 <span aria-hidden="true">↗</span></strong></div>
+</a>
+</div>
+<p class="training-footnote">两个场景均运行真实 MuJoCo 物理，使用官方步态与任务 PPO。语音指令通过灵矽理解；本地按钮可独立体验。示意图用于选择场景，进入后加载真实模型。</p>
+</main><script type="module" src="./src/training.js"></script></body></html>
