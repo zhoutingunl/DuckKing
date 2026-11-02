@@ -1,5 +1,10 @@
 import {test,expect} from '@playwright/test';
 
+async function claimRoom(request){
+ const response=await request.post('/api/rooms/claim');expect(response.ok()).toBe(true);
+ return (await response.json()).room;
+}
+
 test.afterEach(async({page,request})=>{
  const room=new URL(page.url()).searchParams.get('room');
  if(room)await request.post(`/api/scenes/close?room=${room}`);
@@ -7,7 +12,7 @@ test.afterEach(async({page,request})=>{
 
 test('training selection preserves room and human PK controls only the left duck',async({page,request})=>{
  test.setTimeout(90000);const errors=[];page.on('pageerror',e=>errors.push(e.message));
- const {room}=await(await request.post('/api/rooms')).json();
+ const room=await claimRoom(request);
  await page.goto(`/training.html?room=${room}`);
  await expect(page.locator('.turntable-choice')).toHaveAttribute('href',new RegExp(`balance\\.html\\?room=${room}$`));
  await page.locator('.seesaw-choice').click();await page.locator('#prepare').click();
@@ -40,7 +45,7 @@ test('training selection preserves room and human PK controls only the left duck
 
 test('passive seesaw accepts bounded exploration, displays true motion, resets and preserves orbit',async({page,request})=>{
  test.setTimeout(90000);const errors=[];page.on('pageerror',error=>errors.push(error.message));
- const {room}=await(await request.post('/api/rooms')).json();
+ const room=await claimRoom(request);
  await page.goto(`/seesaw.html?room=${room}`);
  await page.locator('#prepare').click();await page.selectOption('#controller','rule');await expect(page.locator('#start')).toBeEnabled({timeout:45000});
  await expect(page.locator('#trained-viewport')).toHaveAttribute('data-rendered-scene','seesaw');
@@ -71,7 +76,7 @@ test('passive seesaw accepts bounded exploration, displays true motion, resets a
 });
 
 test('official baseline visibly fails at the angle limit and replay clears old result',async({page,request})=>{
- test.setTimeout(90000);const {room}=await(await request.post('/api/rooms')).json();
+ test.setTimeout(90000);const room=await claimRoom(request);
  await page.goto(`/seesaw.html?room=${room}`);await page.locator('#prepare').click();
  await page.selectOption('#controller','rule');await expect(page.locator('#start')).toBeEnabled({timeout:45000});
  await page.selectOption('#controller','baseline');await page.locator('#start').click();
@@ -86,7 +91,7 @@ test('official baseline visibly fails at the angle limit and replay clears old r
 });
 
 test('different actions produce different free-load trajectories',async({page,request})=>{
- test.setTimeout(90000);const {room}=await(await request.post('/api/rooms')).json();
+ test.setTimeout(90000);const room=await claimRoom(request);
  await page.goto(`/seesaw.html?room=${room}`);await page.locator('#prepare').click();
  await page.selectOption('#controller','rule');await expect(page.locator('#start')).toBeEnabled({timeout:45000});
  await page.locator('#start').click();
@@ -104,7 +109,7 @@ test('different actions produce different free-load trajectories',async({page,re
 });
 
 test('bundled PPO docks the free load while the same-start center baseline fails',async({page,request})=>{
- test.setTimeout(90000);const {room}=await(await request.post('/api/rooms')).json();
+ test.setTimeout(90000);const room=await claimRoom(request);
  await page.goto(`/seesaw.html?room=${room}`);await page.locator('#prepare').click();
  await page.selectOption('#controller','rule');await expect(page.locator('#start')).toBeEnabled({timeout:45000});
  await page.selectOption('#controller','trained');await page.locator('#start').click();
