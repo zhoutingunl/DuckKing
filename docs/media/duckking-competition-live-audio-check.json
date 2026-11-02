@@ -1,7 +1,7 @@
 {
-  "validation_type": "Finals edit: independent chapter PCM comparison; no new Linx cloud calls",
-  "sha256": "3649c8668839b6c05f86bf2a7c14e86ad12936fd6731343022c5bfaad340cea2",
-  "duration_seconds": 229.08,
+  "validation_type": "New real Linx recording: output-clock audio/video alignment and independent chapter PCM comparison",
+  "sha256": "43606d9590d3a5f404d4aaad082941bedc5f455a3c6d7f51e221a98943432c77",
+  "duration_seconds": 239.0,
   "sample_rate_hz": 48000,
   "channels": 2,
   "method": "Decode each part independently and honor audio timestamps; compare both channels with the final timeline. Quiet windows run from 0.7 to 0.2 seconds before each chapter end. Values <= -120 dBFS are clamped to -120.",
@@ -26,28 +26,28 @@
     {
       "chapter": "tabletop",
       "start_seconds": 17.84,
-      "duration_seconds": 75.16,
-      "source_part_sha256": "457d9679455cd59b4ecf818be186dc016c8651c09841a732efa41220dea6b045",
+      "duration_seconds": 84.72,
+      "source_part_sha256": "5892adb31368419a1302d8c027974cb7dd37ce5b63c1b78698099ec958060128",
       "pcm_correlation_per_channel": [
-        0.9999838663808561,
-        0.9999820957245045
+        0.9999886351445804,
+        0.9999865748311988
       ],
       "intentional_silence": false,
       "tail_window_before_end_seconds": [
         0.7,
         0.2
       ],
-      "reference_tail_dbfs": -32.06,
-      "final_tail_dbfs": -32.08
+      "reference_tail_dbfs": -120.0,
+      "final_tail_dbfs": -120.0
     },
     {
       "chapter": "local_asr",
-      "start_seconds": 93.0,
+      "start_seconds": 102.56,
       "duration_seconds": 21.12,
       "source_part_sha256": "6f3c8f3c6f8aac6309cc6f28640524a49b076faf5820703767173a91ed97e3c5",
       "pcm_correlation_per_channel": [
-        0.9999952922620753,
-        0.9999952881118622
+        0.9999952624093043,
+        0.9999952618572603
       ],
       "intentional_silence": false,
       "tail_window_before_end_seconds": [
@@ -59,12 +59,12 @@
     },
     {
       "chapter": "balance",
-      "start_seconds": 114.12,
+      "start_seconds": 123.68,
       "duration_seconds": 22.56,
       "source_part_sha256": "e92f0d7e20be44e5f8f0f454603b6aafdfcf25d08f034b5c49e131517f98a9f1",
       "pcm_correlation_per_channel": [
-        0.9999958481978724,
-        0.9999958460286366
+        0.9999957829808731,
+        0.999995782974095
       ],
       "intentional_silence": false,
       "tail_window_before_end_seconds": [
@@ -76,12 +76,12 @@
     },
     {
       "chapter": "training",
-      "start_seconds": 136.68,
+      "start_seconds": 146.24,
       "duration_seconds": 24.64,
       "source_part_sha256": "81d8cdffcb9d4711b3ae07644b3212414e8285cafa4b04b5965e80ec050570e1",
       "pcm_correlation_per_channel": [
-        0.999995233822801,
-        0.9999952320869474
+        0.9999974105007703,
+        0.9999974106747953
       ],
       "intentional_silence": false,
       "tail_window_before_end_seconds": [
@@ -93,12 +93,12 @@
     },
     {
       "chapter": "experience",
-      "start_seconds": 161.32,
-      "duration_seconds": 22.68,
-      "source_part_sha256": "aa41485b5679eb63fc7a86caef45807f656b0468a7584068448e32c2e6c5cce8",
+      "start_seconds": 170.88,
+      "duration_seconds": 23.04,
+      "source_part_sha256": "8618cf0f931c4508f2e9dec97b15dbc554a668c5800259dd86a86fc2cffcc491",
       "pcm_correlation_per_channel": [
-        0.9999950994678211,
-        0.9999951028578679
+        0.9999970164118458,
+        0.9999970165528618
       ],
       "intentional_silence": false,
       "tail_window_before_end_seconds": [
@@ -110,12 +110,12 @@
     },
     {
       "chapter": "statistics",
-      "start_seconds": 184.0,
+      "start_seconds": 193.92,
       "duration_seconds": 21.6,
-      "source_part_sha256": "7f4b53f86d0a51e7b266d2205bbda330a8b108e45367e90b998a7919e7882620",
+      "source_part_sha256": "840552d0a1bd398dc6fda64b52d8ea9a1f74fd2d42a80ebde7131ab526c05a5d",
       "pcm_correlation_per_channel": [
-        0.9999972454300423,
-        0.9999972466348656
+        0.9999972527200615,
+        0.9999972530630159
       ],
       "intentional_silence": false,
       "tail_window_before_end_seconds": [
@@ -127,12 +127,12 @@
     },
     {
       "chapter": "coverage",
-      "start_seconds": 205.6,
+      "start_seconds": 215.51999999999998,
       "duration_seconds": 20.48,
       "source_part_sha256": "288eb590b73ee9dab8bf04deb58ea68c7c27c21f206f66fdc74228c7c2fe17ae",
       "pcm_correlation_per_channel": [
-        0.9999948733610684,
-        0.9999948731235013
+        0.9999947886923153,
+        0.9999947895946915
       ],
       "intentional_silence": false,
       "tail_window_before_end_seconds": [
@@ -144,7 +144,7 @@
     },
     {
       "chapter": "outro",
-      "start_seconds": 226.07999999999998,
+      "start_seconds": 235.99999999999997,
       "duration_seconds": 3.0,
       "source_part_sha256": "2e0b484895236376db7692fac702d5fab084167575b917d2c15ca593cc818909",
       "pcm_correlation_per_channel": null,
@@ -157,10 +157,28 @@
       "final_tail_dbfs": -120.0
     }
   ],
-  "removed_redundant_wait_seconds": [
-    93.0,
-    105.88
-  ],
+  "prior_edit": {
+    "previous_video_duration_seconds": 177.6,
+    "measured_silent_interval_seconds": [
+      92.451604,
+      106.069917
+    ],
+    "removed_redundant_wait_seconds": [
+      93.0,
+      105.88
+    ],
+    "note": "Prior edit only; these cut points do not apply to the new recording."
+  },
+  "audio_video_sync": {
+    "method": "Actual oscillator scheduling mapped through captured output-clock anchors",
+    "physical_start_wall_time_ms": 1793586028130.546,
+    "physical_end_wall_time_ms": 1793586064153.3179,
+    "music_start_wall_time_ms": 1793586028237.03,
+    "music_end_wall_time_ms": 1793586064227.03,
+    "start_delta_ms": 106.484130859375,
+    "end_delta_ms": 73.712158203125,
+    "max_anchor_jitter_ms": 1.352294921875
+  },
   "balance_source_alignment": "Original full-recording clock retained; 13-second comparison starts at source 19.610 seconds",
   "result": "passed"
 }

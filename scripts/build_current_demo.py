@@ -81,6 +81,9 @@ def main():
         table = next(c for c in proof["chapters"] if c["id"] == "tabletop")
         if table["result"]["mode"] != "live_linx" or not table["result"]["cloud_audio_frames"]:
             raise ValueError("Missing real cloud response")
+        sync = table.get("sync_evidence")
+        if not sync or max(abs(sync[k]) for k in ["start_delta_ms", "end_delta_ms"]) > 350:
+            raise ValueError("Page audio must pass actual output-clock and physics synchronization")
         if not any(
             a["tool"] == "duck_table_show" and a["result"] == "completed"
             for r in proof["new_rounds"]

@@ -3,6 +3,7 @@ import {chromium,expect} from '@playwright/test';
 import {mkdir,writeFile} from 'node:fs/promises';
 import {resolve} from 'node:path';
 import {execFileSync} from 'node:child_process';
+import {installPageAudioRecorder,alignClockedAudio,contextTimeToWall,floatWav} from './recorded-audio.mjs';
 
 const base=new URL(process.env.DUCKKING_DEMO_URL??'http://127.0.0.1:8895/');
 if(!base.pathname.endsWith('/'))base.pathname+='/';
@@ -11,28 +12,7 @@ const room=process.env.DUCKKING_DEMO_ROOM??'1';
 const angle=process.env.DUCKKING_CAPTURE_ANGLE??(process.platform==='darwin'?'metal':'default');
 const browser=await chromium.launch({channel:process.env.DUCKKING_BROWSER_CHANNEL??'chrome',args:angle==='default'?[]:['--use-gl=angle',`--use-angle=${angle}`,...(angle==='swiftshader'?['--enable-unsafe-swiftshader']:[])]});
 const context=await browser.newContext({viewport:{width:1600,height:1000}});
-await context.addInitScript(()=>{
- window.recordedAudio=[];const native=AudioNode.prototype.connect,taps=new Map();
- AudioNode.prototype.connect=function(target,...args){
-  const result=native.call(this,target,...args);
-  if(target===this.context.destination){
-   let tap=taps.get(this.context);
-   if(!tap){
-    const destination=this.context.createMediaStreamDestination(),recorder=new MediaRecorder(destination.stream),chunks=[];
-    tap={destination,recorder,chunks,started_at:Date.now()};taps.set(this.context,tap);window.recordedAudio.push(tap);
-    recorder.ondataavailable=e=>{if(e.data.size)chunks.push(e.data)};recorder.start(250);
-   }
-   native.call(this,tap.destination);
-  }
-  return result;
- };
- window.finishRecordedAudio=async()=>Promise.all(window.recordedAudio.map(async tap=>{
-  if(tap.recorder.state!=='inactive')await new Promise(r=>{tap.recorder.addEventListener('stop',r,{once:true});tap.recorder.stop()});
-  const blob=new Blob(tap.chunks,{type:tap.recorder.mimeType});const bytes=new Uint8Array(await blob.arrayBuffer());
-  let text='';for(let i=0;i<bytes.length;i+=8192)text+=String.fromCharCode(...bytes.subarray(i,i+8192));
-  return {started_at:tap.started_at,mime:tap.recorder.mimeType,base64:btoa(text)};
- }));
-});
+await context.addInitScript(installPageAudioRecorder);
 const health=await(await context.request.get(new URL('api/health',base).href)).json();
 const proof={recorded_at:new Date().toISOString(),base_url:base.href,release:health.release,source_commit:execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim(),room,validation_type:'live_tabletop',source:'Real Linx STT/MCP/TTS from shipped prerecorded command; actual MuJoCo; browser synthesis of Two Tigers',chapters:[],page_errors:[]};
 const request=async path=>{const r=await context.request.get(new URL(path,base).href);if(!r.ok())throw Error(`${path}: ${r.status()}`);return r.json()};
@@ -65,7 +45,21 @@ async function shot(name){
 async function mark(name,work){const segment={name,start_seconds:(Date.now()-started)/1000};chapter.segments.push(segment);await save();console.log('Recording',name);try{await work();segment.status='completed'}catch(e){segment.status='failed';segment.error=e.message;throw e}finally{segment.end_seconds=(Date.now()-started)/1000;await save()}}
 async function close(){
  const audio=await page.evaluate(()=>window.finishRecordedAudio());chapter.audio=[];
- for(const [i,a] of audio.entries()){const file=resolve(output,`${chapter.id}-${i}.webm`);await writeFile(file,Buffer.from(a.base64,'base64'));chapter.audio.push({file,mime:a.mime,started_elapsed_seconds:(a.started_at-started)/1000})}
+ for(const [i,a] of audio.entries()){
+  const bytes=Buffer.from(a.pcm_base64,'base64');await writeFile(resolve(output,`${chapter.id}-${i}-raw.f32`),bytes);await writeFile(resolve(output,`${chapter.id}-${i}-raw-clock.json`),JSON.stringify({...a,pcm_base64:undefined},null,2)+'\n');
+  const aligned=alignClockedAudio({...a,pcm:new Float32Array(bytes.buffer,bytes.byteOffset,bytes.length/4)});
+  const file=resolve(output,`${chapter.id}-${i}.wav`);await writeFile(file,floatWav(aligned));
+  chapter.audio.push({file,mime:'audio/wav',sample_rate_hz:aligned.sampleRate,channels:2,started_elapsed_seconds:(aligned.started_wall_time_ms-started)/1000,clock_method:'AudioWorklet PCM + AudioContext.getOutputTimestamp wall-clock anchors',clock_segments:aligned.segments});
+  const events=a.events.map(e=>({...e,wall_time_ms:contextTimeToWall(aligned,e.context_time)}));await writeFile(resolve(output,`${chapter.id}-${i}-clock.json`),JSON.stringify({events,anchors:a.anchors,states:a.states,segments:aligned.segments},null,2)+'\n');
+  const show=chapter.result?.results.find(r=>r.name==='table_show');
+  if(show){
+   const starts=events.filter(e=>e.kind==='oscillator'&&e.method==='start'),stops=new Map();for(const e of events)if(e.kind==='oscillator'&&e.method==='stop')stops.set(e.id,e);
+   if(!starts.length||!stops.size)throw Error('Missing actual music timing events');
+   const first=Math.min(...starts.map(e=>e.wall_time_ms)),last=Math.max(...[...stops.values()].map(e=>e.wall_time_ms));
+   chapter.sync_evidence={method:'Actual oscillator scheduling mapped through captured output-clock anchors',physical_start_wall_time_ms:show.started_at*1000,physical_end_wall_time_ms:show.finished_at*1000,music_start_wall_time_ms:first,music_end_wall_time_ms:last,start_delta_ms:first-show.started_at*1000,end_delta_ms:last-show.finished_at*1000,max_anchor_jitter_ms:Math.max(...aligned.segments.map(s=>s.max_anchor_jitter_ms))};
+   if(Math.abs(chapter.sync_evidence.start_delta_ms)>350||Math.abs(chapter.sync_evidence.end_delta_ms)>350)throw Error('Music/physics start or end differs by over 350 ms; retain this attempt');
+  }
+ }
  const ended=Date.now();capture.accepting=false;await capture.session.send('Page.stopScreencast');await Promise.all(capture.writes);await page.close();
  const frames=capture.frames;if(!frames.length)throw Error('No actual screencast frames');
  const gaps=frames.slice(1).map((frame,i)=>(frame.time-frames[i].time)/1000);
@@ -106,7 +100,7 @@ try{
   await expect(page.locator('#show-status')).toHaveText('本幕完成 · 可重演或进入下一幕',{timeout:75000});
   const result=JSON.parse(await page.locator('#theatre-result').textContent());
   if(result.mode!=='live_linx'||result.cloud_audio_frames<1||!result.results.some(r=>r.name==='table_show'&&r.status==='completed'))throw Error('Missing actual cloud/physics result');
-  chapter.result=result;chapter.timeline=await page.locator('#demo-timeline li').allTextContents();await page.locator('.show-results').scrollIntoViewIfNeeded();await page.waitForTimeout(2500);await shot('competition-live-result');await page.waitForTimeout(2000);
+  chapter.result=result;chapter.timeline=await page.locator('#demo-timeline li').allTextContents();await shot('competition-live-result');await page.waitForTimeout(700);
  });await close();
  const after=await request(`api/voice/statistics?room=${room}&backend=mujoco`);
  proof.new_rounds=after.rounds.filter(r=>!proof.before_turns.includes(r.turn));
@@ -124,6 +118,7 @@ try{
  });await close();
  await open('statistics','statistics.html');await page.selectOption('#backend-filter','mujoco');await page.locator('#refresh-stats').click();await expect(page.locator('#round-text')).toContainText('桌上',{timeout:15000});
  await mark('round-timeline-and-latency',async()=>{
+  chapter.statistics=await request(`api/voice/statistics?room=${room}&backend=mujoco`);
   await shot('competition-statistics');await page.waitForTimeout(7000);await page.locator('#latency-rows').scrollIntoViewIfNeeded();await shot('competition-statistics-latency');await page.waitForTimeout(8000);
  });await close();proof.completed=true;
 }catch(e){proof.completed=false;proof.error=e.message;console.error(e.message);if(page&&!page.isClosed()){await shot('competition-recording-failure');await close()}}

@@ -1,8 +1,8 @@
 {
-  "recorded_at": "2026-11-01T18:37:16.594Z",
-  "base_url": "http://127.0.0.1:8897/",
+  "recorded_at": "2026-11-02T02:20:07.165Z",
+  "base_url": "http://127.0.0.1:8903/",
   "release": null,
-  "source_commit": "c834335044d0e126aa76e4bfc1dbc3a8b72eff55",
+  "source_commit": "8d2314423fc7f98a8053fffd4c23d6c912050954",
   "room": "1",
   "validation_type": "live_tabletop",
   "source": "Actual Linx STT/MCP/TTS performance; actual offline SenseVoice and MuJoCo; public balance comparison, saved CPU training and commit-bound coverage. Separate recordings and versions are retained per chapter.",
@@ -10,39 +10,39 @@
     {
       "id": "tabletop",
       "page": "demos.html",
-      "started_at": "2026-11-01T18:37:17.036Z",
+      "started_at": "2026-11-02T02:20:07.679Z",
       "segments": [
         {
           "name": "live-tabletop-two-tigers",
-          "start_seconds": 0.252,
+          "start_seconds": 0.277,
           "status": "completed",
-          "end_seconds": 88.262
+          "end_seconds": 84.987
         }
       ],
       "screenshots": [
         {
           "file": "competition-live-selection.png",
-          "at_seconds": 0.261,
+          "at_seconds": 0.28,
           "capture": "recorded_video_frame",
-          "sha256": "642ffbc9c4a30ee3c595d6d24f45c1718c4b26510565f0e1581d848e8852847d"
+          "sha256": "a9e99e90c9db56ffbdbfcdd91f5c1b2d38607b3c83cf39fe7ded4684401df737"
         },
         {
           "file": "competition-live-running.png",
-          "at_seconds": 25.707,
+          "at_seconds": 23.792,
           "capture": "recorded_video_frame",
-          "sha256": "c1c5a2e39aa88bcd3af1b5357ee9f295fa496e8fa06c96b571b9935e29e7238f"
+          "sha256": "7140e7df2479c519baacfd4fb31fc0f881e30be26a8b2bb7dbec68c84b1b326e"
         },
         {
           "file": "competition-live-fall.png",
-          "at_seconds": 40.609,
+          "at_seconds": 39.704,
           "capture": "recorded_video_frame",
-          "sha256": "c92afb068a753c07f36731bb1948724e135c99b8e1a4c89732911b95c9f5592b"
+          "sha256": "217d15a30ae62a724dfe3127b7ca3d2491ba41e9c7e34b82008fcc8aa752d745"
         },
         {
           "file": "competition-live-result.png",
-          "at_seconds": 86.262,
+          "at_seconds": 84.285,
           "capture": "recorded_video_frame",
-          "sha256": "e39edf60228d4c4f7aa18efe8ac94df773a4392a3d4e2bece67bc900cde77a43"
+          "sha256": "240667eab4cc40d675f04297c424d60236fe893e71975b9207d5f4f3fc621fc7"
         }
       ],
       "result": {
@@ -51,7 +51,7 @@
         "status": "completed",
         "results": [
           {
-            "id": "93a74893b3e7:3",
+            "id": "7a37b99776de:3",
             "name": "table_show",
             "input": {
               "name": "table_show",
@@ -62,7 +62,7 @@
               "members": null
             },
             "status": "completed",
-            "started_at": 1793558258.711019,
+            "started_at": 1793586028.1305459,
             "outcome": {
               "phase": "completed",
               "elapsed": 36,
@@ -71,19 +71,19 @@
               "running": false,
               "table_height_m": 0.4,
               "falling_duck": "d",
-              "dropped_at": 17.379999999997487,
-              "landed_at": 17.499999999997463,
+              "dropped_at": 17.539999999997562,
+              "landed_at": 17.679999999997534,
               "table_contacts": [
-                16937,
-                16989,
-                16886,
-                10968
+                16801,
+                16806,
+                16834,
+                10909
               ],
               "ground_contacts": [
                 0,
                 0,
                 0,
-                11610
+                11825
               ],
               "supported": [
                 true,
@@ -92,71 +92,71 @@
                 false
               ],
               "min_root_height_m": [
-                0.5123968674695449,
-                0.5115398666776662,
-                0.5122537576033711,
-                0.056640219976284975
+                0.5119008834056024,
+                0.5120470818544655,
+                0.5116641386663988,
+                0.0488372404518479
               ],
               "knee_excursion_deg": [
                 [
-                  45.9342312285554,
-                  39.99350283219811
+                  48.73934715368752,
+                  41.45544484563514
                 ],
                 [
-                  48.51141606801227,
-                  43.91221810648583
+                  46.571809218845964,
+                  41.649026153059395
                 ],
                 [
-                  47.80200967156829,
-                  41.515504033492604
+                  47.409098537827774,
+                  41.444453046364806
                 ],
                 [
-                  45.024371574170374,
-                  36.60632426475851
+                  44.247707059988635,
+                  36.620402770870434
                 ]
               ],
               "ankle_vertical_excursion_m": [
                 [
-                  0.024206126236746228,
-                  0.0226745614487196
+                  0.023656462490771468,
+                  0.02345558991094515
                 ],
                 [
-                  0.02469204361570515,
-                  0.022808746430685367
+                  0.024403121050679155,
+                  0.0223122484264196
                 ],
                 [
-                  0.024601121471829357,
-                  0.022422767657523712
+                  0.024050347019652918,
+                  0.022666748613190624
                 ],
                 [
-                  0.022549600065103648,
-                  0.02203695924602117
+                  0.023748947752902316,
+                  0.021745656498250054
                 ]
               ],
               "dance_max_drift_m": [
-                0.054783423052748345,
-                0.05809704489282265,
-                0.04997451605818806,
-                0.046273121242616316
+                0.05172547161656286,
+                0.05233429650985176,
+                0.055606004731962276,
+                0.048312960867337475
               ],
               "floor_dance": {
-                "started_at": 19.119999999997468,
+                "started_at": 19.299999999997453,
                 "knee_excursion_deg": [
-                  45.03480864976198,
-                  39.419694732778694
+                  45.03600248833273,
+                  38.16557715520643
                 ],
                 "ankle_vertical_excursion_m": [
-                  0.023302249391766963,
-                  0.022334111466956533
+                  0.022712664507058625,
+                  0.02212719878234755
                 ],
-                "max_drift_m": 0.051676243218854404
+                "max_drift_m": 0.051683650433757077
               },
               "source": "scripted_gait_real_contacts_gravity",
               "departure_stable": true,
               "verified": true,
               "message": "鸭 D 已真实落地并恢复踏步，其余三只留在桌上"
             },
-            "finished_at": 1793558294.718826,
+            "finished_at": 1793586064.153318,
             "room": "1"
           },
           {
@@ -176,69 +176,89 @@
       },
       "timeline": [
         "识别：请开始桌上四鸭合唱表演。",
-        "灵矽：好的，桌上四鸭合唱表演已开演受理，",
-        "灵矽：正在演出中，请稍候。",
-        "灵矽：我稍后为您确认实际完成情况。",
+        "灵矽：我来启动四鸭合唱表演表演已受理开演，",
+        "灵矽：正在等待完成，稍后我确认结果。",
         "灵矽开演已受理；等待实际物理结果",
         "灵矽开演动作 · 实际物理表演已完成",
         "真实跌落验收通过：桌面支撑 → 离桌 → 地面接触；其余三只留在桌上",
         "识别：请读取当前状态，告诉我桌上表演的真实结果。",
-        "灵矽：桌上四鸭合唱表演已完成。",
-        "灵矽：演出时长36秒，四只鸭子都参与了踏步演出，鸭D在中间阶段落地后继续完成了地板舞步，整体演出正常结束，没有出现异常。",
+        "灵矽：表演已完成。",
+        "灵矽：四只小鸭在桌上完成了36秒的合唱与踏步表演，鸭子D在约17.5秒时从桌面跌落落地，之后在地面继续完成了舞蹈部分，整场演出顺利结束。",
         "本幕完成"
       ],
       "audio": [
         {
-          "file": "tabletop-0.webm",
-          "mime": "audio/webm;codecs=opus",
-          "started_elapsed_seconds": 2.115,
-          "sha256": "7c15a7340f34768efba3ed45557796f58c3d1db7401e97f9612fc0dce0bdc4a9"
+          "file": "tabletop-0.wav",
+          "mime": "audio/wav",
+          "sample_rate_hz": 48000,
+          "channels": 2,
+          "started_elapsed_seconds": 2.222030029296875,
+          "clock_method": "AudioWorklet PCM + AudioContext.getOutputTimestamp wall-clock anchors",
+          "clock_segments": [
+            {
+              "first_frame": 256,
+              "last_frame": 3974400,
+              "offset_ms": 1793586009895.6968,
+              "max_anchor_jitter_ms": 1.352294921875
+            }
+          ],
+          "sha256": "aab01d699268506d4f3c2b5929147e427a4ba198df013632677e43da3c1c2616"
         }
       ],
-      "video_start_elapsed_seconds": 0.2101259765625,
+      "sync_evidence": {
+        "method": "Actual oscillator scheduling mapped through captured output-clock anchors",
+        "physical_start_wall_time_ms": 1793586028130.546,
+        "physical_end_wall_time_ms": 1793586064153.3179,
+        "music_start_wall_time_ms": 1793586028237.03,
+        "music_end_wall_time_ms": 1793586064227.03,
+        "start_delta_ms": 106.484130859375,
+        "end_delta_ms": 73.712158203125,
+        "max_anchor_jitter_ms": 1.352294921875
+      },
+      "video_start_elapsed_seconds": 0.207344970703125,
       "capture": {
         "method": "Chrome CDP screencast with original wall-clock timestamps",
-        "frames": 1177,
-        "max_frame_gap_seconds": 7.93310498046875,
-        "performance_frames": 594,
-        "performance_fps": 16.49642255997177,
-        "performance_max_gap_seconds": 0.116663818359375
+        "frames": 1238,
+        "max_frame_gap_seconds": 6.983076171875,
+        "performance_frames": 593,
+        "performance_fps": 16.461809179649247,
+        "performance_max_gap_seconds": 0.183326904296875
       },
       "video": "capture.webm",
-      "finished_at": "2026-11-01T18:38:56.890Z",
+      "finished_at": "2026-11-02T02:21:50.604Z",
       "provenance": {
-        "recorded_at": "2026-11-01T18:37:16.594Z",
-        "base_url": "http://127.0.0.1:8897/",
-        "source_commit": "c834335044d0e126aa76e4bfc1dbc3a8b72eff55",
+        "recorded_at": "2026-11-02T02:20:07.165Z",
+        "base_url": "http://127.0.0.1:8903/",
+        "source_commit": "8d2314423fc7f98a8053fffd4c23d6c912050954",
         "release": null,
         "source": "Real Linx STT/MCP/TTS from shipped prerecorded command; actual MuJoCo; browser synthesis of Two Tigers"
       },
-      "video_sha256": "21121d549540f8d63dba6e9194490711b67e741019d13476ef8bf9d059386385"
+      "video_sha256": "c6d9a3140a1cdbc625a135111517bc82ceaf18d2f8b16df8e7402803751ad243"
     },
     {
       "id": "experience",
       "page": "experience.html",
-      "started_at": "2026-11-01T18:38:57.160Z",
+      "started_at": "2026-11-02T02:21:50.970Z",
       "segments": [
         {
           "name": "persistent-experience",
-          "start_seconds": 0.354,
+          "start_seconds": 0.469,
           "status": "completed",
-          "end_seconds": 15.599
+          "end_seconds": 15.738
         }
       ],
       "screenshots": [
         {
           "file": "competition-experience.png",
-          "at_seconds": 0.356,
+          "at_seconds": 0.471,
           "capture": "browser_screenshot",
-          "sha256": "f87317f640d960e7892ef0868ecf7630f90ac7ceb393e5bbff597119f562fefb"
+          "sha256": "2339ff6bc34edf2cf6dcdaede9b2afec431d13f7d4827052bf6113fe735fac9b"
         },
         {
           "file": "competition-experience-server.png",
-          "at_seconds": 7.498,
+          "at_seconds": 7.621,
           "capture": "browser_screenshot",
-          "sha256": "606f030faf679ec8adc3ba6f2d2e8ac080d56c586ddd490762f4827ce2e89109"
+          "sha256": "9902b38c10660866394c6f82137bc0d67d348e67cab3e15d554008ae667a0344"
         }
       ],
       "summary": {
@@ -247,9 +267,9 @@
         "queued": 0,
         "retention_days": 90,
         "capacity": 50000,
-        "collection_started_at": 1793558241.36215,
-        "from": 1793554737.627341,
-        "to": 1793558337.627341,
+        "collection_started_at": 1793585533.600734,
+        "from": 1793582511.543316,
+        "to": 1793586111.543316,
         "filters": {
           "traffic": "verification",
           "page": "demos",
@@ -263,9 +283,9 @@
         "releases": [
           "development"
         ],
-        "samples": 5,
+        "samples": 10,
         "statuses": {
-          "completed": 5
+          "completed": 10
         },
         "hidden_samples": 0,
         "groups": [
@@ -273,57 +293,57 @@
             "source": "browser",
             "metric": "action_ms",
             "route": "cloud",
-            "count": 1,
-            "mean_ms": 1732,
-            "p90_ms": 1732,
-            "p50_ms": 1732,
-            "p95_ms": 1732
+            "count": 2,
+            "mean_ms": 1507.5,
+            "p90_ms": 1523,
+            "p50_ms": 1492,
+            "p95_ms": 1523
           },
           {
             "source": "browser",
             "metric": "assemble_ms",
             "route": "pending",
-            "count": 1,
-            "mean_ms": 71,
+            "count": 2,
+            "mean_ms": 70.5,
             "p90_ms": 71,
-            "p50_ms": 71,
+            "p50_ms": 70,
             "p95_ms": 71
           },
           {
             "source": "browser",
             "metric": "asset_ms",
             "route": "pending",
-            "count": 1,
-            "mean_ms": 665,
-            "p90_ms": 665,
-            "p50_ms": 665,
-            "p95_ms": 665
+            "count": 2,
+            "mean_ms": 382.5,
+            "p90_ms": 704,
+            "p50_ms": 61,
+            "p95_ms": 704
           },
           {
             "source": "browser",
             "metric": "audio_ms",
             "route": "cloud",
-            "count": 2,
-            "mean_ms": 3174.5,
-            "p90_ms": 3518,
-            "p50_ms": 2831,
-            "p95_ms": 3518
+            "count": 4,
+            "mean_ms": 2837.5,
+            "p90_ms": 3070,
+            "p50_ms": 2836,
+            "p95_ms": 3070
           },
           {
             "source": "browser",
             "metric": "first_frame_ms",
             "route": "pending",
-            "count": 1,
-            "mean_ms": 82,
-            "p90_ms": 82,
-            "p50_ms": 82,
-            "p95_ms": 82
+            "count": 2,
+            "mean_ms": 90,
+            "p90_ms": 91,
+            "p50_ms": 89,
+            "p95_ms": 91
           },
           {
             "source": "browser",
             "metric": "parse_ms",
             "route": "pending",
-            "count": 1,
+            "count": 2,
             "mean_ms": 1,
             "p90_ms": 1,
             "p50_ms": 1,
@@ -333,216 +353,216 @@
             "source": "browser",
             "metric": "reply_ms",
             "route": "cloud",
-            "count": 2,
-            "mean_ms": 15548,
-            "p90_ms": 18016,
-            "p50_ms": 13080,
-            "p95_ms": 18016
+            "count": 4,
+            "mean_ms": 20294.8,
+            "p90_ms": 29408,
+            "p50_ms": 19262,
+            "p95_ms": 29408
           },
           {
             "source": "browser",
             "metric": "scene_ms",
             "route": "pending",
-            "count": 1,
-            "mean_ms": 8179,
-            "p90_ms": 8179,
-            "p50_ms": 8179,
-            "p95_ms": 8179
+            "count": 2,
+            "mean_ms": 4091.5,
+            "p90_ms": 7247,
+            "p50_ms": 936,
+            "p95_ms": 7247
           },
           {
             "source": "browser",
             "metric": "stt_cloud_ms",
             "route": "cloud",
-            "count": 2,
-            "mean_ms": 295,
-            "p90_ms": 324,
-            "p50_ms": 266,
-            "p95_ms": 324
+            "count": 4,
+            "mean_ms": 318,
+            "p90_ms": 389,
+            "p50_ms": 281,
+            "p95_ms": 389
           },
           {
             "source": "server",
             "metric": "action_ms",
             "route": "cloud",
-            "count": 1,
-            "mean_ms": 1730,
-            "p90_ms": 1730,
-            "p50_ms": 1730,
-            "p95_ms": 1730
+            "count": 2,
+            "mean_ms": 1496.5,
+            "p90_ms": 1515,
+            "p50_ms": 1478,
+            "p95_ms": 1515
           },
           {
             "source": "server",
             "metric": "audio_ms",
             "route": "cloud",
-            "count": 2,
-            "mean_ms": 3171,
-            "p90_ms": 3515,
-            "p50_ms": 2827,
-            "p95_ms": 3515
+            "count": 4,
+            "mean_ms": 2828.8,
+            "p90_ms": 3067,
+            "p50_ms": 2828,
+            "p95_ms": 3067
           },
           {
             "source": "server",
             "metric": "reply_ms",
             "route": "cloud",
-            "count": 2,
-            "mean_ms": 15545,
-            "p90_ms": 18013,
-            "p50_ms": 13077,
-            "p95_ms": 18013
+            "count": 4,
+            "mean_ms": 20286.5,
+            "p90_ms": 29399,
+            "p50_ms": 19259,
+            "p95_ms": 29399
           },
           {
             "source": "server",
             "metric": "stt_cloud_ms",
             "route": "cloud",
-            "count": 2,
-            "mean_ms": 292,
-            "p90_ms": 320,
-            "p50_ms": 264,
-            "p95_ms": 320
+            "count": 4,
+            "mean_ms": 308.2,
+            "p90_ms": 385,
+            "p50_ms": 266,
+            "p95_ms": 385
           }
         ],
         "trend": [
           {
-            "at": "2026-11-01T18:00:00Z",
+            "at": "2026-11-02T02:00:00Z",
             "source": "browser",
             "metric": "action_ms",
             "route": "cloud",
-            "count": 1,
-            "mean_ms": 1732,
-            "p90_ms": 1732,
-            "p50_ms": 1732,
-            "p95_ms": 1732
+            "count": 2,
+            "mean_ms": 1507.5,
+            "p90_ms": 1523,
+            "p50_ms": 1492,
+            "p95_ms": 1523
           },
           {
-            "at": "2026-11-01T18:00:00Z",
+            "at": "2026-11-02T02:00:00Z",
             "source": "browser",
             "metric": "assemble_ms",
             "route": "pending",
-            "count": 1,
-            "mean_ms": 71,
+            "count": 2,
+            "mean_ms": 70.5,
             "p90_ms": 71,
-            "p50_ms": 71,
+            "p50_ms": 70,
             "p95_ms": 71
           },
           {
-            "at": "2026-11-01T18:00:00Z",
+            "at": "2026-11-02T02:00:00Z",
             "source": "browser",
             "metric": "asset_ms",
             "route": "pending",
-            "count": 1,
-            "mean_ms": 665,
-            "p90_ms": 665,
-            "p50_ms": 665,
-            "p95_ms": 665
+            "count": 2,
+            "mean_ms": 382.5,
+            "p90_ms": 704,
+            "p50_ms": 61,
+            "p95_ms": 704
           },
           {
-            "at": "2026-11-01T18:00:00Z",
+            "at": "2026-11-02T02:00:00Z",
             "source": "browser",
             "metric": "audio_ms",
             "route": "cloud",
-            "count": 2,
-            "mean_ms": 3174.5,
-            "p90_ms": 3518,
-            "p50_ms": 2831,
-            "p95_ms": 3518
+            "count": 4,
+            "mean_ms": 2837.5,
+            "p90_ms": 3070,
+            "p50_ms": 2836,
+            "p95_ms": 3070
           },
           {
-            "at": "2026-11-01T18:00:00Z",
+            "at": "2026-11-02T02:00:00Z",
             "source": "browser",
             "metric": "first_frame_ms",
             "route": "pending",
-            "count": 1,
-            "mean_ms": 82,
-            "p90_ms": 82,
-            "p50_ms": 82,
-            "p95_ms": 82
+            "count": 2,
+            "mean_ms": 90,
+            "p90_ms": 91,
+            "p50_ms": 89,
+            "p95_ms": 91
           },
           {
-            "at": "2026-11-01T18:00:00Z",
+            "at": "2026-11-02T02:00:00Z",
             "source": "browser",
             "metric": "parse_ms",
             "route": "pending",
-            "count": 1,
+            "count": 2,
             "mean_ms": 1,
             "p90_ms": 1,
             "p50_ms": 1,
             "p95_ms": 1
           },
           {
-            "at": "2026-11-01T18:00:00Z",
+            "at": "2026-11-02T02:00:00Z",
             "source": "browser",
             "metric": "reply_ms",
             "route": "cloud",
-            "count": 2,
-            "mean_ms": 15548,
-            "p90_ms": 18016,
-            "p50_ms": 13080,
-            "p95_ms": 18016
+            "count": 4,
+            "mean_ms": 20294.8,
+            "p90_ms": 29408,
+            "p50_ms": 19262,
+            "p95_ms": 29408
           },
           {
-            "at": "2026-11-01T18:00:00Z",
+            "at": "2026-11-02T02:00:00Z",
             "source": "browser",
             "metric": "scene_ms",
             "route": "pending",
-            "count": 1,
-            "mean_ms": 8179,
-            "p90_ms": 8179,
-            "p50_ms": 8179,
-            "p95_ms": 8179
+            "count": 2,
+            "mean_ms": 4091.5,
+            "p90_ms": 7247,
+            "p50_ms": 936,
+            "p95_ms": 7247
           },
           {
-            "at": "2026-11-01T18:00:00Z",
+            "at": "2026-11-02T02:00:00Z",
             "source": "browser",
             "metric": "stt_cloud_ms",
             "route": "cloud",
-            "count": 2,
-            "mean_ms": 295,
-            "p90_ms": 324,
-            "p50_ms": 266,
-            "p95_ms": 324
+            "count": 4,
+            "mean_ms": 318,
+            "p90_ms": 389,
+            "p50_ms": 281,
+            "p95_ms": 389
           },
           {
-            "at": "2026-11-01T18:00:00Z",
+            "at": "2026-11-02T02:00:00Z",
             "source": "server",
             "metric": "action_ms",
             "route": "cloud",
-            "count": 1,
-            "mean_ms": 1730,
-            "p90_ms": 1730,
-            "p50_ms": 1730,
-            "p95_ms": 1730
+            "count": 2,
+            "mean_ms": 1496.5,
+            "p90_ms": 1515,
+            "p50_ms": 1478,
+            "p95_ms": 1515
           },
           {
-            "at": "2026-11-01T18:00:00Z",
+            "at": "2026-11-02T02:00:00Z",
             "source": "server",
             "metric": "audio_ms",
             "route": "cloud",
-            "count": 2,
-            "mean_ms": 3171,
-            "p90_ms": 3515,
-            "p50_ms": 2827,
-            "p95_ms": 3515
+            "count": 4,
+            "mean_ms": 2828.8,
+            "p90_ms": 3067,
+            "p50_ms": 2828,
+            "p95_ms": 3067
           },
           {
-            "at": "2026-11-01T18:00:00Z",
+            "at": "2026-11-02T02:00:00Z",
             "source": "server",
             "metric": "reply_ms",
             "route": "cloud",
-            "count": 2,
-            "mean_ms": 15545,
-            "p90_ms": 18013,
-            "p50_ms": 13077,
-            "p95_ms": 18013
+            "count": 4,
+            "mean_ms": 20286.5,
+            "p90_ms": 29399,
+            "p50_ms": 19259,
+            "p95_ms": 29399
           },
           {
-            "at": "2026-11-01T18:00:00Z",
+            "at": "2026-11-02T02:00:00Z",
             "source": "server",
             "metric": "stt_cloud_ms",
             "route": "cloud",
-            "count": 2,
-            "mean_ms": 292,
-            "p90_ms": 320,
-            "p50_ms": 264,
-            "p95_ms": 320
+            "count": 4,
+            "mean_ms": 308.2,
+            "p90_ms": 385,
+            "p50_ms": 266,
+            "p95_ms": 385
           }
         ],
         "outcomes": [
@@ -551,85 +571,313 @@
             "kind": "load",
             "route": "pending",
             "status": "completed",
-            "count": 1
+            "count": 2
           },
           {
             "source": "browser",
             "kind": "voice",
             "route": "cloud",
             "status": "completed",
-            "count": 2
+            "count": 4
           },
           {
             "source": "server",
             "kind": "voice",
             "route": "cloud",
             "status": "completed",
-            "count": 2
+            "count": 4
           }
         ]
       },
       "audio": [],
-      "video_start_elapsed_seconds": 0.019205810546875,
+      "video_start_elapsed_seconds": 0.2189169921875,
       "capture": {
         "method": "Chrome CDP screencast with original wall-clock timestamps",
-        "frames": 7,
-        "max_frame_gap_seconds": 7.1164609375
+        "frames": 6,
+        "max_frame_gap_seconds": 7.183068115234375
       },
       "video": "capture.webm",
-      "finished_at": "2026-11-01T18:39:15.998Z",
+      "finished_at": "2026-11-02T02:22:11.063Z",
       "provenance": {
-        "recorded_at": "2026-11-01T18:37:16.594Z",
-        "base_url": "http://127.0.0.1:8897/",
-        "source_commit": "c834335044d0e126aa76e4bfc1dbc3a8b72eff55",
+        "recorded_at": "2026-11-02T02:20:07.165Z",
+        "base_url": "http://127.0.0.1:8903/",
+        "source_commit": "8d2314423fc7f98a8053fffd4c23d6c912050954",
         "release": null,
         "source": "Real Linx STT/MCP/TTS from shipped prerecorded command; actual MuJoCo; browser synthesis of Two Tigers"
       },
-      "video_sha256": "83160bff36b417c4f8a26743573387fe22dbc6ff4948b5b8089e6c0c9f4c1c01"
+      "video_sha256": "8b5f3db95cc4e67fe94820da332da95c5c86dcfef85314b5eb35238cc619e28d"
     },
     {
       "id": "statistics",
       "page": "statistics.html",
-      "started_at": "2026-11-01T18:39:16.264Z",
+      "started_at": "2026-11-02T02:22:11.562Z",
       "segments": [
         {
           "name": "round-timeline-and-latency",
-          "start_seconds": 0.321,
+          "start_seconds": 0.492,
           "status": "completed",
-          "end_seconds": 15.653
+          "end_seconds": 15.832
         }
       ],
       "screenshots": [
         {
           "file": "competition-statistics.png",
-          "at_seconds": 0.322,
+          "at_seconds": 0.511,
           "capture": "browser_screenshot",
-          "sha256": "3d16af074297a3309bf9ed6b3016bc52bf7940df1cbbd4df111a7733de70f9b2"
+          "sha256": "d6880b0e3e4a1d6f6577e8ce7a08131480a134d97a2fef3b50682346af8db840"
         },
         {
           "file": "competition-statistics-latency.png",
-          "at_seconds": 7.52,
+          "at_seconds": 7.664,
           "capture": "browser_screenshot",
-          "sha256": "acb2971239669c432471c42125bb7556d43379df39d0180352dd541e3a02c071"
+          "sha256": "aaafab197b3e7e71b93d5c533897653798bff282042c35a31fe7d25cc5715ee1"
         }
       ],
+      "statistics": {
+        "started_at": "2026-11-02T02:11:25+00:00",
+        "capacity": 500,
+        "total_rounds": 4,
+        "backend": "mujoco",
+        "counts": {
+          "rounds": 4,
+          "submitted": 4,
+          "closed": 4,
+          "pending": 0,
+          "recognized": 4,
+          "replied": 4,
+          "cloud_closed": 4,
+          "timeouts": 0,
+          "interrupted": 0,
+          "errors": 0,
+          "actions": 2,
+          "finished_actions": 2,
+          "completed_actions": 2
+        },
+        "service": {},
+        "latencies": {
+          "stt": {
+            "count": 4,
+            "mean_ms": 308.2,
+            "p90_ms": 385,
+            "p50_ms": 266,
+            "p95_ms": 385
+          },
+          "action_start": {
+            "count": 2,
+            "mean_ms": 1496.5,
+            "p90_ms": 1515,
+            "p50_ms": 1478,
+            "p95_ms": 1515
+          },
+          "first_audio": {
+            "count": 4,
+            "mean_ms": 2828.8,
+            "p90_ms": 3067,
+            "p50_ms": 2828,
+            "p95_ms": 3067
+          },
+          "reply_end": {
+            "count": 4,
+            "mean_ms": 20286.5,
+            "p90_ms": 29399,
+            "p50_ms": 19259,
+            "p95_ms": 29399
+          },
+          "local_end": {
+            "count": 0,
+            "mean_ms": null,
+            "p90_ms": null,
+            "p50_ms": null,
+            "p95_ms": null
+          },
+          "action_duration": {
+            "count": 2,
+            "mean_ms": 36036,
+            "p90_ms": 36049,
+            "p50_ms": 36023,
+            "p95_ms": 36049
+          },
+          "recovery": {
+            "count": 0,
+            "mean_ms": null,
+            "p90_ms": null,
+            "p50_ms": null,
+            "p95_ms": null
+          },
+          "local_asr": {
+            "count": 0,
+            "mean_ms": null,
+            "p90_ms": null,
+            "p50_ms": null,
+            "p95_ms": null
+          }
+        },
+        "routing": {
+          "submitted": 0,
+          "decided": 0,
+          "local": 0,
+          "fallback": 0,
+          "reasons": {},
+          "recognition_latency": {
+            "local": {
+              "count": 0,
+              "mean_ms": null,
+              "p90_ms": null,
+              "p50_ms": null,
+              "p95_ms": null
+            },
+            "cloud": {
+              "count": 4,
+              "mean_ms": 308.2,
+              "p90_ms": 385,
+              "p50_ms": 266,
+              "p95_ms": 385
+            }
+          },
+          "action_latency": {
+            "local": {
+              "count": 0,
+              "mean_ms": null,
+              "p90_ms": null,
+              "p50_ms": null,
+              "p95_ms": null
+            },
+            "cloud": {
+              "count": 2,
+              "mean_ms": 1496.5,
+              "p90_ms": 1515,
+              "p50_ms": 1478,
+              "p95_ms": 1515
+            },
+            "cloud_fallback": {
+              "count": 0,
+              "mean_ms": null,
+              "p90_ms": null,
+              "p50_ms": null,
+              "p95_ms": null
+            }
+          }
+        },
+        "rounds": [
+          {
+            "turn": 4,
+            "time": "2026-11-02T02:21:04.265+00:00",
+            "backend": "mujoco",
+            "status": "completed",
+            "text": "请读取当前状态，告诉我桌上表演的真实结果。",
+            "timings": {
+              "listen_stop": 4502,
+              "stt": 4887,
+              "cloud_stt": 4887,
+              "first_audio": 7569,
+              "reply_end": 23761
+            },
+            "actions": [],
+            "uplink_frames": 73,
+            "downlink_frames": 271,
+            "mode": "cloud",
+            "route": "cloud",
+            "experience_sequence": 10
+          },
+          {
+            "turn": 3,
+            "time": "2026-11-02T02:20:24.035+00:00",
+            "backend": "mujoco",
+            "status": "completed",
+            "text": "请开始桌上四鸭合唱表演。",
+            "timings": {
+              "listen_stop": 2617,
+              "stt": 2883,
+              "cloud_stt": 2883,
+              "action_start": 4095,
+              "first_audio": 5094,
+              "reply_end": 13557
+            },
+            "actions": [
+              {
+                "call": 62,
+                "tool": "duck_table_show",
+                "at_ms": 4095,
+                "result": "completed",
+                "duration_ms": 36023
+              }
+            ],
+            "uplink_frames": 42,
+            "downlink_frames": 141,
+            "mode": "cloud",
+            "route": "cloud",
+            "experience_sequence": 10
+          },
+          {
+            "turn": 2,
+            "time": "2026-11-02T02:13:01.568+00:00",
+            "backend": "mujoco",
+            "status": "completed",
+            "text": "请读取当前状态，告诉我桌上表演的真实结果。",
+            "timings": {
+              "listen_stop": 4521,
+              "stt": 4858,
+              "cloud_stt": 4858,
+              "first_audio": 7464,
+              "reply_end": 33920
+            },
+            "actions": [],
+            "uplink_frames": 73,
+            "downlink_frames": 441,
+            "mode": "cloud",
+            "route": "cloud",
+            "experience_sequence": 10
+          },
+          {
+            "turn": 1,
+            "time": "2026-11-02T02:12:21.323+00:00",
+            "backend": "mujoco",
+            "status": "completed",
+            "text": "请开始桌上四鸭合唱表演。",
+            "timings": {
+              "listen_stop": 2600,
+              "stt": 2845,
+              "cloud_stt": 2845,
+              "action_start": 4115,
+              "first_audio": 5428,
+              "reply_end": 24148
+            },
+            "actions": [
+              {
+                "call": 14,
+                "tool": "duck_table_show",
+                "at_ms": 4115,
+                "result": "completed",
+                "duration_ms": 36049
+              }
+            ],
+            "uplink_frames": 42,
+            "downlink_frames": 312,
+            "mode": "cloud",
+            "route": "cloud",
+            "experience_sequence": 10
+          }
+        ],
+        "storage_ok": true,
+        "current_backend": "preview"
+      },
       "audio": [],
-      "video_start_elapsed_seconds": 0.185071044921875,
+      "video_start_elapsed_seconds": 0.211822998046875,
       "capture": {
         "method": "Chrome CDP screencast with original wall-clock timestamps",
-        "frames": 7,
-        "max_frame_gap_seconds": 5.01652099609375
+        "frames": 9,
+        "max_frame_gap_seconds": 4.999815185546875
       },
       "video": "capture.webm",
-      "finished_at": "2026-11-01T18:39:33.627Z",
+      "finished_at": "2026-11-02T02:22:30.084Z",
       "provenance": {
-        "recorded_at": "2026-11-01T18:37:16.594Z",
-        "base_url": "http://127.0.0.1:8897/",
-        "source_commit": "c834335044d0e126aa76e4bfc1dbc3a8b72eff55",
+        "recorded_at": "2026-11-02T02:20:07.165Z",
+        "base_url": "http://127.0.0.1:8903/",
+        "source_commit": "8d2314423fc7f98a8053fffd4c23d6c912050954",
         "release": null,
         "source": "Real Linx STT/MCP/TTS from shipped prerecorded command; actual MuJoCo; browser synthesis of Two Tigers"
       },
-      "video_sha256": "cfe44b26fe6378060444146679dda4e5ed331a11f83de813626c60047059ba21"
+      "video_sha256": "5079791134899a817f20ba8b293eb9aaaecd1f6250d381a48b0c49e43fe927b7"
     },
     {
       "id": "local_asr",
@@ -2503,53 +2751,56 @@
     }
   ],
   "page_errors": [],
-  "before_turns": [],
+  "before_turns": [
+    2,
+    1
+  ],
   "new_rounds": [
     {
-      "turn": 2,
-      "time": "2026-11-01T18:38:14.853+00:00",
+      "turn": 4,
+      "time": "2026-11-02T02:21:04.265+00:00",
       "backend": "mujoco",
       "status": "completed",
       "text": "请读取当前状态，告诉我桌上表演的真实结果。",
       "timings": {
         "listen_stop": 4502,
-        "stt": 4766,
-        "cloud_stt": 4766,
-        "first_audio": 8017,
-        "reply_end": 22515
+        "stt": 4887,
+        "cloud_stt": 4887,
+        "first_audio": 7569,
+        "reply_end": 23761
       },
       "actions": [],
       "uplink_frames": 73,
-      "downlink_frames": 241,
+      "downlink_frames": 271,
       "mode": "cloud",
       "route": "cloud",
       "experience_sequence": 10
     },
     {
-      "turn": 1,
-      "time": "2026-11-01T18:37:34.360+00:00",
+      "turn": 3,
+      "time": "2026-11-02T02:20:24.035+00:00",
       "backend": "mujoco",
       "status": "completed",
       "text": "请开始桌上四鸭合唱表演。",
       "timings": {
-        "listen_stop": 2620,
-        "stt": 2940,
-        "cloud_stt": 2940,
-        "action_start": 4350,
-        "first_audio": 5447,
-        "reply_end": 15697
+        "listen_stop": 2617,
+        "stt": 2883,
+        "cloud_stt": 2883,
+        "action_start": 4095,
+        "first_audio": 5094,
+        "reply_end": 13557
       },
       "actions": [
         {
-          "call": 14,
+          "call": 62,
           "tool": "duck_table_show",
-          "at_ms": 4350,
+          "at_ms": 4095,
           "result": "completed",
-          "duration_ms": 36008
+          "duration_ms": 36023
         }
       ],
       "uplink_frames": 42,
-      "downlink_frames": 171,
+      "downlink_frames": 141,
       "mode": "cloud",
       "route": "cloud",
       "experience_sequence": 10
@@ -2557,8 +2808,8 @@
   ],
   "cloud_tool_events": [
     {
-      "id": 4,
-      "time": "2026-11-01T18:37:34.269+00:00",
+      "id": 52,
+      "time": "2026-11-02T02:20:23.985+00:00",
       "event": "tool_start",
       "state": "ready",
       "turn": 0,
@@ -2569,8 +2820,8 @@
       "method": "initialize"
     },
     {
-      "id": 5,
-      "time": "2026-11-01T18:37:34.270+00:00",
+      "id": 53,
+      "time": "2026-11-02T02:20:23.986+00:00",
       "event": "tool_start",
       "state": "ready",
       "turn": 0,
@@ -2581,8 +2832,8 @@
       "method": "tools/list"
     },
     {
-      "id": 6,
-      "time": "2026-11-01T18:37:34.271+00:00",
+      "id": 54,
+      "time": "2026-11-02T02:20:24.018+00:00",
       "event": "tool_end",
       "state": "ready",
       "turn": 0,
@@ -2593,8 +2844,8 @@
       "result": "ok"
     },
     {
-      "id": 7,
-      "time": "2026-11-01T18:37:34.272+00:00",
+      "id": 55,
+      "time": "2026-11-02T02:20:24.019+00:00",
       "event": "tool_end",
       "state": "ready",
       "turn": 0,
@@ -2605,92 +2856,95 @@
       "result": "ok"
     },
     {
-      "id": 14,
-      "time": "2026-11-01T18:37:38.710+00:00",
+      "id": 62,
+      "time": "2026-11-02T02:20:28.129+00:00",
       "event": "tool_start",
       "state": "thinking",
-      "turn": 1,
+      "turn": 3,
       "uplink_frames": 42,
       "downlink_frames": 0,
-      "elapsed_ms": 4349,
+      "elapsed_ms": 4094,
       "backend": "mujoco",
       "method": "tools/call",
       "tool": "duck_table_show"
     },
     {
-      "id": 15,
-      "time": "2026-11-01T18:37:38.711+00:00",
+      "id": 63,
+      "time": "2026-11-02T02:20:28.130+00:00",
       "event": "action_start",
-      "turn": 1,
-      "call": 14,
+      "turn": 3,
+      "call": 62,
       "backend": "mujoco",
-      "elapsed_ms": 4350,
+      "elapsed_ms": 4095,
       "tool": "duck_table_show"
     },
     {
-      "id": 16,
-      "time": "2026-11-01T18:37:38.712+00:00",
+      "id": 64,
+      "time": "2026-11-02T02:20:28.132+00:00",
       "event": "tool_end",
       "state": "thinking",
-      "turn": 1,
+      "turn": 3,
       "uplink_frames": 42,
       "downlink_frames": 0,
-      "elapsed_ms": 4351,
+      "elapsed_ms": 4096,
       "backend": "mujoco",
       "tool": "duck_table_show",
       "result": "ok"
     },
     {
-      "id": 25,
-      "time": "2026-11-01T18:38:14.718+00:00",
+      "id": 72,
+      "time": "2026-11-02T02:21:04.153+00:00",
       "event": "action_end",
-      "turn": 1,
-      "call": 14,
+      "turn": 3,
+      "call": 62,
       "backend": "mujoco",
-      "elapsed_ms": 40358,
+      "elapsed_ms": 40118,
       "tool": "duck_table_show",
       "result": "completed"
     },
     {
-      "id": 32,
-      "time": "2026-11-01T18:38:21.398+00:00",
+      "id": 79,
+      "time": "2026-11-02T02:21:10.470+00:00",
       "event": "tool_start",
       "state": "thinking",
-      "turn": 2,
+      "turn": 4,
       "uplink_frames": 73,
       "downlink_frames": 0,
-      "elapsed_ms": 6544,
+      "elapsed_ms": 6205,
       "backend": "mujoco",
       "method": "tools/call",
       "tool": "duck_get_status"
     },
     {
-      "id": 33,
-      "time": "2026-11-01T18:38:21.414+00:00",
+      "id": 80,
+      "time": "2026-11-02T02:21:10.472+00:00",
       "event": "tool_end",
       "state": "thinking",
-      "turn": 2,
+      "turn": 4,
       "uplink_frames": 73,
       "downlink_frames": 0,
-      "elapsed_ms": 6561,
+      "elapsed_ms": 6207,
       "backend": "mujoco",
       "tool": "duck_get_status",
       "result": "ok"
     }
   ],
   "completed": true,
-  "edited_at": "2026-11-02T01:38:37.522913+00:00",
+  "edited_at": "2026-11-02T02:23:54.604028+00:00",
   "editorial": {
-    "previous_video_duration_seconds": 177.6,
-    "measured_silent_interval_seconds": [
-      92.451604,
-      106.069917
-    ],
-    "removed_redundant_wait_seconds": [
-      93.0,
-      105.88
-    ],
-    "note": "Keep the spoken ending and a short pause; omit the following wait.",
+    "historical_wait_removal": {
+      "previous_video_duration_seconds": 177.6,
+      "measured_silent_interval_seconds": [
+        92.451604,
+        106.069917
+      ],
+      "removed_redundant_wait_seconds": [
+        93.0,
+        105.88
+      ],
+      "note": "Prior edit only; these cut points do not apply to the new recording."
+    },
+    "current_performance": "New real Linx recording with output-clock PCM and 0.7s end wait",
     "closing_card": "Three seconds, intentionally without narration"
   }
 }

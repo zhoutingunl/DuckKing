@@ -23,6 +23,10 @@ def main():
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
     live, supplements, tour = map(read_recording, [args.live, args.supplements, args.tour])
+    table = next(c for c in live["chapters"] if c["id"] == "tabletop")
+    sync = table.get("sync_evidence")
+    if not sync or max(abs(sync[k]) for k in ["start_delta_ms", "end_delta_ms"]) > 350:
+        raise ValueError("Performance lacks passing output-clock audio/video synchronization")
     local = next(c for c in supplements["chapters"] if c["id"] == "local_asr")
     rounds = local["rounds"]
     if len(rounds) != 1 or rounds[0]["route"] != "local" or rounds[0]["status"] != "completed":
@@ -88,10 +92,13 @@ def main():
     }
     result["chapters"].append(balance)
     result["editorial"] = {
-        "previous_video_duration_seconds": 177.6,
-        "measured_silent_interval_seconds": [92.451604, 106.069917],
-        "removed_redundant_wait_seconds": [93.0, 105.88],
-        "note": "Keep the spoken ending and a short pause; omit the following wait.",
+        "historical_wait_removal": {
+            "previous_video_duration_seconds": 177.6,
+            "measured_silent_interval_seconds": [92.451604, 106.069917],
+            "removed_redundant_wait_seconds": [93.0, 105.88],
+            "note": "Prior edit only; these cut points do not apply to the new recording.",
+        },
+        "current_performance": "New real Linx recording with output-clock PCM and 0.7s end wait",
         "closing_card": "Three seconds, intentionally without narration",
     }
     args.output.parent.mkdir(parents=True, exist_ok=True)
