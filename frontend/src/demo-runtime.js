@@ -56,7 +56,7 @@ export class DemoVoice {
         // The initial disconnected status precedes the requested connection.
         if(data.state==='disconnected'&&this.state==='connecting')return;
         this.state=data.state;
-        if(['error','busy','awaiting_binding','disconnected'].includes(data.state))this.error=data.error||'灵矽未就绪，请在工作台完成绑定后重试';
+        if(['error','busy','awaiting_binding','disconnected','recovering'].includes(data.state))this.error=data.error||'灵矽本轮已结束，请重新点选节目；不会用重连后的音频补造成功';
       }else if(data.type==='audio'){try{this.output.enqueue(data);this.received++}catch(e){this.error=e.message}}
       else if(data.type==='playback_end')this.ended++;
       else if(data.type==='error')this.error=data.message;
@@ -96,6 +96,10 @@ export class DemoRun {
 export async function action(room,name,signal,options={}){
   signal.throwIfAborted();
   const submitted=await api('api/scenes/actions',room,{body:{name,request_id:crypto.randomUUID(),...options},signal});
+  return waitAction(room,submitted,signal);
+}
+export async function waitAction(room,submitted,signal){
+  const name=submitted.name;
   const end=performance.now()+(name==='seated_show'?50000:name==='table_show'?43000:name==='stage_gather'?90000:name==='stage_roll'?60000:name==='stage_dance'?30000:15000);let result=submitted;
   while(result.status==='running'){
     if(performance.now()>end)throw new Error('物理动作超时，演示已停止');

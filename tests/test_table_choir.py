@@ -9,12 +9,94 @@ import numpy as np
 import pytest
 from pydantic import ValidationError
 
+from duckking.diagnostics import VoiceDiagnostics
+from duckking.mcp import DeviceMCP
 from duckking.model_assets import pack_visual_model
 from duckking.motion import Action, MotionController, PreviewBackend
 from duckking.simulation import MuJoCoBackend
 from duckking.table_choir import SHOW_DURATION, TABLE_HEIGHT, dance_command
 
 ASSETS = Path(__file__).resolve().parents[1] / "external"
+
+
+async def test_table_mcp_waits_for_real_outcome_and_records_the_voice_action(backend):
+    motion = MotionController(backend)
+    mcp = DeviceMCP(motion, "table-live-test")
+    journal = VoiceDiagnostics()
+    async def fast_loop():
+        while True:
+            backend.tick()
+            await asyncio.sleep(0.001)
+    backend._loop = fast_loop
+    def observe(event, **fields):
+        journal.record(event, turn=1, call=1, backend="mujoco", **fields)
+    call = {"jsonrpc": "2.0", "id": 2, "method": "tools/call",
+            "params": {"name": "duck_table_show", "arguments": {}}}
+    try:
+        listing = await mcp.handle({"jsonrpc": "2.0", "id": 1, "method": "tools/list"})
+        assert {t["name"] for t in listing["result"]["tools"]} == {
+            "duck_table_show", "duck_stop", "duck_get_status"}
+        journal.record("listen_start", turn=1, backend="mujoco")
+        results = await asyncio.gather(mcp.handle(call, observe=observe),
+                                       mcp.handle(call, observe=observe))
+        assert results[0] == results[1] and len(motion.records) == 1
+        response = results[0]["result"]
+        assert not response["isError"]
+        accepted = json.loads(response["content"][0]["text"])
+        assert accepted["status"] == "running"
+        record = await motion.wait(accepted['id'])
+        await asyncio.sleep(0)
+        assert record["status"] == "completed"
+        assert record["outcome"]["landed_at"] > record["outcome"]["dropped_at"]
+        events = [e for e in journal.events if e["event"] in {"action_start", "action_end"}]
+        assert [e["tool"] for e in events] == ["duck_table_show", "duck_table_show"]
+        assert events[-1]["result"] == "completed"
+    finally:
+        await mcp.close()
+        await motion.close()
+
+
+async def test_table_mcp_rejects_wrong_scene_arguments_and_cancels(backend):
+    motion = MotionController(backend)
+    mcp = DeviceMCP(motion, "table-cancel-test")
+    def call(ident, name="duck_table_show", arguments=None):
+        return {"jsonrpc": "2.0", "id": ident, "method": "tools/call",
+                "params": {"name": name, "arguments": arguments or {}}}
+    try:
+        assert (await mcp.handle(call(1, arguments={"duration": 99})))["result"]["isError"]
+        assert (await mcp.handle(call(2, "duck_walk_short")))["result"]["isError"]
+        assert not motion.records
+        pending = asyncio.create_task(mcp.handle(call(3)))
+        await asyncio.sleep(0.1)
+        assert backend.tabletop.running
+        assert not (await mcp.handle(call(4, "duck_stop")))["result"]["isError"]
+        acknowledged = (await pending)["result"]
+        assert not acknowledged['isError']  # acceptance was truthful, not completion
+        ident = json.loads(acknowledged['content'][0]['text'])['id']
+        assert (await motion.wait(ident))['status'] == 'cancelled'
+        assert not backend.tabletop.running
+        backend.load("ball")
+        assert (await mcp.handle(call(5)))["result"]["isError"]
+        assert backend.scene == "ball"
+    finally:
+        await mcp.close()
+        await motion.close()
+
+
+async def test_closing_mcp_cancels_its_accepted_table_show(backend):
+    motion = MotionController(backend)
+    mcp = DeviceMCP(motion, 'table-close')
+    try:
+        response = await mcp.handle({'jsonrpc': '2.0', 'id': 1, 'method': 'tools/call',
+            'params': {'name': 'duck_table_show', 'arguments': {}}})
+        accepted = json.loads(response['result']['content'][0]['text'])
+        assert accepted['status'] == 'running'
+        await mcp.close()
+        assert (await motion.wait(accepted['id']))['status'] == 'cancelled'
+        assert not mcp.deferred and not backend.tabletop.running
+    finally:
+        await mcp.close()
+        await motion.close()
 
 
 @pytest.fixture

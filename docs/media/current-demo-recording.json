@@ -1,0 +1,1147 @@
+{
+  "recorded_at": "2026-11-01T17:16:50.797Z",
+  "base_url": "https://ztmonitor.qbox.net/duckking/",
+  "release": {
+    "version": "deploy-yzh737-20261101T160751Z",
+    "commit": "62c6784c077da169ea550eccb06793d687607cfd",
+    "built_at": "2026-11-01T16:07:53.367377+00:00",
+    "operator": "zhouting",
+    "git_ref": "62c6784c077da169ea550eccb06793d687607cfd",
+    "target": "yzh737"
+  },
+  "room": "4",
+  "viewport": {
+    "width": 1600,
+    "height": 1000
+  },
+  "source": "actual deployed browser UI; buttons and local rehearsal; no cloud session or microphone",
+  "audio": "New editorial narration is added separately; page audio is not captured.",
+  "chapters": [
+    {
+      "id": "home",
+      "page": "",
+      "started_at": "2026-11-01T17:06:16.348Z",
+      "segments": [
+        {
+          "name": "appearance-and-preview",
+          "start_seconds": 17.233,
+          "status": "completed",
+          "end_seconds": 37.619
+        }
+      ],
+      "screenshots": [
+        {
+          "file": "current-workbench.png",
+          "at_seconds": 32.695,
+          "sha256": "91d1ea55c040faf390fdc300acd70eacbd6ffa822133acc35a35c8b62d1f26aa"
+        }
+      ],
+      "video": "page@dceea9da3d72f8f52023d0e58f840ab7.webm",
+      "finished_at": "2026-11-01T17:07:08.799Z",
+      "video_sha256": "d164d3f3bc647218b2135fca579469751c721a182202c1813cb173fe437dc51b"
+    },
+    {
+      "id": "physics",
+      "page": "scenarios.html",
+      "started_at": "2026-11-01T17:07:10.118Z",
+      "segments": [
+        {
+          "name": "real-kick-and-measurements",
+          "start_seconds": 8.619,
+          "status": "completed",
+          "end_seconds": 49.938
+        }
+      ],
+      "screenshots": [
+        {
+          "file": "current-physics.png",
+          "at_seconds": 31.341,
+          "sha256": "044a73be60a1d93ca3d01c6ce74de7e4bdab3c59c4b143506f9bfa2ade7032cb"
+        },
+        {
+          "file": "current-practice.png",
+          "at_seconds": 49.938,
+          "sha256": "131fe37e89651f049451d60f35910a61a3e2c8175ff3f4b88256bfe8c82db424"
+        }
+      ],
+      "actions": [
+        {
+          "id": "0375413c7e19c5b873cfd3cdbdeefa05",
+          "name": "kick_left",
+          "input": {
+            "name": "kick_left",
+            "duration": 2,
+            "speed": null,
+            "target": "a",
+            "member": "selected",
+            "members": null
+          },
+          "status": "completed",
+          "started_at": 1793552839.881865,
+          "outcome": {
+            "position": [
+              0.8927683068771306,
+              0.19110062099071823,
+              0.03486101262728064
+            ],
+            "displacement_m": 0.8167697138953071,
+            "speed_m_s": 0.12155283425809645,
+            "contacts": 6,
+            "contact_feet": [
+              "left"
+            ],
+            "foot": "left",
+            "verified": true,
+            "message": "已确认脚球接触及球位移"
+          },
+          "finished_at": 1793552841.9153228
+        },
+        {
+          "id": "c8f574a5345a33729a939c1254caca34",
+          "name": "roulade",
+          "input": {
+            "name": "roulade",
+            "duration": 6,
+            "speed": null,
+            "target": "a",
+            "member": "selected",
+            "members": null
+          },
+          "status": "completed",
+          "started_at": 1793552868.210783,
+          "outcome": {
+            "name": "roulade",
+            "status": "completed",
+            "source": "official_onnx_measured",
+            "rotation_rad": 6.366119915643303,
+            "min_upright": -0.9999945203424548,
+            "min_mouth_height_m": 0.039047430219584844,
+            "min_body_height_m": 0.04670291085756469,
+            "max_mouth_open_rad": 0,
+            "displacement_m": 0.6224985876287583,
+            "wheel_rotation_rad": 0,
+            "supported": true,
+            "stable_s": 3.2800000000000025,
+            "verified": true,
+            "message": "已确认实际动作与恢复站稳",
+            "object_grasped": false
+          },
+          "finished_at": 1793552874.2071009
+        }
+      ],
+      "kick": {
+        "position": [
+          0.9600410772751885,
+          0.19871222424521834,
+          0.03483117136382527
+        ],
+        "displacement_m": 0.88431689335748,
+        "speed_m_s": 4.498631990893197e-16,
+        "contacts": 6,
+        "contact_feet": [
+          "left"
+        ]
+      },
+      "video": "page@45aa5f895644b94469f2f8a6bb8c98e7.webm",
+      "finished_at": "2026-11-01T17:08:18.389Z",
+      "video_sha256": "c0addb60ad2e0a472b1c481f6fde05ad96f107e9fad12236f229fd9be072f77f"
+    },
+    {
+      "id": "theatre",
+      "page": "demos.html",
+      "started_at": "2026-11-01T17:12:56.311Z",
+      "segments": [
+        {
+          "name": "four-duck-interactive-stage",
+          "start_seconds": 20.976,
+          "status": "completed",
+          "end_seconds": 78.935
+        }
+      ],
+      "screenshots": [
+        {
+          "file": "current-theatre.png",
+          "at_seconds": 23.969,
+          "sha256": "a1c52947ced6750296ec7a1a0d894efeff3de32b33ae86084e6d2dfe14db4384"
+        },
+        {
+          "file": "current-stage-lineup.png",
+          "at_seconds": 50.728,
+          "sha256": "3f19230200a1b236e2a772daf6667717d956899a8cc528f4f9231fd19dc04e2e"
+        }
+      ],
+      "actions": [
+        {
+          "id": "5146977c-7c0b-4006-af87-2cbef49375d2",
+          "name": "stage_gather",
+          "input": {
+            "name": "stage_gather",
+            "duration": 44,
+            "speed": null,
+            "target": "a",
+            "member": "selected",
+            "members": null
+          },
+          "status": "completed",
+          "started_at": 1793553202.3521373,
+          "outcome": {
+            "verified": true,
+            "phase": "lined_up",
+            "running": false,
+            "seed": 16552123,
+            "instance": "f52d3175c4c74271b7dfb8066a20e76d",
+            "selected": [],
+            "selection_version": 0,
+            "screen_order": [
+              "a",
+              "b",
+              "c",
+              "d"
+            ],
+            "slots": [
+              [
+                0,
+                -0.69
+              ],
+              [
+                0,
+                -0.23
+              ],
+              [
+                0,
+                0.23
+              ],
+              [
+                0,
+                0.69
+              ]
+            ],
+            "arrived": [
+              true,
+              true,
+              true,
+              true
+            ],
+            "yawns": [
+              1,
+              1,
+              1,
+              1
+            ],
+            "contact_pairs": [],
+            "reactions": [],
+            "roll": null,
+            "dance": null,
+            "pokes": 0,
+            "source": "local_group_orchestration_official_onnx_real_contacts",
+            "members": [
+              "a",
+              "b",
+              "c",
+              "d"
+            ],
+            "standing": {
+              "verified": true,
+              "posture": "stand",
+              "members": [
+                "a",
+                "b",
+                "c",
+                "d"
+              ],
+              "ducks": [
+                {
+                  "target": "stand",
+                  "observed": "stand",
+                  "supported": true,
+                  "height_m": 0.11547549969805192,
+                  "upright": 0.9998884253334053,
+                  "knee_deg": [
+                    2.629513380740083,
+                    2.7375879652133075
+                  ]
+                },
+                {
+                  "target": "stand",
+                  "observed": "stand",
+                  "supported": true,
+                  "height_m": 0.1154812235238449,
+                  "upright": 0.9998871460707229,
+                  "knee_deg": [
+                    2.6593743337632265,
+                    2.75990119253613
+                  ]
+                },
+                {
+                  "target": "stand",
+                  "observed": "stand",
+                  "supported": true,
+                  "height_m": 0.11552561717193863,
+                  "upright": 0.9998869351514217,
+                  "knee_deg": [
+                    2.6856965174984078,
+                    2.700683378520437
+                  ]
+                },
+                {
+                  "target": "stand",
+                  "observed": "stand",
+                  "supported": true,
+                  "height_m": 0.1155390107064096,
+                  "upright": 0.9998861318189777,
+                  "knee_deg": [
+                    2.667195907833376,
+                    2.7062122857636965
+                  ]
+                }
+              ]
+            },
+            "seated": {
+              "verified": true,
+              "posture": "sit",
+              "ducks": [
+                {
+                  "target": "sit",
+                  "observed": "sit",
+                  "supported": true,
+                  "height_m": 0.0620402675944168,
+                  "upright": 0.9966325834499102,
+                  "knee_deg": [
+                    74.91049517170995,
+                    75.50202915832475
+                  ]
+                },
+                {
+                  "target": "sit",
+                  "observed": "sit",
+                  "supported": true,
+                  "height_m": 0.062087965294485375,
+                  "upright": 0.9966036200455257,
+                  "knee_deg": [
+                    74.94218520102284,
+                    75.5025331591332
+                  ]
+                },
+                {
+                  "target": "sit",
+                  "observed": "sit",
+                  "supported": true,
+                  "height_m": 0.062054475876453206,
+                  "upright": 0.9966170226209409,
+                  "knee_deg": [
+                    74.93163534187617,
+                    75.50994650605301
+                  ]
+                },
+                {
+                  "target": "sit",
+                  "observed": "sit",
+                  "supported": true,
+                  "height_m": 0.06207206121559645,
+                  "upright": 0.9966024736106002,
+                  "knee_deg": [
+                    74.92570247352155,
+                    75.52574014838237
+                  ]
+                }
+              ],
+              "source": "official_sitstand_measured_contacts",
+              "members": [
+                "a",
+                "b",
+                "c",
+                "d"
+              ]
+            }
+          },
+          "finished_at": 1793553218.211553
+        },
+        {
+          "id": "995df699-13a2-45e6-bf95-d5713aceeecd",
+          "name": "stage_roll",
+          "input": {
+            "name": "stage_roll",
+            "duration": 28,
+            "speed": null,
+            "target": "a",
+            "member": "selected",
+            "members": null
+          },
+          "status": "completed",
+          "started_at": 1793553243.2158997,
+          "outcome": {
+            "verified": true,
+            "members": [
+              "b",
+              "c"
+            ],
+            "results": [
+              {
+                "member": "b",
+                "rotation_rad": 6.373227372603435,
+                "min_upright": -0.994929319618096,
+                "standing": {
+                  "target": "stand",
+                  "observed": "stand",
+                  "supported": true,
+                  "height_m": 0.1154374014916566,
+                  "upright": 0.9998949318511278,
+                  "knee_deg": [
+                    2.6571105016698002,
+                    2.70426779090615
+                  ]
+                },
+                "returned": false
+              },
+              {
+                "member": "c",
+                "rotation_rad": 6.3787824536979425,
+                "min_upright": -0.9971724367767119,
+                "standing": {
+                  "target": "stand",
+                  "observed": "stand",
+                  "supported": true,
+                  "height_m": 0.11554880851105134,
+                  "upright": 0.9998884153065732,
+                  "knee_deg": [
+                    2.6427822079338843,
+                    2.6893393781908865
+                  ]
+                },
+                "returned": false
+              }
+            ],
+            "standing": {
+              "verified": true,
+              "posture": "stand",
+              "ducks": [
+                {
+                  "target": "stand",
+                  "observed": "stand",
+                  "supported": true,
+                  "height_m": 0.11619158062015429,
+                  "upright": 0.9977205006347841,
+                  "knee_deg": [
+                    1.962792798664821,
+                    1.6548991605534407
+                  ]
+                },
+                {
+                  "target": "stand",
+                  "observed": "stand",
+                  "supported": true,
+                  "height_m": 0.1163179961838044,
+                  "upright": 0.9975719697993274,
+                  "knee_deg": [
+                    1.4300005781309268,
+                    1.1629787571503059
+                  ]
+                },
+                {
+                  "target": "stand",
+                  "observed": "stand",
+                  "supported": true,
+                  "height_m": 0.11626561317581165,
+                  "upright": 0.9976273526635788,
+                  "knee_deg": [
+                    1.516196964038406,
+                    1.272954081275494
+                  ]
+                },
+                {
+                  "target": "stand",
+                  "observed": "stand",
+                  "supported": true,
+                  "height_m": 0.1163351052533208,
+                  "upright": 0.9976241860271299,
+                  "knee_deg": [
+                    1.3913290939393623,
+                    1.1995572465165605
+                  ]
+                }
+              ],
+              "source": "official_sitstand_measured_contacts",
+              "members": [
+                "a",
+                "b",
+                "c",
+                "d"
+              ]
+            },
+            "seated": {
+              "verified": true,
+              "posture": "sit",
+              "ducks": [
+                {
+                  "target": "sit",
+                  "observed": "sit",
+                  "supported": true,
+                  "height_m": 0.062087386370931516,
+                  "upright": 0.9966074944422009,
+                  "knee_deg": [
+                    74.96941967208056,
+                    75.52909788740276
+                  ]
+                },
+                {
+                  "target": "sit",
+                  "observed": "sit",
+                  "supported": true,
+                  "height_m": 0.06208294284889088,
+                  "upright": 0.9965841401472337,
+                  "knee_deg": [
+                    74.99503990259262,
+                    75.44844678685446
+                  ]
+                }
+              ],
+              "source": "official_sitstand_measured_contacts",
+              "members": [
+                "b",
+                "c"
+              ]
+            },
+            "returned": false,
+            "rotation_rad": 6.373227372603435
+          },
+          "finished_at": 1793553251.5505807
+        }
+      ],
+      "stage": {
+        "phase": "completed",
+        "running": false,
+        "seed": 16552123,
+        "instance": "f52d3175c4c74271b7dfb8066a20e76d",
+        "selected": [
+          "b",
+          "c"
+        ],
+        "selection_version": 2,
+        "screen_order": [
+          "a",
+          "b",
+          "c",
+          "d"
+        ],
+        "slots": [
+          [
+            0,
+            -0.69
+          ],
+          [
+            0,
+            -0.23
+          ],
+          [
+            0,
+            0.23
+          ],
+          [
+            0,
+            0.69
+          ]
+        ],
+        "arrived": [
+          true,
+          false,
+          false,
+          true
+        ],
+        "yawns": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "contact_pairs": [],
+        "reactions": [],
+        "roll": {
+          "members": [
+            "b",
+            "c"
+          ],
+          "results": [
+            {
+              "member": "b",
+              "rotation_rad": 6.373227372603435,
+              "min_upright": -0.994929319618096,
+              "standing": {
+                "target": "stand",
+                "observed": "stand",
+                "supported": true,
+                "height_m": 0.1154374014916566,
+                "upright": 0.9998949318511278,
+                "knee_deg": [
+                  2.6571105016698002,
+                  2.70426779090615
+                ]
+              },
+              "returned": false
+            },
+            {
+              "member": "c",
+              "rotation_rad": 6.3787824536979425,
+              "min_upright": -0.9971724367767119,
+              "standing": {
+                "target": "stand",
+                "observed": "stand",
+                "supported": true,
+                "height_m": 0.11554880851105134,
+                "upright": 0.9998884153065732,
+                "knee_deg": [
+                  2.6427822079338843,
+                  2.6893393781908865
+                ]
+              },
+              "returned": false
+            }
+          ],
+          "standing": {
+            "verified": true,
+            "posture": "stand",
+            "ducks": [
+              {
+                "target": "stand",
+                "observed": "stand",
+                "supported": true,
+                "height_m": 0.11619158062015429,
+                "upright": 0.9977205006347841,
+                "knee_deg": [
+                  1.962792798664821,
+                  1.6548991605534407
+                ]
+              },
+              {
+                "target": "stand",
+                "observed": "stand",
+                "supported": true,
+                "height_m": 0.1163179961838044,
+                "upright": 0.9975719697993274,
+                "knee_deg": [
+                  1.4300005781309268,
+                  1.1629787571503059
+                ]
+              },
+              {
+                "target": "stand",
+                "observed": "stand",
+                "supported": true,
+                "height_m": 0.11626561317581165,
+                "upright": 0.9976273526635788,
+                "knee_deg": [
+                  1.516196964038406,
+                  1.272954081275494
+                ]
+              },
+              {
+                "target": "stand",
+                "observed": "stand",
+                "supported": true,
+                "height_m": 0.1163351052533208,
+                "upright": 0.9976241860271299,
+                "knee_deg": [
+                  1.3913290939393623,
+                  1.1995572465165605
+                ]
+              }
+            ],
+            "source": "official_sitstand_measured_contacts",
+            "members": [
+              "a",
+              "b",
+              "c",
+              "d"
+            ]
+          },
+          "seated": {
+            "verified": true,
+            "posture": "sit",
+            "ducks": [
+              {
+                "target": "sit",
+                "observed": "sit",
+                "supported": true,
+                "height_m": 0.062087386370931516,
+                "upright": 0.9966074944422009,
+                "knee_deg": [
+                  74.96941967208056,
+                  75.52909788740276
+                ]
+              },
+              {
+                "target": "sit",
+                "observed": "sit",
+                "supported": true,
+                "height_m": 0.06208294284889088,
+                "upright": 0.9965841401472337,
+                "knee_deg": [
+                  74.99503990259262,
+                  75.44844678685446
+                ]
+              }
+            ],
+            "source": "official_sitstand_measured_contacts",
+            "members": [
+              "b",
+              "c"
+            ]
+          },
+          "returned": false,
+          "rotation_rad": 6.373227372603435
+        },
+        "dance": null,
+        "pokes": 0,
+        "source": "local_group_orchestration_official_onnx_real_contacts"
+      },
+      "video": "page@1ef13795d72aa9d834aa154a949a9a1f.webm",
+      "finished_at": "2026-11-01T17:14:20.088Z",
+      "video_sha256": "af892f015d1e026af64321070c8b7cf57c267aa50862864fda972130f9c8a7d0"
+    },
+    {
+      "id": "studio",
+      "page": "studio.html",
+      "started_at": "2026-11-01T17:14:21.207Z",
+      "segments": [
+        {
+          "name": "local-rehearsal-with-head-only-constraint",
+          "start_seconds": 16.304,
+          "status": "completed",
+          "end_seconds": 26.936
+        }
+      ],
+      "screenshots": [
+        {
+          "file": "current-studio.png",
+          "at_seconds": 24.289,
+          "sha256": "e631562d1cb8d7ec40eca7590ec4c0c7bbcc1d1b724ae6de1046d78bf141293d"
+        }
+      ],
+      "studio": {
+        "scene": "director",
+        "task": {
+          "version": 3,
+          "kind": "director",
+          "status": "completed",
+          "started_at": 1793553278.2363045,
+          "results": [
+            {
+              "id": "9ffa38fa-2fe3-4e09-ab2d-e1cc8909ee24",
+              "name": "tilt_head",
+              "input": {
+                "name": "tilt_head",
+                "duration": 1.2,
+                "speed": null,
+                "target": "a",
+                "member": "selected",
+                "members": null
+              },
+              "status": "completed",
+              "started_at": 1793553278.2365777,
+              "finished_at": 1793553279.4512615
+            },
+            {
+              "id": "7e10b4bd-a7f0-40fd-a572-050003cce366",
+              "name": "look_down",
+              "input": {
+                "name": "look_down",
+                "duration": 1.2,
+                "speed": null,
+                "target": "a",
+                "member": "selected",
+                "members": null
+              },
+              "status": "completed",
+              "started_at": 1793553279.4514887,
+              "finished_at": 1793553280.6631505
+            },
+            {
+              "id": "7aa0322f-6f3f-410b-9283-9c78e779624d",
+              "name": "shake_head",
+              "input": {
+                "name": "shake_head",
+                "duration": 1.2,
+                "speed": null,
+                "target": "a",
+                "member": "selected",
+                "members": null
+              },
+              "status": "completed",
+              "started_at": 1793553280.6633685,
+              "finished_at": 1793553281.8839293
+            }
+          ],
+          "title": "只用头部",
+          "step": 3,
+          "message": "任务已完成",
+          "outcome": {
+            "verified": true,
+            "completed_steps": 3
+          },
+          "finished_at": 1793553281.8868217
+        },
+        "queue": [],
+        "singer": null,
+        "recipes": {},
+        "draft": null,
+        "game": {
+          "prefix": null,
+          "accepted": 0,
+          "refused": 0
+        },
+        "discussion": {
+          "facts": [],
+          "question": ""
+        },
+        "focus_remaining_s": null
+      },
+      "video": "page@d413d0a785bf72434db0527c1af23a40.webm",
+      "finished_at": "2026-11-01T17:14:50.179Z",
+      "video_sha256": "bd60c541192064eade77abc80483b1a0cc60e1ad4155de92ef315e93a5d2eb99"
+    },
+    {
+      "id": "balance",
+      "page": "balance.html",
+      "started_at": "2026-11-01T17:16:51.975Z",
+      "segments": [
+        {
+          "name": "paired-standard-13-seconds",
+          "start_seconds": 21.981,
+          "status": "completed",
+          "end_seconds": 42.161
+        },
+        {
+          "name": "paired-custom-30-seconds",
+          "start_seconds": 42.163,
+          "status": "completed",
+          "end_seconds": 77.971
+        },
+        {
+          "name": "training-evidence-and-reward-explanation",
+          "start_seconds": 77.972,
+          "status": "completed",
+          "end_seconds": 85.011
+        }
+      ],
+      "screenshots": [
+        {
+          "file": "current-balance-running.png",
+          "at_seconds": 34.724,
+          "sha256": "195a2b69719a7c13197de8cfaa1d6d6382167a010ec68d3b2cac52d3396d3cde"
+        },
+        {
+          "file": "current-balance-result.png",
+          "at_seconds": 42.161,
+          "sha256": "f6809e0f885c7f24bb388a8e3d7350603d315503497d29a49a5fa856d53b4c02"
+        },
+        {
+          "file": "current-balance-custom.png",
+          "at_seconds": 77.971,
+          "sha256": "030ceb12fd8501e22a21a5904f9fd1d9eb6c200fb2af38e2d97e65aa235a0a5d"
+        },
+        {
+          "file": "current-training.png",
+          "at_seconds": 80.21,
+          "sha256": "1564f76465f7359f0b41dd9088d1098676e3d64d065f11f9b10aa8c6342bc9a7"
+        },
+        {
+          "file": "current-learning.png",
+          "at_seconds": 85.011,
+          "sha256": "0e40d8b1ffb0ad15b4ffb723850064a47edd6699730b8882911f61a4725367ae"
+        }
+      ],
+      "standard": {
+        "level": 2,
+        "title": "转盘转，我不转",
+        "phase": "completed",
+        "controller": "trained",
+        "seed": 0,
+        "duration_seconds": 13,
+        "challenge_seconds": 10,
+        "stop_seconds": 3,
+        "evaluation_duration_seconds": 13,
+        "seed_info": {
+          "rotation": "clockwise",
+          "friction": 1.043981071760082
+        },
+        "result": {
+          "radius": 0.02562436728589061,
+          "height": 0.11524322235416687,
+          "upright": 0.9999108843751611,
+          "heading_error": -0.016136143234474307,
+          "contacts": 2,
+          "slip": 0.0006705962193620182,
+          "rim_margin": 0.26172135921726597,
+          "body_contact": false,
+          "rpm": 0.00391575545933465,
+          "tilt_deg": [
+            -0.07358449618534062,
+            0.061341907599209655
+          ],
+          "success": true,
+          "reason": "success",
+          "reward_terms": {
+            "upright": 0.9999108843751611,
+            "center": 1.872896870248218,
+            "heading": 0.9978767461279878,
+            "progress": -0.0029789705673652356,
+            "slip": -0.00010058943290430273,
+            "smooth": -8.968102633843955e-08,
+            "fall": 0,
+            "success": 20
+          },
+          "seconds": 13.000000000000632,
+          "center_hold": 12.99999999999997,
+          "heading_fraction": 1,
+          "mean_slip": 0.014440496664474445,
+          "disk_stopped": true
+        },
+        "error": null,
+        "sim_time": 13.000000000000632,
+        "physics_time": 13.000000000000632,
+        "aftermath": null,
+        "operation_failed": false,
+        "source": "MuJoCo; PPO feedback-gain inference + official gait",
+        "execution": "paused",
+        "run": "level2-cpu-v4",
+        "command_revision": 2,
+        "policy_steps": 131072,
+        "comparison": {
+          "enabled": true,
+          "phase": "completed",
+          "execution": "paused",
+          "clock": "shared_task_ticks",
+          "tick": 130,
+          "sim_time": 13.000000000000632,
+          "physics_time": 13,
+          "disturbance": "same_seed_and_motor_targets; independent_contact_dynamics",
+          "terminal_behavior": "bounded_physics_after_failure; score_frozen",
+          "baseline": {
+            "level": 2,
+            "title": "转盘转，我不转",
+            "phase": "failed",
+            "controller": "baseline",
+            "seed": 0,
+            "duration_seconds": 13,
+            "challenge_seconds": 10,
+            "stop_seconds": 3,
+            "evaluation_duration_seconds": 13,
+            "seed_info": {
+              "rotation": "clockwise",
+              "friction": 1.043981071760082
+            },
+            "result": {
+              "radius": 0.1151757734709232,
+              "height": 0.11523236600385808,
+              "upright": 0.9998719611693684,
+              "heading_error": -2.6221855849953206,
+              "contacts": 2,
+              "slip": 0.00068337642952061,
+              "rim_margin": 0.2038518092797544,
+              "body_contact": false,
+              "rpm": 0.0011637882116782368,
+              "tilt_deg": [
+                -0.12510316440567648,
+                0.36542967557344347
+              ],
+              "success": false,
+              "reason": "criteria_not_met",
+              "reward_terms": {
+                "upright": 0.9998719611693684,
+                "center": 0.5307847543804324,
+                "heading": 4.200402903520624e-25,
+                "progress": 0.0007315760438075802,
+                "slip": -0.0001025064644280915,
+                "smooth": 0,
+                "fall": -10,
+                "success": 0
+              },
+              "seconds": 13.000000000000632,
+              "center_hold": 0,
+              "heading_fraction": 0.16153846153846155,
+              "mean_slip": 0.0030847736720058753,
+              "disk_stopped": true
+            },
+            "error": null,
+            "sim_time": 13.000000000000632,
+            "physics_time": 13.000000000000632,
+            "aftermath": null,
+            "operation_failed": true,
+            "source": "MuJoCo; frozen official gait baseline, no task PPO",
+            "execution": "paused"
+          }
+        }
+      },
+      "custom": {
+        "level": 2,
+        "title": "转盘转，我不转",
+        "phase": "failed",
+        "controller": "trained",
+        "seed": 0,
+        "duration_seconds": 30,
+        "challenge_seconds": 27,
+        "stop_seconds": 3,
+        "evaluation_duration_seconds": 13,
+        "seed_info": {
+          "rotation": "clockwise",
+          "friction": 1.043981071760082
+        },
+        "result": {
+          "radius": 0.17080429996112756,
+          "height": 0.11870735123470863,
+          "upright": 0.9977818138909892,
+          "heading_error": -0.09282714207914453,
+          "contacts": 1,
+          "slip": 0.00781381363352768,
+          "rim_margin": 0.1259798013709333,
+          "body_contact": false,
+          "rpm": -0.02760856534170714,
+          "tilt_deg": [
+            -0.6906904624902902,
+            0.046003485853813114
+          ],
+          "success": false,
+          "reason": "criteria_not_met",
+          "reward_terms": {
+            "upright": 0.9977818138909892,
+            "center": 0.10814701711509801,
+            "heading": 0.9320751227580606,
+            "progress": 0.2559530574655189,
+            "slip": -0.0011720720450291518,
+            "smooth": -0.0021957559511065483,
+            "fall": -10,
+            "success": 0
+          },
+          "seconds": 29.999999999998316,
+          "center_hold": 0,
+          "heading_fraction": 0.9666666666666667,
+          "mean_slip": 0.01353028708462851,
+          "disk_stopped": true
+        },
+        "error": null,
+        "sim_time": 29.999999999998316,
+        "physics_time": 29.999999999998316,
+        "aftermath": null,
+        "operation_failed": true,
+        "source": "MuJoCo; PPO feedback-gain inference + official gait",
+        "execution": "paused",
+        "run": "level2-cpu-v4",
+        "command_revision": 3,
+        "policy_steps": 131072,
+        "comparison": {
+          "enabled": true,
+          "phase": "completed",
+          "execution": "paused",
+          "clock": "shared_task_ticks",
+          "tick": 300,
+          "sim_time": 29.999999999998316,
+          "physics_time": 30,
+          "disturbance": "same_seed_and_motor_targets; independent_contact_dynamics",
+          "terminal_behavior": "bounded_physics_after_failure; score_frozen",
+          "baseline": {
+            "level": 2,
+            "title": "转盘转，我不转",
+            "phase": "failed",
+            "controller": "baseline",
+            "seed": 0,
+            "duration_seconds": 30,
+            "challenge_seconds": 27,
+            "stop_seconds": 3,
+            "evaluation_duration_seconds": 13,
+            "seed_info": {
+              "rotation": "clockwise",
+              "friction": 1.043981071760082
+            },
+            "result": {
+              "radius": 0.31132926995473575,
+              "height": 0.11390466977626221,
+              "upright": 0.9996073226466379,
+              "heading_error": 2.5137798894261505,
+              "contacts": 1,
+              "slip": 0.009464757061984398,
+              "rim_margin": -0.0015528113428936452,
+              "body_contact": false,
+              "rpm": -4.369501799391516,
+              "tilt_deg": [
+                3.8434516151335507,
+                2.8599664169854737
+              ],
+              "success": false,
+              "reason": "fell_or_left_disc",
+              "reward_terms": {
+                "upright": 0.9996073226466379,
+                "center": 0.00012347840783881862,
+                "heading": 3.955291982694795e-23,
+                "progress": -0.6775880012696911,
+                "slip": -0.0014197135592976596,
+                "smooth": 0,
+                "fall": -10,
+                "success": 0
+              },
+              "seconds": 13.50000000000071,
+              "center_hold": 0,
+              "heading_fraction": 0.15555555555555556,
+              "mean_slip": 0.00766499390329258,
+              "disk_stopped": false
+            },
+            "error": null,
+            "sim_time": 13.50000000000071,
+            "physics_time": 15.300000000000992,
+            "aftermath": {
+              "phase": "finished",
+              "seconds": 1.8,
+              "max_seconds": 4,
+              "ground_contact": true,
+              "reason": "landed",
+              "measurements": {
+                "radius": 0.4739714647510888,
+                "height": -0.16749725387128173,
+                "upright": 0.16503766947837856,
+                "heading_error": 2.1769221347192387,
+                "contacts": 0,
+                "slip": 0,
+                "rim_margin": -0.024553024436004656,
+                "body_contact": true,
+                "rpm": -1.4579532809078944e-13,
+                "tilt_deg": [
+                  3.869903643459239e-06,
+                  1.4943914137537597e-06
+                ]
+              },
+              "counts_toward_score": false
+            },
+            "operation_failed": true,
+            "source": "MuJoCo; frozen official gait baseline, no task PPO",
+            "execution": "paused"
+          }
+        }
+      },
+      "training": {
+        "gate": "尚未达到预定验证门槛，不能标为已收敛。 官方基线 0%。 最终未见测试：89/100；95% 区间 81.4%–93.7%。 同组未见种子的基线：0/100。",
+        "capability": "此服务展示训练记录；管理员可按训练文档启用 CPU 任务。",
+        "run": "level2-cpu-v4"
+      },
+      "video": "page@74e4725fe66d2d0e3971ab493cc97f78.webm",
+      "finished_at": "2026-11-01T17:18:20.854Z",
+      "video_sha256": "dce9913ad4fc3fddf8710f638a89b5d7f0da4f78d4087c89907f403a97238059"
+    }
+  ],
+  "page_errors": [],
+  "attempts": [
+    {
+      "recorded_at": "2026-11-01T17:06:15.157Z",
+      "completed": false,
+      "error": "Error: expect(locator).toContainText(expected) failed"
+    },
+    {
+      "recorded_at": "2026-11-01T17:10:46.537Z",
+      "completed": false,
+      "error": "Error: expect(locator).toContainText(expected) failed"
+    },
+    {
+      "recorded_at": "2026-11-01T17:12:55.752Z",
+      "completed": false,
+      "error": "Recording validation: custom result was still running; stale terminal DOM state ended capture early. Balance footage discarded and rerun."
+    }
+  ],
+  "completed": true
+}

@@ -386,10 +386,14 @@ async def test_stage_voice_tool_returns_result_and_records_action(
         await motion.close()
 
 
+@pytest.mark.parametrize('controller', ['stage', 'tabletop'])
+@pytest.mark.parametrize('advances', [True, False])
 async def test_slow_but_advancing_stage_does_not_hit_response_idle_and_still_has_turn_cap(
     backend,
     tmp_path,
     monkeypatch,
+    controller,
+    advances,
 ):
     import time
 
@@ -413,15 +417,18 @@ async def test_slow_but_advancing_stage_does_not_hit_response_idle_and_still_has
         resets.append(True)
 
     monkeypatch.setattr(session, "reset", reset)
-    backend.stage.running = True
+    if controller == 'tabletop':
+        backend.load('table')
+    getattr(backend, controller).running = True
     motion.current = {"id": "bounded-stage"}
     session.state = "thinking"
     session.started = session.last_activity = time.monotonic()
     watcher = asyncio.create_task(session._watch())
     for _ in range(10):
-        backend.data.time += 0.02
+        if advances:
+            backend.data.time += 0.02
         await asyncio.sleep(0.01)
-    assert not resets
+    assert bool(resets) is not advances
     await asyncio.wait_for(watcher, 0.5)
     assert resets == [True]
     motion.current = None

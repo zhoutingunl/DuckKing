@@ -1,8 +1,36 @@
 # 演示媒体来源
 
+## 第 11 幕灵矽实连竞赛主片
+
+`duckking-competition-live.mp4` 面向竞赛“复刻 Micro Duck 并通过灵矽语音交互”的主题：选择“灵矽实连 · 预录指令”，第 11 幕《桌上不掉拍》使用《两只老虎》，随后介绍本地离线识别、同种子转盘 PPO 对照、CPU 训练记录、持续使用体验、交互统计与测试覆盖率。第 11 幕使用输出采样时钟对齐的新实连录制，结束和弦延音至 36 秒；末页保留 3 秒静默。各章版本与发布状态见 [主片说明](../DEMO_VIDEO.md)。
+
+演出段通过 AudioWorklet 采集实际 PCM，并用 getOutputTimestamp 与画面墙钟对齐，保留浏览器实际播放的预录输入、真实灵矽下行声音和本地合成音乐；不是用剪辑旁白替代云端回答。新增的章节解说另标合成来源。截图中的“自动化 / 验收”表示录制方式，所记录的云端请求、工具受理和物理终态均为真实运行。模型及其改编仍遵循 CC BY-NC-SA 4.0；《两只老虎》为本地电子合成传统轮唱，不是灵矽生成歌声。
+
+- `competition-live-selection.png`、`competition-live-running.png`、`competition-live-fall.png`、`competition-live-result.png`：主片录屏取帧，保留模式、曲目及实际状态。
+- `competition-experience.png`、`competition-experience-server.png`：当前窗口四轮真实调用（两轮校准、两轮本次主片）的浏览器/服务器观测；不能相加当作用户数。
+- `competition-statistics.png`、`competition-statistics-latency.png`：当前房间的真实识别、工具动作、逐轮时间线和延迟。
+- `finals-local-asr-mode.png`、`finals-local-asr-actions.png`、`finals-local-asr-result.png`：新本地识别录屏，实际执行前滚翻和打哈欠，云端音频收发均为零；输入为披露的合成录音。
+- `current-balance-running.png`、`current-balance-result.png`：复用原公网第 2 关、种子 0、标准 13 秒真实对照，保留原提交。
+- `finals-training-curves.png`、`finals-training-reward.png`、`finals-training-ppo.png`：公网保存的第二关 CPU 训练记录、奖励及公式，新录屏未启动训练。
+- `finals-coverage-current.png`、`finals-coverage-scope.png`：公网 62c6784 后端行 95.94%、分支 90.57%，包含单元与集成测试，绑定具体 CI。
+- `duckking-competition-live-recording.json`：两轮实际云端调用、单独的本地识别、物理结果、脱敏工具事件、统计与覆盖率快照、逐章来源及媒体摘要；`duckking-competition-live.json`：章节、源片段、原声/解说来源与校验；`competition-live-script.json`：章节解说；`duckking-competition-live-audio-check.json`：当前主片逐章 PCM 与静音检查；`duckking-competition-live-audio-check-before-finals.json`：补充章节前的音轨修复记录；`duckking-competition-live-audio-check-before-sync.json`：本次采样时钟对齐修复前的报告，分别保留独立文件摘要。
+
+
+## 2026-11-02 功能导览录屏
+
+`duckking-current-demo.mp4` 为当前公网发布 `62c6784` 的真实 Chrome 录屏剪辑，入口见 [功能导览说明](../PRODUCT_TOUR_VIDEO.md)。首页是脚本动画；物理实验室、四鸭互动、工坊和平衡对照读取实际 MuJoCo/官方策略状态。没有拦截 API、生成假成绩或以预设姿态替代物理结果。旁白单独合成，页面原声未收录；本次没有调用灵矽云端或使用真人麦克风。
+
+- `current-workbench.png`、`current-physics.png`、`current-practice.png`：当前配色、实际踢球／翻滚页面。
+- `current-theatre.png`、`current-stage-lineup.png`、`current-studio.png`：第十三幕现场点选与工坊本地排练。
+- `current-balance-running.png`、`current-balance-result.png`、`current-balance-custom.png`：本次第 2 关、种子 0 的 13 秒／30 秒试跑，不是离线 100 种子统计。
+- `current-training.png`、`current-learning.png`：保存的 CPU 训练曲线、奖励和 PPO 函数说明；不是录制期间新训练。
+- `current-demo-recording.json`：版本、实际操作和结果；`duckking-current-demo.json`：章节时刻、源片段、停帧长度、配音来源、文件哈希和解码校验；`current-demo-script.json`：解说文案。
+
+片段只剪去章节之间的准备等待，动作按录制时墙钟速度播放；解说超过片段时长时延长末帧，逐章记录延长量。底部另加 100 px 解说栏，不遮盖或修改网页中的数据。官方模型及改编画面遵循 CC BY-NC-SA 4.0；配色与材质映射来源见 [THIRD_PARTY.md](../../THIRD_PARTY.md)。历史媒体保留原日期，不覆盖成新版证据。
+
 ## 2026-10-26 竞赛视频与 2026-10-27 自然配音版
 
-`hackathon-video.png` 是本次实际桌上合唱录屏截图；`hackathon-video.json` 包含源提交、动作验收、20 轮延迟样本、10 路真实云端会话与加载对比。完整 MP4 存放于 GitHub Release，入口和剪辑说明见 [演示视频](../DEMO_VIDEO.md)。视频中的官方模型及改编画面遵循 CC BY-NC-SA 4.0，不由根目录 MIT 许可替代。
+`hackathon-video.png` 是当时实际桌上合唱录屏截图；`hackathon-video.json` 包含源提交、动作验收、20 轮延迟样本、10 路真实云端会话与加载对比。完整 MP4 存放于 GitHub Release，入口和剪辑说明见 [竞赛视频存档](../DEMO_VIDEO_ARCHIVE.md)。视频中的官方模型及改编画面遵循 CC BY-NC-SA 4.0，不由根目录 MIT 许可替代。
 
 `hackathon-video-natural.json` 记录自然配音版的文件摘要、章节起点、合成旁白及原演示保留校验。新版为 4 分 46 秒，使用 Microsoft `zh-CN-XiaoxiaoNeural` 合成章节旁白，不是真人配音或声音克隆。原演示片段、页面声音和实测样本保持来源不变，原始 `hackathon-video.json` 保留用于素材溯源；GitHub 仅提供新版 MP4，观看入口统一指向新版。
 

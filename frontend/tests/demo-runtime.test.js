@@ -42,7 +42,9 @@ test('recognizable scores preserve melody, independent SATB and eight-beat canon
     assert.ok(score.notes.every(n=>n.beat>=0&&n.duration>0&&n.midi>=36&&n.midi<=84&&(n.beat+n.duration)*60/score.bpm<=TABLE_SECONDS));
     assert.ok(score.gains.reduce((a,b)=>a+b,0)<.6);
     for(let part=0;part<4;part++){
-      const line=score.notes.filter(n=>n.part===part);assert.equal(line.at(-1).beat+line.at(-1).duration,64);
+      const line=score.notes.filter(n=>n.part===part),end=line.at(-1).beat+line.at(-1).duration;
+      if(score===TABLE_SCORES.tigers)assert.ok(Math.abs(end*60/score.bpm-TABLE_SECONDS)<1e-9,'tiger finale must sound through the physical show end');
+      else assert.equal(end,64);
       assert.ok(line.every((n,i)=>!i||line[i-1].beat+line[i-1].duration===n.beat));
     }
   }
