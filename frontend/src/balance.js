@@ -8,7 +8,7 @@ import {setupRoom} from './room.js';
 import {appURL,currentRoom} from './urls.js';
 import {sceneStateFeed} from './scene-state-feed.js';
 import {api} from './demo-runtime.js';
-import {rewardTerms,hyperparameters,observationGroups,metricLabels,ppoSymbols,clippedExample,compatibleRuns,balanceFailureReason,balanceOutcome} from './balance-explain.js';
+import {rewardTerms,hyperparameters,observationGroups,metricLabels,ppoSymbols,clippedExample,compatibleRuns,balanceFailureReason,balanceOutcome,balanceHoldTime} from './balance-explain.js';
 import {drawChart} from './balance-chart.js';
 import {measurement,loadMetrics,afterFrame} from './experience.js';
 
@@ -40,7 +40,8 @@ function formSettings(){return {...($('fixed-seed').checked?{seed:Number($('chal
 $('fixed-seed').addEventListener('change',controls);
 function durationNote(){
  const input=$('challenge-duration'),seconds=Number(input.value);
- $('duration-note').textContent=input.validity.valid?`${seconds} 秒仿真：${seconds-3} 秒扰动＋3 秒减速；失稳会提前结束。${seconds===13?'与训练评估时长一致。':'自定义试跑，训练成功率仍仅对应 13 秒。'}`:'请输入 6–33 秒的整数，包含最后 3 秒减速。';
+ $('duration-note').textContent=input.validity.valid?`${seconds} 秒仿真：${seconds-3} 秒扰动＋3 秒减速；失稳会提前结束。训练曲线使用原13秒严格标准，与演示通关条件不同。`:'请输入 6–33 秒的整数，包含最后 3 秒减速。';
+ $('center-deadline').textContent=input.validity.valid?`若本轮运行${seconds}秒，最迟须在${seconds-1}秒进入目标区，并一直保持到结束。`:'';
 }
 for(const id of ['challenge-seed','challenge-duration'])$(id).addEventListener('input',()=>{
  if(id==='challenge-seed')seedEdited=true;else{durationEdited=true;durationNote()}
@@ -54,10 +55,13 @@ function renderSide(b,prefix,status){
  $(prefix+'-radius').textContent=current?`${(current.radius*100).toFixed(1)} cm`:'—';
  $(prefix+'-contact').textContent=current?`${current.contacts} / 2 脚`:'—';
  $(prefix+'-time').textContent=`${b.sim_time.toFixed(1)} s`;
- const reason=balanceFailureReason(r);
+ $(prefix+'-goal-fact').hidden=b.level===1;
+ $(prefix+'-goal-label').textContent=b.level===3?'目标区内连续保持（需≥1秒）':'朝向达标率（需≥85%）';
+ $(prefix+'-goal-value').textContent=b.level===3?`${balanceHoldTime(r?.center_hold)} s`:Number.isFinite(r?.heading_fraction)?`${(r.heading_fraction*100).toFixed(1)}%`:'—';
+ const reason=balanceFailureReason(r,b.level);
  const phases={idle:'等待指令',running:'挑战中',stopping:'正在减速停盘',completed:'挑战成功',failed:'挑战失败',cancelled:'已停止 · 人为干预不计成功'};
  const physical=a?` · ${settling?'后续物理展示中':'画面已定格'} ${a.seconds.toFixed(1)} s（不计成绩）`:(terminal?' · 画面已定格':'');
- $(status).textContent=`${phases[b.phase]??b.phase}${reason?' · '+reason:''}${r?` · ${terminal?'判分时':''}朝向达标 ${(r.heading_fraction*100).toFixed(0)}% · 脚边缘余量 ${(r.rim_margin*100).toFixed(1)} cm`:''}${physical}${b.error?' · '+b.error:''}`;
+ $(status).textContent=`${phases[b.phase]??b.phase}${reason?' · '+reason:''}${r?` · ${terminal?'判分时':''}脚边缘余量 ${(r.rim_margin*100).toFixed(1)} cm`:''}${physical}${b.error?' · '+b.error:''}`;
  $(status).dataset.phase=b.phase;
  const outcome=balanceOutcome(b),banner=$(prefix+'-result');banner.hidden=!outcome;
  if(outcome){banner.dataset.state=outcome.state;banner.querySelector('strong').textContent=outcome.title;banner.querySelector('span').textContent=outcome.detail}
@@ -86,7 +90,9 @@ function renderState(state){
  const phases={idle:'等待同时开始',running:'同步挑战中',stopping:'两侧正在减速',settling:'判分结束 · 正在显示后续物理过程',completed:'对照结束',cancelled:'对照已停止',failed:'对照计算异常，物理已暂停'};
  const frozen=[['左侧',baseline?.balance],['右侧',b]].filter(([,side])=>side?.phase==='failed').map(([name,side])=>`${name} ${side.sim_time.toFixed(1)} s 判定失败${side.aftermath?.phase==='running'?'（物理继续）':'（已定格）'}`);
  $('comparison-status').textContent=(comparison?.enabled?`${phases[comparison.phase]??comparison.phase} · 共同进度 ${comparison.sim_time.toFixed(1)} / ${b.duration_seconds??13} s · 种子 ${b.seed} · 左侧官方基线 / 右侧${$('trained-label').textContent}`:'本轮仅运行右侧策略，左侧未参与')+(frozen.length?' · '+frozen.join('；'):'');
- $('heading-guide-note').textContent=b.level===2?'圆盘外地面的蓝色标记表示目标朝向。拖动视角只改变观看位置，不改变目标方向。':b.level===3?'从偏心起点走回圆盘中心，观察距中心的变化。':'本关允许随盘转动，不要求保持固定朝向。';
+ $('heading-guide-note').textContent=b.level===2?'圆盘外地面的蓝色标记表示目标朝向。拖动视角只改变观看位置，不改变目标方向。':b.level===3?'盘面红色圆区是目标范围：半径8 cm，以躯干投影计；标记随盘面倾斜。进入后须连续保持1秒，离开即重新计时。':'本关允许随盘转动，不要求保持固定朝向。';
+ $('challenge-goal').textContent=b.goal?.description??'正在读取本关验收条件…';
+ $('center-deadline').hidden=b.level!==3;
  const name={baseline:'官方步态基线',early:'训练步数 0 的任务网络＋官方步态',trained:'已评估反馈力度 PPO＋官方步态'}[b.controller];
  $('controller-source').textContent=`右侧：${b.phase==='idle'?'等待本轮策略加载':name}${b.policy_steps!=null&&b.phase!=='idle'?` · ${b.policy_steps.toLocaleString()} 训练步`:''}。${comparison?.enabled?'同一仿真时钟，独立计算两侧物理。':''}训练过程见下方记录。`;
  $('scene-title').textContent=`第 ${b.level} 关 · ${b.title}`;

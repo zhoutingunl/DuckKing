@@ -62,7 +62,7 @@ function render(state){
  viewer?.update(state);baselineViewer?.update(state.comparison.baseline);
  showSide(s,'trained');showSide(s.comparison,'baseline');
  const leftLabel=s.phase==='idle'&&$('match-mode').value==='duel'?'你来控制 · 左鸭':controllers[s.comparison.controller];$('baseline-label').textContent=leftLabel;baselineViewer?.setLabel(leftLabel);
- $('baseline-caption').textContent=duel?'灵矽语音 / 本地按钮':s.mode==='explore'?'单独练习 · 不计分':'忽略配重，只回中心';
+ $('baseline-caption').textContent=duel?'语音 / 方向键 / 按钮':s.mode==='explore'?'单独练习 · 不计分':'忽略配重，只回中心';
  $('human-status').textContent=humanStatus(s);
  $('human-motion').textContent=humanMotion(s);
  $('policy-motion').textContent=s.execution==='running'?`${s.mode==='explore'?'官方零速步态':'右侧控制器'}：${['零速','前进','后退'][s.action]}指令 ${(s.command_m_s*100).toFixed(0)} cm/s`:'右侧等待开始或已结束 · 以实际物理状态判定成绩。';
@@ -140,14 +140,14 @@ async function prepare(){
  }catch(error){experience.finish('failed');if(!closed){notify(error.message);for(const p of document.querySelectorAll('.scene-placeholder'))p.textContent='加载未完成，可重试。'}}
  finally{pending=false;if(!closed)controls()}
 }
-async function command(body){
+async function command(body,source='本地按钮'){
  if(closed||pending&&body.operation!=='stop')return;
  pending=true;controls();$('notice').hidden=true;$('command-feedback').textContent='正在提交请求…';
  try{
   const result=await api('api/seesaw/command',currentRoom,{body,signal:lifetime.signal});
   if(closed)return;
   $('command-feedback').textContent=body.operation==='stop'?'已停止；仿真暂停，板面自然速度不作归零。':body.operation==='reset'?'已重置两侧，可以重新探索。':'请求已受理，实际过程见两侧画面。';
-  appendLog(`${['nudge','explore'].includes(body.operation)?{hold:'站定',forward:'前进',backward:'后退'}[body.direction]:{start:'开始对照',stop:'停止',reset:'重置'}[body.operation]} · ${result.mode==='duel'?'真人控制左鸭':result.mode==='explore'?'左侧单独练习':'本地物理'}，种子 ${result.seed}`,'本地按钮');
+  appendLog(`${['nudge','explore'].includes(body.operation)?{hold:'站定',forward:'前进',backward:'后退'}[body.direction]:{start:'开始对照',stop:'停止',reset:'重置'}[body.operation]} · ${result.mode==='duel'?'真人控制左鸭':result.mode==='explore'?'左侧单独练习':'本地物理'}，种子 ${result.seed}`,source);
  }catch(error){if(!closed)notify(error.message)}finally{pending=false;if(!closed){await feed?.refresh();controls()}}
 }
 function seed(){return !$('fixed-seed').checked?{}:$('seed').reportValidity()?{seed:Number($('seed').value)}:null}
@@ -156,10 +156,22 @@ $('start').addEventListener('click',()=>{const value=seed();if(value!==null)void
 $('reset').addEventListener('click',()=>{const value=seed();if(value!==null)void command({operation:'reset',...value})});
 $('stop').addEventListener('click',()=>{voice?.interrupt();void command({operation:'stop'})});
 for(const button of document.querySelectorAll('[data-direction]'))button.addEventListener('click',()=>void command({operation:'explore',direction:button.dataset.direction,seconds:2,assist:$('human-assist').checked}));
-for(const button of document.querySelectorAll('[data-human-direction]'))button.addEventListener('click',()=>{
+function humanCommand(direction,source='本地按钮'){
+ const button=document.querySelector(`[data-human-direction="${direction}"]`);
+ if(!button||button.disabled||closed)return;
  const first=lastState?.seesaw?.phase==='idle',value=first?seed():{};if(value===null)return;
- void command({operation:'nudge',direction:button.dataset.humanDirection,seconds:2,...(first?{controller:$('controller').value,assist:$('human-assist').checked,...value}:{})});
-});
+ void command({operation:'nudge',direction,seconds:2,...(first?{controller:$('controller').value,assist:$('human-assist').checked,...value}:{})},source);
+}
+for(const button of document.querySelectorAll('[data-human-direction]'))button.addEventListener('click',()=>humanCommand(button.dataset.humanDirection));
+window.addEventListener('keydown',event=>{
+ const direction={ArrowLeft:'forward',ArrowRight:'backward',ArrowDown:'hold'}[event.key];
+ const target=event.target;
+ if(!direction||closed||event.defaultPrevented||event.isComposing||event.altKey||event.ctrlKey||event.metaKey||event.shiftKey||target?.isContentEditable||target?.closest?.('input,textarea,select,[role="textbox"]'))return;
+ const button=document.querySelector(`[data-human-direction="${direction}"]`);
+ if(!button||button.disabled)return;
+ event.preventDefault();
+ if(!event.repeat)humanCommand(direction,'方向键');
+},{signal:lifetime.signal});
 $('controller').addEventListener('change',controls);
  $('fixed-seed').addEventListener('change',controls);
  $('match-mode').addEventListener('change',()=>{if(lastState)render(lastState);else controls()});

@@ -75,3 +75,5 @@
 @media(max-width:620px){.seesaw-voice{padding:12px;margin-bottom:12px}.seesaw-voice .voice-actions{gap:8px}.seesaw-voice .connect-button{padding:8px;font-size:12px}.seesaw-voice .talk-button{font-size:13px}.seesaw-voice #voice-intro{display:none}.seesaw-voice #voice-caption{line-height:1.5}.seesaw-voice .key-hint{display:none}}
 
 .human-motion{margin:0;padding:8px 18px;background:#edf4ec;color:#456659;font-size:12px;min-height:34px;box-sizing:border-box}.seesaw-controls .assist-toggle{display:flex;align-items:center;gap:8px}.seesaw-controls .assist-toggle input{width:16px;min-height:16px;margin:0;accent-color:#477d79}
+
+.human-controls kbd{font:inherit;font-size:12px;border:1px solid #c8d5c5;border-radius:4px;padding:0 4px;margin-left:3px;background:#fff8}

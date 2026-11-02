@@ -113,7 +113,7 @@ test('duration and seed settings have stacked labels, bound the real run and fol
  const seed=page.getByLabel('对照种子',{exact:true}),duration=page.getByLabel('运行时长（秒）',{exact:true});
  await fixedSeed(page,'1');await duration.fill('6');
  await expect(page.locator('#duration-note')).toContainText('3 秒扰动＋3 秒减速');
- await expect(page.locator('#duration-note')).toContainText('训练成功率仍仅对应 13 秒');
+ await expect(page.locator('#duration-note')).toContainText('训练曲线使用原13秒严格标准');
  await page.locator('#prepare-balance').click();
  await expect(page.locator('#start-challenge')).toBeEnabled({timeout:45000});
  await expect(seed).toHaveValue('1');await expect(duration).toHaveValue('6');
@@ -141,12 +141,22 @@ test('duration and seed settings have stacked labels, bound the real run and fol
  }
  await page.locator('[data-level="3"]').click();
  await expect(page.locator('#scene-title')).toContainText('第 3 关');
+ await expect(page.locator('#challenge-goal')).toContainText('连续保持至少1秒');
+ await expect(page.locator('#center-deadline')).toContainText('19秒进入目标区');
+ await expect(page.locator('#disc-goal-label')).toContainText('需≥1秒');
+ for(const id of ['physics-viewport','baseline-viewport']){
+  await expect(page.locator('#'+id)).toHaveAttribute('data-center-target','0.08');
+  await expect(page.locator('#'+id)).toHaveAttribute('data-center-surface','disc');
+ }
  for(const id of ['physics-viewport','baseline-viewport']){
   await expect(page.locator('#'+id)).toHaveAttribute('data-heading-target','none');
   await expect(page.locator('#'+id)).toHaveAttribute('data-heading-surface','none');
  }
  await page.locator('[data-level="2"]').click();
  await expect(page.locator('#physics-viewport')).toHaveAttribute('data-heading-surface','ground');
+ await expect(page.locator('#physics-viewport')).toHaveAttribute('data-center-target','none');
+ await expect(page.locator('#center-deadline')).toBeHidden();
+ await expect(page.locator('#challenge-goal')).toContainText('不要求回中心');
  // The voice tool reaches this same backend operation; no cloud ASR is mocked as real.
  const selected=await request.post(`/api/balance/command?room=${room}`,{data:{operation:'select',duration_seconds:8,seed:0}});
  expect(selected.ok()).toBe(true);expect((await selected.json()).phase).toBe('idle');
@@ -285,6 +295,13 @@ test('balance stays sharp and sleeps when static; orbit, colour and repeated sce
  await expect(view).toHaveAttribute('data-rendered-scene','balance',{timeout:45000});
  await expect(page.locator('#start-challenge')).toBeEnabled();
  await expect(page.locator('#scene-title')).toContainText('第 3 关');
+ await expect(page.locator('#challenge-goal')).toContainText('连续保持至少1秒');
+ await expect(page.locator('#center-deadline')).toContainText('12秒进入目标区');
+ await expect(page.locator('#disc-goal-label')).toContainText('需≥1秒');
+ for(const id of ['physics-viewport','baseline-viewport']){
+  await expect(page.locator('#'+id)).toHaveAttribute('data-center-target','0.08');
+  await expect(page.locator('#'+id)).toHaveAttribute('data-center-surface','disc');
+ }
  for(const id of ['physics-viewport','baseline-viewport'])await expect(page.locator('#'+id)).toHaveAttribute('data-heading-target','none');
  const prepared=(await(await request.get('/api/scenes/state?room=2')).json()).backend;
  expect(prepared.balance.level).toBe(3);expect(prepared.comparison.baseline.balance.level).toBe(3);
@@ -326,6 +343,10 @@ test('balance stays sharp and sleeps when static; orbit, colour and repeated sce
   await expect(view).toHaveAttribute('data-rendered-scene','balance',{timeout:45000});
   await expect(page.locator('#start-challenge')).toBeEnabled({timeout:45000});
   await expect(page.locator('#scene-title')).toContainText('第 3 关');
+  for(const id of ['physics-viewport','baseline-viewport']){
+   await expect(page.locator('#'+id)).toHaveAttribute('data-center-target','0.08');
+   await expect(page.locator('#'+id)).toHaveAttribute('data-center-surface','disc');
+  }
   const resources=await page.evaluate(()=>({buffers:window.renderProbe.buffers,textures:window.renderProbe.textures}));
   expect(resources).toEqual({buffers:first.buffers,textures:first.textures});
  }

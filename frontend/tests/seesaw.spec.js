@@ -17,6 +17,39 @@ test.afterEach(async({page,request})=>{
  if(room)await request.post(`/api/scenes/close?room=${room}`);
 });
 
+test('arrow keys give bounded left-duck commands without stealing form keys or restarting a paused round',async({page,request})=>{
+ test.setTimeout(60000);const room=await claimRoom(request),commands=[];
+ page.on('request',r=>{if(r.method()==='POST'&&new URL(r.url()).pathname==='/api/seesaw/command')commands.push(r.postDataJSON())});
+ await page.goto(`/seesaw.html?room=${room}`);await page.locator('#prepare').click();
+ await expect(page.locator('[data-human-direction=forward]')).toBeEnabled({timeout:45000});
+ await page.locator('.replay-settings summary').click();await page.locator('#fixed-seed').check();
+ await page.locator('#seed').fill('8852');
+ for(const key of ['ArrowLeft','ArrowRight','ArrowDown'])await page.keyboard.press(key);
+ expect(commands).toEqual([]);await page.locator('#seed').fill('8852');
+ await page.locator('.replay-settings summary').click();
+ const state=async()=> (await(await request.get(`/api/scenes/state?room=${room}`)).json()).backend.seesaw;
+ await page.keyboard.down('ArrowLeft');
+ await expect.poll(async()=> (await state()).human_command?.direction).toBe('forward');
+ await expect(page.locator('[data-human-direction=forward]')).toBeEnabled();
+ // OS key repeat must not extend the deadline or queue up another movement.
+ await page.keyboard.down('ArrowLeft');await page.keyboard.up('ArrowLeft');
+ await expect.poll(async()=> (await state()).human_command.remaining_seconds,{timeout:6000}).toBe(0);
+ expect(commands).toEqual([expect.objectContaining({operation:'nudge',direction:'forward',seconds:2,seed:8852})]);
+ const first=await state();expect(first.controller).toBe('trained');expect(first.comparison.controller).toBe('human');
+ await page.keyboard.press('ArrowRight');
+ await expect.poll(async()=> (await state()).human_command.direction).toBe('backward');
+ await expect(page.locator('[data-human-direction=hold]')).toBeEnabled();
+ await page.keyboard.press('ArrowDown');
+ await expect.poll(async()=> (await state()).human_command.direction).toBe('hold');
+ expect(commands.map(c=>c.direction)).toEqual(['forward','backward','hold']);
+ expect((await state()).seed).toBe(first.seed);expect((await state()).controller).toBe('trained');
+ await expect(page.locator('#activity-log')).toContainText('方向键');
+ await page.locator('#stop').click();await expect(page.locator('#baseline-result')).toHaveText('已暂停');
+ const count=commands.length;
+ for(const key of ['ArrowLeft','ArrowRight','ArrowDown'])await page.keyboard.press(key);
+ expect(commands.length).toBe(count);expect((await state()).comparison.execution).toBe('paused');
+});
+
 test('first left command starts a random PK; mic and both worlds stay in view',async({page,request})=>{
  test.setTimeout(90000);const room=await claimRoom(request);
  await page.setViewportSize({width:1440,height:900});

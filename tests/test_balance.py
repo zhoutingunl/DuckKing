@@ -356,6 +356,39 @@ async def test_bundled_policy_comparison_finishes_with_two_measured_results(back
     assert summary["comparison"]["sim_time"] <= 13.1
 
 
+async def test_reported_18_second_facing_round_and_disc_goal_follow_actual_physics(
+    backend, tmp_path
+):
+    await backend.invoke({"operation": "select", "level": 2, "seed": 8181,
+                          "duration_seconds": 18})
+    runs = BalanceRuns(tmp_path, ASSETS.parent / "training/results")
+    path, _ = runs.policy(2, None, "trained", backend.world.manifest()["contract"])
+    backend.policy = BalancePolicy(path, backend.world.manifest())
+    for _ in range(180):
+        backend._advance_pair()
+    assert backend.phase == "completed"
+    assert backend.info["success"] and backend.info["heading_fraction"] == 1
+    assert backend.info["radius"] == pytest.approx(0.072459788, abs=1e-5)
+    assert backend.info["center_hold"] == pytest.approx(0.1)
+    assert not backend.info["training_evaluation"]["success"]
+    assert backend.info["reward_terms"]["fall"] == -10
+    assert backend.baseline_phase == "failed"
+    assert (await backend.snapshot())["center_target"] is None
+
+    await backend.invoke({"operation": "select", "level": 3, "seed": 0})
+    for _ in range(10):
+        backend._advance_pair()
+    state = await backend.snapshot()
+    for w, frame in [(backend.world, state), (backend.baseline, state["comparison"]["baseline"])]:
+        target = frame["center_target"]
+        assert target["radius_m"] == 0.08
+        rotation = np.array(target["rotation"]).reshape(3, 3)
+        assert not np.allclose(rotation[:, 2], [0, 0, 1])
+        local = rotation.T @ (np.array(target["position"]) - w.data.geom_xpos[w.surface])
+        np.testing.assert_allclose(local, [0, 0, 0.0265], atol=1e-8)
+        assert frame["balance"]["goal"]["center_hold_seconds"] == 1
+
+
 async def test_stop_supersedes_a_start_waiting_for_previous_deceleration(backend, monkeypatch):
     entered, release = asyncio.Event(), asyncio.Event()
 
