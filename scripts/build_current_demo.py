@@ -7,6 +7,7 @@ import json
 import math
 import shutil
 import subprocess
+import wave
 from datetime import datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -118,6 +119,8 @@ def main():
     version = release["commit"][:7] if release else proof["source_commit"][:7]
     location = "线上" if release else "本地候选版本"
     identity = f"{beijing_date}（北京时间） · {location} {version}"
+    if script.get("identity_note"):
+        identity = f"{beijing_date}（北京时间） · {script['identity_note']}"
     run(
         [
             "node",
@@ -130,6 +133,12 @@ def main():
 
     def narrate(item):
         i, chapter = item
+        if chapter.get("audio") == "silent":
+            target = args.work / f"{i}-silence.wav"
+            with wave.open(str(target), "wb") as silent:
+                silent.setparams((2, 2, 48000, 0, "NONE", "not compressed"))
+                silent.writeframes(bytes(round(chapter["duration_seconds"] * 48000) * 4))
+            return target, "Intentional silent closing card; no narration"
         if chapter.get("audio") == "page":
             original = next(c for c in proof["chapters"] if c["id"] == chapter["id"])
             if len(original.get("audio", [])) != 1:
@@ -195,6 +204,10 @@ def main():
             )
             start = max(0, segment["start_seconds"] - clock_offset)
             end = min(raw_seconds, segment["end_seconds"] - clock_offset)
+            start += c.get("source_trim_start_seconds", 0)
+            end -= c.get("source_trim_end_seconds", 0)
+            if end <= start:
+                raise ValueError("Chapter trimming removed its entire source segment")
             original_seconds = end - start
         page_audio = c.get("audio") == "page"
         seconds = (
@@ -204,6 +217,8 @@ def main():
             )
             / 25
         )
+        if c.get("audio") == "silent":
+            seconds = c["duration_seconds"]
         audio_filter = "loudnorm=I=-18:TP=-2:LRA=9,apad"
         if page_audio:
             audio = chapter["audio"][0]
@@ -291,6 +306,8 @@ def main():
                 "source_seconds": original_seconds,
                 "end_hold_seconds": max(0, seconds - original_seconds) if source else 0,
                 "voice_provider": provider,
+                **({"provenance": chapter["provenance"]}
+                   if c.get("segment") and chapter.get("provenance") else {}),
             }
         )
         elapsed += actual_seconds
@@ -302,6 +319,7 @@ def main():
     manifest = {
         "release": proof["release"],
         "recorded_at": proof["recorded_at"],
+        "edited_at": proof.get("edited_at"),
         "base_url": proof["base_url"],
         "source": proof["source"],
         "audio": proof.get(
@@ -319,7 +337,8 @@ def main():
         "sha256": hashlib.sha256(args.output.read_bytes()).hexdigest(),
         "editing": (
             "Loading waits omitted between marked segments; all action footage at original "
-            "wall-clock speed. End holds are disclosed per chapter. Captions occupy a "
+            "wall-clock speed. Source trims and end holds are disclosed per chapter. "
+            "Captions occupy a "
             "separate 100 px band; source frames are scaled to fit 1600x1000, "
             "with recorded app state and displayed values preserved."
         ),

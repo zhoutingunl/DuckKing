@@ -1,0 +1,92 @@
+{
+  "validation_type": "Offline PCM comparison; no new cloud calls",
+  "original_recorded_at": "2026-11-01T18:37:16.594Z",
+  "before_sha256": "eed1dafddf9603387b5645c5b0960d42f480b1f18b85f5ee69e2765c55fba617",
+  "fixed_sha256": "3508d5ee04e993f9949bbed6887327f35c5ad36a56c62e92cf961126f1d40572",
+  "sample_rate_hz": 48000,
+  "channels": 2,
+  "method": "Decode each chapter independently, honoring timestamps and filling gaps with silence; compare with its position in the final stereo PCM. Check 0.7 to 0.2 seconds before each chapter ends for excess noise. Values at or below -120 dBFS are reported as -120.",
+  "chapters": [
+    {
+      "chapter": "intro",
+      "start_seconds": 0.0,
+      "source_part_sha256": "73932635c45a58e8b9491876887de80f895ad226a3a88bb1b26bb6a8e01688a8",
+      "pcm_correlation_per_channel": [
+        0.99999765863242,
+        0.9999976587542663
+      ],
+      "quiet_window_before_chapter_end_seconds": [
+        0.7,
+        0.2
+      ],
+      "reference_quiet_dbfs": -120.0,
+      "before_quiet_dbfs": -120.0,
+      "fixed_quiet_dbfs": -120.0
+    },
+    {
+      "chapter": "tabletop",
+      "start_seconds": 17.84,
+      "source_part_sha256": "fbdce786f8c3893749aa85af152d4a5a7e8c468c9ed7b438bc1e9097923321f2",
+      "pcm_correlation_per_channel": [
+        0.9999838663571636,
+        0.9999820957191307
+      ],
+      "quiet_window_before_chapter_end_seconds": [
+        0.7,
+        0.2
+      ],
+      "reference_quiet_dbfs": -120.0,
+      "before_quiet_dbfs": -120.0,
+      "fixed_quiet_dbfs": -120.0
+    },
+    {
+      "chapter": "experience",
+      "start_seconds": 105.88000000000001,
+      "source_part_sha256": "2243d1701ebde0de1d07fd59d112487566a7682ced038cb4e27f702b86314db5",
+      "pcm_correlation_per_channel": [
+        0.9999950713502307,
+        0.999995064934738
+      ],
+      "quiet_window_before_chapter_end_seconds": [
+        0.7,
+        0.2
+      ],
+      "reference_quiet_dbfs": -120.0,
+      "before_quiet_dbfs": -18.64,
+      "fixed_quiet_dbfs": -120.0
+    },
+    {
+      "chapter": "statistics",
+      "start_seconds": 132.92000000000002,
+      "source_part_sha256": "bbb951bc2675d762e79947baac52518594e1a993b158705c840650518c6b2fc4",
+      "pcm_correlation_per_channel": [
+        0.9999952698210008,
+        0.9999952697472916
+      ],
+      "quiet_window_before_chapter_end_seconds": [
+        0.7,
+        0.2
+      ],
+      "reference_quiet_dbfs": -120.0,
+      "before_quiet_dbfs": -20.33,
+      "fixed_quiet_dbfs": -120.0
+    },
+    {
+      "chapter": "outro",
+      "start_seconds": 157.16000000000003,
+      "source_part_sha256": "707f7d6604258470d472c48c6ac81829cdbf66900d1ebc7920a3107836cd21b2",
+      "pcm_correlation_per_channel": [
+        0.9999953547834353,
+        0.9999953547094369
+      ],
+      "quiet_window_before_chapter_end_seconds": [
+        0.7,
+        0.2
+      ],
+      "reference_quiet_dbfs": -120.0,
+      "before_quiet_dbfs": -19.87,
+      "fixed_quiet_dbfs": -120.0
+    }
+  ],
+  "result": "passed"
+}

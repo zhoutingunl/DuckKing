@@ -2,14 +2,18 @@
 
 ## 第 11 幕灵矽实连竞赛主片
 
-`duckking-competition-live.mp4` 面向竞赛“复刻 Micro Duck 并通过灵矽语音交互”的主题：选择“灵矽实连 · 预录指令”，第 11 幕《桌上不掉拍》使用《两只老虎》，随后展示本次真实调用产生的持续使用体验与交互统计。版本与发布状态见 [主片说明](../DEMO_VIDEO.md)。
+`duckking-competition-live.mp4` 面向竞赛“复刻 Micro Duck 并通过灵矽语音交互”的主题：选择“灵矽实连 · 预录指令”，第 11 幕《桌上不掉拍》使用《两只老虎》，随后介绍本地离线识别、同种子转盘 PPO 对照、CPU 训练记录、持续使用体验、交互统计与测试覆盖率。删去核实后的 12.88 秒等待，末页保留 3 秒静默。各章版本与发布状态见 [主片说明](../DEMO_VIDEO.md)。
 
 演出段保留浏览器实际播放的预录输入、真实灵矽下行声音和本地合成音乐；不是用剪辑旁白替代云端回答。新增的章节解说另标合成来源。截图中的“自动化 / 验收”表示录制方式，所记录的云端请求、工具受理和物理终态均为真实运行。模型及其改编仍遵循 CC BY-NC-SA 4.0；《两只老虎》为本地电子合成传统轮唱，不是灵矽生成歌声。
 
 - `competition-live-selection.png`、`competition-live-running.png`、`competition-live-fall.png`、`competition-live-result.png`：主片录屏取帧，保留模式、曲目及实际状态。
 - `competition-experience.png`、`competition-experience-server.png`：同一轮的浏览器/服务器持久化观测；不能相加当作用户数。
 - `competition-statistics.png`、`competition-statistics-latency.png`：当前房间的真实识别、工具动作、逐轮时间线和延迟。
-- `duckking-competition-live-recording.json`：实际两轮调用、物理结果、脱敏工具事件、统计快照及媒体摘要；`duckking-competition-live.json`：章节、源片段、原声/解说来源与校验；`competition-live-script.json`：章节解说；`duckking-competition-live-audio-check.json`：音轨修复前后摘要、逐章 PCM 相关性与静音噪声检查。
+- `finals-local-asr-mode.png`、`finals-local-asr-actions.png`、`finals-local-asr-result.png`：新本地识别录屏，实际执行前滚翻和打哈欠，云端音频收发均为零；输入为披露的合成录音。
+- `current-balance-running.png`、`current-balance-result.png`：复用原公网第 2 关、种子 0、标准 13 秒真实对照，保留原提交。
+- `finals-training-curves.png`、`finals-training-reward.png`、`finals-training-ppo.png`：公网保存的第二关 CPU 训练记录、奖励及公式，新录屏未启动训练。
+- `finals-coverage-current.png`、`finals-coverage-scope.png`：公网 62c6784 后端行 95.94%、分支 90.57%，包含单元与集成测试，绑定具体 CI。
+- `duckking-competition-live-recording.json`：两轮实际云端调用、单独的本地识别、物理结果、脱敏工具事件、统计与覆盖率快照、逐章来源及媒体摘要；`duckking-competition-live.json`：章节、源片段、原声/解说来源与校验；`competition-live-script.json`：章节解说；`duckking-competition-live-audio-check.json`：当前主片逐章 PCM 与静音检查；`duckking-competition-live-audio-check-before-finals.json`：补充章节前的音轨修复记录，保留其独立文件摘要。
 
 
 ## 2026-11-02 功能导览录屏
