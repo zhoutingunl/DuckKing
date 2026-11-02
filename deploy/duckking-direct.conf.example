@@ -4,4 +4,4 @@
 [Service]
 Environment=DUCKKING_DIRECT_HOST=SERVER_IP
 ExecStart=
-ExecStart=/root/zt_dir/hackathon_base/DuckKing/current/.venv/bin/duckking --host 0.0.0.0 --port 8765 --allowed-host ${DUCKKING_DIRECT_HOST} --allowed-host yzh737 --allowed-host ztmonitor.qbox.net
+ExecStart=/root/zt_dir/hackathon_base/DuckKing/current/.venv/bin/duckking --host 0.0.0.0 --port 8765 --allowed-host ${DUCKKING_DIRECT_HOST} --allowed-host yzh737 --allowed-host ztmonitor.qbox.net --allowed-host duck.qbox.net

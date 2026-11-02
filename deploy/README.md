@@ -37,7 +37,9 @@ bash scripts/install_release.sh <archive> <sha256> <tag> <完整commit>
 
 ## 直接访问 8765
 
-访问 `http://<服务器IP>:8765/`，路径从 `/` 开始，不带 `/duckking/`。页面、API 和原生 WebSocket 都由 DuckKing 提供。ASR worker 仍只监听 `127.0.0.1:8768`。
+对外入口为 `http://duck.qbox.net/`：域名指向前置 OpenResty（OR），OR 上游为 YZH737 的 `8765`，不经过 ai_gateway。应用启动参数必须包含 `--allowed-host duck.qbox.net`；仅开放监听地址仍会返回 `Invalid host header`。OR 应保留 Host / Origin，并传递 WebSocket Upgrade / Connection。
+
+也可从获准的网络访问 `http://<服务器IP>:8765/`。路径从 `/` 开始，不带 `/duckking/`。页面、API 和原生 WebSocket 都由 DuckKing 提供。ASR worker 仍只监听 `127.0.0.1:8768`。
 
 将 [duckking-direct.conf.example](duckking-direct.conf.example) 中的 `SERVER_IP` 替换为实际访问 IP 或域名，保存到 `/etc/systemd/system/duckking.service.d/20-direct-access.conf`；需要多个地址时重复添加 `--allowed-host`。该文件显式覆盖启动命令，监听所有 IPv4 接口并取消代理路径前缀，优先于基础 unit 及其 `DUCKKING_BIND_HOST` 设置。保留精确 Host 白名单与同源检查。
 
@@ -51,8 +53,8 @@ ss -ltn 'sport = :8765'
 从服务器外部检查健康状态，并使用当前 `release.json` 的完整提交运行验收：
 
 ```sh
-curl --fail http://<服务器IP>:8765/api/health
-python scripts/release_smoke.py --url http://<服务器IP>:8765/ --commit <运行中的完整commit>
+curl --fail http://duck.qbox.net/api/health
+python scripts/release_smoke.py --url http://duck.qbox.net/ --commit <运行中的完整commit>
 ```
 
 验收包含页面资源、状态与语音 WebSocket 握手、有界停止动作；不表示真实云端语音已通过。非 localhost 的 HTTP 页面不具备浏览器麦克风所需的安全上下文；需要网页录音时，应在独立 HTTPS 入口直接代理 DuckKing 并保留 WebSocket Upgrade，无需经过 ai_gateway。
@@ -60,6 +62,18 @@ python scripts/release_smoke.py --url http://<服务器IP>:8765/ --commit <运�
 外部访问保护由现有基础设施负责，本次未修改防火墙或上游访问控制。只有外部实测成功才能报告该网络入口可达。安装器只替换主 unit，不删除此 drop-in，因此普通发布和应用版本回滚均保留直连配置。撤销这次入口调整时，删除本次新增的 drop-in，再执行 `daemon-reload` 和重启；若 `/etc/duckking/runtime.env` 仍为原始 loopback 设置，将恢复原入口。
 
 2026-11-02 配置验证：运行版本仍为 `deploy-yzh737-20261102T065603Z`（`3f943bf26a08bc9b719bb9af929b4d328aeccbb6`），systemd 配置校验通过，监听为 `0.0.0.0:8765`。在 YZH737 上通过非 loopback 网卡地址运行完整 release smoke，页面资源、原生状态/语音 WebSocket 握手与有界停止均通过；错误 Host 返回 400，跨来源写请求返回 403。ASR 保持 `127.0.0.1:8768`，ai_gateway 的 18345 监听进程未变。操作端电脑直连各公网 IP 及私网 IP 的 8765 均超时，未将服务器自检记作外部连通成功，也未验收真实云端语音。
+
+随后接入 `duck.qbox.net`：初次访问返回 400 `Invalid host header`，在上述 drop-in 追加 `--allowed-host duck.qbox.net` 并重启后，操作端电脑通过 OR 访问首页与健康 API 返回 200。release smoke 的页面和资源阶段通过，但原生 WebSocket 握手返回 404，完整验收未通过；需要核对 OR 的 WebSocket 转发。不能将页面恢复记作语音/状态连接已恢复。
+
+OR 的现有代理 location 需要包含以下设置，并保留既有访问保护；修改后先校验配置再平滑 reload：
+
+```nginx
+proxy_http_version 1.1;
+proxy_set_header Host $http_host;
+proxy_set_header Origin $http_origin;
+proxy_set_header Upgrade $http_upgrade;
+proxy_set_header Connection "upgrade";
+```
 
 ## 原有 HTTPS 网关入口
 

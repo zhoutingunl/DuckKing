@@ -194,7 +194,7 @@ uv run duckking --backend robotd --socket ~/.cache/duck-sim/duck-a.sock
 
 `DUCKKING_SIM_DIR` 可指定外部资源目录，`DUCK_SIM_VIEWER=0` 可无窗口运行。首页此时仍是动画示意，真实物理画面查看官方 MuJoCo 窗口；不在适配失败时切回预览。适配器已做仿真联调，未做实体机器人测试。
 
-Linux 在 YZH737 上使用独立 DuckKing / ASR systemd 服务，现通过 `http://<服务器IP>:8765/` 直接提供页面、API 与原生 WebSocket，不经过 ai_gateway。直连配置在升级后保留；浏览器麦克风仍需要独立 HTTPS 入口。原有 `ztmonitor.qbox.net` 网关接入方式保留在部署指南中。发布包带固定模型、来源与 SHA-256；安装自检、公网检查、真实语音验收分别记录，暂存不等于验收成功。步骤见 [部署指南](deploy/README.md)。
+Linux 在 YZH737 上使用独立 DuckKing / ASR systemd 服务，现通过 `http://duck.qbox.net/` 的前置 OpenResty 直连 8765，提供页面、API 与原生 WebSocket，不经过 ai_gateway。直连配置在升级后保留；浏览器麦克风仍需要独立 HTTPS 入口。原有 `ztmonitor.qbox.net` 网关接入方式保留在部署指南中。发布包带固定模型、来源与 SHA-256；安装自检、公网检查、真实语音验收分别记录，暂存不等于验收成功。步骤见 [部署指南](deploy/README.md)。
 
 ## 开发检查与文档
 
