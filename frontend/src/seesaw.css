@@ -49,3 +49,8 @@
 .physics-explanation{font-size:13px;line-height:1.9;border-top:1px solid #d5ddd2;padding:18px 0}.physics-explanation summary{cursor:pointer;font-weight:600}.physics-explanation p{color:#62796f}.physics-equation{padding:12px 14px;background:#e7ede2;border-radius:8px}
 
 .load-readout{display:flex;align-items:center;flex-wrap:wrap;gap:16px;background:#fff6ed;border-left:4px solid #c35c36;border-radius:10px;padding:16px;margin-top:22px;font-size:12px;color:#79543d}.load-readout>div{flex:1;min-width:220px}.load-readout p{display:flex;align-items:center;gap:10px;margin:10px 0 0}.load-readout input{min-width:60px;flex:1;accent-color:#c35c36;opacity:1}.load-readout b{display:block;font-size:18px;color:#633e2c;font-variant-numeric:tabular-nums;margin-top:5px}
+
+.dock-goal{padding:14px 18px;background:#e3eee2;color:#29583f;border:1px solid #b4cdb8;border-radius:12px;font-size:14px;line-height:1.7}
+.causal-strip{grid-template-columns:1fr auto 1fr auto 1fr auto 1fr;gap:10px;padding:18px}.causal-strip strong{font-size:21px}
+.stage-readings{display:grid;grid-template-columns:1fr 1fr}
+@media(max-width:1200px){.causal-strip{grid-template-columns:1fr auto 1fr}.causal-strip>b:nth-child(4){display:none}}

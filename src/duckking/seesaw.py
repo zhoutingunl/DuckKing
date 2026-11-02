@@ -16,17 +16,23 @@ import onnxruntime as ort
 
 from .simulation import HOME, Driver
 
-CONTRACT = "seesaw-v3-counterweight"
+CONTRACT = "seesaw-v4-passive-docking"
 DT = 0.1
 PIVOT_Z = 0.23
 HALF_LENGTH, HALF_WIDTH, HALF_THICKNESS = 0.50, 0.22, 0.015
 ANGLE_LIMIT = 0.105
 DURATION = 18
-OBSERVATION_SIZE = 18
+OBSERVATION_SIZE = 17
 WEIGHT_MASS = 0.28
+SLIDER_DAMPING = 1.0
+DOCK_HALF_WIDTH = 0.04
+DOCK_SPEED = 0.025
+DOCK_HOLD = 1.0
 VELOCITIES = (0.0, 0.25, -0.35)
 REWARD = {
-    "level": 2.0,
+    "level": 0.5,
+    "dock": 4.0,
+    "brake": 1.0,
     "balance": 1.0,
     "upright": 0.25,
     "turning": 0.1,
@@ -106,8 +112,8 @@ def build_model(assets: Path):
             conaffinity="0",
             rgba=colour,
         )
-    # A real massive slider on a rail attached to the board. Its own actuator
-    # moves the load; the board hinge stays passive. Never write its runtime pose.
+    # A passive massive slider. Neither it nor the board has an actuator.
+    # Duck contact tilts the board; gravity along the rail moves the load.
     ET.SubElement(
         board,
         "geom",
@@ -128,7 +134,7 @@ def build_model(assets: Path):
         type="slide",
         axis="1 0 0",
         range="-.35 .35",
-        damping=".2",
+        damping=str(SLIDER_DAMPING),
     )
     ET.SubElement(
         weight,
@@ -152,15 +158,31 @@ def build_model(assets: Path):
         rgba=".99 .89 .65 1",
     )
     ET.SubElement(
-        root.find("actuator"),
-        "position",
-        name="seesaw_slider_drive",
-        joint="seesaw_slider",
-        kp="100",
-        kv="6",
-        ctrlrange="-.33 .33",
-        forcerange="-3 3",
+        board,
+        "geom",
+        name="seesaw_dock",
+        type="box",
+        pos="0 .185 .017",
+        size=f"{DOCK_HALF_WIDTH} .035 .001",
+        mass="0",
+        contype="0",
+        conaffinity="0",
+        rgba=".15 .55 .35 1",
     )
+    # Upright painted gate posts make the acceptance interval visible beside the rail.
+    for x in (-DOCK_HALF_WIDTH, DOCK_HALF_WIDTH):
+        ET.SubElement(
+            board,
+            "geom",
+            name=f"seesaw_dock_{'rear' if x < 0 else 'front'}",
+            type="box",
+            pos=f"{x} .22 .048",
+            size=".003 .003 .03",
+            mass="0",
+            contype="0",
+            conaffinity="0",
+            rgba=".15 .55 .35 1",
+        )
     xml = ET.tostring(root, encoding="unicode")
     model = mujoco.MjModel.from_xml_string(xml)
     model.opt.timestep = 0.005
@@ -190,7 +212,6 @@ class SeesawWorld:
         slider = self.model.joint("seesaw_slider").id
         self.slider_q = int(self.model.jnt_qposadr[slider])
         self.slider_v = int(self.model.jnt_dofadr[slider])
-        self.slider_drive = self.model.actuator("seesaw_slider_drive").id
         self.duck_mass = float(self.model.body_subtreemass[self.driver.body])
         joint = self.model.joint("seesaw_hinge").id
         self.hinge_q = int(self.model.jnt_qposadr[joint])
@@ -223,9 +244,7 @@ class SeesawWorld:
         self.seed = seed
         self.start_x = float(rng.choice([-1, 1]) * rng.uniform(0.045, 0.085))
         self.friction = float(rng.uniform(0.85, 1.1))
-        self.load_direction = int(rng.choice([-1, 1]))
-        self.load_amplitude = float(rng.uniform(0.28, 0.32))
-        self.load_period = float(rng.uniform(10, 12))
+        self.load_start = float(rng.choice([-1, 1]) * rng.uniform(0.20, 0.24))
         self.model.geom_friction[self.surface, 0] = self.friction
         mujoco.mj_resetData(self.model, self.data)
         self.data.qpos[self.driver.root : self.driver.root + 7] = [
@@ -237,6 +256,7 @@ class SeesawWorld:
             0,
             0,
         ]
+        self.data.qpos[self.slider_q] = self.load_start
         self.data.qpos[self.driver.q] = HOME
         self.data.ctrl[self.driver.ids] = HOME
         self.driver.command[:] = self.driver.last[:] = 0
@@ -302,21 +322,15 @@ class SeesawWorld:
             "edge_margin_m": margin,
             "weight_position_m": float(d.qpos[self.slider_q]),
             "weight_velocity_m_s": float(d.qvel[self.slider_v]),
-            "weight_target_m": self.weight_target(float(d.time)),
+            "dock_position_m": 0.0,
+            "dock_error_m": float(d.qpos[self.slider_q]),
+            "dock_half_width_m": DOCK_HALF_WIDTH,
+            "dock_hold_seconds": self.hold,
+            "weight_actuators": 0,
             "weight_gravity_torque_nm": float(weight_torque),
             "net_gravity_torque_nm": float(weight_torque + duck_torque),
             "balance_fraction": self.balanced_ticks / max(1, self.scored_ticks),
         }
-
-    def weight_target(self, seconds):
-        ramp = min(max(seconds / 2, 0), 1)
-        ramp = ramp * ramp * (3 - 2 * ramp)
-        return (
-            self.load_direction
-            * self.load_amplitude
-            * ramp
-            * math.sin(2 * math.pi * max(0, seconds - 1) / self.load_period)
-        )
 
     def observation(self, measured=None):
         p = measured if measured is not None else self.measure()
@@ -333,12 +347,11 @@ class SeesawWorld:
                 p["angular_speed_deg_s"] / 12,
                 p["contacts"] / 2,
                 *[float(self.last_action == i) for i in range(3)],
-                min(self.hold / 2, 1),
+                min(self.hold / DOCK_HOLD, 1),
                 self.steps / (DURATION / DT),
                 p["weight_position_m"] / 0.32,
                 p["weight_velocity_m_s"] / 0.25,
                 p["net_gravity_torque_nm"],
-                self.load_period / 12,
             ],
             np.float32,
         )
@@ -372,7 +385,6 @@ class SeesawWorld:
             self.driver.command[:3] = self.command
             self.driver.step(self.model, self.data)
             for _ in range(4):
-                self.data.ctrl[self.slider_drive] = self.weight_target(float(self.data.time))
                 mujoco.mj_step(self.model, self.data)
             mujoco.mj_forward(self.model, self.data)
         if (
@@ -395,7 +407,13 @@ class SeesawWorld:
         )
         level = abs(p["angle_deg"]) < 2 and abs(p["angular_speed_deg_s"]) < 4
         stable = level and p["contacts"] > 0
-        self.hold = self.hold + DT if stable else 0
+        docked = (
+            stable
+            and abs(p["dock_error_m"]) < DOCK_HALF_WIDTH
+            and abs(p["weight_velocity_m_s"]) < DOCK_SPEED
+        )
+        self.hold = self.hold + DT if docked else 0
+        p["dock_hold_seconds"] = self.hold
         if self.steps > 2 / DT:
             self.scored_ticks += 1
             self.balanced_ticks += int(stable)
@@ -403,21 +421,24 @@ class SeesawWorld:
         self.level_sum += abs(p["angle_deg"])
         timed_out = self.steps >= DURATION / DT
         self.done = bool(fallen or timed_out)
-        success = bool(
-            timed_out and not fallen and p["balance_fraction"] >= 0.7 and self.hold >= 0.5 - 1e-6
-        )
+        success = bool(timed_out and not fallen and self.hold >= DOCK_HOLD - 1e-6)
         self.reason = (
             "fell_or_left_board"
             if fallen
-            else ("success" if success else "not_balanced" if timed_out else None)
+            else ("success" if success else "not_docked" if timed_out else None)
         )
         self.reward_terms = {
+            "dock": REWARD["dock"] * math.exp(-((p["dock_error_m"] / 0.12) ** 2)),
+            "brake": REWARD["brake"]
+            * math.exp(
+                -((p["dock_error_m"] / 0.06) ** 2) - ((p["weight_velocity_m_s"] / 0.05) ** 2)
+            ),
             "level": REWARD["level"] * math.exp(-((p["angle_deg"] / 3) ** 2)),
             "balance": REWARD["balance"] * math.exp(-((p["net_gravity_torque_nm"] / 0.35) ** 2)),
             "upright": REWARD["upright"] * p["upright"],
             "turning": -REWARD["turning"] * min(abs(p["angular_speed_deg_s"]) / 12, 2),
             "effort": -REWARD["effort"] * int(action != 0),
-            "settle": REWARD["settle"] * int(stable and action == 0),
+            "settle": REWARD["settle"] * int(docked and action == 0),
             "switch": -REWARD["switch"] * int(changed),
             "fall": -REWARD["fall"] * int(fallen or timed_out and not success),
             "success": REWARD["success"] * int(success),
@@ -446,13 +467,17 @@ class SeesawWorld:
             "gait_hz": 50,
             "task_hz": 10,
             "board_actuators": 0,
-            "weight_actuators": 1,
+            "weight_actuators": 0,
             "weight_mass_kg": WEIGHT_MASS,
-            "weight_amplitude_m": [0.28, 0.32],
-            "weight_period_s": [10, 12],
+            "weight_start_abs_m": [0.20, 0.24],
+            "slider_damping_n_s_m": SLIDER_DAMPING,
+            "dock_position_m": 0.0,
+            "dock_half_width_m": DOCK_HALF_WIDTH,
+            "dock_max_speed_m_s": DOCK_SPEED,
+            "dock_hold_seconds": DOCK_HOLD,
             "success": (
-                "18s; after 2s >=70% supported with |angle|<2deg, |speed|<4deg/s; "
-                "final .5s stable; no fall"
+                "18s no fall; final 1s load within center +/-4cm, |load speed|<2.5cm/s; "
+                "supported, |angle|<2deg, |angular speed|<4deg/s"
             ),
             "hinge_damping_nm_s": 10,
             "reward": REWARD,

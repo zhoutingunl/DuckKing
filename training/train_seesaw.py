@@ -64,28 +64,33 @@ def export(model, world, path):
 
 
 def warm_start(model, path, world):
-    """Curriculum transfer of the task actor, not imitation or a rule policy.
-
-    Transfer only the documented static-board actor. Four new load observations
-    start with zero weights. Physics/reward changed: this is transfer learning,
-    not continuation of the same experiment. The critic and optimizer are fresh.
-    """
+    """Transfer a documented task actor; new physics and objective, fresh critic."""
     raw = path.read_bytes()
     payload = json.loads(raw)
+    sources = {
+        "seesaw-v2-settle": (
+            14,
+            "0261fe9099449a7f8ca2c338cd01d7eaa3f8205833bed4380c833e7b42875ce3",
+        ),
+        "seesaw-v3-counterweight": (
+            18,
+            "ade4461b496876b49e18f6f7a3b37694ef3fc51ceaff88d3c392f8618110ceec",
+        ),
+    }
+    source = sources.get(payload.get("contract"))
     if (
-        payload.get("contract") != "seesaw-v2-settle"
-        or payload.get("model_sha256")
-        != "0261fe9099449a7f8ca2c338cd01d7eaa3f8205833bed4380c833e7b42875ce3"
+        not source
+        or payload.get("model_sha256") != source[1]
         or payload.get("action_type") != "categorical"
         or type(payload.get("steps")) is not int
         or payload["steps"] <= 0
     ):
-        raise ValueError("仅支持已记录的静态跷跷板 v2 PPO，不能任意替换来源模型")
+        raise ValueError("仅支持已记录的 v2/v3 PPO，不能任意替换来源模型")
     layers = [m for m in model.policy.mlp_extractor.policy_net if isinstance(m, torch.nn.Linear)]
     layers.append(model.policy.action_net)
     if len(payload["layers"]) != len(layers):
         raise ValueError("预训练任务网络结构无效")
-    width = 14
+    width = source[0]
     with torch.no_grad():
         for source, target in zip(payload["layers"], layers, strict=True):
             w, b = np.asarray(source["weight"], np.float32), np.asarray(source["bias"], np.float32)
@@ -97,22 +102,23 @@ def warm_start(model, path, world):
             ):
                 raise ValueError("预训练任务权重无效")
             target.weight.zero_()
-            target.weight[:, :width].copy_(torch.from_numpy(w))
+            copied = min(width, target.in_features)
+            target.weight[:, :copied].copy_(torch.from_numpy(w[:, :copied]))
             target.bias.copy_(torch.from_numpy(b))
             width = target.out_features
     model.initial_steps = payload["steps"]
     return {
-        "kind": "static_to_moving_task_ppo",
+        "kind": "passive_docking_transfer",
         "source_contract": payload["contract"],
         "source_steps": payload["steps"],
         "source_sha256": hashlib.sha256(raw).hexdigest(),
         "source_model_sha256": payload["model_sha256"],
         "target_model_sha256": world.fingerprint,
         "new_inputs": (
-            "weight position/velocity, net gravity torque and load period; zero actor weights"
+            "17 inputs; driven period removed; v2 adds 3 zero columns, v3 keeps first 17"
         ),
         "changed_semantics": (
-            "18s progress, level-only hold; moving mass and new rewards/success gate"
+            "no load motor; hold is now docking/1s; new docking reward and terminal criterion"
         ),
         "critic_and_optimizer": "new, not transferred",
     }
@@ -141,6 +147,8 @@ def evaluate(world, policy, seeds, cancelled=lambda: False):
                 "hold_seconds": info["hold_seconds"],
                 "mean_abs_angle_deg": info["mean_abs_angle_deg"],
                 "balance_fraction": info["balance_fraction"],
+                "weight_position_m": info["weight_position_m"],
+                "weight_velocity_m_s": info["weight_velocity_m_s"],
             }
         )
     n, wins = len(rows), sum(r["success"] for r in rows)
@@ -156,6 +164,7 @@ def evaluate(world, policy, seeds, cancelled=lambda: False):
         "mean_return": float(np.mean([r["return"] for r in rows])),
         "mean_abs_angle_deg": float(np.mean([r["mean_abs_angle_deg"] for r in rows])),
         "mean_balance_fraction": float(np.mean([r["balance_fraction"] for r in rows])),
+        "mean_final_dock_error_m": float(np.mean([abs(r["weight_position_m"]) for r in rows])),
     }
 
 

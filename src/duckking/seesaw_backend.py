@@ -13,24 +13,27 @@ SEESAW_TOOLS = [
     {
         "name": "duck_seesaw",
         "description": (
-            "语音跷跷板教练。橙色280克配重沿导轨往返，配重有电机，板面铰链没有电机。"
-            "鸭子的走动通过接触改变板面倾角，需要随配重移动调整位置，不能一直站中心。"
+            "语音跷跷板教练：用脚步把橙色280克自由配重送回绿色停靠区。"
+            "板面和配重均没有电机、没有预设轨迹。鸭子走位压低一端，"
+            "配重沿斜坡滑动；需要反向调整制动，再把配重停稳。"
             "start 重新开始18秒左右对照；controller trained 是已训练PPO。"
-            "early 是本轮训练开始时的PPO，可能继承前一阶段任务策略。"
-            "rule 是人工配重/倾角反馈规则，center 是只回中站定的规则，baseline 是官方步态站定。"
-            "挑战时左侧固定为回中站定规则。两侧同初态、同配重目标轨迹但独立受力，"
-            "板角和配重实际位置不会被强制同步。"
+            "early 是本轮开始时的PPO，可能继承前一阶段任务策略。"
+            "rule 是只配平板面的人工规则，不规划配重停靠；"
+            "center 是只回中站定的规则，baseline 是官方站定。"
+            "挑战左侧为回中站定规则。两侧同初态但独立受力；"
+            "不同走位会导致配重轨迹不同，这正是需要展示的结果。"
             "nudge 手动探索只指挥右侧，左侧保持站定并推进物理："
             "direction forward 向绿色前端走、backward 向赭色后端退、"
             "hold 站定观察，seconds 整数1至3秒，默认2秒；保持当前物理状态，不重置。"
             "reset 重置两侧；stop 停止任务并暂停两侧仿真，不能声称已自然停稳；status 读取真实测量。"
             "正倾角为绿色前端下沉；position_m 是鸭子相对支点的前后位置，正为绿色前端。"
-            "成功需要18秒无摔倒，前2秒之后至少70%时间倾角小于2度、角速度小于4度每秒且有支撑，"
-            "最后连续0.5秒稳定；不要求靠近中心。开始返回只表示受理；"
+            "成功需要18秒无摔倒，最后连续1秒配重中心在绿色区正负4厘米内、"
+            "配重速度小于2.5厘米每秒，板角小于2度、角速度小于4度每秒且有脚部支撑。"
+            "经过绿色区但未停稳不算成功。开始返回只表示受理；"
             "只有phase success才成功；failed是失败，explored是手动探索结束"
             "不计分。"
             "请用status读取最终结果，不要根据发出的步速推断已走动。观察来自MuJoCo真值，不是摄像头。"
-            "例如‘用训练后的策略保持平衡’调用start trained；‘向前一点，看看板会怎样’"
+            "例如‘把配重送回绿色区，再停稳’调用start trained；‘向前一点，看看板会怎样’"
             "调用nudge forward。"
         ),
         "inputSchema": {
@@ -243,9 +246,10 @@ class SeesawBackend:
                 "angle_deg": self.info["angle_deg"],
                 "velocity_cm_s": float(self.world.command[0]) * 100,
                 "contact_torque_nm": self.info["contact_torque_nm"],
-                "baseline_angle_deg": self.baseline.measure()["angle_deg"],
+                "baseline_angle_deg": self.baseline_info["angle_deg"],
                 "weight_position_cm": self.info["weight_position_m"] * 100,
                 "net_gravity_torque_nm": self.info["net_gravity_torque_nm"],
+                "baseline_weight_position_cm": self.baseline_info["weight_position_m"] * 100,
             }
         )
         self.trace = self.trace[-int(DURATION / DT) :]
@@ -303,9 +307,9 @@ class SeesawBackend:
             "duration_seconds": DURATION,
             "load": {
                 "mass_kg": WEIGHT_MASS,
-                "amplitude_m": world.load_amplitude,
-                "period_s": world.load_period,
-                "direction": world.load_direction,
+                "start_position_m": world.load_start,
+                "actuators": 0,
+                "motion_source": "gravity and rail constraints; no target trajectory",
             },
             "measurement": world.measure(),
             "result": info,

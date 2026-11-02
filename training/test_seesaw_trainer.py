@@ -75,6 +75,28 @@ class SeesawTrainerChecks(unittest.TestCase):
             with self.assertRaises(ValueError):
                 warm_start(model, source, self.world)
 
+    def test_driven_actor_transfer_drops_period_column_without_inventing_new_steps(self):
+        model = self.model()
+        source = self.assets.parent / "training/seesaw_results/driven-v3/policy.json"
+        payload = json.loads(source.read_text())
+        identity = warm_start(model, source, self.world)
+        self.assertEqual(identity["source_steps"], 180224)
+        self.assertEqual(identity["kind"], "passive_docking_transfer")
+        with tempfile.TemporaryDirectory() as directory:
+            policy = export(model, self.world, Path(directory) / "policy.json")
+            self.assertEqual(policy.steps, 180224)
+            for obs in (
+                np.random.default_rng(9).normal(size=(32, OBSERVATION_SIZE)).astype(np.float32)
+            ):
+                x = np.append(obs, np.float32(0))
+                for i, layer in enumerate(payload["layers"]):
+                    x = np.array(layer["weight"], np.float32) @ x + np.array(
+                        layer["bias"], np.float32
+                    )
+                    if i < 2:
+                        x = np.tanh(x)
+                self.assertEqual(policy(obs), int(np.argmax(x)))
+
     def test_evaluation_counts_actual_terminal_results_and_cancels_before_stepping(self):
         result = evaluate(self.world, lambda _: 0, [100, 101])
         self.assertEqual(result["episodes"], 2)

@@ -60,7 +60,7 @@ def rollout(world, action, steps=int(DURATION / 0.1)):
 def test_passive_board_has_no_actuator_and_contact_drives_its_angle(world):
     m, d = world.model, world.data
     hinge = m.joint("seesaw_hinge").id
-    assert m.nu == 15 and hinge not in m.actuator_trnid[:, 0]
+    assert m.nu == 14 and hinge not in m.actuator_trnid[:, 0]
     assert m.jnt_stiffness[hinge] == 0 and m.dof_damping[world.hinge_v] == 10
     world.reset(0)
     rollout(world, lambda _: 0, 8)
@@ -78,12 +78,14 @@ def test_passive_board_has_no_actuator_and_contact_drives_its_angle(world):
 
 def test_same_start_different_actions_change_environment_without_scripted_tilt(world):
     world.reset(0)
-    held = rollout(world, lambda _: 0, 20)
+    held = rollout(world, lambda _: 0, 70)
     world.reset(0)
-    moved = rollout(world, lambda _: 2, 20)
+    rollout(world, lambda _: 2, 40)
+    moved = rollout(world, lambda _: 0, 30)
     assert moved["position_m"] < held["position_m"] - 0.08
     assert moved["angle_deg"] < held["angle_deg"] - 3
     assert moved["contacts"] > 0
+    assert abs(moved["weight_position_m"] - held["weight_position_m"]) > 0.03
 
 
 def test_reset_reproduces_contacts_board_response_and_gait_history(world):
@@ -101,54 +103,58 @@ def test_reset_reproduces_contacts_board_response_and_gait_history(world):
     assert world.start_x != first and world.observation().shape == (OBSERVATION_SIZE,)
 
 
-def test_rule_is_separate_baseline_and_hinge_limit_is_not_success(world):
-    world.reset(0)
-    held = rollout(world, lambda _: 0)
-    assert not held["success"] and held["reason"] == "not_balanced"
-    assert held["seconds"] == pytest.approx(DURATION)
-    assert abs(held["angle_deg"]) > 5
-    world.reset(0)
+def test_level_board_is_not_success_when_weight_is_outside_dock(world):
+    world.reset(1)
     controlled = rollout(world, SeesawWorld.rule_action)
-    assert abs(controlled["angle_deg"]) < abs(held["angle_deg"]) / 3
-    assert controlled["reason"] in {"success", "not_balanced"}
+    assert abs(controlled["angle_deg"]) < 2
+    assert abs(controlled["weight_position_m"]) > 0.3
+    assert not controlled["success"] and controlled["reason"] == "not_docked"
 
 
-def test_massive_slider_drives_passive_board_without_any_duck_contact(world):
+def test_massive_slider_and_board_are_passive_without_any_duck_contact(world):
     assert world.model.body_mass[world.weight_body] == pytest.approx(WEIGHT_MASS)
     joint = world.model.joint("seesaw_slider").id
-    assert world.model.actuator_trnid[world.slider_drive, 0] == joint
+    assert joint not in world.model.actuator_trnid[:, 0]
+    assert world.model.jnt_stiffness[joint] == 0
     angles = []
     for direction in (-1, 1):
         world.reset(0)
-        # Set initial conditions only; keep the duck away from this load-only test.
+        # Initial conditions only: duck is away, load starts off center at rest.
         world.data.qpos[world.driver.root] = 2
-        world.data.ctrl[world.slider_drive] = 0.2 * direction
+        world.data.qpos[world.slider_q] = 0.2 * direction
         mujoco.mj_forward(world.model, world.data)
         for _ in range(250):
             mujoco.mj_step(world.model, world.data)
-        assert abs(world.data.qpos[world.slider_q]) > 0.15
+        assert direction * world.data.qpos[world.slider_q] > 0.23
+        assert world.data.qfrc_actuator[world.slider_v] == 0
         assert world.data.qfrc_actuator[world.hinge_v] == 0
         assert not world.data.qfrc_applied.any() and not world.data.xfrc_applied.any()
         angles.append(world.data.qpos[world.hinge_q])
     assert angles[0] < -0.03 and angles[1] > 0.03
 
 
-def test_returning_to_center_fails_but_counterbalancing_can_leave_center_and_succeed(world):
+def test_returning_duck_to_center_does_not_return_free_weight_to_dock(world):
     world.reset(0)
     centered = rollout(world, SeesawWorld.center_action)
-    assert not centered["success"] and centered["balance_fraction"] < 0.3
+    assert not centered["success"] and centered["reason"] == "not_docked"
+    assert abs(centered["position_m"]) < 0.04
+    assert abs(centered["weight_position_m"]) > 0.3
+    assert "center" not in centered["reward_terms"]
+
+
+@pytest.mark.parametrize("position,velocity", [(0.09, 0), (0, 0.15)])
+def test_outside_dock_or_fast_crossing_cannot_receive_terminal_success(world, position, velocity):
     world.reset(0)
-    weights, positions = [], []
-    while not world.done:
-        _, _, _, _, result = world.step(SeesawWorld.rule_action(world.observation()))
-        weights.append(result["weight_position_m"])
-        positions.append(result["position_m"])
-    assert result["success"] and result["balance_fraction"] >= 0.7
-    assert min(weights) < -0.25 and max(weights) > 0.25
-    assert min(positions) < -0.08 and max(positions) > 0.08
-    assert "center" not in result["reward_terms"]
-    # No hidden center constraint remains in the success gate.
-    assert abs(result["position_m"]) > 0.035
+    # Construct terminal initial states; no hidden latch or attraction at the green mark.
+    world.data.qpos[world.driver.root] = -0.005
+    world.data.qpos[world.slider_q] = position
+    world.data.qvel[world.slider_v] = velocity
+    world.steps = int(DURATION / 0.1) - 1
+    world.hold = 2
+    mujoco.mj_forward(world.model, world.data)
+    _, _, done, _, info = world.step(0)
+    assert done and not info["success"] and info["reason"] == "not_docked"
+    assert info["hold_seconds"] == 0
 
 
 @pytest.mark.parametrize("action", [True, -1, 3, 0.5, float("nan"), [0]])
@@ -215,7 +221,7 @@ async def test_pause_freezes_moving_weight_without_zeroing_its_physical_velocity
 
     def observe_tick(action):
         tick(action)
-        if backend.world.data.time >= 1.5:
+        if backend.world.data.time >= 0.6:
             loop.call_soon_threadsafe(moved.set)
 
     monkeypatch.setattr(backend, "_tick", observe_tick)
@@ -229,7 +235,7 @@ async def test_pause_freezes_moving_weight_without_zeroing_its_physical_velocity
     np.testing.assert_array_equal(before, data.qpos)
     assert data.time == seconds and data.qvel[index] == speed
     await backend.reset()
-    assert data.time == 0 and data.qpos[backend.world.slider_q] == 0
+    assert data.time == 0 and data.qpos[backend.world.slider_q] == backend.world.load_start
     await backend.close()
 
 
@@ -382,15 +388,16 @@ def test_bundled_policy_and_report_match_actual_contract(world):
     directory = Path(__file__).resolve().parents[1] / "training/seesaw_results"
     artifacts = SeesawArtifacts(directory)
     assert artifacts.report()["manifest"]["contract"] == CONTRACT
-    # An upgrade must reject the static board's valid but incompatible bundle.
-    with pytest.raises(ValueError, match="匹配"):
-        SeesawArtifacts(directory / "static-v2").policy("trained", world.manifest())
+    # Historical driven/static scores cannot be attributed to the passive task.
+    for old in ("static-v2", "driven-v3"):
+        with pytest.raises(ValueError, match="匹配"):
+            SeesawArtifacts(directory / old).policy("trained", world.manifest())
     policy = artifacts.policy("trained", world.manifest())
     assert policy.steps == artifacts.report()["selected_steps"]
     # Replay recorded held-out episodes. A changed model/actor
     # must not silently keep claiming the outcomes in an older report.
     rows = {row["seed"]: row for row in artifacts.report()["test"]["results"]}
-    for seed in (30000, 30025):
+    for seed in (30000, 30018):
         world.reset(seed)
         info = rollout(world, policy)
         assert info["seconds"] <= DURATION + 1e-6
