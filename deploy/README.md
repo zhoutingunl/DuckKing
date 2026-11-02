@@ -67,6 +67,8 @@ python scripts/release_smoke.py --url https://duck.qbox.net/ --commit <运行中
 
 随后接入 `duck.qbox.net`：初次访问返回 400 `Invalid host header`，在上述 drop-in 追加 `--allowed-host duck.qbox.net` 并重启后，操作端电脑通过 OR 访问首页与健康 API 返回 200。release smoke 的页面和资源阶段通过，但原生 WebSocket 握手返回 404，完整验收未通过；需要核对 OR 的 WebSocket 转发。不能将页面恢复记作语音/状态连接已恢复。
 
+2026-11-03 复核：`https://duck.qbox.net/` 的首页、模型资源可用，`wss://duck.qbox.net/` 下 `ws`、`scene-ws`、`voice`、`scene-voice` 均完成握手并返回对应状态消息，早先的握手 404 未再复现。该检查不包含真实灵矽识别与合成语音验收。
+
 OR 的现有代理 location 需要包含以下设置，并保留既有访问保护；修改后先校验配置再平滑 reload：
 
 ```nginx

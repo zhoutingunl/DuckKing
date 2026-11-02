@@ -4,7 +4,7 @@
 
 ## YZH737 直接入口
 
-访问 `http://duck.qbox.net/`，由前置 OpenResty 直连 YZH737:8765，页面、API 与原生 WebSocket 不经过 ai_gateway。后端 Host 白名单包含 `duck.qbox.net`。服务器以 systemd drop-in 监听 `0.0.0.0:8765`，允许指定 IP / 域名且保留同源检查；配置与回滚见 [部署指南](../deploy/README.md#直接访问-8765)。HTTP 直连可使用页面和动作控制，但浏览器麦克风需要独立 HTTPS 安全上下文。
+访问 `https://duck.qbox.net/`，由前置 OpenResty 直连 YZH737:8765，页面、API 与原生 WebSocket 不经过 ai_gateway。后端 Host 白名单包含 `duck.qbox.net`。服务器以 systemd drop-in 监听 `0.0.0.0:8765`，允许指定 IP / 域名且保留同源检查；配置与回滚见 [部署指南](../deploy/README.md#直接访问-8765)。该域名通过 HTTPS 提供浏览器麦克风所需的安全上下文；裸域名的 HTTP 页面会自动转到 HTTPS。本地与局域网 HTTP 开发地址不受此跳转影响。
 
 ## 原有 YZH737 HTTPS 网关入口
 
