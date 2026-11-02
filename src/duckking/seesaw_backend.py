@@ -6,24 +6,28 @@ import time
 from pathlib import Path
 
 from .model_assets import geometry
-from .seesaw import DT, DURATION, SeesawWorld
+from .seesaw import DT, DURATION, WEIGHT_MASS, SeesawWorld
 from .seesaw_policy import SeesawPolicy
 
 SEESAW_TOOLS = [
     {
         "name": "duck_seesaw",
         "description": (
-            "语音跷跷板教练。板面没有电机，鸭子的走动通过接触改变板面倾角。"
-            "start 重新开始12秒左右对照；controller trained 是已训练PPO。"
+            "语音跷跷板教练。橙色280克配重沿导轨往返，配重有电机，板面铰链没有电机。"
+            "鸭子的走动通过接触改变板面倾角，需要随配重移动调整位置，不能一直站中心。"
+            "start 重新开始18秒左右对照；controller trained 是已训练PPO。"
             "early 是本轮训练开始时的PPO，可能继承前一阶段任务策略。"
-            "rule 是明确的人工规则，baseline 是官方步态站定。两侧同初态但独立受力，"
-            "板角不会被强制同步。"
+            "rule 是人工配重/倾角反馈规则，center 是只回中站定的规则，baseline 是官方步态站定。"
+            "挑战时左侧固定为回中站定规则。两侧同初态、同配重目标轨迹但独立受力，"
+            "板角和配重实际位置不会被强制同步。"
             "nudge 手动探索只指挥右侧，左侧保持站定并推进物理："
             "direction forward 向绿色前端走、backward 向赭色后端退、"
             "hold 站定观察，seconds 整数1至3秒，默认2秒；保持当前物理状态，不重置。"
             "reset 重置两侧；stop 停止任务并暂停两侧仿真，不能声称已自然停稳；status 读取真实测量。"
             "正倾角为绿色前端下沉；position_m 是鸭子相对支点的前后位置，正为绿色前端。"
-            "开始返回只表示受理；只有phase success才成功；failed是失败，explored是手动探索结束"
+            "成功需要18秒无摔倒，前2秒之后至少70%时间倾角小于2度、角速度小于4度每秒且有支撑，"
+            "最后连续0.5秒稳定；不要求靠近中心。开始返回只表示受理；"
+            "只有phase success才成功；failed是失败，explored是手动探索结束"
             "不计分。"
             "请用status读取最终结果，不要根据发出的步速推断已走动。观察来自MuJoCo真值，不是摄像头。"
             "例如‘用训练后的策略保持平衡’调用start trained；‘向前一点，看看板会怎样’"
@@ -36,7 +40,10 @@ SEESAW_TOOLS = [
                     "type": "string",
                     "enum": ["start", "stop", "status", "reset", "nudge"],
                 },
-                "controller": {"type": "string", "enum": ["trained", "early", "baseline", "rule"]},
+                "controller": {
+                    "type": "string",
+                    "enum": ["trained", "early", "baseline", "center", "rule"],
+                },
                 "seed": {"type": "integer", "minimum": 0, "maximum": 9999},
                 "direction": {"type": "string", "enum": ["forward", "backward", "hold"]},
                 "seconds": {"type": "integer", "minimum": 1, "maximum": 3},
@@ -135,6 +142,7 @@ class SeesawBackend:
             "early",
             "rule",
             "baseline",
+            "center",
         ):
             raise ValueError("未知任务控制器")
         if op == "nudge" and args.get("direction") not in ("forward", "backward", "hold"):
@@ -204,8 +212,10 @@ class SeesawBackend:
                 if self.mode == "explore"
                 else self.policy(obs)
                 if self.policy
-                else SeesawWorld.rule_action(obs)
+                else self.world.rule_action(obs)
                 if self.controller == "rule"
+                else self.world.center_action(obs)
+                if self.controller == "center"
                 else 0
             )
             _, _, _, _, self.info = self.world.step(action)
@@ -215,7 +225,12 @@ class SeesawBackend:
                     self.phase = "explored"
                     self.info.update(success=False, reason="exploration_limit")
         if not self.baseline.done:
-            _, _, _, _, self.baseline_info = self.baseline.step(0)
+            action = (
+                self.baseline.center_action(self.baseline.observation())
+                if self.mode == "compare"
+                else 0
+            )
+            _, _, _, _, self.baseline_info = self.baseline.step(action)
             if self.baseline.done:
                 self.baseline_phase = "success" if self.baseline_info["success"] else "failed"
                 if self.mode == "explore" and self.baseline_info["reason"] != "fell_or_left_board":
@@ -229,9 +244,11 @@ class SeesawBackend:
                 "velocity_cm_s": float(self.world.command[0]) * 100,
                 "contact_torque_nm": self.info["contact_torque_nm"],
                 "baseline_angle_deg": self.baseline.measure()["angle_deg"],
+                "weight_position_cm": self.info["weight_position_m"] * 100,
+                "net_gravity_torque_nm": self.info["net_gravity_torque_nm"],
             }
         )
-        self.trace = self.trace[-120:]
+        self.trace = self.trace[-int(DURATION / DT) :]
 
     async def _loop(self, ticks, manual_action):
         try:
@@ -284,6 +301,12 @@ class SeesawBackend:
             "friction": world.friction,
             "sim_time": float(world.data.time),
             "duration_seconds": DURATION,
+            "load": {
+                "mass_kg": WEIGHT_MASS,
+                "amplitude_m": world.load_amplitude,
+                "period_s": world.load_period,
+                "direction": world.load_direction,
+            },
             "measurement": world.measure(),
             "result": info,
             "action": world.last_action,
@@ -302,7 +325,10 @@ class SeesawBackend:
             "trace": self.trace.copy(),
             "source": "MuJoCo passive hinge + frozen official gait",
             "comparison": self._summary(
-                self.baseline, self.baseline_phase, self.baseline_info, "baseline"
+                self.baseline,
+                self.baseline_phase,
+                self.baseline_info,
+                "center" if self.mode == "compare" else "baseline",
             ),
         }
 

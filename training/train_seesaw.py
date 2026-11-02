@@ -14,7 +14,7 @@ import torch
 from stable_baselines3 import PPO
 from stable_baselines3.common.callbacks import BaseCallback
 
-from duckking.seesaw import SeesawWorld
+from duckking.seesaw import OBSERVATION_SIZE, SeesawWorld
 from duckking.seesaw_policy import SeesawPolicy
 
 
@@ -28,7 +28,9 @@ class Env(gym.Env):
     def __init__(self, assets, seed):
         self.world = SeesawWorld(assets)
         self.next_seed = 100000 + seed * 10000
-        self.observation_space = gym.spaces.Box(-np.inf, np.inf, (14,), dtype=np.float32)
+        self.observation_space = gym.spaces.Box(
+            -np.inf, np.inf, (OBSERVATION_SIZE,), dtype=np.float32
+        )
         self.action_space = gym.spaces.Discrete(3)
 
     def reset(self, *, seed=None, options=None):
@@ -56,7 +58,7 @@ def export(model, world, path):
         },
     )
     policy = SeesawPolicy(path, world.manifest())
-    for obs in np.random.default_rng(89).normal(size=(32, 14)).astype(np.float32):
+    for obs in np.random.default_rng(89).normal(size=(32, OBSERVATION_SIZE)).astype(np.float32):
         assert policy(obs) == int(model.predict(obs, deterministic=True)[0])
     return policy
 
@@ -64,24 +66,26 @@ def export(model, world, path):
 def warm_start(model, path, world):
     """Curriculum transfer of the task actor, not imitation or a rule policy.
 
-    The old 12 observations keep their meanings. Two new bookkeeping inputs get
-    zero weights. The value network and optimizer start afresh, recorded below.
+    Transfer only the documented static-board actor. Four new load observations
+    start with zero weights. Physics/reward changed: this is transfer learning,
+    not continuation of the same experiment. The critic and optimizer are fresh.
     """
     raw = path.read_bytes()
     payload = json.loads(raw)
     if (
-        payload.get("contract") != "seesaw-v1-discrete"
-        or payload.get("model_sha256") != world.fingerprint
+        payload.get("contract") != "seesaw-v2-settle"
+        or payload.get("model_sha256")
+        != "0261fe9099449a7f8ca2c338cd01d7eaa3f8205833bed4380c833e7b42875ce3"
         or payload.get("action_type") != "categorical"
         or type(payload.get("steps")) is not int
         or payload["steps"] <= 0
     ):
-        raise ValueError("仅支持同一物理模型的第一阶段任务 PPO 工件")
+        raise ValueError("仅支持已记录的静态跷跷板 v2 PPO，不能任意替换来源模型")
     layers = [m for m in model.policy.mlp_extractor.policy_net if isinstance(m, torch.nn.Linear)]
     layers.append(model.policy.action_net)
     if len(payload["layers"]) != len(layers):
         raise ValueError("预训练任务网络结构无效")
-    width = 12
+    width = 14
     with torch.no_grad():
         for source, target in zip(payload["layers"], layers, strict=True):
             w, b = np.asarray(source["weight"], np.float32), np.asarray(source["bias"], np.float32)
@@ -98,11 +102,18 @@ def warm_start(model, path, world):
             width = target.out_features
     model.initial_steps = payload["steps"]
     return {
-        "kind": "curriculum_task_ppo",
+        "kind": "static_to_moving_task_ppo",
         "source_contract": payload["contract"],
         "source_steps": payload["steps"],
         "source_sha256": hashlib.sha256(raw).hexdigest(),
-        "new_inputs": "hold and time, initialized with zero actor weights",
+        "source_model_sha256": payload["model_sha256"],
+        "target_model_sha256": world.fingerprint,
+        "new_inputs": (
+            "weight position/velocity, net gravity torque and load period; zero actor weights"
+        ),
+        "changed_semantics": (
+            "18s progress, level-only hold; moving mass and new rewards/success gate"
+        ),
         "critic_and_optimizer": "new, not transferred",
     }
 
@@ -129,6 +140,7 @@ def evaluate(world, policy, seeds, cancelled=lambda: False):
                 "position_m": info["position_m"],
                 "hold_seconds": info["hold_seconds"],
                 "mean_abs_angle_deg": info["mean_abs_angle_deg"],
+                "balance_fraction": info["balance_fraction"],
             }
         )
     n, wins = len(rows), sum(r["success"] for r in rows)
@@ -143,6 +155,7 @@ def evaluate(world, policy, seeds, cancelled=lambda: False):
         "results": rows,
         "mean_return": float(np.mean([r["return"] for r in rows])),
         "mean_abs_angle_deg": float(np.mean([r["mean_abs_angle_deg"] for r in rows])),
+        "mean_balance_fraction": float(np.mean([r["balance_fraction"] for r in rows])),
     }
 
 
@@ -200,6 +213,9 @@ class Recorder(BaseCallback):
                             "angular_speed_deg_s",
                             "reward_terms",
                             "hold_seconds",
+                            "weight_position_m",
+                            "net_gravity_torque_nm",
+                            "balance_fraction",
                         )
                     },
                 }
@@ -299,6 +315,14 @@ def main():
             write(args.output / "report.json", report)
             report["rule_test"] = evaluate(
                 evaluation, SeesawWorld.rule_action, range(30000, 30100), lambda: recorder.cancelled
+            )
+            report.update(test_stage="center", elapsed_s=time.perf_counter() - started)
+            write(args.output / "report.json", report)
+            report["center_test"] = evaluate(
+                evaluation,
+                SeesawWorld.center_action,
+                range(30000, 30100),
+                lambda: recorder.cancelled,
             )
             report["phase"] = "completed"
             report["test_stage"] = "completed"

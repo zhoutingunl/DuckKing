@@ -11,7 +11,7 @@ import torch
 from stable_baselines3 import PPO
 from train_seesaw import Env, evaluate, export, warm_start
 
-from duckking.seesaw import SeesawWorld
+from duckking.seesaw import OBSERVATION_SIZE, SeesawWorld
 from duckking.seesaw_policy import SeesawPolicy
 
 
@@ -52,19 +52,23 @@ class SeesawTrainerChecks(unittest.TestCase):
             source = Path(directory) / "source.json"
             export(model, self.world, source)
             payload = json.loads(source.read_text())
-            payload.update(contract="seesaw-v1-discrete", steps=40960)
-            payload["layers"][0]["weight"] = [row[:12] for row in payload["layers"][0]["weight"]]
+            payload.update(
+                contract="seesaw-v2-settle",
+                steps=49152,
+                model_sha256="0261fe9099449a7f8ca2c338cd01d7eaa3f8205833bed4380c833e7b42875ce3",
+            )
+            payload["layers"][0]["weight"] = [row[:14] for row in payload["layers"][0]["weight"]]
             source.write_text(json.dumps(payload))
             identity = warm_start(model, source, self.world)
-            self.assertEqual(identity["source_steps"], 40960)
+            self.assertEqual(identity["source_steps"], 49152)
             target = Path(directory) / "new.json"
             export(model, self.world, target)
             policy = SeesawPolicy(target, self.world.manifest())
-            self.assertEqual(policy.steps, 40960)
+            self.assertEqual(policy.steps, 49152)
             rng = np.random.default_rng(7)
-            for obs in rng.normal(size=(32, 14)).astype(np.float32):
+            for obs in rng.normal(size=(32, OBSERVATION_SIZE)).astype(np.float32):
                 changed = obs.copy()
-                changed[12:] += 100
+                changed[14:] += 100
                 self.assertEqual(policy(obs), policy(changed))
             payload["model_sha256"] = "incorrect"
             source.write_text(json.dumps(payload))

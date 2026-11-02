@@ -4,7 +4,7 @@ import json
 
 import numpy as np
 
-from .seesaw import CONTRACT
+from .seesaw import CONTRACT, OBSERVATION_SIZE
 
 
 class SeesawPolicy:
@@ -38,7 +38,7 @@ class SeesawPolicy:
 
     def __call__(self, obs):
         x = np.asarray(obs, np.float32)
-        if x.shape != (14,) or not np.isfinite(x).all():
+        if x.shape != (OBSERVATION_SIZE,) or not np.isfinite(x).all():
             raise ValueError("无效跷跷板观测")
         for i, (w, b) in enumerate(self.layers):
             with np.errstate(over="ignore", invalid="ignore"):
