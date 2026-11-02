@@ -1,7 +1,12 @@
 import {test,expect} from '@playwright/test';
 
 const selectors={balance:{prepare:'#prepare-balance',start:'#start-challenge',view:'#physics-viewport'},seesaw:{prepare:'#prepare',start:'#start',view:'#trained-viewport'}};
-async function roomFor(request){const r=await request.post('/api/rooms/claim');expect(r.ok()).toBe(true);return (await r.json()).room}
+async function roomFor(request){
+ const r=await request.post('/api/rooms/claim');expect(r.ok()).toBe(true);const room=(await r.json()).room;
+ // Claims reserve an idle room; they do not erase a prior scenario.
+ expect((await request.post(`/api/scenes/close?room=${room}&if_unused=true`)).status()).toBe(204);
+ return room;
+}
 async function state(request,room){return (await(await request.get(`/api/scenes/state?room=${room}`)).json()).backend}
 test.afterEach(async({page,request})=>{
  const room=new URL(page.url()).searchParams.get('room');

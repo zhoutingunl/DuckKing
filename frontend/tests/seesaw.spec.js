@@ -2,7 +2,11 @@ import {test,expect} from '@playwright/test';
 
 async function claimRoom(request){
  const response=await request.post('/api/rooms/claim');expect(response.ok()).toBe(true);
- return (await response.json()).room;
+ const room=(await response.json()).room;
+ // Claim may reuse an idle room containing another test's scene. Entry
+ // preparation deliberately preserves that scene, so start this fixture empty.
+ expect((await request.post(`/api/scenes/close?room=${room}&if_unused=true`)).status()).toBe(204);
+ return room;
 }
 
 async function fixedRound(page){
