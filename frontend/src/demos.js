@@ -1,3 +1,4 @@
+import {requestId} from './ids.js';
 import './site-nav.js';
 import {measurement,loadMetrics,afterFrame} from './experience.js';
 import './style.css';
@@ -131,7 +132,7 @@ async function prepare(room,scene,run,second=false){
   stage??=connectStage(room,$(second?'demo-second':'demo-viewport'));
   if(second)$('demo-second').hidden=false;
   else{$('stage-placeholder').hidden=false;$('stage-placeholder').textContent='正在加载官方场景外观…';}
-  const record=await api('api/scenes/start',room,{body:{name:'scene_'+scene,request_id:crypto.randomUUID()},signal:run.signal});
+  const record=await api('api/scenes/start',room,{body:{name:'scene_'+scene,request_id:requestId()},signal:run.signal});
   let state;
   const end=performance.now()+60000;
   do{
@@ -217,7 +218,7 @@ async function interrupt(run,step){
     await pause(150,run.signal);await voice.interrupt(run.signal);
   }else{
     await speak(step.id,step.text,'预录旧指令',run,{wait:false});
-    old=await api('api/scenes/actions',room,{body:{name:step.actions[0],request_id:crypto.randomUUID()},signal:run.signal});await pause(650,run.signal);output.clear();
+    old=await api('api/scenes/actions',room,{body:{name:step.actions[0],request_id:requestId()},signal:run.signal});await pause(650,run.signal);output.clear();
     await perform(run,room,'stop');
   }
   const cancelled=await api('api/scenes/actions/'+old.id,room,{signal:run.signal});
@@ -303,7 +304,7 @@ async function runStep(run,step){
 function cleanup(run){
   return run.cleanupPromise??=(async()=>{
   run.abort();output.clear();chorus.stop();if(stageVoiceBusy())stageVoice.disconnect();
-  await Promise.allSettled([...run.rooms].map(room=>api('api/scenes/actions',room,{body:{name:'stop',request_id:crypto.randomUUID()}})));
+  await Promise.allSettled([...run.rooms].map(room=>api('api/scenes/actions',room,{body:{name:'stop',request_id:requestId()}})));
   if(run.voices.length){
     const owned=new Set(run.voices.map(v=>v.room));
     for(let i=0;i<50;i++){
@@ -371,6 +372,6 @@ $('stop-demo').addEventListener('click',()=>void stop());$('next-demo').addEvent
 $('reset-camera').addEventListener('click',()=>{for(const stage of stages.values())stage.viewer.reset()});
 window.addEventListener('keydown',e=>{if(e.key==='Escape')void stop()});
 window.addEventListener('pagehide',()=>{const run=current;run?.abort();preview?.abort();output.close();chorus.dispose();for(const stage of stages.values()){stage.socket.close();stage.viewer.dispose()}
-  for(const room of run?.rooms??[]){const url=appURL('api/scenes/actions');url.searchParams.set('room',room);void fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:'stop',request_id:crypto.randomUUID()}),keepalive:true}).catch(()=>{})}
+  for(const room of run?.rooms??[]){const url=appURL('api/scenes/actions');url.searchParams.set('room',room);void fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:'stop',request_id:requestId()}),keepalive:true}).catch(()=>{})}
 });
 mode();

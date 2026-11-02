@@ -1,3 +1,4 @@
+import {requestId} from './ids.js';
 import './site-nav.js';
 import {measurement,loadMetrics,afterFrame} from './experience.js';
 import './style.css';
@@ -38,7 +39,7 @@ async function select(scene){
  loading=true;selected=null;controls();$('notice').hidden=true;$('scene-placeholder').hidden=false;$('scene-placeholder').textContent='正在准备官方场景…';
  const mine=++epoch,experience=measurement('load'),metrics={};
  try{
-  const rec=await api('api/scenes/start',currentRoom,{body:{name:`scene_${scene.scene}`,request_id:crypto.randomUUID()}});
+  const rec=await api('api/scenes/start',currentRoom,{body:{name:`scene_${scene.scene}`,request_id:requestId()}});
   let result=rec;
   for(let i=0;result.status==='running'&&i<300;i++){await pause(100);result=await api(`api/scenes/actions/${rec.id}`,currentRoom)}
   if(result.status!=='completed')throw Error(result.error??'场景准备超时');

@@ -1,3 +1,4 @@
+import {requestId} from './ids.js';
 import {VoiceExperience} from './experience.js';
 import { appURL } from './urls.js';
 import { DuckSocket } from './transport.js';
@@ -100,7 +101,7 @@ export class DemoRun {
 }
 export async function action(room,name,signal,options={}){
   signal.throwIfAborted();
-  const submitted=await api('api/scenes/actions',room,{body:{name,request_id:crypto.randomUUID(),...options},signal});
+  const submitted=await api('api/scenes/actions',room,{body:{name,request_id:requestId(),...options},signal});
   return waitAction(room,submitted,signal);
 }
 export async function waitAction(room,submitted,signal){

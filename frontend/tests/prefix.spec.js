@@ -8,6 +8,24 @@ import { join } from 'node:path';
 
 // Only this local test proxy has a generated, untrusted certificate.
 test.use({ignoreHTTPSErrors:true});
+test('public HTTP entry redirects to HTTPS and keeps the selected scene and room',async({page,request})=>{
+  // Route both public names locally: this exercises the real HTML entry script,
+  // without navigating to or mutating a production room.
+  await page.route(url=>['duck.qbox.net','ztmonitor.qbox.net'].includes(url.hostname),async route=>{
+    const url=new URL(route.request().url());
+    if(url.protocol==='https:')return route.fulfill({contentType:'text/html',body:'<p>HTTPS entry reached</p>'});
+    if(!route.request().isNavigationRequest()&&!url.pathname.endsWith('/secure-entry.js'))return route.abort();
+    const path=url.pathname.replace(/^\/duckking(?=\/|$)/,'')||'/';
+    await route.fulfill({response:await request.get(path)});
+  });
+  for(const path of ['http://duck.qbox.net/?room=1',
+    'http://duck.qbox.net/balance.html?room=4#results',
+    'http://ztmonitor.qbox.net/duckking/seesaw.html?room=6#controls']){
+    await page.goto(path,{waitUntil:'commit'});
+    await expect(page).toHaveURL(path.replace(/^http:/,'https:'));
+    await expect(page.getByText('HTTPS entry reached')).toBeVisible();
+  }
+});
 for(const secure of [false,true]){
 test(`${secure?'HTTPS':'HTTP'} prefix serves pages, physical state, actions and microphone worklet`,async({page,context,baseURL})=>{
   test.skip(process.env.DUCKKING_TEST_DEV==='1','This checks the production bundle behind a path-stripping proxy.');

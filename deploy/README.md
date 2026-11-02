@@ -37,6 +37,8 @@ bash scripts/install_release.sh <archive> <sha256> <tag> <完整commit>
 
 ## HTTPS 接入
 
+分享链接时使用完整的 `https://duck.qbox.net/` 或 `https://ztmonitor.qbox.net/duckking/`。微信内打开裸域名可能进入 HTTP；此前体验统计直接调用仅安全上下文可用的 `crypto.randomUUID()`，会中断模型初始化。当前构建在应用模块启动前，将这两个已配置证书的公网入口自动切换为 HTTPS，保留页面、房间参数和锚点；不修改 ai_gateway 的其他页面，也不重定向 localhost、局域网地址或自定义端口。请求与统计 ID 同时兼容只有 `crypto.getRandomValues()` 的环境；远程 HTTP 页面仍不能因此获得麦克风权限。
+
 当前使用 ai_gateway 应用路由：`/duckking/` 的 API 与资源固定转发到 `127.0.0.1:8765`，不依赖 DuckKing release 目录。域名前置代理实测移除了 Upgrade，浏览器根据 `_gateway/capabilities` 使用 HTTPS 长轮询转发到同一个真实后端 WebSocket。PCM 保持原始字节，队列、帧大小与空闲时间有上限，发送顺序校验且不自动重试语音。服务升级后状态流重连，用户重新连接语音。
 
 ai_gateway 的 yzh737 档案设置 `duckking_upstream=http://127.0.0.1:8765`、`duckking_public_host=ztmonitor.qbox.net`、`duckking_transport=https-poll`。首次网关发布使用其 GitLab main 正式部署流程；DuckKing 自身继续使用本仓库 GitHub Release。无需额外开放 DuckKing 私网或公网端口。

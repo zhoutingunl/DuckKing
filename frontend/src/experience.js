@@ -1,3 +1,4 @@
+import {requestId} from './ids.js';
 // Ephemeral measurement IDs only. No transcript, audio, URL, UA or persistent user ID.
 import {appURL,currentRoom} from './urls.js';
 
@@ -5,7 +6,7 @@ export function context({traffic}={}){
   const file=location.pathname.split('/').at(-1),page=({
     'scenarios.html':'scenarios','demos.html':'demos','studio.html':'studio','balance.html':'balance','seesaw.html':'seesaw',
   })[file]??'home';
-  return {id:crypto.randomUUID(),page,
+  return {id:requestId(),page,
     traffic:navigator.webdriver||new URL(location.href).searchParams.get('measurement')==='verification'
       ?'verification':traffic??'interactive',
     device:/Mobi|Android|iPad/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1)?'mobile':'desktop',

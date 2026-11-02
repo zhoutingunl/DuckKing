@@ -1,3 +1,4 @@
+import {requestId} from './ids.js';
 import './site-nav.js';
 import './style.css';
 import { createDuckScene } from './duck.js';
@@ -48,7 +49,7 @@ let actionRequests=Promise.resolve();
 function action(name){
   // Serialize request acceptance, not motion duration, so a rapid Stop cannot
   // arrive before the preceding Walk request on another HTTP connection.
-  actionRequests=actionRequests.then(()=>post('/api/actions',{name,request_id:crypto.randomUUID()}))
+  actionRequests=actionRequests.then(()=>post('/api/actions',{name,request_id:requestId()}))
     .catch(error=>notify(error.message));
   return actionRequests;
 }
