@@ -12,6 +12,13 @@ export const rewards={
  success:['+25 × 是否完成','18 秒无跌倒结束，最后连续 1 秒配重在 ±4 cm 内、速度低于 2.5 cm/s，板角和支撑均达标，才发放终局奖励。'],
 };
 export const controllers={trained:'训练后 · PPO',early:'本轮训练前',rule:'仅配平板面规则',baseline:'官方站定',center:'回中站定规则',manual:'你来控制',human:'你来控制 · 真人'};
+export function humanStatus(s){
+ if(s.mode!=='duel')return '选择“真人 vs AI”开始；语音或按钮只控制左鸭。';
+ const right=s.execution==='running'?'右侧继续自主控制':'右侧本轮已结束';
+ if(s.comparison.execution!=='running')return `左鸭${outcome(s.comparison).badge||'本轮已结束'} · ${right}。重开挑战后可继续控制左鸭。`;
+ const human=s.human_command;
+ return `左鸭：${{hold:'站定',forward:'前进',backward:'后退'}[human.direction]}${human.remaining_seconds>0?`，剩余 ${human.remaining_seconds.toFixed(1)} 秒`:''} · ${right}`;
+}
 export function outcome(side){
  const p=side?.measurement??{},phase=side?.phase;
  if(phase==='failed'){

@@ -52,7 +52,9 @@ test('thirteenth show completes measured gathering, roll and shared-clock dance'
  expect(result.results[2].outcome.clock).toBe('shared_mujoco_sim_time');expect(errors).toEqual([]);
 });
 test('interactive stage selects ducks and stops without future actions',{tag:'@stage'},async({page})=>{
- test.setTimeout(90000);await page.goto('/demos.html?room=1');
+ // A software-rendered CI trace passed every pointer/stop assertion but hit
+ // the former 90 s total budget. Keep individual assertions and action bounds.
+ test.setTimeout(120000);await page.goto('/demos.html?room=1');
  await page.selectOption('#stage-play','interactive');await page.locator('[data-demo=stage]').click();
  await expect(page.locator('#show-status')).toContainText('现场互动已就绪',{timeout:30000});
  await page.locator('[data-stage-member][value=c]').check();await expect(page.locator('#stage-hint')).toContainText('鸭 C');
