@@ -262,7 +262,7 @@ sequenceDiagram
 
 ## 共享物理场景
 
-Linux 部署使用独立的 `duckking.service`，按要求以 root 运行，发布目录为 `/root/zt_dir/hackathon_base/DuckKing`，不嵌入 ai_gateway。应用支持显式公网 Host 白名单与反向代理 `root_path`；前端资源、链接、API、音频 worklet 和 WebSocket 均按页面目录解析，同一构建可以挂在 `/duckking/`。Host / Origin 原样保留，跨来源请求仍然拒绝。部署方案见 [deploy/README.md](../deploy/README.md)。
+Linux 部署使用独立的 `duckking.service`，按要求以 root 运行，发布目录为 `/root/zt_dir/hackathon_base/DuckKing`，不嵌入 ai_gateway。YZH737 通过主机级 systemd drop-in 监听 `0.0.0.0:8765`，直接提供根路径页面、API 与原生 WebSocket，不经过 ai_gateway；ASR worker 保持 loopback。应用支持显式公网 Host 白名单与反向代理 `root_path`；前端资源、链接、API、音频 worklet 和 WebSocket 均按页面目录解析，同一构建可以挂在 `/duckking/`。Host / Origin 原样保留，跨来源请求仍然拒绝。部署方案见 [deploy/README.md](../deploy/README.md)。
 
 ai_gateway 可独立添加固定 loopback 路由；现有前置代理不透传 Upgrade 时，浏览器使用网关声明的 HTTPS 通道，网关转为真实后端 WebSocket。文本与二进制帧按序传输，失败关闭、不重放录音，不改变预览、物理仿真或真实云端的能力边界。DuckKing release 切换不需要修改或重启网关。
 
