@@ -3,6 +3,20 @@ import json
 from duckking.diagnostics import VoiceDiagnostics
 
 
+def test_training_tool_names_remain_visible_without_exposing_arguments():
+    journal = VoiceDiagnostics()
+    for tool in ("duck_balance", "duck_seesaw", "duck_table_show"):
+        journal.record("tool_start", tool=tool, turn=1, method="tools/call",
+                       arguments={"token": "private"})
+        journal.record("tool_end", tool=tool, turn=1, result="ok")
+    events = journal.snapshot()["events"]
+    assert [e["tool"] for e in events] == [
+        "duck_balance", "duck_balance", "duck_seesaw", "duck_seesaw",
+        "duck_table_show", "duck_table_show",
+    ]
+    assert "private" not in json.dumps(events) and "arguments" not in json.dumps(events)
+
+
 def test_redacted_tool_name_does_not_interrupt_action_statistics():
     journal = VoiceDiagnostics()
     journal.record("listen_start", backend="mujoco", turn=1)

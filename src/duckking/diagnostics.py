@@ -34,7 +34,7 @@ ENUMS = {
         "asr_timeout", "asr_unavailable", "no_speech",
     },
     "tool": {
-        "duck_table_show",
+        "duck_table_show", "duck_balance", "duck_seesaw",
         "duck_nod", "duck_walk_short", "duck_stop", "duck_get_status",
         "duck_flash_step", "duck_bear_shake", "duck_turn_left", "duck_turn_right",
         "duck_set_scene", "duck_kick", "duck_find_companion", "duck_duo_walk",
