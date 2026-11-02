@@ -1,0 +1,7 @@
+# Install as /etc/systemd/system/duckking.service.d/20-direct-access.conf.
+# Replace SERVER_IP with the exact IP or hostname used in the browser.
+# Repeat --allowed-host for any additional addresses; never use a wildcard.
+[Service]
+Environment=DUCKKING_DIRECT_HOST=SERVER_IP
+ExecStart=
+ExecStart=/root/zt_dir/hackathon_base/DuckKing/current/.venv/bin/duckking --host 0.0.0.0 --port 8765 --allowed-host ${DUCKKING_DIRECT_HOST} --allowed-host yzh737 --allowed-host ztmonitor.qbox.net --allowed-host duck.qbox.net

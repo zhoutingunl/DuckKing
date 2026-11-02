@@ -2,9 +2,13 @@
 
 具体排障步骤见本文；跨问题的机制、回归断言与证据索引见 [工程经验与回归检查](LESSONS_LEARNED.md)。人与 AI 的协作方式及材料存放位置见 [AI 协作说明](AI_COLLABORATION.md)。
 
-## YZH737 HTTPS 入口
+## YZH737 直接入口
 
-`https://ztmonitor.qbox.net/duckking/` 通过 ai_gateway 转发至独立的 DuckKing loopback 服务。网关只需首次发布新增路由，后续 DuckKing 发布沿用 8765 端口，重启 `duckking.service` 即可，无需重启 ai_gateway。
+访问 `http://duck.qbox.net/`，由前置 OpenResty 直连 YZH737:8765，页面、API 与原生 WebSocket 不经过 ai_gateway。后端 Host 白名单包含 `duck.qbox.net`。服务器以 systemd drop-in 监听 `0.0.0.0:8765`，允许指定 IP / 域名且保留同源检查；配置与回滚见 [部署指南](../deploy/README.md#直接访问-8765)。HTTP 直连可使用页面和动作控制，但浏览器麦克风需要独立 HTTPS 安全上下文。
+
+## 原有 YZH737 HTTPS 网关入口
+
+`https://ztmonitor.qbox.net/duckking/` 通过 ai_gateway 转发至独立的 DuckKing 服务的 loopback 地址。网关只需首次发布新增路由，后续 DuckKing 发布沿用 8765 端口，重启 `duckking.service` 即可，无需重启 ai_gateway。
 
 当前域名前置代理移除了 WebSocket Upgrade。前端读取 `_gateway/capabilities`，在该入口使用 HTTPS 长轮询通道；网关内部依然连接真实 DuckKing WebSocket，PCM 逐帧 base64 传输，命令按序发送，不重试已发送的录音或动作。本地与支持 Upgrade 的入口继续使用原生 WebSocket。通道失败按原有状态恢复逻辑处理，不切换为伪造云端响应。HTTP 通道增加一次请求调度开销，交互统计中的后端耗时不包含完整浏览器网络往返。
 
