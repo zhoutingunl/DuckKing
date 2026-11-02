@@ -28,6 +28,7 @@ test('first left command starts a random PK; mic and both worlds stay in view',a
   const r=document.getElementById(id).getBoundingClientRect();return [id,{top:r.top,bottom:r.bottom}];
  })));
  expect(boxes['talk-button'].top).toBeGreaterThanOrEqual(0);
+ expect(boxes['baseline-viewport'].top).toBe(boxes['trained-viewport'].top);
  for(const id of ['baseline-viewport','trained-viewport']){
   expect(boxes[id].top).toBeGreaterThan(boxes['talk-button'].bottom);
   expect(boxes[id].bottom).toBeLessThanOrEqual(900);

@@ -10,7 +10,7 @@ import {api} from './demo-runtime.js';
 import {sceneStateFeed} from './scene-state-feed.js';
 import {measurement,loadMetrics,afterFrame} from './experience.js';
 import {drawChart} from './balance-chart.js';
-import {controllers,outcome,humanStatus,rewards,trainingMatches} from './seesaw-explain.js';
+import {controllers,outcome,humanStatus,humanMotion,rewards,trainingMatches} from './seesaw-explain.js';
 
 const $=id=>document.getElementById(id),lifetime=new AbortController(),loader=createPhysicsModelLoader();
 let ready=false,pending=false,initialized=false,closed=false,revision,viewer,baselineViewer,feed,voice,timer;
@@ -27,7 +27,7 @@ function controls(){
  $('prepare').disabled=!initialized||pending;$('prepare').textContent=!initialized?'正在准备页面…':ready?'跷跷板已准备 · 重新读取':'准备跷跷板';
  for(const id of ['start','reset'])$(id).disabled=!ready||pending||!feed?.fresh();
  $('start').disabled||=['trained','early'].includes($('controller').value)&&!policyReady;
- for(const id of ['controller','fixed-seed','match-mode'])$(id).disabled=!initialized||pending||active;
+ for(const id of ['controller','fixed-seed','match-mode','human-assist'])$(id).disabled=!initialized||pending||active;
  $('seed').disabled=!initialized||pending||active||!$('fixed-seed').checked;
  $('start').textContent=$('match-mode').value==='duel'?'开始 18 秒人机 PK':'开始 18 秒规则对照';
  $('seed-summary').textContent=$('fixed-seed').checked?'固定本轮初态 · 左右相同':'每轮自动随机 · 左右使用相同初态';
@@ -64,6 +64,8 @@ function render(state){
  const leftLabel=s.phase==='idle'&&$('match-mode').value==='duel'?'你来控制 · 左鸭':controllers[s.comparison.controller];$('baseline-label').textContent=leftLabel;baselineViewer?.setLabel(leftLabel);
  $('baseline-caption').textContent=duel?'灵矽语音 / 本地按钮':s.mode==='explore'?'单独练习 · 不计分':'忽略配重，只回中心';
  $('human-status').textContent=humanStatus(s);
+ $('human-motion').textContent=humanMotion(s);
+ $('policy-motion').textContent=s.execution==='running'?`${s.mode==='explore'?'官方零速步态':'右侧控制器'}：${['零速','前进','后退'][s.action]}指令 ${(s.command_m_s*100).toFixed(0)} cm/s`:'右侧等待开始或已结束 · 以实际物理状态判定成绩。';
  if(s.phase==='idle'&&$('match-mode').value==='duel')$('human-status').textContent='直接说“向前走”，或点击前进／后退开始 PK。';
  $('pair-explanation').textContent=duel?'左侧听你指挥，右侧自主行动。两侧同一初态、同一时钟，用相同停靠条件判定；语音识别期间仿真继续。方向不随视角改变。':s.mode==='explore'?'左侧单独练习，右侧保持站定；两侧物理同步推进，不计挑战成绩。方向不随视角改变。':'同一初态，不同脚步 → 不同板角 → 不同配重轨迹。规则对照时左侧只回中心站定。两侧均使用官方已训练步态，方向不随视角改变。';
  $('load-position').textContent=(m.weight_position_m*100).toFixed(1)+' cm';
@@ -78,7 +80,7 @@ function render(state){
  const label=s.phase==='idle'?'待开始':controllers[s.controller]??s.controller;
  $('trained-label').textContent=label;viewer?.setLabel(label);
  $('trained-caption').textContent=s.mode==='explore'?'右侧站定 · 观察左鸭练习':s.policy_steps!=null?`${s.policy_steps.toLocaleString()} 训练步`:'官方步态 + 任务指令';
- if(settingRevision!==s.command_revision){settingRevision=s.command_revision;$('seed').value=s.seed;if(s.mode!=='explore'&&s.phase!=='idle'){$('match-mode').value=s.mode;$('controller').value=s.controller;}traceKey=''}
+ if(settingRevision!==s.command_revision){settingRevision=s.command_revision;$('seed').value=s.seed;if(s.phase!=='idle')$('human-assist').checked=!!s.human_command.assist_enabled;if(s.mode!=='explore'&&s.phase!=='idle'){$('match-mode').value=s.mode;$('controller').value=s.controller;}traceKey=''}
  $('action-value').textContent=s.execution==='running'?['站定','向绿色端前进','向赭色端后退'][s.action]:'暂停';
  $('speed-value').textContent=`${(s.command_m_s*100).toFixed(0)} cm/s 指令`;
  $('position-value').textContent=(m.position_m*100).toFixed(1)+' cm';
@@ -150,13 +152,13 @@ async function command(body){
 }
 function seed(){return !$('fixed-seed').checked?{}:$('seed').reportValidity()?{seed:Number($('seed').value)}:null}
 $('prepare').addEventListener('click',prepare);
-$('start').addEventListener('click',()=>{const value=seed();if(value!==null)void command({operation:'start',mode:$('match-mode').value,controller:$('controller').value,...value})});
+$('start').addEventListener('click',()=>{const value=seed();if(value!==null)void command({operation:'start',mode:$('match-mode').value,controller:$('controller').value,assist:$('human-assist').checked,...value})});
 $('reset').addEventListener('click',()=>{const value=seed();if(value!==null)void command({operation:'reset',...value})});
 $('stop').addEventListener('click',()=>{voice?.interrupt();void command({operation:'stop'})});
-for(const button of document.querySelectorAll('[data-direction]'))button.addEventListener('click',()=>void command({operation:'explore',direction:button.dataset.direction,seconds:2}));
+for(const button of document.querySelectorAll('[data-direction]'))button.addEventListener('click',()=>void command({operation:'explore',direction:button.dataset.direction,seconds:2,assist:$('human-assist').checked}));
 for(const button of document.querySelectorAll('[data-human-direction]'))button.addEventListener('click',()=>{
  const first=lastState?.seesaw?.phase==='idle',value=first?seed():{};if(value===null)return;
- void command({operation:'nudge',direction:button.dataset.humanDirection,seconds:2,...(first?{controller:$('controller').value,...value}:{})});
+ void command({operation:'nudge',direction:button.dataset.humanDirection,seconds:2,...(first?{controller:$('controller').value,assist:$('human-assist').checked,...value}:{})});
 });
 $('controller').addEventListener('change',controls);
  $('fixed-seed').addEventListener('change',controls);

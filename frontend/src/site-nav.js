@@ -3,8 +3,8 @@ import './site-nav.css';
 
 // Every page shares the same destinations, order and room-preservation rules.
 const destinations=[
- ['training.html','训练新动作'],['scenarios.html','动作练习场'],
- ['demos.html','演示场景'],['studio.html','现场互动'],
+ ['scenarios.html','动作训练场'],['demos.html','演示场景'],
+ ['studio.html','现场互动'],['training.html','训练新动作'],
  ['experience.html','使用体验',true],['statistics.html','交互统计',true],
  ['deploys.html','部署记录',true],
 ];

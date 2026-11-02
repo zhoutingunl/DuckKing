@@ -436,6 +436,54 @@ async def test_exploration_moves_left_while_right_keeps_official_stand(backend, 
         await backend.close()
 
 
+@pytest.mark.parametrize("assist", [False, True])
+async def test_reported_seed_forward_then_hold_exposes_drift_and_assist_keeps_right_ppo(
+    backend, world, monkeypatch, assist
+):
+    parked = asyncio.Event()
+
+    async def wait_loop(*_):
+        await parked.wait()
+
+    monkeypatch.setattr(backend, "_loop", wait_loop)
+    backend.artifacts = SeesawArtifacts(ASSETS.parent / "training/seesaw_results")
+    await backend.invoke({"operation": "nudge", "direction": "forward", "seconds": 2,
+                          "seed": 8852, "assist": assist})
+    world.reset(8852)
+    try:
+        start = backend.baseline.measure()["position_m"]
+        for _ in range(20):
+            backend._tick(0)
+            world.step(backend.policy(world.observation()))
+        target = backend.baseline.measure()["position_m"]
+        assert target > start + .07  # Forward really moves toward +X, before expiry.
+        for _ in range(160):
+            backend._tick(0)
+            if not world.done:
+                world.step(backend.policy(world.observation()))
+        np.testing.assert_array_equal(backend.world.data.qpos, world.data.qpos)
+        assert backend.human_action == 0  # Expired user command, not endless forward.
+        result = backend.baseline_info
+        if assist:
+            assert result["seconds"] == pytest.approx(18)
+            assert abs(result["position_m"] - target) < .06
+            assert result["reason"] == "not_docked"  # Aid never fabricates a win.
+        else:
+            assert result["seconds"] < 9 and result["position_m"] < -.45
+            assert result["reason"] == "fell_or_left_board"
+        assert any(row["baseline_command_cm_s"] > 0 for row in backend.trace)
+        assert any(row["baseline_actual_speed_cm_s"] < -1 for row in backend.trace)
+        before = backend.baseline.data.qpos.copy()
+    finally:
+        parked.set()
+        await backend.stop()
+    await asyncio.sleep(.15)
+    np.testing.assert_array_equal(before, backend.baseline.data.qpos)
+    await backend.reset()
+    assert backend.human_hold_target is None and backend.human_speed == 0
+    await backend.close()
+
+
 async def test_first_move_honors_opponent_and_seed_without_later_reset(backend, monkeypatch):
     parked = asyncio.Event()
 

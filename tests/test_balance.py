@@ -221,7 +221,7 @@ async def test_comparison_shares_initial_conditions_and_ticks_but_not_dynamic_st
 
 
 async def test_missing_comparison_policy_does_not_restart_either_running_side(backend):
-    await backend.invoke({"operation": "start", "controller": "baseline"})
+    await backend.invoke({"operation": "start", "controller": "baseline", "seed": 0})
     task = backend.task
     await asyncio.sleep(0.12)
     time = backend.world.data.time
@@ -249,7 +249,7 @@ async def test_explicit_single_side_diagnostic_does_not_animate_or_score_the_bas
 
 
 async def test_one_failed_side_falls_while_the_other_continues_and_stop_cancels_aftermath(backend):
-    await backend.invoke({"operation": "start", "controller": "baseline"})
+    await backend.invoke({"operation": "start", "controller": "baseline", "seed": 0})
     # Fault injection only: place the baseline outside the rim to exercise the
     # real physical failure detector. Runtime never rewrites a robot's pose.
     async with backend.lock:
@@ -364,7 +364,9 @@ async def test_stop_supersedes_a_start_waiting_for_previous_deceleration(backend
         await release.wait()
 
     monkeypatch.setattr(backend, "_halt", halt)
-    pending = asyncio.create_task(backend.invoke({"operation": "start", "controller": "baseline"}))
+    pending = asyncio.create_task(backend.invoke({
+        "operation": "start", "controller": "baseline", "seed": 0
+    }))
     await entered.wait()
     stop = asyncio.create_task(backend.stop())
     await asyncio.sleep(0)
@@ -424,6 +426,30 @@ async def test_invalid_duration_never_cancels_or_resets_a_running_challenge(back
     assert not backend.info["success"] and not backend.baseline_info["success"]
 
 
+async def test_omitted_start_seed_randomizes_both_sides_and_mcp_replay_is_idempotent(
+    backend, monkeypatch
+):
+    monkeypatch.setattr("duckking.balance_backend.secrets.randbelow", lambda limit: 10)
+    await backend.invoke({"operation": "select", "seed": 37})
+    assert backend.world.seed == 37
+    mcp = DeviceMCP(MotionController(backend), "random-seed")
+    request = {"jsonrpc": "2.0", "id": 1, "method": "tools/call", "params": {
+        "name": "duck_balance", "arguments": {"operation": "start", "controller": "baseline"}
+    }}
+    result = await mcp.handle(request)
+    assert not result["result"]["isError"]
+    assert backend.world.seed == backend.baseline.seed == 48
+    task = backend.task
+    assert await mcp.handle(request) == result
+    assert backend.task is task and backend.world.seed == 48
+    await backend.invoke({"operation": "start", "controller": "baseline"})
+    assert backend.world.seed == backend.baseline.seed == 59
+    await backend.invoke({"operation": "start", "controller": "baseline", "seed": 37})
+    assert backend.world.seed == backend.baseline.seed == 37
+    np.testing.assert_array_equal(backend.world.data.qpos, backend.baseline.data.qpos)
+    await backend.stop()
+
+
 async def test_seed_changes_direction_and_physics_but_keeps_pair_repeatable(backend):
     starts, targets, directions = [], [], []
     for seed in (0, 1, 0):
@@ -461,10 +487,10 @@ async def test_voice_duration_setting_start_and_duplicate_call_preserve_exactly_
     assert backend.summary()["duration_seconds"] == 6
     assert backend.summary()["seed"] == 1
     version = backend.summary()["command_revision"]
-    started = await call(3, operation="start", controller="baseline")
+    started = await call(3, operation="start", controller="baseline", seed=1)
     assert not started["result"]["isError"]
     task = backend.task
-    assert await call(3, operation="start", controller="baseline") == started
+    assert await call(3, operation="start", controller="baseline", seed=1) == started
     assert backend.task is task
     assert backend.summary()["command_revision"] == version + 1
     await asyncio.wait_for(task, 15)
@@ -628,7 +654,7 @@ async def test_running_balance_is_not_reallocated_as_an_idle_room(backend, tmp_p
     app = create_app(settings=Settings(data_dir=tmp_path))
     room = app.state.rooms["1"]
     room.scene_motion = MotionController(backend)
-    await backend.invoke({"operation": "start", "controller": "baseline"})
+    await backend.invoke({"operation": "start", "controller": "baseline", "seed": 0})
     assert RoomRegistry.busy(room)
     assert await app.state.room_registry.claim() == {"room": "2"}
     await backend.stop()

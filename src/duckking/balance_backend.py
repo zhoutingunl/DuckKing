@@ -1,6 +1,7 @@
 """Live balance room: the training physics and exported task PPO, no torch server."""
 
 import asyncio
+import secrets
 import time
 
 import numpy as np
@@ -31,7 +32,10 @@ BALANCE_TOOLS = [
             "duration_seconds 是包含最后3秒减速的总仿真时长，整数6至33秒，初始13秒。"
             "例如‘第二关运行20秒’使用start、level=2、duration_seconds=20；"
             "‘时长设为20秒，先别开始’使用select、duration_seconds=20。"
-            "省略关卡、种子或时长时沿用当前设置。种子改变运动节奏、方向和起点，不代表难度。"
+            "省略关卡或时长时沿用当前设置；start省略seed则每轮随机，左右共用同一种子。"
+            "select省略seed则保持当前值；要复现必须在start中明确指定seed。"
+            "种子改变运动节奏、方向和起点，不代表难度，也不保证每轮成败不同。"
+            "本页语音控制整轮挑战，左侧固定为官方基线；不提供左鸭逐步前进后退工具。"
             "训练成功率只对应13秒标准回合，其他时长属于自定义试跑。"
             "成功须完整经历设定时长且实际停稳，提前跌倒会结束。只能根据返回的数据报告成绩。"
         ),
@@ -187,6 +191,8 @@ class BalanceBackend:
         if operation == "start" and controller != "baseline":
             path, run = self.runs.policy(level, args.get("run"), controller, manifest["contract"])
             policy = BalancePolicy(path, manifest)
+        if operation == "start" and "seed" not in args:
+            seed = (self.world.seed + 1 + secrets.randbelow(9999)) % 10000
         await self._halt()
         if version != self.request_version:
             raise ValueError("该挑战已被新的停止指令取消")

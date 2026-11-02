@@ -2,7 +2,7 @@ import {test,expect} from '@playwright/test';
 
 test('all pages keep the same navigation, room and rightmost source link',async({page})=>{
  test.setTimeout(60000);
- const labels=['训练新动作','动作练习场','演示场景','现场互动','使用体验','交互统计','部署记录'];
+ const labels=['动作训练场','演示场景','现场互动','训练新动作','使用体验','交互统计','部署记录'];
  for(const name of ['index','training','seesaw','balance','scenarios','demos','studio','experience','statistics','deploys']){
   await page.goto(`/${name==='index'?'':name+'.html'}?room=1`);
   await expect(page.locator('.site-topbar nav a')).toHaveText(labels);

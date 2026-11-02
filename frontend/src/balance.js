@@ -32,10 +32,12 @@ function controls(){
  $('start-challenge').disabled=!ready||loading||!stateFeed?.fresh();$('stop-balance').disabled=!ready;
  $('prepare-balance').disabled=loading;$('prepare-balance').textContent=ready?'圆盘已准备 · 重新加载':'准备圆盘';
  document.querySelectorAll('[data-level]').forEach(b=>{b.disabled=loading;b.setAttribute('aria-pressed',String(Number(b.dataset.level)===level))});
- for(const id of ['controller','challenge-seed','challenge-duration'])$(id).disabled=loading;
+ for(const id of ['controller','fixed-seed','challenge-duration'])$(id).disabled=loading;
+ $('challenge-seed').disabled=loading||!$('fixed-seed').checked;
 }
-function validSettings(){return ['challenge-seed','challenge-duration'].every(id=>$(id).reportValidity())}
-function formSettings(){return {seed:Number($('challenge-seed').value),duration_seconds:Number($('challenge-duration').value)}}
+function validSettings(){return $('challenge-duration').reportValidity()&&(!$('fixed-seed').checked||$('challenge-seed').reportValidity())}
+function formSettings(){return {...($('fixed-seed').checked?{seed:Number($('challenge-seed').value)}:{}),duration_seconds:Number($('challenge-duration').value)}}
+$('fixed-seed').addEventListener('change',controls);
 function durationNote(){
  const input=$('challenge-duration'),seconds=Number(input.value);
  $('duration-note').textContent=input.validity.valid?`${seconds} 秒仿真：${seconds-3} 秒扰动＋3 秒减速；失稳会提前结束。${seconds===13?'与训练评估时长一致。':'自定义试跑，训练成功率仍仅对应 13 秒。'}`:'请输入 6–33 秒的整数，包含最后 3 秒减速。';
@@ -72,6 +74,7 @@ function renderState(state){
  const nextSettings=JSON.stringify([state.revision,b.command_revision,b.level,b.seed,b.duration_seconds]);
  if(settingsKey!==nextSettings){
   settingsKey=nextSettings;$('challenge-seed').value=b.seed;$('challenge-duration').value=b.duration_seconds??13;
+  if(b.phase!=='idle')$('controller').value=b.controller;
   seedEdited=durationEdited=false;durationNote();
  }
  $('seed-summary').textContent=b.seed_info?`本轮种子 ${b.seed} · 俯视${b.seed_info.rotation==='counterclockwise'?'逆时针':'顺时针'}旋转 · 盘面摩擦系数 ${b.seed_info.friction.toFixed(2)}`:'';
@@ -92,7 +95,7 @@ function renderState(state){
 function placeholders(text){for(const node of document.querySelectorAll('.balance-placeholder')){node.hidden=!text;if(text)node.textContent=text}}
 async function prepare(){
  if(loading||closed||!validSettings())return;
- const inputs=formSettings(),requested={...(levelChosen?{level}:{}),...(seedEdited?{seed:inputs.seed}:{}),...(durationEdited?{duration_seconds:inputs.duration_seconds}:{})};
+ const inputs=formSettings(),requested={...(levelChosen?{level}:{}),...(seedEdited&&inputs.seed!=null?{seed:inputs.seed}:{}),...(durationEdited?{duration_seconds:inputs.duration_seconds}:{})};
  loading=preparing=true;controls();$('notice').hidden=true;
  placeholders('正在加载官方模型与左右对照圆盘…');
  const experience=measurement('load'),metrics={};
