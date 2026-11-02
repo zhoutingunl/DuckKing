@@ -6,7 +6,7 @@ DuckKing 与 ai_gateway 使用不同目录、虚拟环境、端口和 systemd �
 - 官方模型：每个版本包的 `external/`，从固定上游 Git commit 导出，策略校验 SHA-256。
 - 私有状态与部署流水：`/var/lib/duckking`，不在静态目录中。
 - 可选语音配置：`/var/lib/duckking/voice.env`，0600，所有者跟随状态目录；禁止提交密钥或设备身份。
-- 运行进程：`duckking.service`，root 用户，CPUQuota=400%、MemoryMax=8G、TasksMax=128。无需修改系统账户文件。
+- 运行进程：`duckking.service`，root 用户。基础 unit 默认为 CPUQuota=400%、MemoryMax=8G、TasksMax=128；YZH737 当前通过主机覆盖配置使用 CPUQuota=1200%、MemoryMax=32G、TasksMax=256。无需修改系统账户文件。
 - 全新安装默认监听：`127.0.0.1:8765`。YZH737 通过下述主机配置覆盖为 `0.0.0.0:8765`；安装器仍保留 loopback 默认值。
 
 ## 版本与发布包
@@ -104,4 +104,6 @@ worker 健康检查通过后才重启 DuckKing 主服务。部署失败恢复旧
 
 ## 动态房间容量
 
-默认最多 10 个房间、4 个同时加载的物理世界，空闲 300 秒后回收。管理员先为房间 3–10 独立绑定设备，例如在发布目录以 `DUCKKING_DATA_DIR=/var/lib/duckking` 运行 `duckking-setup --room 3`；管理 Key 只供初始化读取，页面不触发绑定。不要复制其他房间的身份或 token。配置变量见 `.env.example`。容量验证应包含多房间真实云端连接和独立动作；仅创建十个空房间不能当作十路云端或物理性能验收。
+基础默认最多 10 个房间、4 个同时加载的物理世界，空闲 300 秒后回收。2026-11-02 容量测试后，YZH737 使用 [duckking-audience.conf.example](duckking-audience.conf.example) 作为 `/etc/systemd/system/duckking.service.d/30-audience-capacity.conf`，将轻量房间提高到 32、CPU 时间上限提高到 1200%、内存提高到 32 GiB，空闲回收改为 60 秒。物理准入仍为 4；这不是四路重场景的稳定性能保证。汇报建议每批 20–24 人语音体验，重物理演示限定 1–2 房间；原始测试与公网限制见 [容量实测](../docs/PERFORMANCE.md)。该配置与直连域名 drop-in 分开保存，安装器不会删除。
+
+此次已为房间 11–32 初始化各自私有设备；没有复制其他房间身份。新环境管理员先为需要的房间独立绑定设备，例如在发布目录以 `DUCKKING_DATA_DIR=/var/lib/duckking` 运行 `duckking-setup --room 3`；管理 Key 只供初始化读取，页面不触发绑定。不要复制其他房间的身份或 token。配置变量见 `.env.example`。容量验证应包含多房间真实云端连接和独立动作；仅创建十个空房间不能当作十路云端或物理性能验收。

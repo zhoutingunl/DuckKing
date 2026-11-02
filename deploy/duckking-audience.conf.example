@@ -1,0 +1,10 @@
+# Host override: /etc/systemd/system/duckking.service.d/30-audience-capacity.conf
+# YZH737 capacity probe, 2026-11-02. Keep the separate direct-access override.
+# This raises lightweight room admission, not the number of proven heavy worlds.
+[Service]
+CPUQuota=1200%
+MemoryMax=32G
+TasksMax=256
+Environment=DUCKKING_MAX_ROOMS=32
+Environment=DUCKKING_MAX_PHYSICS_ROOMS=4
+Environment=DUCKKING_ROOM_IDLE_SECONDS=60

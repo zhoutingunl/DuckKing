@@ -1,0 +1,38 @@
+{
+  "application_commit": "3f943bf26a08bc9b719bb9af929b4d328aeccbb6",
+  "hardware": {
+    "cpu": "2 x Intel Xeon E5-2630 v4 2.20GHz",
+    "physical_cores": 20,
+    "logical_cpus": 40,
+    "memory_os_gib": 125,
+    "gpu": "ASPEED display only; inference on CPU"
+  },
+  "production_after": {
+    "cpu_quota_percent": 1200,
+    "memory_max_gib": 32,
+    "tasks_max": 256,
+    "max_rooms": 32,
+    "max_physics_rooms": 4,
+    "idle_seconds": 60
+  },
+  "cloud_input": "Repository synthetic 16kHz mono PCM16 interview-command.wav, streamed at real-time 60ms frames",
+  "public_generator": "one operator Mac through public HTTPS OpenResty; protocol clients, not 100 renderers",
+  "physics_generator": "isolated loopback FastAPI instance on YZH737 with the deployed release; real MuJoCo and ONNX",
+  "thresholds": {
+    "physics_rtf_min": 0.9,
+    "loopback_state_gap_p95_ms_max": 150,
+    "health_p95_ms_max": 500,
+    "health_errors": 0
+  },
+  "excluded_cases": [
+    "Initial physics v1 read the controller envelope instead of backend.sim_time; discarded and regression tested.",
+    "physics-expanded balance/seesaw 8-room 404 rows reflect idle room reclamation, not capacity; superseded by physics-rl-expanded.",
+    "Server OR download overlapped a 20-client Mac download and saturated its generator CPU; useful reachability evidence, not server capacity ceiling."
+  ],
+  "limits": [
+    "No physical phone/venue WiFi test.",
+    "Cloud audio receipt is not speaker playback verification.",
+    "No official provider concurrency ceiling established.",
+    "Shared room connection count is not independent user admission count."
+  ]
+}
