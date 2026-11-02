@@ -1,6 +1,17 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {outcome,trainingMatches} from '../src/seesaw-explain.js';
+import {outcome,humanStatus,trainingMatches} from '../src/seesaw-explain.js';
+
+test('human PK preserves terminal results and reports each side independently',()=>{
+ const state={mode:'duel',execution:'running',comparison:{execution:'paused',phase:'failed',measurement:{edge_margin_m:-.01}}};
+ assert.match(humanStatus(state),/左鸭失败 · 脚部越过板边缘/);
+ assert.match(humanStatus(state),/右侧继续自主控制/);
+ assert.doesNotMatch(humanStatus(state),/选择.*开始|站定/);
+ assert.match(humanStatus({...state,comparison:{execution:'paused',phase:'success'}}),/左鸭成功/);
+ assert.match(humanStatus({...state,execution:'paused',comparison:{execution:'paused',phase:'cancelled'}}),/左鸭已暂停 · 右侧本轮已结束/);
+ assert.match(humanStatus({...state,execution:'paused',comparison:{execution:'running'},human_command:{direction:'backward',remaining_seconds:1}}),/后退，剩余 1.0 秒 · 右侧本轮已结束/);
+ assert.match(humanStatus({mode:'compare'}),/选择.*开始/);
+});
 
 test('failed balance is distinguished from falling, cancellation and unscored exploration',()=>{
  assert.match(outcome({phase:'failed',result:{reason:'not_docked',weight_position_m:.2}}).badge,/未进入红色区/);

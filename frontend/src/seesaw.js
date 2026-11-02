@@ -9,7 +9,7 @@ import {api} from './demo-runtime.js';
 import {sceneStateFeed} from './scene-state-feed.js';
 import {measurement,loadMetrics,afterFrame} from './experience.js';
 import {drawChart} from './balance-chart.js';
-import {controllers,outcome,rewards,trainingMatches} from './seesaw-explain.js';
+import {controllers,outcome,humanStatus,rewards,trainingMatches} from './seesaw-explain.js';
 
 const $=id=>document.getElementById(id),lifetime=new AbortController(),loader=createPhysicsModelLoader();
 let ready=false,pending=false,initialized=false,closed=false,revision,viewer,baselineViewer,feed,voice,timer;
@@ -57,8 +57,7 @@ function render(state){
  showSide(s,'trained');showSide(s.comparison,'baseline');
  const leftLabel=controllers[s.comparison.controller];$('baseline-label').textContent=leftLabel;baselineViewer?.setLabel(leftLabel);
  $('baseline-caption').textContent=s.mode==='duel'?'灵矽语音 / 本地按钮':s.mode==='explore'?'只站定，观察配重影响':'忽略配重，只回中心';
- const human=s.human_command;
- $('human-status').textContent=s.mode==='duel'&&s.comparison.execution==='running'?`左鸭：${{hold:'站定',forward:'前进',backward:'后退'}[human.direction]}${human.remaining_seconds>0?`，剩余 ${human.remaining_seconds.toFixed(1)} 秒`:''} · 右侧继续自主控制`:'选择“真人 vs AI”开始；语音或按钮只控制左鸭。';
+ $('human-status').textContent=humanStatus(s);
  $('pair-explanation').textContent=s.mode==='duel'?'左侧听你指挥，右侧自主行动。两侧同一初态、同一时钟，用相同停靠条件判定；语音识别期间仿真继续。方向不随视角改变。':'同一初态，不同脚步 → 不同板角 → 不同配重轨迹。规则对照时左侧只回中心站定。两侧均使用官方已训练步态，方向不随视角改变。';
  $('load-position').textContent=(m.weight_position_m*100).toFixed(1)+' cm';
  $('load-speed').textContent=(m.weight_velocity_m_s*100).toFixed(1)+' cm/s';

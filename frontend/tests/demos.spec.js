@@ -69,7 +69,11 @@ test('table live recovery cannot turn a failed round into a completed show',asyn
  await expect(page.locator('#theatre-result')).toHaveCount(0);
 });
 test('table live protocol fixture starts real physics without a browser action fallback',async({page,request})=>{
- test.setTimeout(100000);let calls=0;const browserActions=[];
+ // Software rendering can delay protocol delivery and the closing line: the
+ // CI trace reached that line at 81 s after both real physics and status query
+ // completed, and a local replay passed at ~84 s. Budget the whole script;
+ // production action/recovery deadlines and every outcome assertion stay intact.
+ test.setTimeout(150000);let calls=0;const browserActions=[];
  page.on('request',r=>{if(r.method()==='POST'&&new URL(r.url()).pathname==='/api/scenes/actions')browserActions.push(r.postDataJSON().name)});
  await page.route('**/demo-audio/*.wav*',route=>route.fulfill({contentType:'audio/wav',body:silentFixture()}));
  // Only the cloud protocol is a fixture; the action and contacts use real MuJoCo.
@@ -97,7 +101,7 @@ test('table live protocol fixture starts real physics without a browser action f
  });
  await page.goto('/demos.html?room=1');await page.selectOption('#demo-mode','live');
  await page.locator('[data-table-song="tigers"]').click();
- await expect(page.locator('#show-status')).toHaveText('本幕完成 · 可重演或进入下一幕',{timeout:85000});
+ await expect(page.locator('#show-status')).toHaveText('本幕完成 · 可重演或进入下一幕',{timeout:120000});
  const proof=JSON.parse(await page.locator('#theatre-result').textContent());
  expect(proof.mode).toBe('live_linx');expect(proof.cloud_audio_frames).toBeGreaterThan(0);
  expect(calls).toBe(2);expect(browserActions).not.toContain('table_show');

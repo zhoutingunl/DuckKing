@@ -30,15 +30,16 @@ test('training selection preserves room and human PK controls only the left duck
  expect(state.seesaw.human_command.remaining_seconds).toBe(0);
  await page.locator('[data-human-direction=forward]').click();
  await expect(page.locator('#human-status')).toContainText('前进');
- await page.locator('[data-human-direction=hold]').click();
- await expect(page.locator('#human-status')).toContainText('站定');
  // A real two-second human step can leave the board while the PPO continues.
- // Start a fresh round for the explicit cancellation assertion; never rewrite a fall.
+ // Start a fresh round for hold/cancellation; a late hold must not undo a fall.
  await page.locator('#reset').click();await expect(page.locator('#baseline-result')).toBeHidden();
  await page.selectOption('#match-mode','duel');await page.locator('#start').click();
  await expect(page.locator('[data-human-direction=forward]')).toBeEnabled();
+ await page.locator('[data-human-direction=hold]').click();
+ await expect(page.locator('#human-status')).toContainText('站定');
  await page.locator('#stop').click();await expect(page.locator('[data-human-direction=forward]')).toBeDisabled();
  await expect(page.locator('#baseline-result')).toHaveText('已暂停');
+ await expect(page.locator('#human-status')).toContainText('左鸭已暂停');
  await page.setViewportSize({width:390,height:844});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
  expect(errors).toEqual([]);
 });
