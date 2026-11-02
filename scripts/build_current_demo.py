@@ -33,6 +33,38 @@ def duration(path):
     )
 
 
+def concatenate_parts(parts, output):
+    """Decode each chapter separately before joining different AAC layouts.
+
+    The concat demuxer reuses the first stream's codec configuration. Passing
+    mono narration and stereo page audio through it can corrupt the narration
+    after the stereo chapter without reporting a decoder error.
+    """
+    command = ["ffmpeg", "-y", "-loglevel", "error"]
+    filters, streams = [], []
+    for i, part in enumerate(parts):
+        command += ["-i", str(part)]
+        filters += [
+            f"[{i}:v]fps=25,setsar=1,format=yuv420p,setpts=PTS-STARTPTS[v{i}]",
+            f"[{i}:a]aresample=48000:async=1:first_pts=0,"
+            "aformat=channel_layouts=stereo,apad,"
+            f"atrim=duration={duration(part)},asetpts=PTS-STARTPTS[a{i}]",
+        ]
+        streams += [f"[v{i}][a{i}]"]
+    filters += ["".join(streams) + f"concat=n={len(parts)}:v=1:a=1[video][audio]"]
+    run(
+        command
+        + [
+            "-filter_complex", ";".join(filters),
+            "-map", "[video]", "-map", "[audio]",
+            "-c:v", "libx264", "-pix_fmt", "yuv420p", "-fps_mode", "cfr", "-r", "25",
+            "-preset", "veryfast", "-crf", "24",
+            "-c:a", "aac", "-ar", "48000", "-ac", "2", "-b:a", "192k",
+            "-movflags", "+faststart", str(output),
+        ]
+    )
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--recording", type=Path, required=True)
@@ -263,42 +295,10 @@ def main():
         )
         elapsed += actual_seconds
         print(f"Encoded {i + 1}/{len(voices)}: {c['title']}", flush=True)
-    listing = args.work / "concat.txt"
-    listing.write_text(
-        "".join(f"file '{(args.work / f'part-{i}.mp4').resolve()}'\n" for i in range(len(entries)))
-    )
-    run(
-        [
-            "ffmpeg",
-            "-y",
-            "-loglevel",
-            "error",
-            "-f",
-            "concat",
-            "-safe",
-            "0",
-            "-i",
-            str(listing),
-            "-c",
-            "libx264",
-            "-vf",
-            "fps=25",
-            "-fps_mode",
-            "cfr",
-            "-preset",
-            "veryfast",
-            "-crf",
-            "24",
-            "-c:a",
-            "aac",
-            "-b:a",
-            "96k",
-            "-movflags",
-            "+faststart",
-            str(args.output),
-        ]
-    )
-    run(["ffmpeg", "-v", "error", "-i", str(args.output), "-f", "null", "-"])
+    temporary_output = args.output.with_name(args.output.stem + ".building" + args.output.suffix)
+    concatenate_parts([args.work / f"part-{i}.mp4" for i in range(len(entries))], temporary_output)
+    run(["ffmpeg", "-v", "error", "-i", str(temporary_output), "-f", "null", "-"])
+    temporary_output.replace(args.output)
     manifest = {
         "release": proof["release"],
         "recorded_at": proof["recorded_at"],
@@ -307,6 +307,12 @@ def main():
         "audio": proof.get(
             "audio", "Actual page audio in the performance; synthetic chapter narration"
         ),
+        "audio_encoding": {
+            "codec": "AAC",
+            "sample_rate_hz": 48000,
+            "channels": 2,
+            "joining": "Chapters decoded separately, normalized to stereo PCM, then concatenated",
+        },
         "source_commit": proof.get("source_commit"),
         "duration_seconds": duration(args.output),
         "chapters": entries,

@@ -1,6 +1,6 @@
 # 灵矽实连竞赛演示视频
 
-[观看／下载 MP4（约 2 分 58 秒）](media/duckking-competition-live.mp4) · [章节与哈希](media/duckking-competition-live.json) · [真实调用及物理结果](media/duckking-competition-live-recording.json) · [解说文案](media/competition-live-script.json)
+[观看／下载 MP4（约 2 分 58 秒）](media/duckking-competition-live.mp4) · [章节与哈希](media/duckking-competition-live.json) · [音轨校验](media/duckking-competition-live-audio-check.json) · [真实调用及物理结果](media/duckking-competition-live-recording.json) · [解说文案](media/competition-live-script.json)
 
 [![第 11 幕：灵矽实连指挥四鸭演出，鸭 D 落地后继续踏步](media/duckking-competition-live.png)](media/duckking-competition-live.mp4)
 
@@ -14,7 +14,9 @@
 - 演出章节保留浏览器实际播放的输入、真实灵矽回复及《两只老虎》原声。歌曲为浏览器合成传统四声部轮唱，没有演唱歌词；开场／收尾角色对白为本地素材。
 - 其他章节为 Microsoft `zh-CN-XiaoxiaoNeural` 合成解说，`edge-tts 7.3.1`、`-3%` 语速。解说与灵矽回答分别保留来源。
 
-全片 177.640 秒，1600 × 1100、25 fps、H.264 / AAC。网页视口 1600 × 1000，采集帧等比缩放到这一画幅，另加 100 px 章节说明，不改写网页数据。Chrome 每帧原始墙钟时间戳决定帧间隔，再与实际页面音频对齐；画面采样不足时保留上一帧，不补造中间动作。演出不加速，章节之间剪去准备等待；解说超过素材时延长末帧，时长逐章披露。此剪辑不能用于测量精确声画延迟，性能读数应取实际采集记录。
+全片 177.600 秒，1600 × 1100、25 fps、H.264 / AAC（48 kHz、双声道）。网页视口 1600 × 1000，采集帧等比缩放到这一画幅，另加 100 px 章节说明，不改写网页数据。Chrome 每帧原始墙钟时间戳决定帧间隔，再与实际页面音频对齐；画面采样不足时保留上一帧，不补造中间动作。演出不加速，章节之间剪去准备等待；解说超过素材时延长末帧，时长逐章披露。此剪辑不能用于测量精确声画延迟，性能读数应取实际采集记录。
+
+音轨拼接时各章节先独立解码，按时间戳补齐静音间隔，统一为 48 kHz 双声道 PCM 后再合成 AAC，避免单／双声道切换使后续旁白损坏。修复版沿用同一次真实录制及原始旁白，没有重新调用灵矽或更换云端回答。逐章内容比对与静音段检查结果见上方音轨校验。
 
 ## 章节
 
@@ -73,4 +75,4 @@ macOS 默认使用 Metal；其他平台使用 Chrome 默认渲染。可用 `DUCK
 
 模型及模型改编画面来自 Pollen Robotics，遵循 CC BY-NC-SA 4.0；《两只老虎》为传统 Frère Jacques 旋律的本地电子合成，未复用商业演唱录音。其他来源见 [媒体说明](media/README.md) 和 [THIRD_PARTY.md](../THIRD_PARTY.md)。本片不代表已在实体 Micro Duck 内安装灵矽。
 
-成片通过 FFmpeg 全量音视频解码。SHA-256：`eed1dafddf9603387b5645c5b0960d42f480b1f18b85f5ee69e2765c55fba617`。
+成片通过 FFmpeg 全量音视频解码、逐章音轨内容比对与静音段检查。SHA-256：`3508d5ee04e993f9949bbed6887327f35c5ad36a56c62e92cf961126f1d40572`。

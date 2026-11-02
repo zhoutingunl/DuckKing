@@ -4,8 +4,14 @@
   "base_url": "http://127.0.0.1:8897/",
   "source": "Real Linx STT/MCP/TTS from shipped prerecorded command; actual MuJoCo; browser synthesis of Two Tigers",
   "audio": "Actual page audio in the performance; synthetic chapter narration",
+  "audio_encoding": {
+    "codec": "AAC",
+    "sample_rate_hz": 48000,
+    "channels": 2,
+    "joining": "Chapters decoded separately, normalized to stereo PCM, then concatenated"
+  },
   "source_commit": "c834335044d0e126aa76e4bfc1dbc3a8b72eff55",
-  "duration_seconds": 177.64,
+  "duration_seconds": 177.6,
   "chapters": [
     {
       "id": "intro",
@@ -82,7 +88,7 @@
       "voice_provider": "Microsoft Edge TTS / zh-CN-XiaoxiaoNeural / edge-tts 7.3.1"
     }
   ],
-  "sha256": "eed1dafddf9603387b5645c5b0960d42f480b1f18b85f5ee69e2765c55fba617",
+  "sha256": "3508d5ee04e993f9949bbed6887327f35c5ad36a56c62e92cf961126f1d40572",
   "editing": "Loading waits omitted between marked segments; all action footage at original wall-clock speed. End holds are disclosed per chapter. Captions occupy a separate 100 px band; source frames are scaled to fit 1600x1000, with recorded app state and displayed values preserved.",
   "validation": "ffmpeg full video/audio decode passed"
 }

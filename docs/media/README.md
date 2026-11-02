@@ -9,7 +9,7 @@
 - `competition-live-selection.png`、`competition-live-running.png`、`competition-live-fall.png`、`competition-live-result.png`：主片录屏取帧，保留模式、曲目及实际状态。
 - `competition-experience.png`、`competition-experience-server.png`：同一轮的浏览器/服务器持久化观测；不能相加当作用户数。
 - `competition-statistics.png`、`competition-statistics-latency.png`：当前房间的真实识别、工具动作、逐轮时间线和延迟。
-- `duckking-competition-live-recording.json`：实际两轮调用、物理结果、脱敏工具事件、统计快照及媒体摘要；`duckking-competition-live.json`：章节、源片段、原声/解说来源与校验；`competition-live-script.json`：章节解说。
+- `duckking-competition-live-recording.json`：实际两轮调用、物理结果、脱敏工具事件、统计快照及媒体摘要；`duckking-competition-live.json`：章节、源片段、原声/解说来源与校验；`competition-live-script.json`：章节解说；`duckking-competition-live-audio-check.json`：音轨修复前后摘要、逐章 PCM 相关性与静音噪声检查。
 
 
 ## 2026-11-02 功能导览录屏
