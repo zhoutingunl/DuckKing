@@ -26,8 +26,9 @@ function controls(){
  $('prepare').disabled=!initialized||pending;$('prepare').textContent=!initialized?'正在准备页面…':ready?'跷跷板已准备 · 重新读取':'准备跷跷板';
  for(const id of ['start','reset'])$(id).disabled=!ready||pending||!feed?.fresh();
  $('start').disabled||=['trained','early'].includes($('controller').value)&&!policyReady;
- for(const id of ['controller','seed'])$(id).disabled=!initialized||pending||active;
+ for(const id of ['controller','seed','match-mode'])$(id).disabled=!initialized||pending||active;
  for(const button of document.querySelectorAll('[data-direction]'))button.disabled=!ready||pending||active||!feed?.fresh();
+ for(const button of document.querySelectorAll('[data-human-direction]'))button.disabled=!ready||pending||!feed?.fresh()||lastState?.seesaw?.mode!=='duel'||lastState?.seesaw?.comparison?.execution!=='running';
  $('stop').disabled=!ready;
  $('connect-voice').disabled=!ready||pending||voice?.state==='disconnecting';
 }
@@ -55,7 +56,10 @@ function render(state){
  viewer?.update(state);baselineViewer?.update(state.comparison.baseline);
  showSide(s,'trained');showSide(s.comparison,'baseline');
  const leftLabel=controllers[s.comparison.controller];$('baseline-label').textContent=leftLabel;baselineViewer?.setLabel(leftLabel);
- $('baseline-caption').textContent=s.mode==='explore'?'只站定，观察配重影响':'忽略配重，只回中心';
+ $('baseline-caption').textContent=s.mode==='duel'?'灵矽语音 / 本地按钮':s.mode==='explore'?'只站定，观察配重影响':'忽略配重，只回中心';
+ const human=s.human_command;
+ $('human-status').textContent=s.mode==='duel'&&s.comparison.execution==='running'?`左鸭：${{hold:'站定',forward:'前进',backward:'后退'}[human.direction]}${human.remaining_seconds>0?`，剩余 ${human.remaining_seconds.toFixed(1)} 秒`:''} · 右侧继续自主控制`:'选择“真人 vs AI”开始；语音或按钮只控制左鸭。';
+ $('pair-explanation').textContent=s.mode==='duel'?'左侧听你指挥，右侧自主行动。两侧同一初态、同一时钟，用相同停靠条件判定；语音识别期间仿真继续。方向不随视角改变。':'同一初态，不同脚步 → 不同板角 → 不同配重轨迹。规则对照时左侧只回中心站定。两侧均使用官方已训练步态，方向不随视角改变。';
  $('load-position').textContent=(m.weight_position_m*100).toFixed(1)+' cm';
  $('load-speed').textContent=(m.weight_velocity_m_s*100).toFixed(1)+' cm/s';
  $('load-torque').textContent=m.net_gravity_torque_nm.toFixed(2)+' N·m';
@@ -63,12 +67,12 @@ function render(state){
  $('load-progress').value=m.weight_position_m*100;
  $('dock-hold').textContent=(m.dock_hold_seconds??0).toFixed(1)+' / 1.0 s';
  $('weight-value').textContent=(m.weight_position_m*100).toFixed(1)+' cm';
- const travel=Math.abs(m.weight_velocity_m_s)<.005?'滑动缓慢':Math.abs(m.weight_position_m)<.04?'已入区，检查是否刹住':m.weight_position_m*m.weight_velocity_m_s<0?'正在靠近绿色区':'正在远离绿色区';
+ const travel=Math.abs(m.weight_velocity_m_s)<.005?'滑动缓慢':Math.abs(m.weight_position_m)<.04?'已入区，检查是否刹住':m.weight_position_m*m.weight_velocity_m_s<0?'正在靠近红色区':'正在远离红色区';
  $('weight-effect').textContent=`${travel} · ${Math.abs(m.weight_velocity_m_s*100).toFixed(1)} cm/s`;
  const label=s.phase==='idle'?'待开始':controllers[s.controller]??s.controller;
  $('trained-label').textContent=label;viewer?.setLabel(label);
  $('trained-caption').textContent=s.controller==='manual'?'手动探索 · 不计分':s.policy_steps!=null?`${s.policy_steps.toLocaleString()} 训练步`:'官方步态 + 任务指令';
- if(settingRevision!==s.command_revision){settingRevision=s.command_revision;$('seed').value=s.seed;traceKey=''}
+ if(settingRevision!==s.command_revision){settingRevision=s.command_revision;$('seed').value=s.seed;if(s.mode!=='explore')$('match-mode').value=s.mode;traceKey=''}
  $('action-value').textContent=s.execution==='running'?['站定','向绿色端前进','向赭色端后退'][s.action]:'暂停';
  $('speed-value').textContent=`${(s.command_m_s*100).toFixed(0)} cm/s 指令`;
  $('position-value').textContent=(m.position_m*100).toFixed(1)+' cm';
@@ -77,7 +81,7 @@ function render(state){
  const key=s.command_revision+':'+s.sim_time+':'+s.trace.length;
  if(key!==traceKey&&!document.hidden){traceKey=key;causalChart(s.trace);rewardDetail()}
  if(performance.now()-lastPaint>250){lastPaint=performance.now();state.observation.forEach((v,i)=>observationCells[i].textContent=v.toFixed(3))}
- $('trace-caption').textContent=s.mode==='explore'?'右侧听你指挥 · 左侧站定，物理同步运行':'同一初态 · 不同动作改变配重轨迹';
+ $('trace-caption').textContent=s.mode==='duel'?'左侧真人 · 右侧自主 · 相同停靠标准':s.mode==='explore'?'右侧听你指挥 · 左侧站定，物理同步运行':'同一初态 · 不同动作改变配重轨迹';
  controls();
 }
 const svgNode=(name,attrs={})=>{const node=document.createElementNS('http://www.w3.org/2000/svg',name);for(const[k,v]of Object.entries(attrs))node.setAttribute(k,v);return node};
@@ -92,7 +96,7 @@ function causalChart(rows){
   const title=svgNode('text',{x:0,y:center-13});title.textContent=label;svg.append(title);
   const value=svgNode('text',{x:0,y:center+8});value.textContent=rows.at(-1)[key].toFixed(1);svg.append(value);
   svg.append(svgNode('line',{x1:110,x2:740,y1:center,y2:center,stroke:'#c9d6c5','stroke-dasharray':'3 4'}));
-  if(key==='weight_position_cm')svg.append(svgNode('rect',{x:110,y:y(4),width:630,height:y(-4)-y(4),fill:'#9abfa2',opacity:.4}));
+  if(key==='weight_position_cm')svg.append(svgNode('rect',{x:110,y:y(4),width:630,height:y(-4)-y(4),fill:'#dc343d',opacity:.2}));
   svg.append(svgNode('path',{d:rows.map((r,j)=>`${j?'L':'M'}${x(r.seconds)},${y(r[key])}`).join(' '),fill:'none',stroke:colour,'stroke-width':2}));
   if(['angle_deg','weight_position_cm'].includes(key))svg.append(svgNode('path',{d:rows.map((r,j)=>`${j?'L':'M'}${x(r.seconds)},${y(r['baseline_'+key])}`).join(' '),fill:'none',stroke:'#bd8748','stroke-width':1.5,'stroke-dasharray':'4 4'}));
   const plus=svgNode('text',{x:740,y:center-27,'text-anchor':'end'});plus.textContent=`±${max}`;svg.append(plus);
@@ -134,15 +138,16 @@ async function command(body){
   const result=await api('api/seesaw/command',currentRoom,{body,signal:lifetime.signal});
   if(closed)return;
   $('command-feedback').textContent=body.operation==='stop'?'已停止；仿真暂停，板面自然速度不作归零。':body.operation==='reset'?'已重置两侧，可以重新探索。':'请求已受理，实际过程见两侧画面。';
-  appendLog(`${body.operation==='nudge'?['hold','forward','backward'].includes(body.direction)?{hold:'站定观察',forward:'向前探索',backward:'向后探索'}[body.direction]:'探索':{start:'开始对照',stop:'停止',reset:'重置'}[body.operation]} · ${result.mode==='explore'?'手动探索':'本地物理'}，种子 ${result.seed}`,'本地按钮');
+  appendLog(`${body.operation==='nudge'?{hold:'站定',forward:'前进',backward:'后退'}[body.direction]:{start:'开始对照',stop:'停止',reset:'重置'}[body.operation]} · ${result.mode==='duel'?'真人控制左鸭':result.mode==='explore'?'右侧手动探索':'本地物理'}，种子 ${result.seed}`,'本地按钮');
  }catch(error){if(!closed)notify(error.message)}finally{pending=false;if(!closed){await feed?.refresh();controls()}}
 }
 function seed(){return $('seed').reportValidity()?Number($('seed').value):null}
 $('prepare').addEventListener('click',prepare);
-$('start').addEventListener('click',()=>{const value=seed();if(value!==null)void command({operation:'start',controller:$('controller').value,seed:value})});
+$('start').addEventListener('click',()=>{const value=seed();if(value!==null)void command({operation:'start',mode:$('match-mode').value,controller:$('controller').value,seed:value})});
 $('reset').addEventListener('click',()=>{const value=seed();if(value!==null)void command({operation:'reset',seed:value})});
 $('stop').addEventListener('click',()=>{voice?.interrupt();void command({operation:'stop'})});
 for(const button of document.querySelectorAll('[data-direction]'))button.addEventListener('click',()=>void command({operation:'nudge',direction:button.dataset.direction,seconds:2}));
+for(const button of document.querySelectorAll('[data-human-direction]'))button.addEventListener('click',()=>void command({operation:'nudge',direction:button.dataset.humanDirection,seconds:2}));
 $('controller').addEventListener('change',controls);
 $('reset-camera').addEventListener('click',()=>{viewer?.reset();baselineViewer?.reset()});
 $('clear-log').addEventListener('click',()=>$('activity-log').replaceChildren());

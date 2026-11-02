@@ -272,6 +272,100 @@ async def test_pair_has_same_initial_state_but_independent_passive_response(back
     await backend.close()
 
 
+async def test_human_pk_commands_only_left_expire_replace_and_cancel(backend, world, monkeypatch):
+    # Park the scheduler to exercise exact physics ticks without wall-clock races.
+    release = asyncio.Event()
+
+    async def parked_loop(*_):
+        await release.wait()
+
+    monkeypatch.setattr(backend, "_loop", parked_loop)
+    await backend.invoke({"operation": "start", "mode": "duel", "controller": "baseline"})
+    task = backend.task
+    world.reset(0)
+    try:
+        motion = MotionController(backend)
+        mcp = DeviceMCP(motion, "test")
+        request = {
+            "jsonrpc": "2.0",
+            "id": 501,
+            "method": "tools/call",
+            "params": {
+                "name": "duck_seesaw",
+                "arguments": {
+                    "operation": "nudge",
+                    "direction": "backward",
+                    "seconds": 1,
+                },
+            },
+        }
+        first = await mcp.handle(request)
+        assert not first["result"]["isError"]
+        for _ in range(5):
+            backend._tick(0)
+            world.step(0)
+        deadline = backend.human_until
+        assert await mcp.handle(request) == first
+        assert backend.human_until == deadline  # A transport replay cannot extend walking.
+        for _ in range(6):
+            backend._tick(0)
+            world.step(0)
+        assert backend.baseline.last_action == 0
+        assert backend.summary()["human_command"]["remaining_seconds"] == 0
+        np.testing.assert_array_equal(backend.world.data.qpos, world.data.qpos)
+        assert backend.baseline.measure()["position_m"] < world.measure()["position_m"] - 0.02
+        assert backend.world.data.time == backend.baseline.data.time
+        assert backend.task is task and backend.mode == "duel"
+        await backend.invoke({"operation": "nudge", "direction": "forward", "seconds": 3})
+        backend._tick(0)
+        assert backend.baseline.last_action == 1
+        await backend.invoke({"operation": "nudge", "direction": "hold"})
+        backend._tick(0)
+        assert (
+            backend.baseline.last_action == 0 and backend.human_until <= backend.baseline.data.time
+        )
+        before = backend.world.data.time
+        with pytest.raises(ValueError):
+            await backend.invoke({"operation": "nudge", "direction": "forward", "seconds": 4})
+        assert backend.world.data.time == before and backend.task is task
+    finally:
+        release.set()
+        await backend.stop()
+    assert backend.human_action == backend.human_until == 0
+    with pytest.raises(ValueError, match="结束或暂停"):
+        await backend.invoke({"operation": "nudge", "direction": "forward"})
+    await backend.reset()
+    assert backend.world.data.time == backend.baseline.data.time == 0
+    await backend.close()
+
+
+async def test_compare_cannot_be_replaced_by_accidental_voice_nudge(backend):
+    await backend.invoke({"operation": "start", "controller": "baseline"})
+    task = backend.task
+    with pytest.raises(ValueError, match="规则对照进行中"):
+        await backend.invoke({"operation": "nudge", "direction": "forward"})
+    assert backend.task is task and backend.phase == "running"
+    with pytest.raises(ValueError):
+        await backend.invoke({"operation": "start", "mode": "unknown"})
+    await backend.close()
+
+
+def test_red_dock_is_display_only_and_does_not_invalidate_evaluated_policy(backend):
+    original = backend.world.model.geom_rgba.copy()
+    red = [
+        g
+        for g in backend.geometry()["geoms"]
+        if backend.world.model.geom(g["id"]).name.startswith("seesaw_dock")
+    ]
+    assert len(red) == 3 and all(g["rgba"] == [0.85, 0.08, 0.10, 1.0] for g in red)
+    np.testing.assert_array_equal(original, backend.world.model.geom_rgba)
+    policy = SeesawArtifacts(ASSETS.parent / "training/seesaw_results").policy(
+        "trained", backend.world.manifest()
+    )
+    assert policy(backend.world.observation()) in (0, 1, 2)
+    assert backend.revision.endswith("-red1")
+
+
 async def test_bad_inference_pauses_both_worlds_without_fallback(backend):
     await backend.invoke({"operation": "start", "controller": "baseline"})
     backend.policy = lambda _: float("nan")

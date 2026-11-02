@@ -13,27 +13,32 @@ SEESAW_TOOLS = [
     {
         "name": "duck_seesaw",
         "description": (
-            "语音跷跷板教练：用脚步把橙色280克自由配重送回绿色停靠区。"
+            "语音跷跷板教练：用脚步把橙色280克自由配重送回红色停靠区。"
             "板面和配重均没有电机、没有预设轨迹。鸭子走位压低一端，"
             "配重沿斜坡滑动；需要反向调整制动，再把配重停稳。"
             "start 重新开始18秒左右对照；controller trained 是已训练PPO。"
             "early 是本轮开始时的PPO，可能继承前一阶段任务策略。"
             "rule 是只配平板面的人工规则，不规划配重停靠；"
             "center 是只回中站定的规则，baseline 是官方站定。"
-            "挑战左侧为回中站定规则。两侧同初态但独立受力；"
+            "start mode=duel 开始人机PK：左侧由用户控制，右侧使用所选策略；"
+            "mode=compare（默认）左侧为回中站定规则。两侧同初态但独立受力；"
             "不同走位会导致配重轨迹不同，这正是需要展示的结果。"
-            "nudge 手动探索只指挥右侧，左侧保持站定并推进物理："
+            "PK进行中 nudge 只控制左侧，不暂停或重启右侧PPO。"
+            "新指令替换上一条，时长按仿真时间计算，到时站定。"
+            "用户说前进、后退、站住时先status确认模式；PK中不能调用start重开。"
+            "其他模式下 nudge 手动探索只指挥右侧，左侧保持站定并推进物理；"
+            "进行中的规则对照不能插入手动探索，请先stop。"
             "direction forward 向绿色前端走、backward 向赭色后端退、"
             "hold 站定观察，seconds 整数1至3秒，默认2秒；保持当前物理状态，不重置。"
             "reset 重置两侧；stop 停止任务并暂停两侧仿真，不能声称已自然停稳；status 读取真实测量。"
             "正倾角为绿色前端下沉；position_m 是鸭子相对支点的前后位置，正为绿色前端。"
-            "成功需要18秒无摔倒，最后连续1秒配重中心在绿色区正负4厘米内、"
+            "成功需要18秒无摔倒，最后连续1秒配重中心在红色区正负4厘米内、"
             "配重速度小于2.5厘米每秒，板角小于2度、角速度小于4度每秒且有脚部支撑。"
-            "经过绿色区但未停稳不算成功。开始返回只表示受理；"
+            "经过红色区但未停稳不算成功。开始返回只表示受理；"
             "只有phase success才成功；failed是失败，explored是手动探索结束"
             "不计分。"
             "请用status读取最终结果，不要根据发出的步速推断已走动。观察来自MuJoCo真值，不是摄像头。"
-            "例如‘把配重送回绿色区，再停稳’调用start trained；‘向前一点，看看板会怎样’"
+            "例如‘把配重送回红色区，再停稳’调用start trained；‘向前一点，看看板会怎样’"
             "调用nudge forward。"
         ),
         "inputSchema": {
@@ -47,6 +52,7 @@ SEESAW_TOOLS = [
                     "type": "string",
                     "enum": ["trained", "early", "baseline", "center", "rule"],
                 },
+                "mode": {"type": "string", "enum": ["compare", "duel"]},
                 "seed": {"type": "integer", "minimum": 0, "maximum": 9999},
                 "direction": {"type": "string", "enum": ["forward", "backward", "hold"]},
                 "seconds": {"type": "integer", "minimum": 1, "maximum": 3},
@@ -94,7 +100,9 @@ class SeesawBackend:
             assets, compiled=(self.world.model, self.world.fingerprint), session=self.world.session
         )
         self.artifacts = artifacts
-        self.revision = "seesaw-" + self.world.fingerprint[:24]
+        # Display-only paint: preserve the evaluated physics identity and policy.
+        # Bump the visual cache key so previously cached green docks turn red.
+        self.revision = "seesaw-" + self.world.fingerprint[:24] + "-red1"
         self.geom_ids = [
             g
             for g in range(self.world.model.ngeom)
@@ -103,6 +111,9 @@ class SeesawBackend:
             and self.world.model.geom(g).name != "seesaw_floor"
         ]
         self.visual = {"revision": self.revision, **geometry(self.world.model, self.geom_ids)}
+        for geom in self.visual["geoms"]:
+            if self.world.model.geom(geom["id"]).name.startswith("seesaw_dock"):
+                geom["rgba"] = [0.85, 0.08, 0.10, 1.0]
         self.lock, self.commands = asyncio.Lock(), asyncio.Lock()
         self.task, self.policy = None, None
         self.closed = self.stopping = False
@@ -112,6 +123,7 @@ class SeesawBackend:
         self.revision_number = 0
         self.request_version = 0
         self.trace = []
+        self.human_action, self.human_until = 0, 0.0
 
     def geometry(self):
         return self.visual
@@ -129,7 +141,7 @@ class SeesawBackend:
             raise ValueError("无效跷跷板参数")
         op = args.get("operation")
         fields = {
-            "start": {"controller", "seed"},
+            "start": {"controller", "seed", "mode"},
             "reset": {"seed"},
             "nudge": {"direction", "seconds"},
             "status": set(),
@@ -150,6 +162,8 @@ class SeesawBackend:
             raise ValueError("未知任务控制器")
         if op == "nudge" and args.get("direction") not in ("forward", "backward", "hold"):
             raise ValueError("请选择前进、后退或站定")
+        if "mode" in args and args["mode"] not in ("compare", "duel"):
+            raise ValueError("请选择规则对照或人机PK")
         return op
 
     async def invoke(self, args):
@@ -165,6 +179,23 @@ class SeesawBackend:
         async with self.commands:
             if self.closed:
                 raise ValueError("场景已关闭，请重新准备")
+            if op == "nudge":
+                async with self.lock:
+                    if self.mode == "duel":
+                        if self.stopping or self.baseline_phase != "running":
+                            raise ValueError("左侧PK已结束或暂停，请重新开始PK")
+                        self.human_action = {"hold": 0, "forward": 1, "backward": 2}[
+                            args["direction"]
+                        ]
+                        self.human_until = float(self.baseline.data.time) + (
+                            args.get("seconds", 2) if self.human_action else 0
+                        )
+                        self.revision_number += 1
+                        return self.summary()
+                    if self.mode == "compare" and (
+                        self.phase == "running" or self.baseline_phase == "running"
+                    ):
+                        raise ValueError("规则对照进行中；请先停止，或重新开始人机PK")
             controller = args.get("controller", "trained")
             # Reject unavailable/incompatible policies BEFORE altering the current task.
             policy = (
@@ -186,12 +217,13 @@ class SeesawBackend:
                     self.phase = self.baseline_phase = "idle"
                     self.trace = []
                     self.mode = "compare"
+                    self.human_action, self.human_until = 0, 0.0
                 elif self.world.done or self.error:
                     raise ValueError("本轮已结束，请先重置跷跷板")
                 self.revision_number += 1
                 if op != "reset":
                     self.controller = controller if op == "start" else "manual"
-                    self.mode = "compare" if op == "start" else "explore"
+                    self.mode = args.get("mode", "compare") if op == "start" else "explore"
                     self.policy = policy
                     self.phase = "running"
                     if not self.baseline.done:
@@ -228,8 +260,12 @@ class SeesawBackend:
                     self.phase = "explored"
                     self.info.update(success=False, reason="exploration_limit")
         if not self.baseline.done:
+            if float(self.baseline.data.time) >= self.human_until - 1e-9:
+                self.human_action = 0
             action = (
-                self.baseline.center_action(self.baseline.observation())
+                self.human_action
+                if self.mode == "duel"
+                else self.baseline.center_action(self.baseline.observation())
                 if self.mode == "compare"
                 else 0
             )
@@ -286,6 +322,7 @@ class SeesawBackend:
         self.stopping = True
         if self.task and not self.task.done():
             await asyncio.shield(self.task)
+        self.human_action, self.human_until = 0, 0.0
 
     async def stop(self):
         self.request_version += 1
@@ -322,6 +359,12 @@ class SeesawBackend:
         return {
             **self._summary(self.world, self.phase, self.info, self.controller),
             "mode": self.mode,
+            "human_command": {
+                "direction": ["hold", "forward", "backward"][self.human_action],
+                "remaining_seconds": max(0, self.human_until - float(self.baseline.data.time))
+                if self.mode == "duel" and self.baseline_phase == "running"
+                else 0,
+            },
             "error": self.error,
             "operation_failed": self.phase == "failed",
             "policy_steps": getattr(self.policy, "steps", None),
@@ -332,7 +375,11 @@ class SeesawBackend:
                 self.baseline,
                 self.baseline_phase,
                 self.baseline_info,
-                "center" if self.mode == "compare" else "baseline",
+                "human"
+                if self.mode == "duel"
+                else "center"
+                if self.mode == "compare"
+                else "baseline",
             ),
         }
 

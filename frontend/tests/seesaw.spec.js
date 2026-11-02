@@ -5,6 +5,34 @@ test.afterEach(async({page,request})=>{
  if(room)await request.post(`/api/scenes/close?room=${room}`);
 });
 
+test('training selection preserves room and human PK controls only the left duck',async({page,request})=>{
+ test.setTimeout(90000);const errors=[];page.on('pageerror',e=>errors.push(e.message));
+ const {room}=await(await request.post('/api/rooms')).json();
+ await page.goto(`/training.html?room=${room}`);
+ await expect(page.locator('.turntable-choice')).toHaveAttribute('href',new RegExp(`balance\\.html\\?room=${room}$`));
+ await page.locator('.seesaw-choice').click();await page.locator('#prepare').click();
+ await expect(page.locator('#start')).toBeEnabled({timeout:45000});
+ await page.selectOption('#match-mode','duel');await page.locator('#start').click();
+ await expect(page.locator('#baseline-label')).toHaveText('你来控制 · 真人');
+ await page.locator('[data-human-direction=backward]').click();
+ await expect(page.locator('#human-status')).toContainText('后退');
+ await expect(page.locator('#human-status')).toContainText('站定',{timeout:8000});
+ const state=(await(await request.get(`/api/scenes/state?room=${room}`)).json()).backend;
+ expect(state.seesaw.mode).toBe('duel');expect(state.seesaw.controller).toBe('trained');
+ expect(state.seesaw.comparison.controller).toBe('human');
+ expect(state.sim_time).toBeCloseTo(state.comparison.baseline.sim_time);
+ expect(state.sim_time).toBeGreaterThan(2);expect(state.seesaw.execution).toBe('running');
+ expect(state.seesaw.human_command.remaining_seconds).toBe(0);
+ await page.locator('[data-human-direction=forward]').click();
+ await expect(page.locator('#human-status')).toContainText('前进');
+ await page.locator('[data-human-direction=hold]').click();
+ await expect(page.locator('#human-status')).toContainText('站定');
+ await page.locator('#stop').click();await expect(page.locator('[data-human-direction=forward]')).toBeDisabled();
+ await expect(page.locator('#baseline-result')).toHaveText('已暂停');
+ await page.setViewportSize({width:390,height:844});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+ expect(errors).toEqual([]);
+});
+
 test('passive seesaw accepts bounded exploration, displays true motion, resets and preserves orbit',async({page,request})=>{
  test.setTimeout(90000);const errors=[];page.on('pageerror',error=>errors.push(error.message));
  const {room}=await(await request.post('/api/rooms')).json();

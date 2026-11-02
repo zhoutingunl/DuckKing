@@ -19,6 +19,7 @@ export default defineConfig({
         demos: fileURLToPath(new URL('./demos.html', import.meta.url)),
         scenarios: fileURLToPath(new URL('./scenarios.html', import.meta.url)),
         seesaw: fileURLToPath(new URL('./seesaw.html', import.meta.url)),
+        training: fileURLToPath(new URL('./training.html', import.meta.url)),
         balance: fileURLToPath(new URL('./balance.html', import.meta.url)),
         deploys: fileURLToPath(new URL('./deploys.html', import.meta.url)),
       },
