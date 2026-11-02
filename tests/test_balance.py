@@ -701,9 +701,13 @@ def test_balance_api_preparation_is_room_scoped_and_voice_blocks_scene_replaceme
     monkeypatch.setattr("duckking.balance_backend.BalanceBackend", lambda *_: backend)
     app = create_app(settings=Settings(data_dir=tmp_path, max_physics_rooms=1))
     with TestClient(app) as client:
-        result = client.post("/api/balance/prepare?room=1", json={})
+        result = client.post("/api/balance/prepare?room=1&replace=false", json={})
         assert result.status_code == 200
         assert result.json()["backend"]["scene"] == "balance"
+        assert result.json()["backend"]["balance"]["phase"] == "idle"
+        assert backend.task is None
+        assert client.post("/api/balance/prepare?replace=false", json={}).status_code == 200
+        assert backend.task is None
         assert client.post("/api/balance/prepare?room=1", json={}).status_code == 200
         assert client.post("/api/balance/prepare?room=2", json={}).status_code == 409
         assert client.get("/api/scenes/model?room=1").status_code == 200

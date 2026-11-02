@@ -651,11 +651,32 @@ def test_api_uses_room_ownership_and_never_exposes_unprepared_state(
             ).status_code
             == 403
         )
-        result = client.post("/api/seesaw/prepare", json={})
+        result = client.post("/api/seesaw/prepare?replace=false", json={})
         assert result.status_code == 200 and result.json()["backend"]["scene"] == "seesaw"
+        current = app.state.rooms["1"].scene_motion
+        assert current.backend.task is None
+        assert result.json()["backend"]["seesaw"]["phase"] == "idle"
+        assert client.post("/api/seesaw/prepare?replace=false", json={}).status_code == 200
+        assert current is app.state.rooms["1"].scene_motion
+        assert current.backend.task is None
         assert client.post("/api/seesaw/command", json={"operation": "start"}).status_code == 422
         assert client.post("/api/seesaw/prepare?room=99", json={}).status_code == 404
         assert client.get("/api/seesaw/training").headers["cache-control"] == "no-store"
+
+
+@pytest.mark.parametrize("scene", ["balance", "seesaw"])
+def test_auto_prepare_cannot_replace_another_scene_inside_the_room_lock(tmp_path, scene):
+    app = create_app(settings=Settings(data_dir=tmp_path))
+    with TestClient(app) as client:
+        # The existing scene may have been installed by another tab just before
+        # this request. The prepare endpoint itself must refuse replacement.
+        current = SimpleNamespace(backend=SimpleNamespace(scene="duo"), close=AsyncMock())
+        app.state.rooms["1"].scene_motion = current
+        result = client.post(f"/api/{scene}/prepare?replace=false", json={})
+        assert result.status_code == 409
+        assert result.json()["detail"]["code"] == "scene_conflict"
+        assert app.state.rooms["1"].scene_motion is current
+        current.close.assert_not_awaited()
 
 
 def test_bundled_policy_and_report_match_actual_contract(world):

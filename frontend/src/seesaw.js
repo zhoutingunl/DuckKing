@@ -14,6 +14,7 @@ import {controllers,outcome,humanStatus,humanMotion,rewards,trainingMatches} fro
 
 const $=id=>document.getElementById(id),lifetime=new AbortController(),loader=createPhysicsModelLoader();
 let ready=false,pending=false,initialized=false,closed=false,revision,viewer,baselineViewer,feed,voice,timer;
+let preparing=false,needsSwitch=false,prepareFailed=false;
 let lastState,settingRevision,traceKey='',trainingKey='',term='dock',lastPaint=0,refreshing=false,policyReady=false;
 const notify=message=>{$('notice').textContent=message;$('notice').hidden=false};
 function appendLog(text,label='实际执行'){
@@ -24,7 +25,7 @@ function appendLog(text,label='实际执行'){
 }
 function controls(){
  const active=lastState?.seesaw?.execution==='running'||lastState?.seesaw?.comparison?.execution==='running';
- $('prepare').disabled=!initialized||pending;$('prepare').textContent=!initialized?'正在准备页面…':ready?'跷跷板已准备 · 重新读取':'准备跷跷板';
+ $('prepare').disabled=!initialized||pending;$('prepare').textContent=!initialized?'正在准备页面…':preparing?'正在准备跷跷板…':needsSwitch?'切换为跷跷板':prepareFailed?'重试准备跷跷板':ready?'跷跷板已准备 · 重新读取':'准备跷跷板';
  for(const id of ['start','reset'])$(id).disabled=!ready||pending||!feed?.fresh();
  $('start').disabled||=['trained','early'].includes($('controller').value)&&!policyReady;
  for(const id of ['controller','fixed-seed','match-mode','human-assist'])$(id).disabled=!initialized||pending||active;
@@ -36,7 +37,7 @@ function controls(){
  const s=lastState?.seesaw,canStart=s?.phase==='idle'&&s?.comparison.phase==='idle'&&s.sim_time===0&&(!['trained','early'].includes($('controller').value)||policyReady)&&$('match-mode').value==='duel';
  for(const button of document.querySelectorAll('[data-human-direction]'))button.disabled=!ready||pending||!feed?.fresh()||!(s?.mode==='duel'&&s.comparison.execution==='running'||canStart&&button.dataset.humanDirection!=='hold');
  $('stop').disabled=!ready;
- $('connect-voice').disabled=!ready||pending||voice?.state==='disconnecting';
+ $('connect-voice').disabled=(!ready||pending)&&!['connecting','recovering','interrupting','ready','listening','thinking','speaking'].includes(voice?.state)||voice?.state==='disconnecting';
 }
 function showSide(side,prefix){
  const m=side.measurement,result=outcome(side);
@@ -114,16 +115,16 @@ function causalChart(rows){
 }
 function connectFeed(){
  feed=sceneStateFeed({readState:signal=>api('api/scenes/state',currentRoom,{signal}),
-  onState:state=>{if(pending)return;if(state.backend?.scene==='seesaw')render(state.backend);else{ready=false;notify('本房间已切换场景，请重新准备跷跷板。');controls()}},
+  onState:state=>{if(pending)return;if(state.backend?.scene==='seesaw')render(state.backend);else{ready=false;needsSwitch=!!state.backend;notify('本房间已切换场景。可切换回跷跷板，或新建房间。');controls()}},
   onStatus:({mode,reason})=>{$('scene-connection').textContent=({connecting:'正在连接实际物理状态…',websocket:'实时连接 · MuJoCo 实际物理',http:'HTTP 接续实际状态 · 正在恢复实时连接',offline:'状态连接中断 · 画面保留上次记录'}[mode])+(mode==='offline'&&reason?' · '+reason:'');controls()},
  });
 }
-async function prepare(){
- if(pending||closed)return;pending=true;controls();$('notice').hidden=true;
+async function prepare({replace=false,scroll=false}={}){
+ if(pending||closed)return;pending=preparing=true;prepareFailed=false;controls();$('notice').hidden=true;
  const experience=measurement('load'),metrics={};
  for(const p of document.querySelectorAll('.scene-placeholder')){p.hidden=false;p.textContent='正在加载官方 MicroDuck 与被动跷跷板…'}
  try{
-  const signal=lifetime.signal,state=await api('api/seesaw/prepare',currentRoom,{body:{},signal});signal.throwIfAborted();
+  const signal=lifetime.signal,state=await api(`api/seesaw/prepare?replace=${replace}`,currentRoom,{body:{},signal});signal.throwIfAborted();needsSwitch=false;
   if(revision!==state.backend.revision){
    const model=await loader(appURL('api/scenes/model.dkm.gz'),state.backend.revision,{signal,metrics});signal.throwIfAborted();
    viewer??=physicsView($('trained-viewport'),{label:'所选策略',onCameraChange:camera=>baselineViewer?.syncCamera(camera)});
@@ -136,9 +137,9 @@ async function prepare(){
   experience.finish('completed',{...loadMetrics(metrics),scene_ms:Math.round(performance.now()-experience.started)},{cache:metrics.cache,scene:'seesaw'});
   if(!feed)connectFeed();else void feed.refresh();
   appendLog('跷跷板已准备。说“向前走”或点击前进／后退，开始真人与 PPO 对照。');
-  document.querySelector('.seesaw-arena').scrollIntoView({block:'start'});
- }catch(error){experience.finish('failed');if(!closed){notify(error.message);for(const p of document.querySelectorAll('.scene-placeholder'))p.textContent='加载未完成，可重试。'}}
- finally{pending=false;if(!closed)controls()}
+  if(scroll)document.querySelector('.seesaw-arena').scrollIntoView({block:'start'});
+ }catch(error){experience.finish(error.code==='scene_conflict'?'cancelled':'failed');if(!closed){ready=false;needsSwitch=error.code==='scene_conflict';prepareFailed=!needsSwitch;notify(error.message);for(const p of document.querySelectorAll('.scene-placeholder'))p.textContent=needsSwitch?'房间中已有其他场景，等待手动切换。':'加载未完成，请点击“重试准备跷跷板”。'}}
+ finally{pending=preparing=false;if(!closed)controls()}
 }
 async function command(body,source='本地按钮'){
  if(closed||pending&&body.operation!=='stop')return;
@@ -151,7 +152,7 @@ async function command(body,source='本地按钮'){
  }catch(error){if(!closed)notify(error.message)}finally{pending=false;if(!closed){await feed?.refresh();controls()}}
 }
 function seed(){return !$('fixed-seed').checked?{}:$('seed').reportValidity()?{seed:Number($('seed').value)}:null}
-$('prepare').addEventListener('click',prepare);
+$('prepare').addEventListener('click',()=>prepare({replace:needsSwitch,scroll:true}));
 $('start').addEventListener('click',()=>{const value=seed();if(value!==null)void command({operation:'start',mode:$('match-mode').value,controller:$('controller').value,assist:$('human-assist').checked,...value})});
 $('reset').addEventListener('click',()=>{const value=seed();if(value!==null)void command({operation:'reset',...value})});
 $('stop').addEventListener('click',()=>{voice?.interrupt();void command({operation:'stop'})});
@@ -210,4 +211,4 @@ window.addEventListener('pageshow',event=>{if(event.persisted)location.reload()}
 document.addEventListener('visibilitychange',()=>{if(!document.hidden){traceKey='';if(lastState)render(lastState)}});
 window.addEventListener('duckking-voice-state',controls);
 controls();rewardDetail();causalChart([]);
-try{await setupRoom();if(!closed){voice=setupVoice({appendLog,notify,endpoint:'scene-voice',cloudOnly:true});initialized=true;controls();await refreshTraining();if(!closed)timer=setInterval(refreshTraining,5000)}}catch(error){notify(error.message)}
+try{await setupRoom();if(!closed){voice=setupVoice({appendLog,notify,endpoint:'scene-voice',cloudOnly:true});initialized=true;controls();void refreshTraining();void prepare();timer=setInterval(refreshTraining,5000)}}catch(error){notify(error.message)}

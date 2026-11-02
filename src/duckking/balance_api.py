@@ -54,12 +54,17 @@ def install_balance_api(app, get_room, root):
             raise HTTPException(409, str(exc)) from exc
 
     @app.post("/api/balance/prepare")
-    async def prepare(room: str = "1"):
+    async def prepare(room: str = "1", replace: bool = True):
         selected = get_room(room)
         async with selected.scene_lock:
             current = selected.scene_motion
             if current and getattr(current.backend, "scene", None) == "balance":
                 return await current.snapshot()
+            if current and not replace:
+                raise HTTPException(409, {
+                    "code": "scene_conflict",
+                    "message": "本房间已有其他场景。点击“切换为圆盘”会结束原场景；也可新建房间。",
+                })
             if selected.voice:
                 raise HTTPException(409, "请先断开当前房间语音，再切换物理世界")
             if current:

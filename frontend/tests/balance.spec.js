@@ -42,7 +42,7 @@ test('default starts randomize the paired seed and explain available voice contr
  await expect(page.locator('#comparison-status')).toContainText('对照已停止',{timeout:10000});
 });
 
-test('balance controls wait for room initialization before accepting the first click',async({page,request})=>{
+test('automatic preparation waits for room initialization and sends just one request',async({page,request})=>{
  test.setTimeout(60000);
  const created=await request.post('/api/rooms');expect(created.ok()).toBe(true);
  const {room}=await created.json();let releaseRoom,prepares=0;
@@ -57,8 +57,6 @@ test('balance controls wait for room initialization before accepting the first c
   for(const selector of ['[data-level="2"]','#controller','#challenge-seed','#challenge-duration'])await expect(page.locator(selector)).toBeDisabled();
   expect(prepares).toBe(0);
  }finally{releaseRoom()}
- await expect(page.locator('#prepare-balance')).toBeEnabled();
- await page.locator('#prepare-balance').click();
  await expect(page.locator('#start-challenge')).toBeEnabled({timeout:45000});
  expect(prepares).toBe(1);
 });
@@ -266,6 +264,7 @@ test('real disk renders, a missing policy stays explicit, stop and scene switchi
  await expect(page.locator('#comparison-status')).toContainText('对照已停止');
  const response=await request.post('/api/scenes/start?room=2',{data:{name:'scene_ball',request_id:crypto.randomUUID()}});
  expect(response.ok()).toBe(true);
+ await expect(page.locator('#prepare-balance')).toHaveText('切换为圆盘');
  await page.locator('#prepare-balance').click();
  await expect(page.locator('#start-challenge')).toBeEnabled({timeout:45000});
  await expect(page.locator('#challenge-status')).toContainText('等待指令');
@@ -339,6 +338,7 @@ test('balance stays sharp and sleeps when static; orbit, colour and repeated sce
  for(let i=0;i<3;i++){
   expect((await request.post('/api/scenes/start?room=2',{data:{name:'scene_ball',request_id:crypto.randomUUID()}})).ok()).toBe(true);
   await expect(page.locator('#notice')).toContainText('本房间已切到其他场景');
+  await expect(page.locator('#prepare-balance')).toHaveText('切换为圆盘');
   await page.locator('#prepare-balance').click();
   await expect(view).toHaveAttribute('data-rendered-scene','balance',{timeout:45000});
   await expect(page.locator('#start-challenge')).toBeEnabled({timeout:45000});
@@ -377,7 +377,7 @@ test('leaving during model download cannot create a renderer or reconnect later'
  test.setTimeout(60000);let release,entered;
  const pending=new Promise(resolve=>entered=resolve),hold=new Promise(resolve=>release=resolve);
  await page.route('**/api/scenes/model.dkm.gz*',async route=>{entered();await hold;await route.abort()});
- await page.goto('/balance.html?room=2');await page.locator('#prepare-balance').click();await pending;
+ await page.goto('/balance.html?room=2');await pending;
  await page.evaluate(()=>dispatchEvent(new PageTransitionEvent('pagehide')));release();
  await expect(page.locator('#physics-viewport canvas')).toHaveCount(0);
  await page.waitForTimeout(1600);await expect(page.locator('#physics-viewport canvas')).toHaveCount(0);

@@ -83,10 +83,11 @@ async function loadModel(state,currentAction){
 }
 function update(data){
   const state=data.backend;latest=state;online=true;scene=state.scene;buttons();
-  if(scene==='balance'){
-    notStarted();scene='balance';latest=state;online=true;buttons();
-    $('scene-title').textContent='本房间正在使用语音平衡教练';
-    $('scene-placeholder').textContent='请打开语音平衡教练页面，或在这里重新加载所选场景。';
+  const coach={balance:'语音平衡教练',seesaw:'跷跷板教练'}[scene];
+  if(coach){
+    notStarted();scene=state.scene;latest=state;online=true;buttons();
+    $('scene-title').textContent=`本房间正在使用${coach}`;
+    $('scene-placeholder').textContent=`请打开${coach}页面，或在这里重新加载所选场景。`;
     $('sim-status').textContent='场景已在另一页面切换';return;
   }
   if(data.events.length&&data.events.at(-1).id<seen)seen=0;

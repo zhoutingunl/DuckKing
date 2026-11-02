@@ -20,7 +20,7 @@ test.afterEach(async({page,request})=>{
 test('arrow keys give bounded left-duck commands without stealing form keys or restarting a paused round',async({page,request})=>{
  test.setTimeout(60000);const room=await claimRoom(request),commands=[];
  page.on('request',r=>{if(r.method()==='POST'&&new URL(r.url()).pathname==='/api/seesaw/command')commands.push(r.postDataJSON())});
- await page.goto(`/seesaw.html?room=${room}`);await page.locator('#prepare').click();
+ await page.goto(`/seesaw.html?room=${room}`);await expect(page.locator('#start')).toBeEnabled({timeout:45000});
  await expect(page.locator('[data-human-direction=forward]')).toBeEnabled({timeout:45000});
  await page.locator('.replay-settings summary').click();await page.locator('#fixed-seed').check();
  await page.locator('#seed').fill('8852');
@@ -53,10 +53,11 @@ test('arrow keys give bounded left-duck commands without stealing form keys or r
 test('first left command starts a random PK; mic and both worlds stay in view',async({page,request})=>{
  test.setTimeout(90000);const room=await claimRoom(request);
  await page.setViewportSize({width:1440,height:900});
- await page.goto(`/seesaw.html?room=${room}`);await page.locator('#prepare').click();
+ await page.goto(`/seesaw.html?room=${room}`);await expect(page.locator('#start')).toBeEnabled({timeout:45000});
  await expect(page.locator('[data-human-direction=backward]')).toBeEnabled({timeout:45000});
  await expect(page.locator('#match-mode')).toHaveValue('duel');
  await expect(page.locator('#seed')).not.toBeVisible();
+ await page.locator('.seesaw-arena').scrollIntoViewIfNeeded();
  const boxes=await page.evaluate(()=>Object.fromEntries(['talk-button','baseline-viewport','trained-viewport'].map(id=>{
   const r=document.getElementById(id).getBoundingClientRect();return [id,{top:r.top,bottom:r.bottom}];
  })));
@@ -88,7 +89,7 @@ test('training selection preserves room and human PK controls only the left duck
  const room=await claimRoom(request);
  await page.goto(`/training.html?room=${room}`);
  await expect(page.locator('.turntable-choice')).toHaveAttribute('href',new RegExp(`balance\\.html\\?room=${room}$`));
- await page.locator('.seesaw-choice').click();await page.locator('#prepare').click();
+ await page.locator('.seesaw-choice').click();await expect(page.locator('#start')).toBeEnabled({timeout:45000});
  await expect(page.locator('#start')).toBeEnabled({timeout:45000});await fixedRound(page);
  await page.selectOption('#match-mode','duel');await page.locator('#start').click();
  await expect(page.locator('#baseline-label')).toHaveText('你来控制 · 真人');
@@ -121,7 +122,7 @@ test('passive seesaw accepts bounded exploration, displays true motion, resets a
  test.setTimeout(90000);const errors=[];page.on('pageerror',error=>errors.push(error.message));
  const room=await claimRoom(request);
  await page.goto(`/seesaw.html?room=${room}`);
- await page.locator('#prepare').click();await page.selectOption('#controller','rule');await expect(page.locator('#start')).toBeEnabled({timeout:45000});await fixedRound(page);
+ await expect(page.locator('#start')).toBeEnabled({timeout:45000});await page.selectOption('#controller','rule');await expect(page.locator('#start')).toBeEnabled({timeout:45000});await fixedRound(page);
  await expect(page.locator('#trained-viewport')).toHaveAttribute('data-rendered-scene','seesaw');
  const before=(await(await request.get(`/api/scenes/state?room=${room}`)).json()).backend;
  await page.locator('.explore-controls summary').click();await page.locator('[data-direction=backward]').click();
@@ -152,7 +153,7 @@ test('passive seesaw accepts bounded exploration, displays true motion, resets a
 
 test('official baseline visibly fails at the angle limit and replay clears old result',async({page,request})=>{
  test.setTimeout(90000);const room=await claimRoom(request);
- await page.goto(`/seesaw.html?room=${room}`);await page.locator('#prepare').click();
+ await page.goto(`/seesaw.html?room=${room}`);await expect(page.locator('#start')).toBeEnabled({timeout:45000});
  await page.selectOption('#controller','rule');await expect(page.locator('#start')).toBeEnabled({timeout:45000});await fixedRound(page);
  await page.selectOption('#controller','baseline');await page.locator('#start').click();
  await expect(page.locator('#trained-result')).toContainText('失败',{timeout:30000});
@@ -167,7 +168,7 @@ test('official baseline visibly fails at the angle limit and replay clears old r
 
 test('different actions produce different free-load trajectories',async({page,request})=>{
  test.setTimeout(90000);const room=await claimRoom(request);
- await page.goto(`/seesaw.html?room=${room}`);await page.locator('#prepare').click();
+ await page.goto(`/seesaw.html?room=${room}`);await expect(page.locator('#start')).toBeEnabled({timeout:45000});
  await page.selectOption('#controller','rule');await expect(page.locator('#start')).toBeEnabled({timeout:45000});await fixedRound(page);
  await page.locator('#start').click();
  await expect(page.locator('#trained-result')).toContainText('失败',{timeout:35000});
@@ -185,7 +186,7 @@ test('different actions produce different free-load trajectories',async({page,re
 
 test('bundled PPO docks the free load while the same-start center baseline fails',async({page,request})=>{
  test.setTimeout(90000);const room=await claimRoom(request);
- await page.goto(`/seesaw.html?room=${room}`);await page.locator('#prepare').click();
+ await page.goto(`/seesaw.html?room=${room}`);await expect(page.locator('#start')).toBeEnabled({timeout:45000});
  await page.selectOption('#controller','rule');await expect(page.locator('#start')).toBeEnabled({timeout:45000});await fixedRound(page);
  await page.selectOption('#controller','trained');await page.locator('#start').click();
  await expect(page.locator('#trained-result')).toHaveText('成功 · 配重已停靠',{timeout:30000});

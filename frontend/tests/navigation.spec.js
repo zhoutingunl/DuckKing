@@ -2,6 +2,7 @@ import {test,expect} from '@playwright/test';
 
 test('all pages keep the same navigation, room and rightmost source link',async({page})=>{
  test.setTimeout(60000);
+ const errors=[];page.on('pageerror',error=>errors.push(error.message));
  const labels=['动作训练场','演示场景','现场互动','训练新动作','使用体验','交互统计','部署记录'];
  for(const name of ['index','training','seesaw','balance','scenarios','demos','studio','experience','statistics','deploys']){
   await page.goto(`/${name==='index'?'':name+'.html'}?room=1`);
@@ -20,4 +21,5 @@ test('all pages keep the same navigation, room and rightmost source link',async(
  const nav=await page.locator('.site-topbar nav').boundingBox();
  expect(nav.y).toBeGreaterThanOrEqual(source.y+source.height);
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+ expect(errors).toEqual([]);
 });
