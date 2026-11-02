@@ -1,6 +1,6 @@
 # 当前功能导览（按钮与本地排练）
 
-[观看／下载当前版 MP4（约 4 分 09 秒）](media/duckking-current-demo.mp4) · [剪辑与哈希](media/duckking-current-demo.json) · [实际操作与结果](media/current-demo-recording.json) · [解说文案](media/current-demo-script.json)
+[观看／下载 2026-11-02 导览 MP4（约 4 分 09 秒）](media/duckking-current-demo.mp4) · [剪辑与哈希](media/duckking-current-demo.json) · [实际操作与结果](media/current-demo-recording.json) · [解说文案](media/current-demo-script.json)
 
 [![当前线上平衡教练：标准 13 秒的 PPO 与官方基线对照](media/duckking-current-demo.png)](media/duckking-current-demo.mp4)
 
@@ -68,3 +68,5 @@ python3 scripts/build_current_demo.py \
 模型和模型改编画面来自 Pollen Robotics，遵循 CC BY-NC-SA 4.0；配色与材质映射来源及其他第三方许可见 [媒体说明](media/README.md) 和 [THIRD_PARTY.md](../THIRD_PARTY.md)。本片没有复用旧 UI、旧成绩或旧云端回复来证明新版运行。
 
 [2026-10 竞赛自然配音版](DEMO_VIDEO_ARCHIVE.md)及其原始延迟样本继续保留原录制版本与时间；不是被新版结果覆盖。当前视频 SHA-256：`6c9d0637ca5bb0847d565ff34d886853bf33e0daceb38f315f1e68399d47824d`。
+
+后续训练入口已统一为“训练新动作”，新增跷跷板和真人语音 PK。此导览保留录制版本，不含该场景；当前操作见 [跷跷板教练](SEESAW_COACH.md)。

@@ -40,7 +40,7 @@ test('passive seesaw accepts bounded exploration, displays true motion, resets a
  await page.locator('#prepare').click();await page.selectOption('#controller','rule');await expect(page.locator('#start')).toBeEnabled({timeout:45000});
  await expect(page.locator('#trained-viewport')).toHaveAttribute('data-rendered-scene','seesaw');
  const before=(await(await request.get(`/api/scenes/state?room=${room}`)).json()).backend;
- await page.locator('[data-direction=backward]').click();
+ await page.locator('.explore-controls summary').click();await page.locator('[data-direction=backward]').click();
  await expect(page.locator('#trained-status')).toContainText('这一小步结束',{timeout:10000});
  const after=(await(await request.get(`/api/scenes/state?room=${room}`)).json()).backend;
  expect(after.seesaw.mode).toBe('explore');expect(after.sim_time).toBeCloseTo(2);

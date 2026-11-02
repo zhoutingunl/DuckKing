@@ -56,3 +56,5 @@
 @media(max-width:1200px){.causal-strip{grid-template-columns:1fr auto 1fr}.causal-strip>b:nth-child(4){display:none}}
 
 .human-controls{padding-top:22px}.nudge-row [data-human-direction=forward]{border-bottom:3px solid var(--front)}.nudge-row [data-human-direction=backward]{border-bottom:3px solid var(--rear)}
+
+.seesaw-stage .human-controls{border-top:1px solid #e1e6dc;padding:16px 18px}.human-controls h3{font-size:15px;margin:0 0 12px}.explore-controls summary{font-size:14px;cursor:pointer;margin-bottom:14px}
