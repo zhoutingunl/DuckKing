@@ -169,7 +169,7 @@ test('stopping the table song silences every music node and cancels the real cho
 test('source link stays at the right edge with no navigation or viewport overlap',async({page})=>{
  for(const width of [1440,820,390]){
   await page.setViewportSize({width,height:900});await page.goto('/');
-  const source=await page.locator('.home-topbar > .repo-link').boundingBox(),header=await page.locator('.home-topbar').boundingBox();
+  const source=await page.locator('.site-topbar > .repo-link').boundingBox(),header=await page.locator('.site-topbar').boundingBox();
   expect(header.x+header.width-source.x-source.width).toBeLessThan(width*.05+1);
   const nav=await page.locator('.home-nav').boundingBox();
   expect(nav.y>=source.y+source.height||nav.x+nav.width<=source.x).toBe(true);

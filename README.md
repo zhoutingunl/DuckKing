@@ -32,7 +32,7 @@
 | [物理实验室](https://ztmonitor.qbox.net/duckking/scenarios.html) | 单鸭踢球、双鸭互动、嘴部搬运、动作练习场、轮滑；按钮无需启用语音 |
 | [演示场景](https://ztmonitor.qbox.net/duckking/demos.html) | 十三幕逐幕点播；预录对白本地编排与灵矽实连预录指令可现场切换 |
 | [现场互动工坊](https://ztmonitor.qbox.net/duckking/studio.html) | 十项语音任务、本地排练、临场改序与任务控制；真人语音固定走灵矽，见 [使用说明](docs/INTERACTIVE_STUDIO.md) |
-| [训练新动作](https://ztmonitor.qbox.net/duckking/training.html) | 选择转盘或跷跷板；语音发起挑战、查看 PPO 训练过程，跷跷板支持真人控制左鸭与 AI PK |
+| [训练新动作](https://ztmonitor.qbox.net/duckking/training.html) | 选择转盘或跷跷板；语音发起挑战、查看 PPO 训练过程，跷跷板可直接说“向前走”控制左鸭与 AI PK，每轮随机同初态 |
 | [语音平衡教练（实验）](https://ztmonitor.qbox.net/duckking/balance.html) | 同种子左右对照、三关旋转倾斜圆盘、6–33 秒试跑、真实 CPU PPO 训练记录和函数课堂；[学习范围与限制](docs/PPO_BALANCE_COACH.md) |
 | [语音跷跷板教练（实验）](docs/SEESAW_COACH.md) | `seesaw.html`：鸭子压板引导自由配重滑动、反向制动并停靠；板面与配重均无电机；语音／手动探索、真人或回中规则与任务 PPO 对照、实际训练曲线 |
 | [转盘 PPO 教学说明](http://aiops.qbox.net/files/0d187b39c88d5359/balance_ppo_explainer.html) | 面向无 AI 背景读者的自包含单页文档：RL 与 PPO 预备知识 → 转盘物理 → 观测/动作/奖励 → PPO 与 GAE → 真实训练曲线与诚实的边界；含 18 张内联图与 16 个公式块，[在线永久链接](http://aiops.qbox.net/files/0d187b39c88d5359/balance_ppo_explainer.html) |

@@ -1,3 +1,4 @@
+import './site-nav.js';
 import {measurement,loadMetrics,afterFrame} from './experience.js';
 import './style.css';
 import './scenarios.css';

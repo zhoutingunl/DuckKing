@@ -1,3 +1,4 @@
+import './site-nav.js';
 import './style.css';
 import { createDuckScene } from './duck.js';
 import { setupVoice } from './voice.js';

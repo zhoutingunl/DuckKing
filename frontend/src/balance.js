@@ -1,3 +1,4 @@
+import './site-nav.js';
 import './style.css';
 import './balance.css';
 import {physicsView} from './physics-view.js';

@@ -13,6 +13,7 @@ export const rewards={
 };
 export const controllers={trained:'训练后 · PPO',early:'本轮训练前',rule:'仅配平板面规则',baseline:'官方站定',center:'回中站定规则',manual:'你来控制',human:'你来控制 · 真人'};
 export function humanStatus(s){
+ if(s.mode==='explore')return `左鸭单独练习 · ${outcome(s.comparison).text}右侧保持站定。`;
  if(s.mode!=='duel')return '选择“真人 vs AI”开始；语音或按钮只控制左鸭。';
  const right=s.execution==='running'?'右侧继续自主控制':'右侧本轮已结束';
  if(s.comparison.execution!=='running')return `左鸭${outcome(s.comparison).badge||'本轮已结束'} · ${right}。重开挑战后可继续控制左鸭。`;

@@ -326,7 +326,11 @@ class DeviceMCP:
                     from .seesaw_backend import SEESAW_TOOLS
 
                     tools = [t for t in TOOLS if t["name"] in {"duck_stop", "duck_get_status"}]
-                    tools += SEESAW_TOOLS
+                    tools = [
+                        {**t, "description": "停止整个跷跷板挑战并暂停两侧物理；"
+                         "只让左鸭站住请用duck_hold_position。"}
+                        if t["name"] == "duck_stop" else t for t in tools
+                    ] + SEESAW_TOOLS
             if self.motion.studio:
                 if self.motion.studio.active not in {None, "voice", "persona"}:
                     tools = [t for t in tools if t["name"] in {"duck_stop", "duck_get_status"}]
@@ -352,6 +356,18 @@ class DeviceMCP:
                 raise ValueError("桌上合唱请使用开演、停止或状态工具")
             if (self.motion.backend.kind == "mujoco"
                     and self.motion.backend.scene == "seesaw"):
+                from .seesaw_backend import SEESAW_MOVES
+
+                if name in SEESAW_MOVES:
+                    direction = SEESAW_MOVES[name][0]
+                    allowed = set() if direction == "hold" else {"duration"}
+                    if set(arguments) - allowed:
+                        raise ValueError("左鸭移动工具只接受1至3秒的duration；站定不接受参数")
+                    arguments = {"operation": "nudge", "direction": direction,
+                                 "seconds": arguments.get("duration", 2)}
+                    name = "duck_seesaw"
+                elif name == "duck_seesaw" and arguments.get("operation") == "start":
+                    arguments = {"mode": "duel", **arguments}
                 if name in {"duck_seesaw", "duck_get_status"}:
                     if name == "duck_get_status" and arguments:
                         raise ValueError("状态查询不接受参数")
