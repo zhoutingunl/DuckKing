@@ -132,7 +132,10 @@ test('late mic permission from an old connection cannot attach to the new connec
   await talk.dispatchEvent('pointerup',{pointerId:1});
   await expect(page.locator('#voice-badge')).toHaveText('灵矽已连接');
   expect(commands.filter(command=>command==='listen_start')).toHaveLength(1);
-  expect(await page.evaluate(()=>micTracks.map(track=>[track.readyState,track.enabled]))).toEqual([['ended',true],['live',false]]);
+  // A stopped track's enabled flag is immaterial; acquisition now mutes even
+  // stale grants before stopping them. The new connection must stay live/muted.
+  expect(await page.evaluate(()=>({states:micTracks.map(track=>track.readyState),currentEnabled:micTracks[1].enabled})))
+    .toEqual({states:['ended','live'],currentEnabled:false});
   await page.locator('#connect-voice').click();
   await expect(page.locator('#voice-badge')).toHaveText('未连接灵矽');
   expect(await page.evaluate(()=>micTracks.map(track=>track.readyState))).toEqual(['ended','ended']);

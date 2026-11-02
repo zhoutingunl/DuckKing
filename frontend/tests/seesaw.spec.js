@@ -40,10 +40,18 @@ test('arrow keys give bounded left-duck commands without stealing form keys or r
  await expect.poll(async()=> (await state()).human_command.remaining_seconds,{timeout:6000}).toBe(0);
  expect(commands).toEqual([expect.objectContaining({operation:'nudge',direction:'forward',seconds:2,seed:8852})]);
  const first=await state();expect(first.controller).toBe('trained');expect(first.comparison.controller).toBe('human');
+ // Keep the bounded backward/hold sequence inside the browser: several
+ // automation round trips on a software GPU can outlast the real duck's balance.
+ await page.evaluate(()=>{
+  const hold=document.querySelector('[data-human-direction=hold]');let waiting=false;
+  const observer=new MutationObserver(()=>{
+   if(hold.disabled){waiting=true;return}
+   if(!waiting)return;
+   observer.disconnect();document.activeElement.dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowDown',bubbles:true}));
+  });
+  observer.observe(hold,{attributes:true,attributeFilter:['disabled']});
+ });
  await page.keyboard.press('ArrowRight');
- await expect.poll(async()=> (await state()).human_command.direction).toBe('backward');
- await expect(page.locator('[data-human-direction=hold]')).toBeEnabled();
- await page.keyboard.press('ArrowDown');
  await expect.poll(async()=> (await state()).human_command.direction).toBe('hold');
  expect(commands.map(c=>c.direction)).toEqual(['forward','backward','hold']);
  expect((await state()).seed).toBe(first.seed);expect((await state()).controller).toBe('trained');
