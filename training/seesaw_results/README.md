@@ -37,7 +37,7 @@ PYTHONPATH=src .duckking/balance-venv/bin/python training/train_seesaw.py \
   --warm-start training/seesaw_results/driven-v3/policy.json
 ```
 
-省略warm-start为从随机任务策略开始的另一个实验。不同平台数值库可能改变训练轨迹。
+省略warm-start为从随机任务策略开始的另一个实验。不同平台数值库可能改变训练与闭环推理轨迹。Linux CI回放中，种子30018成功，原macOS实验为未停靠；原始报告未改写。98/100只属于上述macOS实验，不保证Linux每个种子具有同样结果。`checksums.json`绑定此批策略、报告和环境文件，回放测试另验证相同运行环境内可重复。
 
 ## 对照边界与历史
 

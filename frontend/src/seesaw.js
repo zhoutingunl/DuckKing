@@ -165,7 +165,7 @@ async function refreshTraining(){
    return;
   }
   const phases={training:'CPU 训练中',testing:'独立测试中',completed:'训练完成',cancelled:'训练已取消',failed:'训练失败'};
-  $('training-status').textContent=`${phases[report.phase]??report.phase} · 本轮 ${report.steps.toLocaleString()} 步 · 墙钟 ${(report.elapsed_s/60).toFixed(1)} 分钟 · 单线程 CPU`;
+  $('training-status').textContent=`${phases[report.phase]??report.phase} · 本轮 ${report.steps.toLocaleString()} 步 · 墙钟 ${(report.elapsed_s/60).toFixed(1)} 分钟 · 单线程 CPU · ${String(report.platform??'环境未记录').startsWith('macOS')?'macOS 实测；跨平台回放可能不同':String(report.platform??'环境未记录')}`;
   const gate=report.converged_at,init=report.initialization;
   const origin=init?.kind==='passive_docking_transfer'?` 本轮继承上一阶段 ${init.source_steps.toLocaleString()} 步的任务 PPO，在无配重电机的新任务中学习引导滑动和制动；不是从随机策略开始。`:'';
   $('training-gate').textContent=gate?`连续两次验证 ≥18/20：${gate.steps.toLocaleString()} 步，${(gate.elapsed_s/60).toFixed(1)} 分钟。最终测试另用 100 个未见种子。${origin}`:'尚未达到连续两次验证 ≥18/20 的预设收敛门槛。曲线显示实际成绩，不把回报上涨当作成功。'+origin;
