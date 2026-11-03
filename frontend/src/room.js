@@ -9,7 +9,10 @@ export async function setupRoom({claim=true}={}){
   const links=document.createElement('span');links.className='room-links';links.tabIndex=0;links.setAttribute('aria-label','房间列表，可横向滚动');
   const create=document.createElement('button');create.className='room-create';create.textContent='＋ 新建房间';create.id='create-room';
   const capacity=document.createElement('small');capacity.id='room-capacity';
-  bar.append(label,links,create,capacity);main.prepend(bar);
+  const toggle=document.createElement('button');toggle.type='button';toggle.className='room-toggle';toggle.textContent='切换房间';toggle.setAttribute('aria-expanded','false');toggle.setAttribute('aria-controls','room-options');
+  const options=document.createElement('div');options.id='room-options';options.className='room-options';options.append(links,create,capacity);
+  toggle.addEventListener('click',()=>{const expanded=toggle.getAttribute('aria-expanded')!=='true';toggle.setAttribute('aria-expanded',String(expanded));bar.classList.toggle('room-expanded',expanded)});
+  bar.append(label,toggle,options);main.prepend(bar);
   const banner=document.createElement('section');banner.id='room-recovery';banner.className='room-recovery';banner.hidden=true;banner.setAttribute('role','alert');
   const heading=document.createElement('strong'),explanation=document.createElement('p'),reconnect=document.createElement('button');reconnect.id='reconnect-room';reconnect.textContent='重新连接房间';
   banner.append(heading,explanation,reconnect);bar.after(banner);

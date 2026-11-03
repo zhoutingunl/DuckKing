@@ -75,15 +75,15 @@ test('real beak contact, carry, release and scene controls',async({page},testInf
   await expect(page.locator('#scene-placeholder')).toBeHidden({timeout:20000});
   await expect(page.locator('[data-sim-action="carry"]')).toBeDisabled();
   await page.locator('[data-sim-action="pick_up"]').click();
-  await expect(page.locator('#action-result')).toContainText('用嘴夹起 · 完成',{timeout:15000});
+  await expect(page.locator('#action-result')).toContainText('用嘴夹起 · 已完成',{timeout:15000});
   await expect(page.locator('#grasp-phase')).toHaveText('夹持中');
   expect(parseFloat(await page.locator('#grasp-lift').textContent())).toBeGreaterThan(8);
   await page.screenshot({path:testInfo.outputPath('beak-holding.png'),fullPage:true});
   await page.locator('[data-sim-action="carry"]').click();
-  await expect(page.locator('#action-result')).toContainText('夹持搬运 · 完成',{timeout:15000});
+  await expect(page.locator('#action-result')).toContainText('夹持搬运 · 已完成',{timeout:15000});
   expect(parseFloat(await page.locator('#grasp-distance').textContent())).toBeGreaterThan(10);
   await page.locator('[data-sim-action="put_down"]').click();
-  await expect(page.locator('#action-result')).toContainText('放下物品 · 完成',{timeout:15000});
+  await expect(page.locator('#action-result')).toContainText('放下物品 · 已完成',{timeout:15000});
   await expect(page.locator('#grasp-phase')).toHaveText('已放稳');
   await page.screenshot({path:testInfo.outputPath('beak-released.png'),fullPage:true});
   expect(errors).toEqual([]);

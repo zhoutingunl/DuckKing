@@ -8,7 +8,7 @@ test('preview actions reach the backend and stop cancels a running walk', async 
   await page.locator('[data-action="nod"]').click();
   const nodId=(await (await acceptedNod).json()).id;
   await expect.poll(async()=> (await (await page.request.get(`/api/actions/${nodId}`)).json()).status).toBe('completed');
-  await expect(page.locator('#activity-log')).toContainText('点头 · completed');
+  await expect(page.locator('#activity-log')).toContainText('点头 · 已完成');
   // Keep the production bounds; use the supported 3s duration to avoid testing a
   // renderer scheduling race on CPU-only CI runners.
   await page.route('**/api/actions?*',async route=>{

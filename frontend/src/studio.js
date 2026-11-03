@@ -1,5 +1,6 @@
 import {createLoadingState} from './loading-state.js';
 import {requestId} from './ids.js';
+import {actionEventText,appendActionDetails} from './action-labels.js';
 import './site-nav.js';
 import {measurement,loadMetrics,afterFrame} from './experience.js';
 import './style.css';
@@ -21,7 +22,7 @@ const loadingFeedback=createLoadingState($('scene-placeholder'));let loadAbort,l
 let viewer,selected=null,revision=null,latest=null,loading=false,connected=false,voiceState='disconnected',epoch=0,seen=0;
 try{viewer=physicsView($('physics-viewport'))}catch{$('scene-placeholder').textContent='WebGL 无法启动；仍可查看任务结果。'}
 const notify=text=>{$('notice').textContent=text;$('notice').hidden=false};
-function appendLog(text,label='任务',error=false){const row=document.createElement('div');row.className=`log-line${error?' error':''}`;const tag=document.createElement('span');tag.className='log-label';tag.textContent=label;const body=document.createElement('span');body.textContent=text;row.append(tag,body);$('activity-log').append(row);while($('activity-log').children.length>80)$('activity-log').firstChild.remove()}
+function appendLog(text,label='任务',error=false,raw=null){const row=document.createElement('div');row.className=`log-line${error?' error':''}`;const tag=document.createElement('span');tag.className='log-label';tag.textContent=label;const body=document.createElement('span');body.textContent=text;row.append(tag,body);if(raw&&raw!==text)appendActionDetails(row,raw);$('activity-log').append(row);while($('activity-log').children.length>80)$('activity-log').firstChild.remove()}
 const voiceBusy=()=>!['disconnected','error','busy','awaiting_binding'].includes(voiceState);
 function controls(){
  document.querySelectorAll('[data-studio]').forEach(b=>b.disabled=loading||voiceBusy()||!STUDIO_SCENES.find(s=>s.id===b.dataset.studio).ready);
@@ -89,7 +90,7 @@ function connect(){
   if(data.type==='state'){
    latest=data;viewer?.update(data.backend);choir.update(data.backend.seated_choir);$('physics-viewport').dataset.musicEvidence=JSON.stringify(choir.scheduled);renderStudio(data.studio);
    $('sim-status').textContent=data.backend.error?'物理场景异常':'MuJoCo 物理运行中';
-   for(const event of data.events??[]){if(event.id<=seen)continue;seen=event.id;appendLog(event.text,'实际动作',event.status==='failed')}
+   for(const event of data.events??[]){if(event.id<=seen)continue;seen=event.id;appendLog(actionEventText(event),'实际动作',event.status==='failed',event.text)}
    if(data.backend.error)notify(data.backend.error);
   }else if(data.type==='scene_error')notify(data.message);
   if(socket.readyState===1)socket.send('next');

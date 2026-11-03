@@ -77,7 +77,7 @@ test(`${secure?'HTTPS':'HTTP'} prefix serves pages, physical state, actions and 
     expect(await page.evaluate(()=>window.isSecureContext)).toBe(true);
     await expect(page.locator('#connection-label')).toHaveText('本地工作台已连接');
     await page.locator('[data-action="nod"]').click();
-    await expect(page.locator('#activity-log')).toContainText('点头 · completed');
+    await expect(page.locator('#activity-log')).toContainText('点头 · 已完成');
     await expect(page.getByRole('link',{name:'动作训练场'})).toHaveJSProperty('href',prefix+'scenarios.html?room=1');
     await page.goto(prefix+'scenarios.html?room=1');await page.getByRole('button',{name:'单鸭定点踢球'}).click();
     await expect(page.locator('#scene-placeholder')).toBeHidden({timeout:30000});

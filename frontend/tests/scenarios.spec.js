@@ -30,29 +30,29 @@ test('real MuJoCo left/right contacts, duo discovery/collision, chorus and stop'
   await expect(page.locator('#scene-placeholder')).toBeHidden({timeout:20000});
   await expect.poll(()=>measurements.some(e=>e.kind==='load'&&e.status==='completed'&&e.scene==='ball'&&e.metrics.scene_ms>0)).toBe(true);
   await page.getByRole('button',{name:'左脚踢球',exact:true}).click();
-  await expect(page.locator('#action-result')).toContainText('左脚踢球 · 完成',{timeout:15000});
+  await expect(page.locator('#action-result')).toContainText('左脚踢球 · 已完成',{timeout:15000});
   await expect(page.locator('#ball-contact')).toHaveText('左脚');
   expect(parseFloat(await page.locator('#ball-distance').textContent())).toBeGreaterThan(.02);
   await expect(page.locator('#ball-motion')).toContainText('已停稳',{timeout:15000});
   expect(modelRequests).toBeGreaterThan(0);
   const requestsBeforeReset=modelRequests;
   await page.getByRole('button',{name:'重置场景',exact:true}).click();
-  await expect(page.locator('#action-result')).toContainText('重置场景 · 完成');
+  await expect(page.locator('#action-result')).toContainText('重置场景 · 已完成');
   expect(modelRequests).toBe(requestsBeforeReset);
   await page.getByRole('button',{name:'右脚踢球',exact:true}).click();
-  await expect(page.locator('#action-result')).toContainText('右脚踢球 · 完成',{timeout:15000});
+  await expect(page.locator('#action-result')).toContainText('右脚踢球 · 已完成',{timeout:15000});
   await expect(page.locator('#ball-contact')).toHaveText('右脚');
   await page.getByRole('button',{name:'双鸭互动',exact:false}).click();
   await expect(page.locator('#duo-controls')).toBeVisible();
   await page.getByRole('button',{name:'发现同伴',exact:true}).click();
   await expect(page.locator('#peer-status')).toContainText('鸭 A 发现鸭 B');
   await page.getByRole('button',{name:'相向碰面',exact:true}).click();
-  await expect(page.locator('#action-result')).toContainText('相向碰面 · 完成',{timeout:15000});
+  await expect(page.locator('#action-result')).toContainText('相向碰面 · 已完成',{timeout:15000});
   expect(Number(await page.locator('#duck-contact').textContent())).toBeGreaterThan(0);
   await page.getByRole('button',{name:'同步合唱 ♪'}).click();
   await expect(page.locator('#chorus-status')).toContainText('本地双声部正在合唱');
   await page.locator('#stop-scene').click();
-  await expect(page.locator('#action-result')).toContainText('停止 · 完成');
+  await expect(page.locator('#action-result')).toContainText('停止 · 已完成');
   const state=await (await page.request.get('/api/scenes/state')).json();
   expect(state.backend.chorus).toBeNull();expect(state.backend.physics).toBe(true);
   const requestsBeforeReload=modelRequests;
@@ -131,7 +131,7 @@ test('scene recovery clears stale failures without hiding an unrelated voice err
   state.error=null;state.backend.discovered=[{observer:'a',peer:'b',distance_m:.17}];
   state.events.push({id:2,kind:'result',text:'find_companion · completed',status:'completed'});send();
   await expect(page.locator('#peer-status')).toContainText('鸭 A 发现鸭 B，相距 0.17 m');
-  await expect(page.locator('#action-result')).toHaveText('发现同伴 · 完成');
+  await expect(page.locator('#action-result')).toHaveText('发现同伴 · 已完成');
   await expect(page.locator('#notice')).toBeHidden();
   await expect(page.locator('#activity-log')).toContainText('发现同伴 · 未完成');
   state.backend.error='协议测试：物理推进异常';send();
@@ -158,7 +158,7 @@ test('official skills, natural idle, wheel skating and cancellation work from th
   await expect(page.locator('#scene-placeholder')).toBeHidden({timeout:20000});
   for(const [name,label] of [['roulade','前滚翻'],['ground_pick','低头啄取'],['yawn','打个哈欠']]){
     await page.locator(`[data-sim-action="${name}"]`).click();
-    await expect(page.locator('#action-result')).toContainText(`${label} · 完成`,{timeout:15000});
+    await expect(page.locator('#action-result')).toContainText(`${label} · 已完成`,{timeout:15000});
     const state=await(await page.request.get('/api/scenes/state?room=1')).json();
     expect(state.backend.skill.status).toBe('completed');
     expect(state.backend.skill.supported).toBe(true);
@@ -167,20 +167,20 @@ test('official skills, natural idle, wheel skating and cancellation work from th
   await page.locator('[data-sim-action="idle_on"]').click();
   await expect(page.locator('#idle-status')).toContainText('看看四周',{timeout:10000});
   await page.locator('[data-sim-action="shake_head"]').click();
-  await expect(page.locator('#action-result')).toContainText('摇头 · 完成');
+  await expect(page.locator('#action-result')).toContainText('摇头 · 已完成');
   await page.locator('#stop-scene').click();
   await expect(page.locator('#idle-status')).toContainText('已关闭');
   await page.locator('[data-sim-action="roulade"]').click();
   await expect(page.locator('#action-result')).toContainText('前滚翻 · 进行中');
   await page.keyboard.press('Escape');
-  await expect(page.locator('#action-result')).toContainText('停止 · 完成');
+  await expect(page.locator('#action-result')).toContainText('停止 · 已完成');
   await expect(page.locator('#activity-log')).toContainText('前滚翻 · 已取消');
   await page.getByRole('button',{name:'轮滑小鸭'}).click();
   await expect(page.locator('#rollers-controls')).toBeVisible();
   await expect(page.locator('#floor-moves')).toBeHidden();
   for(const [name,label] of [['skate','向前滑行'],['roller_crouch','轮滑下蹲']]){
     await page.locator(`[data-sim-action="${name}"]`).click();
-    await expect(page.locator('#action-result')).toContainText(`${label} · 完成`,{timeout:15000});
+    await expect(page.locator('#action-result')).toContainText(`${label} · 已完成`,{timeout:15000});
   }
   await page.setViewportSize({width:390,height:844});
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);

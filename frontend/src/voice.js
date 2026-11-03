@@ -4,8 +4,9 @@ import { appURL } from './urls.js';
 import { createSocket } from './transport.js';
 import { VoiceAudio } from './audio-output.js';
 import {acquireMicrophone,microphoneError} from './microphone.js';
+import {voiceRouteText} from './voice-route.js';
 
-export function setupVoice({appendLog,notify,endpoint='/voice',cloudOnly=false,beforeListen=null}){
+export function setupVoice({appendLog,notify,endpoint='/voice',cloudOnly=false,beforeListen=null,listenUnavailable=()=>''}){
   const $=id=>document.getElementById(id),talk=$('talk-button'),connect=$('connect-voice'),connectLabel=$('connect-label');
   let ws=null,state='disconnected',pressed=false,recording=null,timeout=null,heartbeat=null,closingTimer=null,voiceNotice=null;
   function voiceError(text){voiceNotice=text;notify(text)}
@@ -13,7 +14,9 @@ export function setupVoice({appendLog,notify,endpoint='/voice',cloudOnly=false,b
   let microphone=null,micPreparing=null,micEpoch=0,micController=null,micPhase='idle',micError='';
   const micRetry=document.createElement('button');micRetry.id='prepare-microphone';micRetry.type='button';
   micRetry.className='connect-button mic-retry';micRetry.hidden=true;$('voice-caption').after(micRetry);
-  let mode='cloud',route='cloud',modesReady=false;
+  let mode='cloud',route='cloud',modesReady=false,localAvailable=true;
+  let routeReason='',routeAsrMs,localFeedback='',spaceHeld=false;
+  function clearRoute(){route=mode==='cloud'?'cloud':'local_ready';routeReason='';routeAsrMs=undefined;localFeedback='';}
   const experience=new VoiceExperience();
   const modeSelect=$('voice-mode');
   const reasons={unmatched:'整句未完整匹配动作',unsupported_context:'当前场景不支持整句动作',plan_limit:'指令超出本地动作范围',empty_or_long:'识别内容不足或过长',asr_timeout:'本地识别超时',asr_unavailable:'本地识别暂不可用'};
@@ -31,11 +34,14 @@ export function setupVoice({appendLog,notify,endpoint='/voice',cloudOnly=false,b
   });
   const labels={disconnected:'未连接灵矽',disconnecting:'正在断开连接',connecting:'正在连接',recovering:'正在恢复连接',interrupting:'正在切换新指令',awaiting_binding:'等待设备绑定',ready:'灵矽已连接',listening:'正在聆听',thinking:'正在思考',speaking:'正在回答',error:'连接异常',busy:'本房间语音正在使用'};
   function update(){
+    const unavailable=listenUnavailable();
+    if($('voice-route'))$('voice-route').textContent=voiceRouteText({mode,state,route,reason:routeReason,asrMs:routeAsrMs,localFeedback});
+    if(mode==='local_first'&&!localAvailable&&state==='disconnected')$('voice-route').textContent='本地识别暂未就绪；本地优先模式会明确转交灵矽。';
     $('voice-badge').textContent=stateLabel();
     $('voice-intro').textContent=mode==='local_first'?'启用语音后，按住说话；常用动作本地执行，未匹配时交给灵矽。':'连接灵矽后，按住说话，松开等待回答。';
     if(modeSelect)modeSelect.disabled=!modesReady||!['disconnected','error','busy','awaiting_binding'].includes(state);
     const canInterrupt=['thinking','speaking'].includes(state)||output.busy;
-    talk.disabled=(!['ready','listening','thinking','speaking'].includes(state)||!microphone||recording?.released)&&!pressed;
+    talk.disabled=(!['ready','listening','thinking','speaking'].includes(state)||!microphone||recording?.released||!!unavailable)&&!pressed;
     talk.querySelector('span:not(.key-hint)').textContent=canInterrupt?'打断并说话':'按住说话';
     talk.setAttribute('aria-label',canInterrupt?'打断并说话':'按住说话');
     talk.classList.toggle('recording',state==='listening');
@@ -63,20 +69,21 @@ export function setupVoice({appendLog,notify,endpoint='/voice',cloudOnly=false,b
     micRetry.disabled=!!micPreparing;
     micRetry.textContent=micPreparing?'正在准备麦克风…':'重新启用麦克风';
     if(state==='ready'&&microphone)$('voice-caption').textContent='麦克风已待命；仅按住时发送语音，松开即静音，断开连接释放麦克风。';
+    if(unavailable&&connected&&microphone)$('voice-caption').textContent=unavailable;
     window.dispatchEvent(new CustomEvent('duckking-voice-state',{detail:{state,mode,route}}));
   }
   modeSelect?.addEventListener('change',()=>{
-    mode=cloudOnly?'cloud':modeSelect.value;route=mode==='cloud'?'cloud':'local_ready';
+    mode=cloudOnly?'cloud':modeSelect.value;clearRoute();
     try{sessionStorage.setItem('duckking.voice-mode',mode)}catch{}
-    $('voice-route').textContent=mode==='cloud'?'灵矽负责识别和回复。':'整句动作匹配后本地执行；完成后播放本地预录语音确认。';update();
+    update();
   });
   if(modeSelect)fetch(appURL('api/voice/modes')).then(r=>{if(!r.ok)throw Error();return r.json()}).then(cap=>{
+    localAvailable=cap.available!==false;
     modeSelect.querySelector('[value=local_first]').disabled=cloudOnly||!cap.local_first;
     let saved;try{saved=sessionStorage.getItem('duckking.voice-mode')}catch{}
     if(state==='disconnected')mode=!cloudOnly&&cap.local_first&&(saved==='local_first'||(!saved&&cap.available))?'local_first':'cloud';
     modeSelect.value=mode;modesReady=true;
     if(state==='disconnected')modeSelect.dispatchEvent(new Event('change'));else update();
-    if(cap.local_first&&!cap.available)$('voice-route').textContent='本地识别暂未就绪；本地优先模式会明确转交灵矽。';
   }).catch(()=>{modesReady=true;modeSelect.querySelector('[value=local_first]').disabled=true;update()});
   function send(data){if(ws?.readyState===WebSocket.OPEN)ws.send(typeof data==='object'&&!(data instanceof ArrayBuffer)?JSON.stringify(data):data)}
   function playback(data){output.enqueue(data)}
@@ -150,7 +157,7 @@ export function setupVoice({appendLog,notify,endpoint='/voice',cloudOnly=false,b
     update();
   }
   async function press(){
-    if(talk.disabled||pressed)return;pressed=true;
+    if(talk.disabled||pressed||listenUnavailable())return;pressed=true;clearRoute();
     const channel=ws,attempt=++captureId;
     if(['thinking','speaking'].includes(state)||output.busy){
       experience.finish('cancelled');minGeneration=generation+1;state='interrupting';send({type:'interrupt'});
@@ -166,6 +173,7 @@ export function setupVoice({appendLog,notify,endpoint='/voice',cloudOnly=false,b
       output.setCapture(true);void output.resume({gesture:true});
       if(!await output.resume())throw new Error('音频通道未就绪，请先点启用 / 测试声音');
       if(beforeListen)await Promise.race([beforeListen(),new Promise((_,reject)=>{gateTimer=setTimeout(()=>reject(Error('场景选择同步超时')),8000)})]);
+      const unavailable=listenUnavailable();if(unavailable)throw new Error(unavailable);
       if(ws!==channel||attempt!==captureId||recording!==turn)return;
       send({type:'listen_start',experience:experience.start(mode,ws?.transport)});
       turn.sent=true;for(const frame of turn.frames)send(frame);turn.frames=[];
@@ -193,7 +201,7 @@ export function setupVoice({appendLog,notify,endpoint='/voice',cloudOnly=false,b
     if(ws?.readyState===WebSocket.CONNECTING)return;
     if(voiceNotice&&$('notice').textContent===voiceNotice)$('notice').hidden=true;
     voiceNotice=null;
-    generation=minGeneration=0;
+    generation=minGeneration=0;clearRoute();
     state='connecting';update();
     if(ws?.readyState===WebSocket.OPEN){send({type:'connect',mode});void prepareMicrophone();return}
     let receivedStatus=false;
@@ -208,7 +216,7 @@ export function setupVoice({appendLog,notify,endpoint='/voice',cloudOnly=false,b
       if(ws!==channel)return;
       const data=JSON.parse(event.data);
       if(['voice_status','voice_route','audio','transcript','playback_end','voice_milestone'].includes(data.type)){
-        const incoming=data.generation??0;if(incoming<minGeneration)return;generation=incoming;
+        const incoming=data.generation??generation;if(incoming<Math.max(minGeneration,generation))return;generation=incoming;
       }
       experience.receive(data);
       if(data.type==='voice_status'){
@@ -219,6 +227,7 @@ export function setupVoice({appendLog,notify,endpoint='/voice',cloudOnly=false,b
         if(data.mode)mode=data.mode;if(data.route)route=data.route;
         if(state!==data.state)appendLog(stateLabel(data.state),'语音状态',data.state==='error');
         state=data.state;if(state==='busy')owner=false;
+        if(['listening','disconnected','disconnecting','error','awaiting_binding','busy','recovering','interrupting'].includes(state))clearRoute();
         if(['disconnected','disconnecting','error','awaiting_binding','busy'].includes(state))closeMicrophone();
         else if(state==='ready'&&!micError)void prepareMicrophone();
         $('activation').hidden=!data.activation_code;
@@ -229,14 +238,14 @@ export function setupVoice({appendLog,notify,endpoint='/voice',cloudOnly=false,b
       }else if(data.type==='voice_profile'){appendLog(data.message,'声音设置')}
       else if(data.type==='studio_notice'){appendLog(data.text,data.source==='local_task'?'本地任务提醒':'计时任务 · 请求灵矽播报')}
       else if(data.type==='voice_route'){
-        route=data.route;
+        route=data.route;routeReason=reasons[data.reason]??'';routeAsrMs=data.asr_ms;localFeedback='';
         const text=route==='local'?`本地识别 · 动作完整匹配${Number.isFinite(data.asr_ms)?` · ${data.asr_ms} ms`:''}`:route==='cloud_fallback'?`${reasons[data.reason]??'本地未匹配'}，正在连接灵矽并转交原录音。`:'未收到清晰语音，请重试。';
         if($('voice-route'))$('voice-route').textContent=text;
         appendLog(text,'处理路径');if(route==='local')void output.testTone();update();
       }else if(data.type==='transcript'){
         appendLog(data.text,data.source==='local'?(data.role==='user'?'本地识别':'本地反馈'):data.role==='user'?'你说':'灵矽');
         if(data.source==='local'&&data.role==='assistant'){
-          $('voice-route').textContent=`${data.text} · 本地反馈，本轮未调用灵矽。`;
+          localFeedback=data.text;update();
           if(['completed','failed'].includes(data.feedback)){
             const epoch=output.epoch;
             void output.localSpeech(appURL(`local-feedback/${data.feedback}.wav`)).catch(error=>{
@@ -253,22 +262,30 @@ export function setupVoice({appendLog,notify,endpoint='/voice',cloudOnly=false,b
       if(ws!==channel)return;
       experience.finish('abandoned');ws=null;clearInterval(heartbeat);clearTimeout(closingTimer);
       await release(false);closeMicrophone();if(ws!==null)return;clearPlayback();
-      state=owner?(['error','awaiting_binding'].includes(state)?state:receivedStatus?'disconnected':'error'):'busy';
+      state=owner?(['error','awaiting_binding'].includes(state)?state:receivedStatus?'disconnected':'error'):'busy';clearRoute();
       if(owner&&!receivedStatus)voiceError('本地语音通道连接失败，请检查页面地址、代理或修改请求头的浏览器扩展。');
       update();
     };
     void prepareMicrophone();update();
   });
   $('reset-voice').addEventListener('click',async()=>{
-    experience.finish('cancelled');await release(false);clearPlayback();
+    experience.finish('cancelled');await release(false);clearPlayback();clearRoute();update();
     if(ws?.readyState===WebSocket.OPEN){send({type:'reset'})}
     else{connect.click()}
   });
   talk.addEventListener('pointerdown',event=>{event.preventDefault();talk.setPointerCapture(event.pointerId);press()});
   talk.addEventListener('pointerup',()=>release());talk.addEventListener('pointercancel',()=>release());
-  window.addEventListener('blur',()=>release());
-  window.addEventListener('keydown',event=>{if(event.code==='Space'&&!event.repeat&&!['INPUT','TEXTAREA'].includes(document.activeElement.tagName)){event.preventDefault();press()}});
-  window.addEventListener('keyup',event=>{if(event.code==='Space'){event.preventDefault();release()}});
+  window.addEventListener('blur',()=>{spaceHeld=false;release()});
+  window.addEventListener('keydown',event=>{
+    if(event.code!=='Space'||event.defaultPrevented||event.altKey||event.ctrlKey||event.metaKey||event.shiftKey||event.isComposing)return;
+    if(spaceHeld){event.preventDefault();return;}
+    const focused=document.activeElement;
+    const interactive=focused?.closest('input,textarea,select,button,a[href],summary,[contenteditable]:not([contenteditable="false"]),[role="button"],[role="textbox"],[role="combobox"],[role="slider"]');
+    if(event.repeat||talk.disabled||listenUnavailable()||(interactive&&!talk.contains(focused)))return;
+    spaceHeld=true;event.preventDefault();void press();
+  });
+  window.addEventListener('keyup',event=>{if(event.code==='Space'&&spaceHeld){spaceHeld=false;event.preventDefault();void release()}});
+  window.addEventListener('duckking-voice-readiness',update);
   document.addEventListener('visibilitychange',()=>{if(!document.hidden&&output.ctx)void output.resume()});
   // A history-cache restore reuses a document whose microphone and audio were closed.
   window.addEventListener('pageshow',event=>{if(event.persisted)window.location.reload()});

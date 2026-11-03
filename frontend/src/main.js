@@ -1,4 +1,5 @@
 import {requestId} from './ids.js';
+import {actionLabels,actionEventText,appendActionDetails} from './action-labels.js';
 import './site-nav.js';
 import './style.css';
 import { createDuckScene } from './duck.js';
@@ -10,8 +11,7 @@ import { setupRoom } from './room.js';
 await setupRoom();
 
 const $ = (id) => document.getElementById(id);
-const names = {backward:'后退',strafe_left:'左横移',strafe_right:'右横移',shake_head:'摇头',tilt_head:'歪头',nod:'点头',walk:'前进',turn_left:'左转',turn_right:'右转',stop:'停止',reset:'回到起点',flash_step:'闪身步',bear_shake:'狗熊哆嗦毛'};
-const actionNames = new RegExp(Object.keys(names).join('|'),'g');
+const names = {...actionLabels,reset:'回到起点'};
 let scene;
 try { scene = createDuckScene($('viewport'),{onLoad:timing=>appendLog(
   `官方外观${timing.result==='ready'?'已显示':'加载失败'} · ${(timing.elapsed_ms/1000).toFixed(1)} 秒${['persistent','http'].includes(timing.cache)?' · 使用缓存':''}`,
@@ -29,13 +29,13 @@ window.addEventListener('duckking-voice-state',event=>{
   scope();
 });
 export function notify(message) { $('notice').textContent=message;$('notice').hidden=false; }
-export function appendLog(text, label='系统', error=false) {
+export function appendLog(text, label='系统', error=false, raw=null) {
   const log=$('activity-log');log.querySelector('.empty-log')?.remove();
   const row=document.createElement('div');row.className=`log-line${error?' error':''}`;
   const time=document.createElement('span');time.className='log-time';time.textContent=new Date().toLocaleTimeString('zh-CN',{hour12:false});
   const tag=document.createElement('span');tag.className='log-label';tag.textContent=label;
   const body=document.createElement('span');body.textContent=text;
-  row.append(time,tag,body);log.append(row);
+  row.append(time,tag,body);if(raw&&raw!==text)appendActionDetails(row,raw);log.append(row);
   while(log.children.length>80)log.firstChild.remove();log.scrollTop=log.scrollHeight;
 }
 export async function post(url,body={}) {
@@ -55,6 +55,7 @@ function action(name){
 }
 document.querySelectorAll('[data-action]').forEach(button=>button.addEventListener('click',()=>action(button.dataset.action)));
 $('reset-camera').addEventListener('click',()=>scene?.resetCamera());
+$('mobile-stop').addEventListener('click',()=>action('stop'));
 $('clear-log').addEventListener('click',()=>{$('activity-log').replaceChildren();});
 window.addEventListener('keydown',e=>{if(e.key==='Escape')action('stop');});
 function connect(){
@@ -75,8 +76,8 @@ function connect(){
     for(const event of data.events){
       if(event.id<=seen)continue;seen=event.id;
       if(event.status==='completed')completed.add(event.action_id);
-      const text=event.text.replace(actionNames,key=>names[key]);
-      appendLog(text,({action:'动作请求',phase:'动作节拍',result:'执行结果'})[event.kind]??'系统',event.status==='failed');
+      const text=actionEventText(event);
+      appendLog(text,({action:'动作请求',phase:'动作节拍',result:'执行结果'})[event.kind]??'系统',event.status==='failed',event.text);
     }
     $('action-count').textContent=String(completed.size).padStart(2,'0');
     if(data.error)notify(data.error);
