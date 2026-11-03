@@ -52,8 +52,19 @@ test('unavailable API returns a proxy error and actionable feedback', async ({ r
     expect(response.status()).toBe(502);
     expect(await response.text()).not.toContain('"backend":"preview"');
     await page.goto(server.resolvedUrls.local[0]+'?room=1');
-    await expect(page.locator('#room-label')).toHaveText('本地后端请求失败（HTTP 502），请检查服务与端口并刷新。');
-    await expect(page.locator('[data-action="nod"]')).toBeDisabled();
+    await expect(page.locator('#room-label')).toHaveText('房间暂不可用');
+    await expect(page.locator('#room-recovery')).toBeVisible();
+    await expect(page.locator('#room-recovery')).toContainText('暂时无法连接服务，请稍后重试。');
+    // Recovery freezes the entire workspace with inert; the individual button's
+    // disabled attribute is no longer the mechanism that blocks stale actions.
+    await expect(page.locator('.workspace')).toHaveAttribute('inert','');
+    await page.locator('[data-action="nod"]').evaluate(button=>button.focus());
+    expect(await page.locator('[data-action="nod"]').evaluate(button=>document.activeElement===button)).toBe(false);
+    await expect(page.locator('#reconnect-room')).toBeEnabled();
+    await page.locator('#reconnect-room').click();
+    await expect(page.locator('#reconnect-room')).toHaveText('重试连接');
+    await expect(page.locator('#room-recovery')).toBeVisible();
+    await expect(page.locator('.workspace')).toHaveAttribute('inert','');
   } finally {
     await page.close();
     await server.close();
