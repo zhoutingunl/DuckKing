@@ -1,4 +1,4 @@
-"""Bounded, process-local voice measurements; no inferred physical or acoustic timing."""
+"""Bounded voice observations with diagnostic-log recovery; no inferred acoustic timing."""
 
 import math
 from collections import Counter, deque
@@ -21,6 +21,9 @@ class VoiceStatistics:
     def __init__(self, capacity=500):
         self.rounds = deque(maxlen=capacity)
         self.started_at = datetime.now(UTC).isoformat(timespec="seconds")
+        self.service_started_at = self.started_at
+        self.restored_rounds = 0
+        self.history_incomplete = False
         self.total_rounds = 0
         self.service = {kind: Counter() for kind in ("preview", "robotd", "mujoco")}
         self.recovering = {}
@@ -131,7 +134,9 @@ class VoiceStatistics:
         decided = [r for r in local_rows if r["route"] != "pending"]
         cloud_closed = [r for r in closed if r["route"] in {"cloud", "cloud_fallback"}]
         return {
-            "started_at": self.started_at, "capacity": self.rounds.maxlen,
+            "started_at": self.started_at, "service_started_at": self.service_started_at,
+            "restored_rounds": self.restored_rounds, "history_incomplete": self.history_incomplete,
+            "capacity": self.rounds.maxlen,
             "total_rounds": self.total_rounds, "backend": backend or "all",
             "counts": {
                 "rounds": len(rows), "submitted": len(submitted), "closed": len(closed),

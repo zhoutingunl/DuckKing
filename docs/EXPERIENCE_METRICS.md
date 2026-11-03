@@ -1,6 +1,6 @@
 # 持续使用体验
 
-入口 [`experience.html`](https://ztmonitor.qbox.net/duckking/experience.html)，首页、练习场、自动剧场、现场互动均有新标签页链接。旧 `statistics.html` 继续提供单个房间当前进程的最近 500 轮诊断；新页保存跨重启、发布、房间回收的技术统计。
+入口 [`experience.html`](https://ztmonitor.qbox.net/duckking/experience.html)，首页、练习场、自动剧场、现场互动均有新标签页链接。旧 `statistics.html` 继续提供单个房间最多最近 500 轮诊断，并从保留的私有日志恢复指标（不回显历史识别正文）；新页保存跨重启、发布、房间回收的技术统计。
 
 ## 页面读法
 

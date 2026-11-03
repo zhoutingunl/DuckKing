@@ -47,7 +47,7 @@
         <section class="recovery-panel" aria-labelledby="recovery-heading">
           <h2 id="recovery-heading">连接与恢复</h2>
           <dl class="recovery-list"><div><dt>重连成功 / 尝试</dt><dd id="reconnect-count">—</dd></div><div><dt>连接异常</dt><dd id="connection-errors">—</dd></div><div><dt>手动重置</dt><dd id="reset-count">—</dd></div><div><dt>恢复耗时 P50</dt><dd id="recovery-latency">—</dd></div></dl>
-          <p class="stats-note">连接计数覆盖本次服务启动以来；恢复耗时保留最近 500 次成功重连。</p>
+          <p class="stats-note">连接计数来自当前及可恢复的保留日志；重连耗时仅使用本次采集的单调时钟样本，最多保留500次。</p>
           <p id="backend-note" class="backend-note"></p>
         </section>
       </div>
@@ -55,7 +55,7 @@
       <section class="rounds-panel" aria-labelledby="rounds-heading">
         <div class="section-heading"><h2 id="rounds-heading">逐轮记录</h2><span class="stats-note">点击轮次查看时间线</span></div>
         <div class="table-scroll"><table class="stats-table round-table"><thead><tr><th scope="col">轮次 / 时间</th><th scope="col">识别文本</th><th scope="col">实际动作顺序</th><th scope="col">结果</th></tr></thead><tbody id="round-rows"></tbody></table></div>
-        <p id="stats-empty" class="stats-empty" hidden>当前筛选下还没有语音记录。统计从本次服务启动后开始采集，旧日志不会自动导入。</p>
+        <p id="stats-empty" class="stats-empty" hidden>当前筛选下还没有可用语音记录。可先体验一次语音，或查看“使用体验”中的长期聚合数据。</p>
       </section>
 
       <details class="metric-definitions"><summary>这些指标能说明什么？</summary><div>
@@ -63,7 +63,7 @@
         <p>动作完成率只统计真正被控制器受理且已经结束的动作；重复 MCP 请求不重复计数。完成表示控制流程正常结束，不保证物理位移或转角达标。</p>
         <p>识别准确率（CER / WER）、意图正确率、动作顺序符合率，需要与人工标注的原话和目标动作比较。这里展示识别文字与实际动作，供核对，不自动给出准确率。</p>
         <p>延迟使用本地单调时钟。这里没有测量麦克风硬件、浏览器扬声器、画面呈现或 MuJoCo 物理反馈延迟；语音回复结束也不等于扬声器已经播完。结束录音之前返回的阶段只出现在时间线，不纳入非负延迟分布。</p>
-        <p>本页保留本次服务启动后最近 500 轮；重启后清空统计。识别文字经过已知凭据与常见设备标识脱敏，最多保留 2000 字符。原始录音不保存，脱敏事件另写入本地私有轮转日志。</p>
+        <p>本页最多保留最近 500 轮，并在启动时恢复私有轮转日志中的有效记录；轮转清理的旧记录不会伪造补齐。重启时未完成的轮次标为已中断。历史轮次仅恢复指标与动作，不回显识别文字；本次采集的识别文字经过已知凭据与常见设备标识脱敏，最多保留 2000 字符。原始录音不保存，脱敏事件另写入本地私有轮转日志。</p>
       </div></details>
     </main>
     <script type="module" src="/src/statistics.js"></script>

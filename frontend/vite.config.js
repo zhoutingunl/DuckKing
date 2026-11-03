@@ -18,6 +18,8 @@ export default defineConfig({
   }],
   build: {
     rolldownOptions: {
+      // Keep the graphics dependency cache stable when voice/UI code changes.
+      output: {codeSplitting: {groups: [{name: 'three', test: /node_modules[\/]three/}]}},
       input: {
         main: fileURLToPath(new URL('./index.html', import.meta.url)),
         experience: fileURLToPath(new URL('./experience.html', import.meta.url)),

@@ -1,3 +1,4 @@
+import {createLoadingState} from './loading-state.js';
 import {requestId} from './ids.js';
 import './site-nav.js';
 import {measurement,loadMetrics,afterFrame} from './experience.js';
@@ -10,12 +11,13 @@ import {api,pause} from './demo-runtime.js';
 import {physicsView} from './physics-view.js';
 import {createPhysicsModelLoader} from './model-loader.js';
 import {setupVoice} from './voice.js';
-import {setupRoom} from './room.js';
+import {setupRoom,rememberChoice,savedChoice} from './room.js';
 import {appURL,currentRoom} from './urls.js';
 import {createSocket} from './transport.js';
 
 await setupRoom();
 const $=id=>document.getElementById(id),loader=createPhysicsModelLoader(),choir=new StudioChoir();
+const loadingFeedback=createLoadingState($('scene-placeholder'));let loadAbort,loadSession;
 let viewer,selected=null,revision=null,latest=null,loading=false,connected=false,voiceState='disconnected',epoch=0,seen=0;
 try{viewer=physicsView($('physics-viewport'))}catch{$('scene-placeholder').textContent='WebGL 无法启动；仍可查看任务结果。'}
 const notify=text=>{$('notice').textContent=text;$('notice').hidden=false};
@@ -36,35 +38,37 @@ async function invoke(name,args,rehearsalText){
 async function select(scene){
  if(loading||voiceBusy())return;
  void choir.enable();choir.stop();
- loading=true;selected=null;controls();$('notice').hidden=true;$('scene-placeholder').hidden=false;$('scene-placeholder').textContent='正在准备官方场景…';
+ rememberChoice('studio',scene.id);loadAbort?.abort();loadAbort=new AbortController();const signal=loadAbort.signal;
+ loadSession=loadingFeedback.begin({phase:'backend',cancel:()=>{loadAbort.abort();loadSession.cancelled()},retry:()=>select(scene),retryLabel:'重新准备场景'});
+ loading=true;selected=null;controls();$('notice').hidden=true;
  const mine=++epoch,experience=measurement('load'),metrics={};
  try{
-  const rec=await api('api/scenes/start',currentRoom,{body:{name:`scene_${scene.scene}`,request_id:requestId()}});
-  let result=rec;
-  for(let i=0;result.status==='running'&&i<300;i++){await pause(100);result=await api(`api/scenes/actions/${rec.id}`,currentRoom)}
+  const rec=await api('api/scenes/start',currentRoom,{body:{name:`scene_${scene.scene}`,request_id:requestId()},signal});
+  loadSession.progress({phase:'backend'});let result=rec;
+  for(let i=0;result.status==='running'&&i<300;i++){await pause(100,signal);result=await api(`api/scenes/actions/${rec.id}`,currentRoom,{signal})}
   if(result.status!=='completed')throw Error(result.error??'场景准备超时');
-  await api('api/studio/select',currentRoom,{body:{scene:scene.id}});
-  const state=await api('api/scenes/state',currentRoom);await model(state.backend,metrics);
+  await api('api/studio/select',currentRoom,{body:{scene:scene.id},signal});
+  const state=await api('api/scenes/state',currentRoom,{signal});await model(state.backend,metrics,{signal,progress:loadSession.progress});
   if(mine!==epoch)return;
   experience.finish('completed',{...loadMetrics(metrics),scene_ms:Math.round(performance.now()-experience.started)},{cache:metrics.cache??'memory',scene:scene.scene});
   selected=scene;$('scene-title').textContent=scene.title;$('studio-prompt').textContent=scene.prompt;
   $('studio-controls').replaceChildren();
   for(const [label,name,args,text] of scene.controls??[]){const b=document.createElement('button');b.dataset.studioCommand=name;b.textContent=label;b.addEventListener('click',()=>invoke(name,args,text));$('studio-controls').append(b)}
   document.querySelectorAll('[data-studio]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.studio===scene.id)));
-  renderStudio(state.studio);$('scene-placeholder').hidden=true;
+  renderStudio(state.studio);loadSession.ready();
   $('voice-lab').hidden=!['voice','persona'].includes(scene.id);
   $('persona-settings').hidden=scene.id!=='persona';
   if(['voice','persona'].includes(scene.id))await loadVoiceProfiles();
- }catch(e){experience.finish('failed');notify(e.message)}finally{loading=false;controls()}
+ }catch(e){experience.finish(signal.aborted?'cancelled':'failed');if(signal.aborted)loadSession.cancelled();else{loadSession.fail(e);notify(e.message)}}finally{if(mine===epoch){loading=false;controls()}}
 }
-async function model(state,metrics={}){
+async function model(state,metrics={},options={}){
  if(!viewer)throw Error('浏览器无法绘制官方模型');
  if(revision===state.revision){metrics.cache='memory';viewer.update(state);viewer.renderNow();await afterFrame();return}
  const url=appURL('api/scenes/model.dkm.gz');url.searchParams.set('room',currentRoom);
- const data=await loader(url,state.revision,{signal:AbortSignal.timeout(60000),metrics});
- const assembling=performance.now();
+ const data=await loader(url,state.revision,{...options,metrics});
+ options.signal?.throwIfAborted();options.progress?.({phase:'assemble'});const assembling=performance.now();
  viewer?.load(data);viewer?.frameScene(state.scene);viewer?.update(state);revision=state.revision;
- metrics.assemble_ms=performance.now()-assembling;const drawing=performance.now();viewer.renderNow();await afterFrame();metrics.first_frame_ms=performance.now()-drawing;
+ metrics.assemble_ms=performance.now()-assembling;options.progress?.({phase:'draw'});const drawing=performance.now();viewer.renderNow();await afterFrame();metrics.first_frame_ms=performance.now()-drawing;
 }
 function renderStudio(studio){
  if(!studio)return;
@@ -81,7 +85,7 @@ function renderStudio(studio){
 function connect(){
  const socket=createSocket('scene-ws');
  socket.onmessage=event=>{
-  const data=JSON.parse(event.data);connected=true;controls();
+  const data=JSON.parse(event.data);connected=true;controls();if(data.type==='not_started'&&data.preparation&&loadSession?.active)loadSession.progress(data.preparation);
   if(data.type==='state'){
    latest=data;viewer?.update(data.backend);choir.update(data.backend.seated_choir);$('physics-viewport').dataset.musicEvidence=JSON.stringify(choir.scheduled);renderStudio(data.studio);
    $('sim-status').textContent=data.backend.error?'物理场景异常':'MuJoCo 物理运行中';
@@ -99,6 +103,8 @@ $('enable-sound').addEventListener('click',()=>void choir.enable());
 $('clear-log').addEventListener('click',()=>$('activity-log').replaceChildren());
 window.addEventListener('keydown',e=>{if(e.code==='Escape'&&selected){choir.stop();voice.interrupt();void invoke('duck_task',{operation:'cancel'})}});
 window.addEventListener('duckking-voice-state',e=>{voiceState=e.detail.state;controls()});
+const previous=savedChoice('studio'),previousButton=[...document.querySelectorAll('[data-studio]')].find(b=>b.dataset.studio===previous);if(previousButton)previousButton.classList.add('restored-choice');
+window.addEventListener('duckking-room-lost',()=>{loadAbort?.abort();choir.stop();loadingFeedback.cancel()});
 const voice=setupVoice({appendLog,notify,endpoint:'scene-voice',cloudOnly:true});connect();
 
 async function loadVoiceProfiles(){

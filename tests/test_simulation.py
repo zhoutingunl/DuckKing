@@ -326,4 +326,4 @@ def test_scene_http_websocket_origin_model_and_missing_dependencies(monkeypatch)
         response = client.post("/api/scenes/start", json={"name": "scene_duo"})
         assert response.status_code == 503
         assert "private-path" not in response.text
-        assert "setup_scenarios.sh" in response.text
+        assert "物理场景准备失败" in response.text

@@ -1,4 +1,4 @@
-import { appURL, currentRoom } from './urls.js';
+import { appURL, currentRoom, roomUnavailable, serviceInstance } from './urls.js';
 
 const MAX_FRAME=256*1024,MAX_QUEUE=1024*1024,MAX_BATCH=32;
 const encode=bytes=>{let text='';for(let i=0;i<bytes.length;i+=8192)text+=String.fromCharCode(...bytes.subarray(i,i+8192));return btoa(text)};
@@ -12,9 +12,11 @@ export class DuckSocket extends EventTarget {
     this.readyState=0;this.binaryType='arraybuffer';this.queue=[];this.bufferedAmount=0;this.sequence=0;
     this.controllers=new Set();this.closed=false;this.native=null;this.channel=null;
     this.pagehide=()=>this.close();globalThis.addEventListener?.('pagehide',this.pagehide,{once:true});
+    globalThis.addEventListener?.('duckking-room-lost',this.pagehide,{once:true});
     queueMicrotask(()=>this.open().catch(()=>this.finish('transport_unavailable')));
   }
   emit(type,fields={}){
+    if(type==='message'&&typeof fields.data==='string'&&/^\{"type":\s*"room_expired"/.test(fields.data)){globalThis.dispatchEvent?.(new Event('duckking-room-expired'));this.close();return;}
     const event=Object.assign(new Event(type),fields);this.dispatchEvent(event);this['on'+type]?.(event);
   }
   async request(url,options={},timeout=20000){
@@ -28,6 +30,7 @@ export class DuckSocket extends EventTarget {
   }
   async open(){
     if(this.closed)return;
+    if(roomUnavailable){this.finish('room_unavailable');return;}
     let transport='websocket';
     if(this.url.pathname.startsWith('/duckking/')){
       const probe=new URL('_gateway/capabilities',this.url);
@@ -77,6 +80,7 @@ export class DuckSocket extends EventTarget {
   }
   send(data){
     if(this.readyState!==1)throw new DOMException('Socket is not open','InvalidStateError');
+    if(serviceInstance&&typeof data==='string'&&/^\{"type":\s*"join_room"/.test(data)){const frame=JSON.parse(data);frame.server_instance??=serviceInstance;data=JSON.stringify(frame);}
     if(this.native){this.native.send(data);return}
     const binary=typeof data!=='string';
     const bytes=binary?(data instanceof ArrayBuffer?new Uint8Array(data):ArrayBuffer.isView(data)?new Uint8Array(data.buffer,data.byteOffset,data.byteLength):null):new TextEncoder().encode(data);
@@ -109,13 +113,13 @@ export class DuckSocket extends EventTarget {
     this.closed=true;this.readyState=3;clearTimeout(this.sendTimer);this.queue=[];this.bufferedAmount=0;
     // An in-flight creation may still return an ID. open() deletes it afterwards.
     if(this.channel)for(const controller of this.controllers)controller.abort();
-    this.remove();this.native?.close();globalThis.removeEventListener?.('pagehide',this.pagehide);
+    this.remove();this.native?.close();globalThis.removeEventListener?.('pagehide',this.pagehide);globalThis.removeEventListener?.('duckking-room-lost',this.pagehide);
     this.emit('close',{reason,code,wasClean:code===1000});
   }
 }
 
 export const createSocket=endpoint=>{
   const socket=new DuckSocket(endpoint);
-  socket.addEventListener('open',()=>socket.send(JSON.stringify({type:'join_room',room:currentRoom??'1'})),{once:true});
+  socket.addEventListener('open',()=>socket.send(JSON.stringify({type:'join_room',room:currentRoom??'1',...(serviceInstance?{server_instance:serviceInstance}:{})})),{once:true});
   return socket;
 };

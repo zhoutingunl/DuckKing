@@ -1,3 +1,4 @@
+import {createLoadingState} from './loading-state.js';
 import './site-nav.js';
 import './style.css';
 import './seesaw.css';
@@ -13,6 +14,7 @@ import {drawChart} from './balance-chart.js';
 import {controllers,outcome,humanStatus,humanMotion,rewards,trainingMatches} from './seesaw-explain.js';
 
 const $=id=>document.getElementById(id),lifetime=new AbortController(),loader=createPhysicsModelLoader();
+const loadFeedback=[...document.querySelectorAll('.scene-placeholder')].map(createLoadingState);let prepareAbort;
 let ready=false,pending=false,initialized=false,closed=false,revision,viewer,baselineViewer,feed,voice,timer;
 let preparing=false,needsSwitch=false,prepareFailed=false;
 let lastState,settingRevision,traceKey='',trainingKey='',term='dock',lastPaint=0,refreshing=false,policyReady=false;
@@ -122,23 +124,25 @@ function connectFeed(){
 async function prepare({replace=false,scroll=false}={}){
  if(pending||closed)return;pending=preparing=true;prepareFailed=false;controls();$('notice').hidden=true;
  const experience=measurement('load'),metrics={};
- for(const p of document.querySelectorAll('.scene-placeholder')){p.hidden=false;p.textContent='正在加载官方 MicroDuck 与被动跷跷板…'}
+ prepareAbort?.abort();prepareAbort=new AbortController();const signal=AbortSignal.any([lifetime.signal,prepareAbort.signal]);
+ const sessions=loadFeedback.map(f=>f.begin({phase:'backend',cancel:()=>prepareAbort.abort(),retry:()=>prepare({replace:needsSwitch}),retryLabel:'重新准备跷跷板'}));
+ const progress=value=>sessions.forEach(s=>s.progress(value));
  try{
-  const signal=lifetime.signal,state=await api(`api/seesaw/prepare?replace=${replace}`,currentRoom,{body:{},signal});signal.throwIfAborted();needsSwitch=false;
+  const state=await api(`api/seesaw/prepare?replace=${replace}`,currentRoom,{body:{},signal});signal.throwIfAborted();needsSwitch=false;
   if(revision!==state.backend.revision){
-   const model=await loader(appURL('api/scenes/model.dkm.gz'),state.backend.revision,{signal,metrics});signal.throwIfAborted();
+   const model=await loader(appURL('api/scenes/model.dkm.gz'),state.backend.revision,{signal,metrics,progress});signal.throwIfAborted();progress({phase:'assemble'});
    viewer??=physicsView($('trained-viewport'),{label:'所选策略',onCameraChange:camera=>baselineViewer?.syncCamera(camera)});
    baselineViewer??=physicsView($('baseline-viewport'),{label:'未训练',onCameraChange:camera=>viewer?.syncCamera(camera)});
    viewer.load(model);baselineViewer.load(model);viewer.frameScene('seesaw');baselineViewer.frameScene('seesaw');revision=state.backend.revision;
   }else metrics.cache='memory';
   trainingKey='';void refreshTraining();
-  render(state.backend);await afterFrame();signal.throwIfAborted();viewer.renderNow();baselineViewer.renderNow();ready=true;
-  for(const p of document.querySelectorAll('.scene-placeholder'))p.hidden=true;
+  render(state.backend);progress({phase:'draw'});await afterFrame();signal.throwIfAborted();viewer.renderNow();baselineViewer.renderNow();ready=true;
+  sessions.forEach(s=>s.ready());
   experience.finish('completed',{...loadMetrics(metrics),scene_ms:Math.round(performance.now()-experience.started)},{cache:metrics.cache,scene:'seesaw'});
   if(!feed)connectFeed();else void feed.refresh();
   appendLog('跷跷板已准备。说“向前走”或点击前进／后退，开始真人与 PPO 对照。');
   if(scroll)document.querySelector('.seesaw-arena').scrollIntoView({block:'start'});
- }catch(error){experience.finish(error.code==='scene_conflict'?'cancelled':'failed');if(!closed){ready=false;needsSwitch=error.code==='scene_conflict';prepareFailed=!needsSwitch;notify(error.message);for(const p of document.querySelectorAll('.scene-placeholder'))p.textContent=needsSwitch?'房间中已有其他场景，等待手动切换。':'加载未完成，请点击“重试准备跷跷板”。'}}
+ }catch(error){experience.finish(signal.aborted||error.code==='scene_conflict'?'cancelled':'failed');if(!closed){ready=false;needsSwitch=error.code==='scene_conflict';prepareFailed=!needsSwitch;if(signal.aborted)sessions.forEach(s=>s.cancelled());else{notify(error.message);sessions.forEach(s=>s.fail(error))}}}
  finally{pending=preparing=false;if(!closed)controls()}
 }
 async function command(body,source='本地按钮'){
@@ -212,3 +216,5 @@ document.addEventListener('visibilitychange',()=>{if(!document.hidden){traceKey=
 window.addEventListener('duckking-voice-state',controls);
 controls();rewardDetail();causalChart([]);
 try{await setupRoom();if(!closed){voice=setupVoice({appendLog,notify,endpoint:'scene-voice',cloudOnly:true});initialized=true;controls();void refreshTraining();void prepare();timer=setInterval(refreshTraining,5000)}}catch(error){notify(error.message)}
+
+window.addEventListener('duckking-room-lost',()=>{closed=true;lifetime.abort();prepareAbort?.abort();clearInterval(timer);feed?.close();loadFeedback.forEach(f=>f.cancel())});

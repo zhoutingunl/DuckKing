@@ -71,6 +71,8 @@ def install_balance_api(app, get_room, root):
                 await current.close()
                 selected.scene_motion = None
             async with app.state.physics_lock:
+                # A standard warm world cannot be reused for this different physics model.
+                await app.state.warm_worlds.discard()
                 if sum(r.scene_motion is not None for r in app.state.rooms.values()) >= (
                     app.state.room_registry.physics_limit
                 ):

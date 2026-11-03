@@ -1,3 +1,4 @@
+import {createLoadingState} from './loading-state.js';
 import {measurement,loadMetrics} from './experience.js';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
@@ -17,6 +18,7 @@ export function createDuckScene(container,{onLoad=()=>{}}={}) {
   container.appendChild(renderer.domElement);
   renderer.domElement.setAttribute('aria-label', '官方 MicroDuck 外观，脚本动画预览，非物理仿真');
   const status=document.createElement('div'); status.className='model-status'; status.setAttribute('role','status'); container.append(status);
+  const loading=createLoadingState(status);let loadAbort,loadSerial=0;
   const controls=new OrbitControls(camera,renderer.domElement); controls.target.set(0,.65,0);
   controls.minDistance=1.4;controls.maxDistance=8;controls.maxPolarAngle=Math.PI/2.04;
   controls.enableDamping=true;controls.enablePan=false;controls.update();controls.saveState();
@@ -39,21 +41,22 @@ export function createDuckScene(container,{onLoad=()=>{}}={}) {
   controls.addEventListener('change',()=>{needsRender=true});
   const abort=new AbortController();
   const quaternion=(target,[w,x,y,z])=>target.set(x,y,z,w);
-  function report(metrics,started,result){
+  function report(metrics,started,result,experience=loadExperience){
     const timing={result,...metrics,elapsed_ms:performance.now()-started,navigation_ms:performance.now()};
     for(const key of Object.keys(timing))if(typeof timing[key]==='number')timing[key]=Math.round(timing[key]);
     container.dataset.modelTiming=JSON.stringify(timing);console.info('[DuckKing:model-load]',timing);onLoad(timing);
-    loadExperience?.finish(result==='ready'?'completed':'failed',{...loadMetrics(timing),model_ms:Math.round(timing.elapsed_ms),navigation_ms:Math.round(timing.navigation_ms)},{cache:timing.cache});
+    experience?.finish(result==='ready'?'completed':'failed',{...loadMetrics(timing),model_ms:Math.round(timing.elapsed_ms),navigation_ms:Math.round(timing.navigation_ms)},{cache:timing.cache});
     fetch(appURL('api/models/load-metrics'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(timing),keepalive:true}).catch(()=>{});
   }
   async function load(){
-    loadExperience?.finish('cancelled');loadExperience=measurement('load');
+    loadAbort?.abort();pendingLoad=null;loadExperience?.finish('cancelled');const experience=loadExperience=measurement('load');
+    const mine=++loadSerial;loadAbort=new AbortController();const cancel=()=>{loadAbort.abort();pendingLoad=null;experience.finish('cancelled');feedback.cancelled();container.dataset.model='cancelled'};
+    const feedback=loading.begin({phase:'request',cancel,retry:load});
     const started=performance.now(),metrics={cache:'unknown',manifest_ms:0,asset_ms:0,parse_ms:0,assemble_ms:0,first_frame_ms:0,transfer_bytes:0,encoded_bytes:0,decoded_bytes:0};
-    status.textContent='正在加载官方 MicroDuck 外观…';status.hidden=false;container.dataset.model='loading';
+    container.dataset.model='loading';
     try {
-      const model=await loadOfficialModel({signal:AbortSignal.any([abort.signal,AbortSignal.timeout(60000)]),metrics,
-        progress:stage=>{status.textContent=stage==='cache'?'正在读取已缓存的官方 MicroDuck 外观…':stage==='assemble'?'正在绘制官方 MicroDuck 外观…':'正在下载官方 MicroDuck 外观…'}});
-      if(disposed)return;
+      const model=await loadOfficialModel({signal:AbortSignal.any([abort.signal,loadAbort.signal]),metrics,progress:feedback.progress});
+      if(disposed||mine!==loadSerial)return;
       const assembling=performance.now();
       basis.clear();joints.clear();painted=[];geometries.splice(0).forEach(g=>g.dispose());materials.splice(0).forEach(m=>m.dispose());
       const nodes=new Map([[0,basis]]),meshes=new Map();
@@ -77,13 +80,14 @@ export function createDuckScene(container,{onLoad=()=>{}}={}) {
       }
       appearance.setDucks(['a']);
       metrics.assemble_ms=performance.now()-assembling;
-      pendingLoad={metrics,started,assembled:performance.now()};needsRender=true;
+      feedback.progress({phase:'draw'});pendingLoad={metrics,started,experience,feedback,assembled:performance.now()};needsRender=true;
     }catch(error){
-      if(disposed)return;container.dataset.model='failed';status.textContent=`${error.message}。`;
-      const retry=document.createElement('button');retry.className='text-button';retry.textContent='重新加载模型';retry.onclick=load;status.append(retry);
-      report(metrics,started,'failed');
+      if(disposed||mine!==loadSerial)return;
+      if(loadAbort.signal.aborted||abort.signal.aborted){experience.finish('cancelled');feedback.cancelled();container.dataset.model='cancelled';return;}
+      container.dataset.model='failed';feedback.fail(error);report(metrics,started,'failed',experience);
     }
   }
+  window.addEventListener('duckking-room-lost',()=>{loadAbort?.abort();loading.cancel()});
   load();
   function setJoint(name,delta){const j=joints.get(name);if(j)j.pivot.quaternion.setFromAxisAngle(j.axis,j.home+delta);}
   function resize(){const {width,height}=container.getBoundingClientRect();if(!width||!height)return;renderer.setPixelRatio(reduced?Math.min(1,640/width):Math.min(devicePixelRatio,2));renderer.setSize(width,height);camera.aspect=width/height;camera.updateProjectionMatrix();needsRender=true;}
@@ -105,7 +109,7 @@ export function createDuckScene(container,{onLoad=()=>{}}={}) {
       needsRender=false;renderer.render(scene,camera);
       if(pendingLoad){const load=pendingLoad;pendingLoad=null;requestAnimationFrame(()=>{
         if(disposed)return;load.metrics.first_frame_ms=performance.now()-load.assembled;
-        container.dataset.model='official';status.hidden=true;report(load.metrics,load.started,'ready');
+        container.dataset.model='official';load.feedback.ready();report(load.metrics,load.started,'ready',load.experience);
       });}
     }
     slowFrames=performance.now()-started>70||started-lastFrame>180?slowFrames+1:0;lastFrame=started;

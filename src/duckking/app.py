@@ -25,6 +25,7 @@ from .experience import ExperienceBatch, ExperienceContext, ExperienceStore, Voi
 from .hybrid_voice import HybridVoiceSession
 from .model_metrics import ModelLoadMetrics
 from .motion import Action, MotionController, PreviewBackend
+from .preparation import WarmWorldPool
 from .robotd import RobotdBackend
 from .rooms import RoomRegistry
 from .studio import CATALOG, Studio
@@ -50,11 +51,14 @@ def create_app(
     @asynccontextmanager
     async def lifespan(app):
         reaper = asyncio.create_task(app.state.room_registry.watch())
+        warmer = asyncio.create_task(app.state.warm_worlds.watch())
         try:
             yield
         finally:
             reaper.cancel()
-            await asyncio.gather(reaper, return_exceptions=True)
+            warmer.cancel()
+            await asyncio.gather(reaper, warmer, return_exceptions=True)
+            await app.state.warm_worlds.discard()
             await app.state.balance_runs.close()
             for room in list(app.state.rooms.values()):
                 if room.voice:
@@ -93,6 +97,18 @@ def create_app(
     app.state.rooms = app.state.room_registry.rooms
     app.state.physics_lock = asyncio.Lock()
 
+    def warm_factory():
+        from .simulation import MuJoCoBackend
+
+        return MuJoCoBackend(Path(os.environ.get("DUCKKING_SIM_DIR", ROOT / "external")))
+
+    app.state.warm_worlds = WarmWorldPool(
+        app.state.physics_lock, warm_factory,
+        lambda: not any(r.scene_motion is not None or r.preparing is not None or r.voice is not None
+                        for r in app.state.rooms.values()),
+        enabled=app.state.settings.prewarm_physics and motion.backend.kind == "preview",
+    )
+
     def get_room(number="1"):
         return app.state.room_registry.get(number)
 
@@ -112,6 +128,11 @@ def create_app(
             await ws.close(code=1008)
             return None
         await ws.accept()
+        instance = ws.query_params.get("server_instance")
+        if instance is not None and instance != app.state.room_registry.instance:
+            await ws.send_json({"type": "room_expired", "reason": "service_updated"})
+            await ws.close(code=1008)
+            return None
         try:
             number = ws.query_params.get("room")
             if number is None:
@@ -119,6 +140,11 @@ def create_app(
                 if not isinstance(data, dict) or data.get("type") != "join_room":
                     raise ValueError("room required")
                 number = data.get("room")
+                if (data.get("server_instance") is not None
+                        and data["server_instance"] != app.state.room_registry.instance):
+                    await ws.send_json({"type": "room_expired", "reason": "service_updated"})
+                    await ws.close(code=1008)
+                    return None
             if number not in app.state.rooms:
                 raise ValueError("invalid room")
             return get_room(number)
@@ -128,7 +154,10 @@ def create_app(
             return None
 
     @app.get("/api/rooms")
-    async def rooms():
+    async def rooms(room: str | None = None):
+        # A visible page keeps its room alive while model download/rendering waits.
+        if room in app.state.rooms:
+            get_room(room)
         return JSONResponse(app.state.room_registry.snapshot(),
                             headers={"Cache-Control": "no-store"})
 
@@ -147,6 +176,12 @@ def create_app(
 
     @app.middleware("http")
     async def protect_local_mutations(request: Request, call_next):
+        instance = request.query_params.get("server_instance")
+        if instance is not None and instance != app.state.room_registry.instance:
+            return JSONResponse(
+                {"detail": "服务已更新，请重新连接房间；未重放动作或语音", "code": "room_expired"},
+                status_code=409,
+            )
         if request.method not in {"GET", "HEAD", "OPTIONS"} and not same_origin(
             request.headers.get("origin"), request.headers.get("host", "")
         ):
@@ -268,6 +303,7 @@ def create_app(
         return JSONResponse(
             {
                 **journal.statistics.snapshot(None if backend == "all" else backend),
+                "service_started_at": app.state.room_registry.started_at,
                 "storage_ok": journal.storage_ok,
                 "current_backend": get_room(room).motion.backend.kind,
             },
@@ -314,27 +350,58 @@ def create_app(
                 await selected.scene_motion.close()
                 selected.scene_motion = None
             if selected.scene_motion is None:
-                async with app.state.physics_lock:
-                    count = sum(r.scene_motion is not None for r in app.state.rooms.values())
-                    limit = app.state.room_registry.physics_limit
-                    if count >= limit:
-                        raise HTTPException(
-                            409, f"物理场景已达并发上限（{limit}）；"
-                            "请释放空闲场景后重试，语音工作台仍可使用",
-                        )
-                    try:
-                        from .simulation import MuJoCoBackend
+                selected.preparing = {"phase": "waiting", "completed": 0, "total": 1}
+                try:
+                    async with app.state.physics_lock:
+                        count = sum(r.scene_motion is not None for r in app.state.rooms.values())
+                        limit = app.state.room_registry.physics_limit
+                        if count >= limit:
+                            raise HTTPException(
+                                409, f"物理场景已达并发上限（{limit}）；"
+                                "请释放空闲场景后重试，语音工作台仍可使用",
+                            )
+                        backend = app.state.warm_worlds.take()
+                        if backend is None:
+                            from .simulation import MuJoCoBackend
 
-                        assets = Path(os.environ.get("DUCKKING_SIM_DIR", ROOT / "external"))
-                        backend = await asyncio.to_thread(MuJoCoBackend, assets)
+                            loop = asyncio.get_running_loop()
+                            accepting_progress = True
+
+                            def publish(phase, completed, total):
+                                if accepting_progress:
+                                    selected.preparing = {
+                                        "phase": phase, "completed": completed, "total": total,
+                                    }
+
+                            def progress(phase, completed, total):
+                                loop.call_soon_threadsafe(publish, phase, completed, total)
+
+                            assets = Path(os.environ.get("DUCKKING_SIM_DIR", ROOT / "external"))
+                            building = asyncio.create_task(
+                                asyncio.to_thread(MuJoCoBackend, assets, progress=progress)
+                            )
+                            try:
+                                backend = await asyncio.shield(building)
+                            except asyncio.CancelledError:
+                                # Native compilation cannot be cancelled. Retain admission until
+                                # it ends, then dispose it instead of orphaning an extra world.
+                                with suppress(Exception):
+                                    abandoned = await asyncio.shield(building)
+                                    await abandoned.close()
+                                raise
+                            finally:
+                                accepting_progress = False
                         selected.scene_motion = MotionController(backend)
                         selected.scene_motion.studio = Studio(
                             selected.scene_motion, selected.settings.data_dir
                         )
-                    except Exception as exc:
-                        raise HTTPException(
-                            503, "物理场景未就绪，请运行 scripts/setup_scenarios.sh 并重新启动服务"
-                        ) from exc
+                except HTTPException:
+                    raise
+                except Exception as exc:
+                    logging.getLogger(__name__).exception("scene_prepare_failed")
+                    raise HTTPException(503, "物理场景准备失败，请稍后重试") from exc
+                finally:
+                    selected.preparing = None
             try:
                 return await scene_controller(room).submit(body)
             except ValueError as exc:
@@ -428,7 +495,9 @@ def create_app(
         prepared_ms = (time.perf_counter() - started) * 1000
         return Response(backend.packed_visual_cache[key], media_type="application/octet-stream",
                         headers={"Content-Encoding": "gzip", "Cache-Control": "no-store",
-                                 "Server-Timing": f"model_prepare;dur={prepared_ms:.1f}"})
+                                 "Server-Timing": f"model_prepare;dur={prepared_ms:.1f}",
+                                 "X-Model-Decoded-Bytes": str(int.from_bytes(
+                                     backend.packed_visual_cache[key][-4:], "little"))})
 
     async def load_visual_asset():
         try:
@@ -524,7 +593,7 @@ def create_app(
                 await ws.send_json(
                     {"type": "state", **await controller.snapshot()}
                     if controller
-                    else {"type": "not_started"}
+                    else {"type": "not_started", "preparation": room.preparing}
                 )
                 # One outstanding snapshot: a slow renderer must receive current
                 # physics, not an ever-growing queue of obsolete frames.

@@ -198,6 +198,8 @@ Linux 在 YZH737 上使用独立 DuckKing / ASR systemd 服务，现通过 `http
 
 ## 开发检查与文档
 
+[体验评审核验与修复](docs/UX_REVIEW.md)记录加载进度、房间恢复、单实例预热、统计恢复及720p首屏的修改与边界。
+
 ```bash
 scripts/setup_local.sh
 scripts/setup_local_asr.sh

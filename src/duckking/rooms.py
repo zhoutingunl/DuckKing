@@ -2,6 +2,8 @@
 
 import asyncio
 import time
+import uuid
+from datetime import UTC, datetime
 from types import SimpleNamespace
 
 from fastapi import HTTPException
@@ -14,6 +16,9 @@ from .motion import MotionController, PreviewBackend
 class RoomRegistry:
     def __init__(self, primary):
         self.primary = primary
+        self.instance = uuid.uuid4().hex
+        self.started_at = datetime.now(UTC).isoformat(timespec="seconds")
+        primary.preparing = None
         self.limit = primary.settings.max_rooms if primary.motion.backend.kind == "preview" else 1
         self.physics_limit = min(self.limit, primary.settings.max_physics_rooms)
         self.idle_seconds = primary.settings.room_idle_seconds
@@ -27,6 +32,7 @@ class RoomRegistry:
         settings = self.primary.settings.for_room(number)
         return SimpleNamespace(
             motion=MotionController(PreviewBackend()), voice=None, scene_motion=None,
+            preparing=None,
             settings=settings, scene_lock=asyncio.Lock(), viewers=0, reserved_until=0.0,
             last_used=time.monotonic(), voice_diagnostics=VoiceDiagnostics(
                 settings.data_dir / "voice.jsonl",
@@ -49,7 +55,8 @@ class RoomRegistry:
                             and getattr(room.scene_motion.backend, "scene", None)
                             in {"balance", "seesaw"})
                         else None)
-        return (room.viewers or room.voice is not None or room.motion.current is not None
+        return (getattr(room, "preparing", None) is not None or room.viewers
+                or room.voice is not None or room.motion.current is not None
                 or (physics_task is not None and not physics_task.done())
                 or (room.scene_motion is not None and (room.scene_motion.current is not None
                     or (room.scene_motion.studio is not None
@@ -57,7 +64,7 @@ class RoomRegistry:
                         and not room.scene_motion.studio.task.done()))))
 
     def snapshot(self):
-        return {"rooms": [{"id": number, "viewers": room.viewers,
+        return {"instance": self.instance, "rooms": [{"id": number, "viewers": room.viewers,
                            "voice_busy": room.voice is not None,
                            "physics": room.scene_motion is not None}
                           for number, room in self.rooms.items()],

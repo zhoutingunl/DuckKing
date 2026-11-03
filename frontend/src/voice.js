@@ -272,6 +272,7 @@ export function setupVoice({appendLog,notify,endpoint='/voice',cloudOnly=false,b
   document.addEventListener('visibilitychange',()=>{if(!document.hidden&&output.ctx)void output.resume()});
   // A history-cache restore reuses a document whose microphone and audio were closed.
   window.addEventListener('pageshow',event=>{if(event.persisted)window.location.reload()});
+  window.addEventListener('duckking-room-lost',()=>{void release(false);closeMicrophone();ws?.close();clearPlayback()});
   window.addEventListener('pagehide',()=>{clearInterval(heartbeat);clearTimeout(closingTimer);release(false);closeMicrophone();ws?.close();output.close();clearTimeout(audioReportTimer)});
   return {send, disconnect(){void release(false);closeMicrophone();if(ws?.readyState===WebSocket.OPEN)send({type:'disconnect'});else ws?.close();clearPlayback()}, get state(){return state}, clearPlayback, interrupt(){
     clearPlayback();
