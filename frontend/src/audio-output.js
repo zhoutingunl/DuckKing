@@ -5,11 +5,14 @@ import { decodePCM } from './audio-codec.js';
 export class VoiceAudio {
   constructor(changed=()=>{}) {
     this.changed=changed;this.ctx=null;this.sources=new Map();this.pending=[];
-    this.nextTime=0;this.epoch=0;this.capture=false;this.disposed=false;
+    this.nextTime=0;this.epoch=0;this.capture=false;this.microphoneOpen=false;this.disposed=false;
     this.received=0;this.scheduled=0;this.ended=0;this.dropped=0;this.peak=0;
+    this.localClips=new Map();this.localRequest=null;
   }
   mode() {
-    try { if(navigator.audioSession)navigator.audioSession.type=this.capture?'play-and-record':'playback'; }
+    // A muted standby track still requires a capture-compatible session on iOS.
+    // Keep this separate from capture, which only defers playback while speaking.
+    try { if(navigator.audioSession)navigator.audioSession.type=this.microphoneOpen||this.capture?'play-and-record':'playback'; }
     catch { /* Optional Audio Session API; ordinary Web Audio remains available. */ }
   }
   context() {
@@ -33,7 +36,7 @@ export class VoiceAudio {
     }
     return this.workletReady;
   }
-  get busy(){return this.pending.length>0||[...this.sources.values()].some(local=>!local)}
+  get busy(){return this.pending.length>0||[...this.sources].some(([source,local])=>!local||source.localSpeech)}
   snapshot() {
     return {output_state:this.ctx?.state??'uninitialized',received_frames:this.received,
       scheduled_frames:this.scheduled,ended_frames:this.ended,dropped_frames:this.dropped,
@@ -42,6 +45,7 @@ export class VoiceAudio {
   }
   report(){if(!this.disposed)this.changed(this.snapshot())}
   setCapture(value){this.capture=value;this.mode()}
+  setMicrophoneOpen(value){this.microphoneOpen=value;this.mode()}
   resume({gesture=false}={}) {
     if(this.disposed)return Promise.resolve(false);
     this.mode();let ctx;
@@ -80,10 +84,10 @@ export class VoiceAudio {
     if(this.ctx?.state!=='running')void this.resume();
     this.report();
   }
-  schedule(pcm,rate,{local=false}={}) {
+  schedule(pcm,rate,{local=false,speech=false}={}) {
     const ctx=this.context(),epoch=this.epoch;
     const buffer=ctx.createBuffer(1,pcm.length,rate);buffer.copyToChannel(pcm,0);
-    const source=ctx.createBufferSource();source.buffer=buffer;source.connect(ctx.destination);
+    const source=ctx.createBufferSource();source.buffer=buffer;source.localSpeech=speech;source.connect(ctx.destination);
     this.nextTime=Math.max(ctx.currentTime,this.nextTime);source.start(this.nextTime);this.nextTime+=buffer.duration;
     this.sources.set(source,local);if(!local)this.scheduled++;
     source.onended=()=>{
@@ -98,8 +102,47 @@ export class VoiceAudio {
   }
   clear(){
     this.epoch++;this.pending=[];this.nextTime=0;
+    this.localRequest?.abort();this.localRequest=null;
     for(const source of this.sources.keys()){source.onended=null;try{source.stop()}catch{}source.disconnect()}
     this.sources.clear();this.report();
+  }
+  async localSpeech(url){
+    const epoch=this.epoch,controller=new AbortController();
+    this.localRequest?.abort();this.localRequest=controller;
+    const cancelled=()=>this.disposed||this.epoch!==epoch||this.capture||this.localRequest!==controller;
+    const timer=setTimeout(()=>controller.abort(),4000);
+    let rejectAbort;
+    const aborted=new Promise((_,reject)=>{
+      rejectAbort=()=>reject(new Error('本地确认语音加载超时或已取消'));
+      controller.signal.addEventListener('abort',rejectAbort,{once:true});
+    });
+    // Cached clips may be cancelled during resume without entering the load race.
+    void aborted.catch(()=>{});
+    try{
+      let buffer=this.localClips.get(url);
+      if(!buffer){
+        buffer=await Promise.race([(async()=>{
+          const response=await fetch(url,{signal:controller.signal});
+          if(!response.ok)throw new Error('本地确认语音暂不可用');
+          const bytes=await response.arrayBuffer();
+          if(bytes.byteLength>256*1024)throw new Error('本地确认语音文件过大');
+          return this.context().decodeAudioData(bytes);
+        })(),aborted]);
+        if(buffer.duration>5||buffer.numberOfChannels!==1)throw new Error('本地确认语音格式无效');
+        if(cancelled())return false;
+        this.localClips.set(url,buffer);
+        if(this.localClips.size>2)this.localClips.delete(this.localClips.keys().next().value);
+      }
+      if(cancelled())return false;
+      if(!await this.resume())throw new Error('本地确认语音尚未播放，请点“启用 / 测试声音”');
+      if(cancelled())return false;
+      this.schedule(buffer.getChannelData(0),buffer.sampleRate,{local:true,speech:true});
+      this.report();return true;
+    }catch(error){if(cancelled())return false;throw error}
+    finally{
+      clearTimeout(timer);controller.signal.removeEventListener('abort',rejectAbort);
+      if(this.localRequest===controller)this.localRequest=null;
+    }
   }
   async testTone(){
     this.clear();const epoch=this.epoch;
@@ -110,6 +153,7 @@ export class VoiceAudio {
   }
   close(){
     this.clear();this.disposed=true;
+    this.localClips.clear();
     if(this.ctx){this.ctx.onstatechange=null;void this.ctx.close().catch(()=>{})}
     try{if(navigator.audioSession)navigator.audioSession.type='auto'}catch{}
   }

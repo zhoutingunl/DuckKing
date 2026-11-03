@@ -25,6 +25,7 @@
 ## 自动演示的对白与四声部乐谱
 
 - 演示场景的角色文案与自动编排由 DuckKing 编写；人类指令/旁白使用 macOS Tingting，小鸭使用 Eddy 中文系统语音加轻量升调和滤波生成，未克隆真人或官方鸭子音色。生成工具为 `scripts/build_demo_audio.py`，生成结果和逐句文本清单位于 `frontend/public/demo-audio/`。实时灵矽模式中的识别、工具调用与回复另由真实云端会话产生。
+- 本地识别完成 / 失败的短确认来自 `frontend/public/local-feedback/`，由 `scripts/build_local_feedback.py` 使用同样披露的 macOS Eddy 中文语音离线生成。文本、时长和 SHA-256 见该目录 manifest.json；这些预录声音不是实时灵矽回复，也不属于云端 TTS 统计。
 - 第十幕使用 Pollen Robotics Microduck 固定提交 `942e58e3aa6dbb28e7037203fff11866122c7567` 的原创 `sounds/scores/wistful.duckscore` 开头 16 拍。原谱与 Apache-2.0 许可保存在 `frontend/public/scores/`；声部编队规则参考同提交 `sounds/src/chorale/mod.rs`。DuckKing 自行编写浏览器合成与节目调度，不宣称官方音色、BLE 传输或硬件时钟同步。
 
 ## CPU PPO 训练

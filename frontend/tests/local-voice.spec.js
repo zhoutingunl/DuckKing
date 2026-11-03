@@ -2,6 +2,15 @@ import {test,expect} from '@playwright/test';
 
 test('local-first source stays explicit and cloud mode remains selectable',async({page,context})=>{
   await context.grantPermissions(['microphone']);
+  await page.addInitScript(()=>{
+    window.localSpoken=[];
+    const start=AudioBufferSourceNode.prototype.start;
+    AudioBufferSourceNode.prototype.start=function(...args){
+      if(this.localSpeech)window.localSpoken.push({seconds:this.buffer.duration,
+        peak:this.buffer.getChannelData(0).reduce((peak,value)=>Math.max(peak,Math.abs(value)),0),node:this});
+      return start.apply(this,args);
+    };
+  });
   await page.route('**/api/voice/modes*',route=>route.fulfill({json:{local_first:true,available:true}}));
   const connects=[];
   let frames=0;
@@ -15,7 +24,7 @@ test('local-first source stays explicit and cloud mode remains selectable',async
       if(d.type==='listen_stop'){
         send({type:'voice_route',route:'local',reason:'matched',asr_ms:123});
         send({type:'transcript',role:'user',source:'local',text:'协议测试：点头'});
-        send({type:'transcript',role:'assistant',source:'local',text:'本地已完成：点头'});
+        send({type:'transcript',role:'assistant',source:'local',text:'本地已完成：点头',feedback:'completed'});
         send({type:'voice_status',state:'ready'});
       }
       if(d.type==='disconnect')send({type:'voice_status',state:'disconnected'});
@@ -38,7 +47,10 @@ test('local-first source stays explicit and cloud mode remains selectable',async
   await expect(page.locator('#activity-log')).not.toContainText('灵矽已连接');
   await expect(page.locator('#scope-note')).toContainText('本地优先语音已启用');
   await expect(page.locator('#scope-note')).not.toContainText('灵矽语音已连接');
-  await expect(page.locator('#voice-route')).toHaveText('本地已完成：点头 · 本轮未调用灵矽，无云端语音回复。');
+  await expect(page.locator('#voice-route')).toHaveText('本地已完成：点头 · 本地反馈，本轮未调用灵矽。');
+  await expect.poll(()=>page.evaluate(()=>localSpoken.length)).toBe(1);
+  expect(await page.evaluate(()=>localSpoken[0].peak)).toBeGreaterThan(.01);
+  expect(await page.evaluate(()=>localSpoken[0].seconds)).toBeLessThan(5);
   await page.locator('#connect-voice').click();
   await expect(page.locator('#voice-mode')).toBeEnabled();
   await expect(page.locator('#voice-badge')).not.toHaveClass(/connected/);

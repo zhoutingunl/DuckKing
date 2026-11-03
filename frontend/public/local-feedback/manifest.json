@@ -1,0 +1,22 @@
+{
+  "source": "macOS synthetic voice; prerecorded local feedback, not Linx or voice cloning",
+  "voice": "Eddy (中文（中国大陆）)",
+  "rate": 210,
+  "processing": "pitch +14%, light tremolo",
+  "sample_rate": 16000,
+  "channels": 1,
+  "lines": [
+    {
+      "id": "completed",
+      "text": "完成啦，嘎。",
+      "seconds": 1.379,
+      "sha256": "8f25ffd3e1cca762608c7c9f75de672af5f0218d8d783917fcccff6faa0c5ba9"
+    },
+    {
+      "id": "failed",
+      "text": "这次没完成，请再试一次。",
+      "seconds": 2.381,
+      "sha256": "003ebdd489e001c83398fc61aae4ee9a40806b1f92fac1bf75f551c4120d3932"
+    }
+  ]
+}

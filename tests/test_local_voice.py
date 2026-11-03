@@ -111,6 +111,9 @@ async def test_local_actions_do_not_open_cloud_or_count_tts(tmp_path, monkeypatc
         assert voice.uplink_frames == voice.downlink_frames == 0
         assert voice.state == 'ready'
         assert all(m.get('source') == 'local' for m in messages if m['type'] == 'transcript')
+        feedback = [m for m in messages if m.get('feedback')]
+        assert len(feedback) == 1 and feedback[0]['feedback'] == 'completed'
+        assert feedback[0]['role'] == 'assistant' and feedback[0]['source'] == 'local'
     finally:
         await voice.disconnect()
         await voice.motion.close()
@@ -181,6 +184,7 @@ async def test_failed_local_action_does_not_replay_to_cloud(tmp_path, monkeypatc
         assert stats['counts']['actions'] == 1
         assert stats['counts']['errors'] == 1
         assert 'private-device' not in str(messages)
+        assert [m['feedback'] for m in messages if 'feedback' in m] == ['failed']
     finally:
         await voice.disconnect()
         await voice.motion.close()

@@ -24,7 +24,17 @@ test('two turns reuse a muted standby microphone and disconnect releases it',asy
   const frames=[],commands=[],reports=[];
   await protocol(page,frames,commands,reports);
   await page.addInitScript(()=>{
-    const Native=window.AudioContext;window.audioAudit={contexts:[],closed:0,tracks:[]};
+    const Native=window.AudioContext;window.audioAudit={contexts:[],closed:0,tracks:[],sessionTypes:[],captureTypes:[]};
+    // Chromium does not enforce this iOS rule: emulate WebKit's documented
+    // rejection and track termination, while retaining real browser PCM/audio.
+    let sessionType='auto';
+    Object.defineProperty(navigator,'audioSession',{configurable:true,value:{
+      get type(){return sessionType},
+      set type(value){
+        sessionType=value;audioAudit.sessionTypes.push(value);
+        if(!['auto','play-and-record'].includes(value))audioAudit.tracks.forEach(track=>track.stop());
+      },
+    }});
     window.AudioContext=new Proxy(Native,{construct(Target,args){
       const ctx=new Target(...args),close=ctx.close.bind(ctx);
       ctx.close=()=>{window.audioAudit.closed++;return close()};
@@ -32,6 +42,8 @@ test('two turns reuse a muted standby microphone and disconnect releases it',asy
     }});
     const get=navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
     navigator.mediaDevices.getUserMedia=async constraints=>{
+      audioAudit.captureTypes.push(navigator.audioSession.type);
+      if(!['auto','play-and-record'].includes(navigator.audioSession.type))throw new DOMException('AudioSession category is not compatible with audio capture','InvalidStateError');
       const stream=await get(constraints);window.audioAudit.tracks.push(...stream.getTracks());return stream;
     };
   });
@@ -41,6 +53,10 @@ test('two turns reuse a muted standby microphone and disconnect releases it',asy
   expect(commands).toEqual([]);expect(frames).toEqual([]);
   await page.locator('#connect-voice').click();
   await expect(page.locator('#voice-badge')).toHaveText('灵矽已连接');
+  await expect(page.locator('#talk-button')).toBeEnabled();
+  expect(await page.evaluate(()=>audioAudit.captureTypes)).toEqual(['play-and-record']);
+  // Testing sound while the mic is muted must not end its standby track.
+  await page.locator('#enable-sound').click();
   for(let turn=0;turn<2;turn++){
     await expect(page.locator('#talk-button')).toBeEnabled();
     await page.locator('#talk-button').dispatchEvent('pointerdown',{pointerId:1});
@@ -50,6 +66,7 @@ test('two turns reuse a muted standby microphone and disconnect releases it',asy
     await page.locator('#talk-button').dispatchEvent('pointerup',{pointerId:1});
     await expect(page.locator('#voice-badge')).toHaveText('灵矽已连接');
     await expect.poll(()=>reports.at(-1)?.ended_frames).toBe(turn+1);
+    expect(await page.evaluate(()=>navigator.audioSession.type)).toBe('play-and-record');
   }
   expect(frames.every(frame=>frame.length===1920)).toBe(true);
   expect(reports.at(-1).signal_peak_milli).toBeGreaterThan(0);
@@ -61,6 +78,7 @@ test('two turns reuse a muted standby microphone and disconnect releases it',asy
   await page.locator('#connect-voice').click();
   await expect(page.locator('#voice-badge')).toHaveText('未连接灵矽');
   expect(await page.evaluate(()=>audioAudit.tracks.map(t=>t.readyState))).toEqual(['ended']);
+  expect(await page.evaluate(()=>navigator.audioSession.type)).toBe('playback');
   await Promise.all([
     page.waitForEvent('domcontentloaded'),
     page.evaluate(()=>{

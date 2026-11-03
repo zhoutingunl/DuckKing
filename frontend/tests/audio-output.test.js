@@ -74,6 +74,56 @@ test('one hardware-rate context and worklet are reused, capture defers output, l
   audio.close();
 });
 
+test('a pending or standby microphone keeps duplex mode through replies and test sounds',async t=>{
+  const original=Object.getOwnPropertyDescriptor(navigator,'audioSession');
+  const session={type:'auto'};
+  Object.defineProperty(navigator,'audioSession',{configurable:true,value:session});
+  t.after(()=>{if(original)Object.defineProperty(navigator,'audioSession',original);else delete navigator.audioSession});
+  const instances=hardware(t),audio=new VoiceAudio();
+  const ready=audio.resume({gesture:true});instances[0].unblock();await ready;
+  assert.equal(session.type,'playback');
+  audio.setMicrophoneOpen(true);assert.equal(session.type,'play-and-record');
+  await audio.resume();assert.equal(session.type,'play-and-record');
+  audio.setCapture(true);audio.enqueue(frame(.06));
+  assert.equal(audio.snapshot().scheduled_frames,0);
+  audio.setCapture(false);await audio.resume();
+  assert.equal(session.type,'play-and-record');
+  assert.equal(audio.snapshot().scheduled_frames,1);
+  await audio.testTone();assert.equal(session.type,'play-and-record');
+  audio.setMicrophoneOpen(false);assert.equal(session.type,'playback');
+  audio.close();assert.equal(session.type,'auto');
+});
+
+test('local spoken feedback is interruptible and never counts as cloud playback',async t=>{
+  hardware(t);const audio=new VoiceAudio(),ctx=audio.context();ctx.state='running';
+  const pcm=new Float32Array(1600).fill(.2);
+  ctx.decodeAudioData=async()=>({duration:.1,numberOfChannels:1,sampleRate:16000,getChannelData:()=>pcm});
+  let loads=0;t.mock.method(globalThis,'fetch',async()=>{loads++;return {ok:true,arrayBuffer:async()=>new ArrayBuffer(8)}});
+  assert.equal(await audio.localSpeech('/completed.wav'),true);
+  assert.equal(audio.busy,true);assert.equal(audio.snapshot().received_frames,0);
+  assert.equal(audio.snapshot().scheduled_frames,0);
+  const speech=ctx.nodes.at(-1);assert.equal(speech.buffer.pcm,pcm);
+  audio.clear();assert.equal(speech.stopped,true);assert.equal(audio.busy,false);
+  assert.equal(await audio.localSpeech('/completed.wav'),true);assert.equal(loads,1);
+  ctx.nodes.at(-1).onended();assert.equal(audio.snapshot().ended_frames,0);
+  audio.close();
+});
+
+test('late local audio decoding cannot play after interruption; failed loads can retry',async t=>{
+  hardware(t);const audio=new VoiceAudio(),ctx=audio.context();ctx.state='running';
+  let finish;ctx.decodeAudioData=()=>new Promise(resolve=>{finish=resolve});
+  t.mock.method(globalThis,'fetch',async()=>({ok:true,arrayBuffer:async()=>new ArrayBuffer(8)}));
+  const pending=audio.localSpeech('/completed.wav');
+  await new Promise(resolve=>setTimeout(resolve,0));audio.clear();
+  assert.equal(await pending,false);
+  finish({duration:.1,numberOfChannels:1,sampleRate:16000,getChannelData:()=>new Float32Array(1600)});
+  await new Promise(resolve=>setTimeout(resolve,0));assert.equal(ctx.nodes.length,0);
+  t.mock.method(globalThis,'fetch',async()=>({ok:false}));
+  await assert.rejects(audio.localSpeech('/failed.wav'),/暂不可用/);
+  assert.equal(audio.localRequest,null);assert.equal(audio.localClips.size,0);
+  audio.close();
+});
+
 test('rejected or stuck resumes and unavailable hardware cannot hang connection controls',async t=>{
   t.mock.timers.enable({apis:['setTimeout']});
   const instances=hardware(t),audio=new VoiceAudio();
