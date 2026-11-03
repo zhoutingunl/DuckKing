@@ -1,12 +1,17 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {acquireMicrophone} from '../src/microphone.js';
+import {acquireMicrophone,microphoneError} from '../src/microphone.js';
 
 function fixture(){
  const track={enabled:true,stopped:false,stop(){this.stopped=true}};
  return {track,stream:{getTracks:()=>[track],getAudioTracks:()=>[track]}};
 }
 const tick=()=>new Promise(resolve=>setTimeout(resolve,0));
+
+test('an incompatible audio session is explained separately from permission denial',()=>{
+ assert.match(microphoneError(new DOMException('AudioSession category is not compatible with audio capture','InvalidStateError')),/播放模式与麦克风冲突/);
+ assert.match(microphoneError(new DOMException('denied','NotAllowedError')),/网站使用麦克风/);
+});
 
 test('permission starts in the initiating call, before the worklet, and capture stays muted',async()=>{
  const {stream,track}=fixture(),calls=[];

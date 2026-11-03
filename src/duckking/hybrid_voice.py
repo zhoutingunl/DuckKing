@@ -81,10 +81,11 @@ class HybridVoiceSession(VoiceSession):
             return
         self.frames.append(pcm)
 
-    async def _local_text(self, text, role="assistant"):
+    async def _local_text(self, text, role="assistant", *, feedback=None):
         await self.send({"type": "transcript", "role": role, "source": "local",
                          "text": redact_transcript(text, self.sensitive_values),
-                         "generation": self.generation})
+                         "generation": self.generation,
+                         **({"feedback": feedback} if feedback else {})})
 
     async def _route(self, route, reason=None, **measurements):
         self.route = route
@@ -170,7 +171,7 @@ class HybridVoiceSession(VoiceSession):
         await self.send({"type": "voice_milestone", "phase": "turn_end",
                          "result": "completed" if success else "failed",
                          "generation": self.generation})
-        await self._local_text(text)
+        await self._local_text(text, feedback="completed" if success else "failed")
         self.state = "ready"
         self.last_activity = time.monotonic()
         await self.publish_status()

@@ -38,6 +38,7 @@ export async function acquireMicrophone({signal,prepareWorklet,onPhase=()=>{},ti
 }
 
 export function microphoneError(error){
+  if(/AudioSession.*compatible.*capture/i.test(error.message??''))return '音频播放模式与麦克风冲突，请重新启用麦克风；若仍异常，请刷新页面后重试。';
   if(error.name==='NotAllowedError')return '浏览器未允许此网站使用麦克风。请检查网站权限，再点“重新启用麦克风”。';
   if(error.name==='NotFoundError')return '未检测到可用麦克风，请连接麦克风后重试。';
   if(error.name==='NotReadableError')return '麦克风暂时无法使用，请结束其他录音或通话后重试。';

@@ -68,7 +68,7 @@ export function setupVoice({appendLog,notify,endpoint='/voice',cloudOnly=false,b
   modeSelect?.addEventListener('change',()=>{
     mode=cloudOnly?'cloud':modeSelect.value;route=mode==='cloud'?'cloud':'local_ready';
     try{sessionStorage.setItem('duckking.voice-mode',mode)}catch{}
-    $('voice-route').textContent=mode==='cloud'?'灵矽负责识别和回复。':'整句动作匹配后本地执行；本地反馈为提示音和文字。';update();
+    $('voice-route').textContent=mode==='cloud'?'灵矽负责识别和回复。':'整句动作匹配后本地执行；完成后播放本地预录语音确认。';update();
   });
   if(modeSelect)fetch(appURL('api/voice/modes')).then(r=>{if(!r.ok)throw Error();return r.json()}).then(cap=>{
     modeSelect.querySelector('[value=local_first]').disabled=cloudOnly||!cap.local_first;
@@ -85,6 +85,7 @@ export function setupVoice({appendLog,notify,endpoint='/voice',cloudOnly=false,b
   function closeMicrophone(){
     micEpoch++;micController?.abort();micController=null;micPreparing=null;micPhase='idle';micError='';
     if(microphone){const {stream,source,node}=microphone;microphone=null;node.port.onmessage=null;source.disconnect();node.disconnect();stream.getTracks().forEach(track=>track.stop())}
+    output.setMicrophoneOpen(false);
   }
   function prepareMicrophone(){
     if(microphone)return Promise.resolve();
@@ -95,6 +96,9 @@ export function setupVoice({appendLog,notify,endpoint='/voice',cloudOnly=false,b
     pending=(async()=>{
       let stream,source,node;
       try{
+        // Reserve the duplex session before getUserMedia, including its prompt.
+        // Release/muting and reply playback must not revert it to playback-only.
+        output.setMicrophoneOpen(true);
         const context=output.context();
         stream=await acquireMicrophone({signal:controller.signal,
           prepareWorklet:()=>output.captureWorklet(appURL('capture-worklet.js')),
@@ -115,7 +119,7 @@ export function setupVoice({appendLog,notify,endpoint='/voice',cloudOnly=false,b
         update();
       }catch(error){
         source?.disconnect();node?.disconnect();stream?.getTracks().forEach(track=>track.stop());
-        if(epoch===micEpoch&&ws===channel){micError=microphoneError(error);micPhase='failed';notify(micError);appendLog(micError,'麦克风',true)}
+        if(epoch===micEpoch&&ws===channel){output.setMicrophoneOpen(false);micError=microphoneError(error);micPhase='failed';notify(micError);appendLog(micError,'麦克风',true)}
       }
     })().finally(()=>{if(micPreparing===pending)micPreparing=null;update()});
     micPreparing=pending;return pending;
@@ -231,7 +235,15 @@ export function setupVoice({appendLog,notify,endpoint='/voice',cloudOnly=false,b
         appendLog(text,'处理路径');if(route==='local')void output.testTone();update();
       }else if(data.type==='transcript'){
         appendLog(data.text,data.source==='local'?(data.role==='user'?'本地识别':'本地反馈'):data.role==='user'?'你说':'灵矽');
-        if(data.source==='local'&&data.role==='assistant')$('voice-route').textContent=`${data.text} · 本轮未调用灵矽，无云端语音回复。`;
+        if(data.source==='local'&&data.role==='assistant'){
+          $('voice-route').textContent=`${data.text} · 本地反馈，本轮未调用灵矽。`;
+          if(['completed','failed'].includes(data.feedback)){
+            const epoch=output.epoch;
+            void output.localSpeech(appURL(`local-feedback/${data.feedback}.wav`)).catch(error=>{
+              if(output.epoch===epoch){appendLog(error.message,'本地反馈',true);notify(error.message)}
+            });
+          }
+        }
       }
       else if(data.type==='audio'){try{await playback(data)}catch(error){notify(error.message)}}
       else if(data.type==='playback_end'&&data.aborted){clearPlayback()}
