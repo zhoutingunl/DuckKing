@@ -1,0 +1,65 @@
+{
+  "at": "2026-11-02T12:50:17.411Z",
+  "rows": [
+    {
+      "name": "desktop",
+      "readyMs": 1850,
+      "room": "15",
+      "model": {
+        "result": "ready",
+        "cache": "network",
+        "manifest_ms": 209,
+        "asset_ms": 482,
+        "parse_ms": 0,
+        "assemble_ms": 23,
+        "first_frame_ms": 29,
+        "transfer_bytes": 3592065,
+        "encoded_bytes": 3591765,
+        "decoded_bytes": 5208588,
+        "elapsed_ms": 752,
+        "navigation_ms": 1832
+      },
+      "rafGapP95": 16.700000000000728,
+      "rafGapMax": 16.800000000000182,
+      "samples": 301,
+      "viewport": 1280,
+      "horizontalOverflow": false,
+      "secureContext": true,
+      "connection": "本地工作台已连接",
+      "actionCount": "01",
+      "graphicsRenderer": "WebKit WebGL",
+      "errors": [],
+      "scope": "one headless desktop Chromium; narrow viewport is not physical phone hardware"
+    },
+    {
+      "name": "narrow",
+      "readyMs": 1611,
+      "room": "15",
+      "model": {
+        "result": "ready",
+        "cache": "network",
+        "manifest_ms": 115,
+        "asset_ms": 591,
+        "parse_ms": 0,
+        "assemble_ms": 23,
+        "first_frame_ms": 18,
+        "transfer_bytes": 3592065,
+        "encoded_bytes": 3591765,
+        "decoded_bytes": 5208588,
+        "elapsed_ms": 755,
+        "navigation_ms": 1593
+      },
+      "rafGapP95": 16.799999999999727,
+      "rafGapMax": 16.800000000000182,
+      "samples": 301,
+      "viewport": 390,
+      "horizontalOverflow": false,
+      "secureContext": true,
+      "connection": "本地工作台已连接",
+      "actionCount": "02",
+      "graphicsRenderer": "WebKit WebGL",
+      "errors": [],
+      "scope": "one headless desktop Chromium; narrow viewport is not physical phone hardware"
+    }
+  ]
+}

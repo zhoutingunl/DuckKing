@@ -196,6 +196,8 @@ uv run duckking --backend robotd --socket ~/.cache/duck-sim/duck-a.sock
 
 Linux 在 YZH737 上使用独立 DuckKing / ASR systemd 服务，现通过 `https://duck.qbox.net/` 的前置 OpenResty 直连 8765，提供页面、API 与原生 WebSocket，不经过 ai_gateway。直连配置在升级后保留，浏览器麦克风使用该域名的 HTTPS 安全上下文。原有 `ztmonitor.qbox.net` 网关接入方式保留在部署指南中。发布包带固定模型、来源与 SHA-256；安装自检、公网检查、真实语音验收分别记录，暂存不等于验收成功。步骤见 [部署指南](deploy/README.md)。
 
+现场容量、100连接与真实云语音并发结果见 [汇报容量实测](docs/PERFORMANCE.md)。当前主机可分配32个轻量房间；建议每批20–24人语音体验，重物理演示限定1–2个房间，100人首次同时加载仍需错峰或预热。
+
 ## 开发检查与文档
 
 ```bash
