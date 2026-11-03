@@ -1,3 +1,4 @@
+import {createLoadingState} from './loading-state.js';
 import {requestId} from './ids.js';
 import './site-nav.js';
 import {measurement,loadMetrics,afterFrame} from './experience.js';
@@ -15,11 +16,12 @@ import {playSeatedChoir,SEATED_SECONDS} from './seated-choir.js';
 import { TABLE_SCORES } from './table-scores.js';
 import { DuckSocket } from './transport.js';
 import { appURL, currentRoom } from './urls.js';
-import { setupRoom } from './room.js';
+import { setupRoom, rememberChoice, savedChoice } from './room.js';
 import { setupVoice } from './voice.js';
 
 await setupRoom();
 const $=id=>document.getElementById(id),output=new VoiceAudio(),clips=new Map(),loadPhysicsModel=createPhysicsModelLoader(),stages=new Map();
+const loadFeedback=createLoadingState($('stage-placeholder'));
 const chorus=createChorus(()=>{},{getContext:()=>output.context()});let current=null,selected=-1,serial=Promise.resolve();
 const pendingStageMembers=new Map();let selectionState=null;
 let stageInteractive=false,selectionQueue=Promise.resolve(),selectionVersion=-1,selectionInstance=null;
@@ -113,7 +115,7 @@ function connectStage(room,container){
   const viewer=physicsView(container),socket=new DuckSocket('scene-ws'),stage={room,viewer,socket,latest:null,revision:null,loading:null,error:null};
   socket.onopen=()=>socket.send(JSON.stringify({type:'join_room',room}));
   socket.onmessage=event=>{
-    const data=JSON.parse(event.data);if(data.type==='state'){
+    const data=JSON.parse(event.data);if(data.type==='not_started'&&data.preparation)stage.progress?.(data.preparation);if(data.type==='state'){
       stage.latest=data;viewer.update(data.backend);if(data.backend.scene==='stage'){
         $('stage-state').textContent=({scattered:'四鸭散落，等待召集',gather_rising:'集结前起身',gathering:'集结排队中',gather_sitting:'排好队，一起坐下',contact_sit:'碰撞后坐下，再起身',lined_up:'排队完成，已坐稳',roll_rising:'四鸭起身，准备翻滚',roll_recovering:'翻滚后恢复站稳',roll_sitting:'翻滚后就地坐下',dance_rising:'选中鸭起身，准备齐舞',rolling:'点名前滚翻',returning:'正在归位',dancing:'选中鸭同拍齐舞',completed:'表演完成',failed:'任务未完成',stopped:'已停止'}[data.backend.stage.phase]??data.backend.stage.phase);
         renderSelection(data.backend.stage);
@@ -126,14 +128,16 @@ function connectStage(room,container){
 }
 async function prepare(room,scene,run,second=false){
   const experience=measurement('load',{room}),metrics={};
+  const feedback=loadFeedback.begin({phase:'backend',cancel:()=>void stop('已停止等待'),retry:()=>start(selected),retryLabel:'重新开始本幕'});
   try{
   run.signal.throwIfAborted();run.rooms.add(room);status('正在准备官方物理场景…');
   let stage=stages.get(room);if(stage?.socket.readyState===3){stage.viewer.dispose();stages.delete(room);stage=null}
   stage??=connectStage(room,$(second?'demo-second':'demo-viewport'));
   if(second)$('demo-second').hidden=false;
-  else{$('stage-placeholder').hidden=false;$('stage-placeholder').textContent='正在加载官方场景外观…';}
+  else $('stage-placeholder').hidden=false;
+  stage.progress=feedback.progress;
   const record=await api('api/scenes/start',room,{body:{name:'scene_'+scene,request_id:requestId()},signal:run.signal});
-  let state;
+  feedback.progress({phase:'backend'});let state;
   const end=performance.now()+60000;
   do{
     if(performance.now()>end)throw new Error('物理场景准备超时');await pause(100,run.signal);
@@ -141,16 +145,16 @@ async function prepare(room,scene,run,second=false){
     if(state.error)throw new Error(state.error);
   }while(state.backend.scene!==scene||state.action?.id===record.id);
   const rev=state.backend.revision,url=appURL('api/scenes/model.dkm.gz');url.searchParams.set('room',room);
-  const model=await loadPhysicsModel(url,rev,{signal:AbortSignal.any([run.signal,AbortSignal.timeout(60000)]),metrics});
-  const assembling=performance.now();
+  const model=await loadPhysicsModel(url,rev,{signal:run.signal,metrics,progress:feedback.progress});
+  feedback.progress({phase:'assemble'});const assembling=performance.now();
   run.signal.throwIfAborted();if(stage.revision!==rev){stage.viewer.load(model);stage.revision=rev;}
   stage.viewer.frameScene(scene);
   stage.viewer.update(stage.latest?.backend.revision===rev?stage.latest.backend:state.backend);
-  if(!second)$('stage-placeholder').hidden=true;
-  metrics.assemble_ms=performance.now()-assembling;const drawing=performance.now();stage.viewer.renderNow();await afterFrame();metrics.first_frame_ms=performance.now()-drawing;
+  feedback.progress({phase:'draw'});
+  metrics.assemble_ms=performance.now()-assembling;const drawing=performance.now();stage.viewer.renderNow();await afterFrame();metrics.first_frame_ms=performance.now()-drawing;feedback.ready();stage.progress=null;
   experience.finish('completed',{...loadMetrics(metrics),scene_ms:Math.round(performance.now()-experience.started)},{cache:metrics.cache??'unknown',scene});
   stage.error=null;status('舞台已就绪');if(scene==='stage'){stage.latest=state;stageInteraction();renderSelection(state.backend.stage)}else stage.viewer.interaction(null);return stage;
-  }catch(error){experience.finish(run.signal.aborted?'cancelled':'failed');throw error}
+  }catch(error){experience.finish(run.signal.aborted?'cancelled':'failed');if(run.signal.aborted)feedback.cancelled();else feedback.fail(error);throw error}
 }
 async function perform(run,room,name,options={},expectFailure=false){
   const result=await action(room,name,run.signal,options);run.results.push({...result,room});
@@ -324,7 +328,7 @@ function cleanup(run){
   })();
 }
 function stop(reason='演示已停止'){
-  const run=current;if(!run)return Promise.resolve();current=null;run.abort();output.clear();chorus.stop();status(reason);$('stop-demo').disabled=true;$('demo-mode').disabled=false;
+  const run=current;if(!run)return Promise.resolve();current=null;run.abort();loadFeedback.cancel();output.clear();chorus.stop();status(reason);$('stop-demo').disabled=true;$('demo-mode').disabled=false;
   serial=Promise.allSettled([serial,cleanup(run),run.promise]).then(()=>{if(!current){controlsBusy(false);$('stage-play').disabled=false}});return serial;
 }
 function start(index){
@@ -333,7 +337,7 @@ function start(index){
   const enabled=output.resume({gesture:true});void chorus.enable().catch(()=>{});
   preview?.abort();output.clear();controlsBusy(true);
   if(current)void stop('正在切换节目…');
-  const run=new DemoRun();run.live=$('demo-mode').value==='live';current=run;selected=index;
+  rememberChoice('demo',DEMOS[index].id);const run=new DemoRun();run.live=$('demo-mode').value==='live';current=run;selected=index;
   status('正在准备节目…');$('theatre-result')?.remove();$('demo-notice').hidden=true;$('stop-demo').disabled=false;$('next-demo').disabled=index>=DEMOS.length-1;$('demo-mode').disabled=true;
   $('demo-timeline').replaceChildren();$('result-summary').textContent='等待本轮动作结果。';$('chorale-panel').hidden=true;$('table-panel').hidden=true;$('stage-panel').hidden=DEMOS[index].id!=='stage';$('demo-second').hidden=true;
   const demo=DEMOS[index];$('stage-play').disabled=true;$('stage-voice').hidden=!stageInteractive;for(const b of document.querySelectorAll('.stage-tools button'))b.disabled=!stageInteractive;mode();if(['chorale','seated'].includes(demo.id)){run.live=false;$('voice-source').textContent='本幕：本地音乐 + 物理编排'}if(demo.id==='tabletop')$('voice-source').textContent=run.live?'预录指令 → 灵矽开演 · 本地音乐 + 实时物理':'本幕：本地音乐 + 物理编排';$('show-number').textContent=`第 ${String(index+1).padStart(2,'0')} 幕 · ${demo.duration}`;$('show-title').textContent=demo.title;
@@ -374,4 +378,6 @@ window.addEventListener('keydown',e=>{if(e.key==='Escape')void stop()});
 window.addEventListener('pagehide',()=>{const run=current;run?.abort();preview?.abort();output.close();chorus.dispose();for(const stage of stages.values()){stage.socket.close();stage.viewer.dispose()}
   for(const room of run?.rooms??[]){const url=appURL('api/scenes/actions');url.searchParams.set('room',room);void fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:'stop',request_id:requestId()}),keepalive:true}).catch(()=>{})}
 });
+window.addEventListener('duckking-room-lost',()=>void stop('房间已失效，演示已停止'))
+const saved=savedChoice('demo'),previous=DEMOS.findIndex(d=>d.id===saved);if(previous>=0){selected=previous;const button=document.querySelector(`[data-demo="${DEMOS[previous].id}"]`);button?.classList.add('restored-choice');button?.setAttribute('aria-current','true');status('已保留节目选择 · 点击节目手动开始');}
 mode();

@@ -56,7 +56,7 @@ test('statistics renders labelled protocol fixtures, filters, selects rounds, an
   await expect(page.locator('#round-timeline')).toContainText('500 ms');
   failure = true;
   await page.getByRole('button',{name:'刷新',exact:true}).click();
-  await expect(page.locator('#stats-error')).toContainText('已有数值未更新');
+  await expect(page.locator('#stats-error')).toContainText('已有数值保留，但并非最新');
   await expect(page.locator('#reply-rate')).toHaveText('50.0%');
   failure = false;
   await page.locator('#backend-filter').selectOption('robotd');

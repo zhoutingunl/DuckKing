@@ -43,7 +43,7 @@ function showRound() {
     return;
   }
   $('round-label').textContent = `第 ${row.turn} 轮 · ${routeNames[row.route??'cloud']} · ${backendName(row.backend)} · ${statuses[row.status]}`;
-  $('round-text').textContent = row.text || '尚未收到非空识别文本';
+  $('round-text').textContent = row.historical?'历史轮次（不回显识别文字）':row.text || '尚未收到非空识别文本';
   const stop = row.timings.listen_stop;
   const points = [
     {label:'结束录音',at:stop,phase:'stop'},
@@ -64,7 +64,7 @@ function showRound() {
 
 function render() {
   const c = data.counts;
-  $('stats-scope').textContent = `本次服务启动于 ${new Date(data.started_at).toLocaleString('zh-CN')}；当前筛选 ${c.rounds} 轮，最多保留最近 ${data.capacity} 轮`;
+  $('stats-scope').textContent = `记录自 ${new Date(data.started_at).toLocaleString('zh-CN')} · 本次服务启动于 ${new Date(data.service_started_at??data.started_at).toLocaleString('zh-CN')} · 已恢复 ${data.restored_rounds??0} 轮；当前筛选 ${c.rounds} 轮，最多保留 ${data.capacity} 轮${data.history_incomplete?' · 部分历史未能恢复':''}`;
   $('recognition-rate').textContent = rate(c.recognized,c.closed);
   $('recognition-count').textContent = `${c.recognized} / ${c.closed} 个已结束提交轮次`;
   $('reply-rate').textContent = rate(c.replied,c.cloud_closed??c.closed);
@@ -122,7 +122,7 @@ function render() {
     }
     if (!row.actions.length) actions.textContent = '未受理动作';
     const result = element('td',statuses[row.status],`round-result${['timeout','error','interrupted'].includes(row.status) ? ' error' : ''}`);
-    tr.append(identity,element('td',row.text || '未返回识别文本'),actions,result);
+    tr.append(identity,element('td',row.historical?'历史轮次（不回显识别文字）':row.text || '未返回识别文本'),actions,result);
     $('round-rows').append(tr);
   }
   $('stats-empty').hidden = Boolean(data.rounds.length);
@@ -148,18 +148,19 @@ async function refresh() {
     const next = await response.json();
     if ($('backend-filter').value !== backend) return;
     const focusedRound = document.activeElement.closest?.('[data-turn]')?.dataset.turn;
-    if (data && data.started_at !== next.started_at) selected = null;
+    if (data && (data.started_at !== next.started_at || data.service_started_at !== next.service_started_at)) selected = null;
     data = next;
     if (!data.rounds.some(r => r.turn === selected)) selected = null;
     render();
     if (focusedRound) document.querySelector(`[data-turn="${focusedRound}"] button`)?.focus({preventScroll:true});
     $('stats-updated').textContent = `${new Date().toLocaleTimeString('zh-CN')} 已更新 · 每 5 秒刷新`;
     $('stats-error').hidden = data.storage_ok;
-    $('stats-error').textContent = '统计可用，但日志写入失败；请检查本地数据目录的权限或磁盘空间。';
+    $('stats-error').textContent = '当前统计仍可查看，部分记录暂未保存。可稍后刷新重试。';
+    if(!data.storage_ok)console.warn('[DuckKing:statistics] Diagnostic storage is unavailable');
   } catch {
     if ($('backend-filter').value !== backend) return;
     $('stats-error').hidden = false;
-    $('stats-error').textContent = '统计读取失败，请检查本地服务后重试。已有数值未更新。';
+    $('stats-error').textContent = '统计暂时无法更新，请稍后刷新。已有数值保留，但并非最新。';
     $('stats-updated').textContent = '更新失败';
   } finally {
     loading = false;

@@ -118,12 +118,37 @@ for(const song of ['chorale','tabletop'])test(`suspended audio clock stops ${son
  test.setTimeout(60000);
  await page.addInitScript(()=>{const Native=window.AudioContext;window.demoContexts=[];window.AudioContext=class extends Native{constructor(...args){super(...args);window.demoContexts.push(this)}}});
  await page.route('**/demo-audio/*.wav*',route=>route.fulfill({contentType:'audio/wav',body:silentFixture()}));
- await page.goto('/demos.html?room=1');await page.locator(`[data-demo="${song}"]`).click();
+ await page.goto('/demos.html?room=1');
+ // CI accepted table_show, but software rendering delayed the first music tick
+ // beyond the former 5-second text assertion. Suspend in the browser on the
+ // actual tick, not on panel visibility or a driver round trip. Keep all real
+ // audio/physics and production watchdog deadlines unchanged.
+ await page.evaluate(song=>{
+   const counter=document.querySelector(song==='chorale'?'#chorale-beat':'#table-beat');
+   const playing=song==='chorale'?/^第 \d+/:/\d+\s*\/\s*\d+\s*秒/;
+   window.clockSuspension=null;
+   const observer=new MutationObserver(()=>{
+     if(!playing.test(counter.textContent))return;
+     observer.disconnect();const cue=counter.textContent;
+     Promise.all(window.demoContexts.map(ctx=>ctx.suspend())).then(()=>{
+       window.clockSuspension={cue,states:window.demoContexts.map(ctx=>ctx.state)};
+     }).catch(error=>{window.clockSuspension={cue,error:error.name}});
+   });
+   observer.observe(counter,{childList:true,characterData:true,subtree:true});
+ },song);
+ await page.locator(`[data-demo="${song}"]`).click();
  await expect(page.locator(song==='chorale'?'#chorale-panel':'#table-panel')).toBeVisible({timeout:30000});
- await expect(page.locator(song==='chorale'?'#chorale-beat':'#table-beat')).toContainText(song==='chorale'?'第 ':'秒');
- await page.evaluate(()=>Promise.all(window.demoContexts.map(ctx=>ctx.suspend())));
- await expect(page.locator('#show-status')).toHaveText('本幕未完成 · 点击节目重试');
+ await expect.poll(()=>page.evaluate(()=>window.clockSuspension),{timeout:45000}).not.toBeNull();
+ const suspended=await page.evaluate(()=>window.clockSuspension);
+ expect(suspended.error).toBeUndefined();expect(suspended.states.length).toBeGreaterThan(0);
+ expect(suspended.states.every(state=>state==='suspended')).toBe(true);
+ await expect(page.locator('#show-status')).toHaveText('本幕未完成 · 点击节目重试',{timeout:10000});
  await expect(page.locator('#demo-notice')).toContainText('音频时钟');
+ await expect(page.locator('#theatre-result')).toHaveCount(0);
+ if(song==='tabletop')await expect.poll(async()=>{
+   const state=await(await page.request.get('/api/scenes/state?room=1')).json();
+   return state.backend.tabletop.running;
+ }).toBe(false);
 });
 
 test('table music failure is explicit and never substitutes another song or starts the fall',async({page})=>{

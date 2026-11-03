@@ -49,5 +49,19 @@ test('physics model cache is bounded, revision-specific and rejects stale or fai
   revision='b';await assert.rejects(()=>load(url,'c'),/场景已切换/);
   fail=true;await assert.rejects(()=>load(url,'b'),/模型加载失败/);
   fail=false;await load(url,'b');revision='c';await load(url,'c');
-  revision='a';await load(url,'a');assert.equal(calls,6);
+  revision='a';await load(url,'a');assert.equal(calls,7); // One bounded retry for the transient 503.
+});
+
+test('cancellation during cache persistence never completes a model load or bypasses a later cancelled request',async()=>{
+  const previous=globalThis.caches;let persist,started;
+  const writing=new Promise(resolve=>{started=resolve});
+  globalThis.caches={open:async()=>({match:async()=>null,put:async()=>{started();await new Promise(resolve=>{persist=resolve})},keys:async()=>[]})};
+  try{
+    const loader=createPhysicsModelLoader({fetcher:async()=>new Response(physicsPacket('cancel'))});
+    const controller=new AbortController();
+    const loading=loader(new URL('http://localhost/model'),'cancel',{signal:controller.signal});
+    await writing;controller.abort();persist();
+    await assert.rejects(loading,e=>e.name==='AbortError');
+    await assert.rejects(loader(new URL('http://localhost/model'),'cancel',{signal:controller.signal}),e=>e.name==='AbortError');
+  }finally{globalThis.caches=previous}
 });

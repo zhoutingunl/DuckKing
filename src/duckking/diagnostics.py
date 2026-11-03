@@ -98,6 +98,95 @@ class VoiceDiagnostics:
         self.playback = None
         self.playback_logged_at = 0.0
         self.experience = experience
+        self._restore()
+
+    @staticmethod
+    def _clean_fields(fields, event, sensitive_values=()):
+        entry = {}
+        for key, value in fields.items():
+            if key in ENUMS and isinstance(value, str) and value in ENUMS[key]:
+                entry[key] = value
+            elif key in COUNTERS and type(value) is int and 0 <= value <= 2**31 - 1:
+                entry[key] = value
+            elif key == "text" and event == "stt":
+                entry[key] = redact_transcript(value, sensitive_values)
+        return entry
+
+    def _restore(self):
+        """Replay bounded, redacted observations only; never reissue commands or audio."""
+        if self.path is None:
+            return
+        mapping, previous_id = {}, -1
+        earliest = None
+        for path in (self.path.with_suffix(".jsonl.1"), self.path):
+            try:
+                if not path.exists():
+                    continue
+                with path.open("rb") as stream:
+                    size = path.stat().st_size
+                    stream.seek(max(0, size - self.max_bytes))
+                    if size > self.max_bytes:
+                        stream.readline()  # A truncated leading event is not a sample.
+                    lines = stream.read(self.max_bytes).splitlines()
+            except OSError:
+                self.storage_ok = False
+                self.statistics.history_incomplete = True
+                continue
+            for line in lines:
+                try:
+                    source = json.loads(line)
+                    if not isinstance(source, dict) or source.get("event") not in EVENTS:
+                        continue
+                    ident, when = source.get("id"), source.get("time")
+                    if type(ident) is not int or not 0 <= ident <= 2**31 - 1:
+                        continue
+                    if not isinstance(when, str) or len(when) > 64:
+                        continue
+                    stamp = datetime.fromisoformat(when)
+                    if stamp.tzinfo is None:
+                        continue
+                    if ident <= previous_id:
+                        self.statistics.recovering.clear()
+                        mapping = {}  # A previous process/room reused its local turn numbers.
+                    previous_id = ident
+                    self.sequence = max(self.sequence, ident)
+                    event = source["event"]
+                    entry = {"id": ident, "time": when, "event": event,
+                             **self._clean_fields(source, event)}
+                    old_turn = entry.get("turn")
+                    if event == "listen_start" and old_turn is not None:
+                        self.turn_sequence += 1
+                        mapping[old_turn] = self.turn_sequence
+                    if old_turn is not None:
+                        if old_turn not in mapping:
+                            continue  # A log rotation cut off the start of this round.
+                        entry["turn"] = mapping[old_turn]
+                    if event in {"action_start", "action_end"} and "call" not in entry:
+                        continue
+                    self.events.append(entry)
+                    self.statistics.observe(entry, stamp.timestamp())
+                    earliest = earliest or when
+                except (ValueError, TypeError, KeyError, OverflowError):
+                    self.statistics.history_incomplete = True
+        self.statistics.recovering.clear()
+        # The old process monotonic clock was not persisted. Do not substitute
+        # wall-clock differences for previously measured reconnect durations.
+        for samples in self.statistics.recoveries.values():
+            samples.clear()
+        for entry in self.events:
+            entry.pop("text", None)
+        for row in self.statistics.rounds:
+            # Restore aggregate evidence, not another visitor's historical transcript.
+            row.update(text="", historical=True)
+            row.pop("local_text", None)
+            if row["status"] in {"listening", "waiting"}:
+                row.update(status="interrupted", reason="service_restart")
+            for action in row["actions"]:
+                if action["result"] == "running":
+                    action.update(result="cancelled", duration_ms=None)
+        self.statistics.restored_rounds = len(self.statistics.rounds)
+        if earliest and self.statistics.restored_rounds:
+            self.statistics.started_at = earliest
 
     def update_playback(self, data):
         state = data.get("output_state")
@@ -126,13 +215,7 @@ class VoiceDiagnostics:
             "time": datetime.now(UTC).isoformat(timespec="milliseconds"),
             "event": event if event in EVENTS else "unknown",
         }
-        for key, value in fields.items():
-            if key in ENUMS and isinstance(value, str) and value in ENUMS[key]:
-                entry[key] = value
-            elif key in COUNTERS and type(value) is int and 0 <= value <= 2**31 - 1:
-                entry[key] = value
-            elif key == "text" and event == "stt":
-                entry[key] = redact_transcript(value, sensitive_values)
+        entry.update(self._clean_fields(fields, event, sensitive_values))
         self.events.append(entry)
         self.statistics.observe(entry, time.monotonic())
         if self.experience and event in {

@@ -47,7 +47,7 @@ test('automatic preparation waits for room initialization and sends just one req
  const created=await request.post('/api/rooms');expect(created.ok()).toBe(true);
  const {room}=await created.json();let releaseRoom,prepares=0;
  const gate=new Promise(resolve=>{releaseRoom=resolve});
- await page.route('**/api/rooms',async route=>{await gate;await route.continue()});
+ await page.route(url=>url.pathname.endsWith('/api/rooms'),async route=>{await gate;await route.continue()});
  page.on('request',req=>{if(req.method()==='POST'&&new URL(req.url()).pathname==='/api/balance/prepare')prepares++});
  try{
   await page.goto(`/balance.html?room=${room}`,{waitUntil:'domcontentloaded'});

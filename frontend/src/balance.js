@@ -1,3 +1,4 @@
+import {createLoadingState} from './loading-state.js';
 import './site-nav.js';
 import './style.css';
 import './balance.css';
@@ -23,6 +24,7 @@ window.addEventListener('pagehide',()=>{
 },{once:true});
 window.addEventListener('pageshow',event=>{if(event.persisted)location.reload()});
 const loader=createPhysicsModelLoader();
+const loadFeedback=[...document.querySelectorAll('.balance-placeholder')].map(createLoadingState);let prepareAbort;
 const notify=text=>{$('notice').hidden=false;$('notice').textContent=text};
 function appendLog(text,label='实际执行'){
  const row=document.createElement('div');row.className='log-line';const tag=document.createElement('span');tag.className='log-label';tag.textContent=label;const body=document.createElement('span');body.textContent=text;row.append(tag,body);$('activity-log').append(row);while($('activity-log').children.length>80)$('activity-log').firstChild.remove();
@@ -101,15 +103,15 @@ function renderState(state){
  $('scene-title').textContent=`第 ${b.level} 关 · ${b.title}`;
  if(state.observation){lastObservation=[state.observation,state.task_action];updateObservation(b.execution!=='running')}
 }
-function placeholders(text){for(const node of document.querySelectorAll('.balance-placeholder')){node.hidden=!text;if(text)node.textContent=text}}
 async function prepare({replace=false}={}){
  if(loading||closed||!validSettings())return;
  const inputs=formSettings(),requested={...(levelChosen?{level}:{}),...(seedEdited&&inputs.seed!=null?{seed:inputs.seed}:{}),...(durationEdited?{duration_seconds:inputs.duration_seconds}:{})};
  loading=preparing=true;prepareFailed=false;controls();$('notice').hidden=true;
- placeholders('正在加载官方模型与左右对照圆盘…');
+ prepareAbort?.abort();prepareAbort=new AbortController();const signal=AbortSignal.any([lifetime.signal,prepareAbort.signal]);
+ const sessions=loadFeedback.map(f=>f.begin({phase:'backend',cancel:()=>prepareAbort.abort(),retry:()=>prepare({replace:needsSwitch}),retryLabel:'重新准备圆盘'}));
+ const progress=value=>sessions.forEach(s=>s.progress(value));
  const experience=measurement('load'),metrics={};
  try{
-  const signal=lifetime.signal;
   let state=await api(`api/balance/prepare?replace=${replace}`,currentRoom,{body:{},signal});signal.throwIfAborted();needsSwitch=false;
   if(Object.entries(requested).some(([key,value])=>state.backend.balance[key]!==value)){
    await api('api/balance/command',currentRoom,{body:{operation:'select',...requested},signal});
@@ -118,16 +120,16 @@ async function prepare({replace=false}={}){
   if(requested.level!=null)observedLevel=level=requested.level;
   if(!state.backend.comparison?.baseline)throw Error('服务尚未支持左右对照，请更新并重启本地后端。');
   if(revision!==state.backend.revision){
-   const data=await loader(appURL('api/scenes/model.dkm.gz'),state.backend.revision,{signal:AbortSignal.any([signal,AbortSignal.timeout(60000)]),metrics});signal.throwIfAborted();const started=performance.now();
+   const data=await loader(appURL('api/scenes/model.dkm.gz'),state.backend.revision,{signal,metrics,progress});signal.throwIfAborted();progress({phase:'assemble'});const started=performance.now();
    if(!viewer)viewer=physicsView($('physics-viewport'),{label:'训练后',onCameraChange:state=>baselineViewer?.syncCamera(state)});
    if(!baselineViewer)baselineViewer=physicsView($('baseline-viewport'),{label:'未训练',onCameraChange:state=>viewer?.syncCamera(state)});
    viewer.load(data);baselineViewer.load(data);viewer.frameScene('balance');baselineViewer.frameScene('balance');
    metrics.assemble_ms=performance.now()-started;revision=state.backend.revision;
   }else metrics.cache='memory';
-  lastStateKey='';renderState(state.backend);const firstFrame=performance.now();await afterFrame();signal.throwIfAborted();viewer.renderNow();baselineViewer.renderNow();await afterFrame();signal.throwIfAborted();metrics.first_frame_ms=Math.round(performance.now()-firstFrame);placeholders(null);ready=true;
+  lastStateKey='';renderState(state.backend);progress({phase:'draw'});const firstFrame=performance.now();await afterFrame();signal.throwIfAborted();viewer.renderNow();baselineViewer.renderNow();await afterFrame();signal.throwIfAborted();metrics.first_frame_ms=Math.round(performance.now()-firstFrame);sessions.forEach(s=>s.ready());ready=true;
   experience.finish('completed',{...loadMetrics(metrics),scene_ms:Math.round(performance.now()-experience.started)},{cache:metrics.cache,scene:'balance'});
   if(!stateFeed)connect();else void stateFeed.refresh();appendLog('左右圆盘已准备：左侧官方基线，右侧所选策略；按钮或灵矽口令均可同时发起挑战。');
- }catch(e){experience.finish(e.code==='scene_conflict'?'cancelled':'failed');if(!closed){ready=false;needsSwitch=e.code==='scene_conflict';prepareFailed=!needsSwitch;notify(e.message);placeholders(needsSwitch?'房间中已有其他场景，等待手动切换。':'加载未完成，请点击“重试准备圆盘”。')}}finally{loading=preparing=false;if(!closed)controls()}
+ }catch(e){experience.finish(signal.aborted||e.code==='scene_conflict'?'cancelled':'failed');if(!closed){ready=false;needsSwitch=e.code==='scene_conflict';prepareFailed=!needsSwitch;if(signal.aborted)sessions.forEach(s=>s.cancelled());else{notify(e.message);sessions.forEach(s=>s.fail(e))}}}finally{loading=preparing=false;if(!closed)controls()}
 }
 function connect(){
  if(closed)return;
@@ -276,3 +278,5 @@ for(const id of ['example-ratio','example-advantage','example-epsilon'])$(id).ad
 // The initial HTML keeps controls disabled until room setup and all handlers
 // are ready. A fast click during the asynchronous room request must not vanish.
 controls();example();termInfo();renderParameters();renderObservation();charts();void refresh();void prepare();if(!closed)timer=setInterval(refresh,5000);
+
+window.addEventListener('duckking-room-lost',()=>{closed=true;lifetime.abort();prepareAbort?.abort();clearInterval(timer);stateFeed?.close();loadFeedback.forEach(f=>f.cancel())});

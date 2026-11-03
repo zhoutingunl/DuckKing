@@ -117,29 +117,32 @@ class MuJoCoBackend:
     kind = "mujoco"
     default_speed = 0.25
 
-    def __init__(self, assets: Path):
+    def __init__(self, assets: Path, *, progress=None):
+        progress = progress or (lambda *args: None)
         self.assets = assets
         self.table_build_task = None
         self.stage_build_task = None
         self.robot_dir = assets / "microduck_rl/src/mjlab_microduck/robot/microduck"
         options = ort.SessionOptions()
         options.intra_op_num_threads = options.inter_op_num_threads = 1
-        self.sessions = {
-            key: ort.InferenceSession(
+        policies = {
+            "walk": "velstand.onnx", "kick_left": "ball_kick_left.onnx",
+            "kick_right": "ball_kick_right.onnx", "sitstand": "alpha_sitstand.onnx",
+            "roulade": "roulade.onnx", "ground_pick": "alpha_ground_pick.onnx",
+            "roller": "roller.onnx", "roller_crouch": "roller_crouch.onnx",
+        }
+        self.sessions = {}
+        for index, (key, file) in enumerate(policies.items()):
+            progress("policies", index, len(policies))
+            self.sessions[key] = ort.InferenceSession(
                 str(assets / "policies" / file), options, providers=["CPUExecutionProvider"]
             )
-            for key, file in {
-                "walk": "velstand.onnx",
-                "kick_left": "ball_kick_left.onnx",
-                "kick_right": "ball_kick_right.onnx",
-                "sitstand": "alpha_sitstand.onnx",
-                "roulade": "roulade.onnx",
-                "ground_pick": "alpha_ground_pick.onnx",
-                "roller": "roller.onnx",
-                "roller_crouch": "roller_crouch.onnx",
-            }.items()
-        }
-        self.models = {scene: self._build(scene) for scene in ("ball", "duo", "carry")}
+        progress("policies", len(policies), len(policies))
+        self.models = {}
+        for index, scene in enumerate(("ball", "duo", "carry")):
+            progress("models", index, 3)
+            self.models[scene] = self._build(scene)
+        progress("models", 3, 3)
         # Geometry belongs to the compiled model, not to a reset of its dynamic state.
         self.revisions = {scene: uuid.uuid4().hex for scene in self.models}
         self.visual_cache = {}
@@ -147,7 +150,9 @@ class MuJoCoBackend:
         self.error = None
         self.chorus = None
         self.selected = "a"
+        progress("settling", 0, 1)
         self.load("ball")
+        progress("settling", 1, 1)
 
     def _build(self, scene):
         if scene in {"skills", "rollers"}:

@@ -22,7 +22,8 @@ export async function api(path,room,{body,signal}={}){
   const data=response.status===204?null:await response.json();
   if(!response.ok){
     const error=new Error(typeof data?.detail==='string'?data.detail:data?.detail?.message??'演示请求失败');
-    error.status=response.status;error.code=data?.detail?.code;throw error;
+    error.status=response.status;error.code=data?.code??data?.detail?.code;
+    if(error.code==='room_expired')globalThis.dispatchEvent?.(new Event('duckking-room-expired'));throw error;
   }
   return data;
 }

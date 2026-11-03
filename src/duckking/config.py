@@ -22,6 +22,7 @@ class Settings:
     device_id: str = ""
     client_id: str = ""
     local_asr: bool = False
+    prewarm_physics: bool = False
     max_rooms: int = 10
     max_physics_rooms: int = 4
     room_idle_seconds: int = 300
@@ -46,6 +47,7 @@ class Settings:
             device_id=values.get("LINX_DEVICE_ID", ""),
             client_id=values.get("LINX_CLIENT_ID", ""),
             local_asr=values.get("DUCKKING_LOCAL_ASR", "0") == "1",
+            prewarm_physics=values.get("DUCKKING_PHYSICS_PREWARM", "0") == "1",
             max_rooms=int(values.get("DUCKKING_MAX_ROOMS", "10")),
             max_physics_rooms=int(values.get("DUCKKING_MAX_PHYSICS_ROOMS", "4")),
             room_idle_seconds=int(values.get("DUCKKING_ROOM_IDLE_SECONDS", "300")),
