@@ -67,7 +67,10 @@ function render(data) {
   $('release-note').textContent=[publicReady?'HTTPS 页面、API 与语音传输已通过检查；服务器设备绑定及真实灵矽对话仍待验收。':notes[data.state],...data.warnings].filter(Boolean).join(' ');
   const expanded=new Set([...$('deploy-rows').querySelectorAll('details[open]')].map(el=>el.dataset.record));
   $('deploy-rows').replaceChildren();
-  for (const row of data.records) {
+  // The journal is newest first. Only its head can still await acceptance;
+  // retain every final result without showing superseded intermediate rows.
+  const records=data.records.filter((row,index)=>row.status!=='staged'||index===0);
+  for (const row of records) {
     const tr=node('tr',''),version=node('td',''),operator=node('td',''),result=node('td','');
     version.append(node('strong',row.version),commitLink(row.commit));
     operator.append(node('span',row.operator ?? '—'),node('small',row.target ?? '—'));
@@ -76,7 +79,7 @@ function render(data) {
     if (row.rollback && row.rollback!=='not_needed') result.append(node('small',({restored:'已恢复上一版本',failed:'恢复失败，请检查服务',not_available:'没有可恢复的旧版本',unchanged:'原版本未切换'})[row.rollback] ?? '回滚状态未知'));
     tr.append(version,node('td',time(row.ts)),operator,result,coverageCell(row,'lines'),coverageCell(row,'branches'),changesCell(row,expanded));$('deploy-rows').append(tr);
   }
-  $('deploy-empty').hidden=data.records.length>0;
+  $('deploy-empty').hidden=records.length>0;
 }
 let loading=false;
 async function refresh() {
