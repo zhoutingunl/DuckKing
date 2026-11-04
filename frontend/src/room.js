@@ -1,4 +1,5 @@
 import {appURL,setRoom,setServiceInstance,setRoomUnavailable} from './urls.js';
+import {uiPreferences} from './ui-language.js';
 
 export function rememberChoice(key,value){const url=new URL(location.href);url.searchParams.set(key,value);history.replaceState(null,'',url)}
 export const savedChoice=key=>new URL(location.href).searchParams.get(key);
@@ -17,6 +18,12 @@ export async function setupRoom({claim=true}={}){
   const heading=document.createElement('strong'),explanation=document.createElement('p'),reconnect=document.createElement('button');reconnect.id='reconnect-room';reconnect.textContent='重新连接房间';
   banner.append(heading,explanation,reconnect);bar.after(banner);
   let room=new URL(location.href).searchParams.get('room'),creating=false,signature='',instance=null,lost=false,polling=false,timer;
+  if(!room){
+    // Region-based default (e.g. the French room) applies only when the visitor
+    // did not explicitly pick a room; any failure keeps normal claim behaviour.
+    const prefs=await uiPreferences();
+    if(prefs?.room){room=prefs.room;rememberChoice('room',room)}
+  }
   const urlFor=id=>{const url=new URL(location.href);url.searchParams.set('room',id);return url};
   async function request(path,method='GET'){
     const response=await fetch(appURL(path),{method,cache:'no-store',signal:AbortSignal.timeout(10000)});

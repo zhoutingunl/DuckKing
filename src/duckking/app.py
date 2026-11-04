@@ -22,6 +22,7 @@ from .config import Settings
 from .deployment import DeploymentStatus
 from .diagnostics import VoiceDiagnostics
 from .experience import ExperienceBatch, ExperienceContext, ExperienceStore, VoiceExperience
+from .geo import RegionResolver
 from .hybrid_voice import HybridVoiceSession
 from .model_metrics import ModelLoadMetrics
 from .motion import Action, MotionController, PreviewBackend
@@ -96,6 +97,11 @@ def create_app(
     app.state.room_registry = RoomRegistry(app.state)
     app.state.rooms = app.state.room_registry.rooms
     app.state.physics_lock = asyncio.Lock()
+    app.state.region = RegionResolver(
+        app.state.settings.geo_db_dir,
+        country_header=app.state.settings.geo_country_header,
+        french_room=app.state.settings.french_room,
+    )
 
     def warm_factory():
         from .simulation import MuJoCoBackend
@@ -103,9 +109,14 @@ def create_app(
         return MuJoCoBackend(Path(os.environ.get("DUCKKING_SIM_DIR", ROOT / "external")))
 
     app.state.warm_worlds = WarmWorldPool(
-        app.state.physics_lock, warm_factory,
-        lambda: not any(r.scene_motion is not None or r.preparing is not None or r.voice is not None
-                        for r in app.state.rooms.values()),
+        app.state.physics_lock,
+        warm_factory,
+        lambda: (
+            not any(
+                r.scene_motion is not None or r.preparing is not None or r.voice is not None
+                for r in app.state.rooms.values()
+            )
+        ),
         enabled=app.state.settings.prewarm_physics and motion.backend.kind == "preview",
     )
 
@@ -140,8 +151,10 @@ def create_app(
                 if not isinstance(data, dict) or data.get("type") != "join_room":
                     raise ValueError("room required")
                 number = data.get("room")
-                if (data.get("server_instance") is not None
-                        and data["server_instance"] != app.state.room_registry.instance):
+                if (
+                    data.get("server_instance") is not None
+                    and data["server_instance"] != app.state.room_registry.instance
+                ):
                     await ws.send_json({"type": "room_expired", "reason": "service_updated"})
                     await ws.close(code=1008)
                     return None
@@ -158,8 +171,9 @@ def create_app(
         # A visible page keeps its room alive while model download/rendering waits.
         if room in app.state.rooms:
             get_room(room)
-        return JSONResponse(app.state.room_registry.snapshot(),
-                            headers={"Cache-Control": "no-store"})
+        return JSONResponse(
+            app.state.room_registry.snapshot(), headers={"Cache-Control": "no-store"}
+        )
 
     @app.post("/api/rooms/claim")
     async def claim_room():
@@ -201,6 +215,13 @@ def create_app(
     async def deployments():
         return JSONResponse(app.state.deployment.snapshot(), headers={"Cache-Control": "no-store"})
 
+    @app.get("/api/ui-preferences")
+    async def ui_preferences(request: Request):
+        # Region-derived defaults only; the visitor IP itself is never echoed or logged.
+        host = request.client.host if request.client else None
+        result = app.state.region.resolve(request.headers, host)
+        return JSONResponse(result.public(), headers={"Cache-Control": "no-store"})
+
     @app.post("/api/experience", status_code=202)
     async def experience_ingest(request: Request, room: str = "1"):
         # Bound streamed bodies too; Content-Length is not trusted.
@@ -215,8 +236,9 @@ def create_app(
             batch = ExperienceBatch.model_validate_json(body)
         except ValueError as exc:
             raise HTTPException(422, "统计格式无效") from exc
-        accepted = sum(app.state.experience.submit(e, source="browser", room=room)
-                       for e in batch.events)
+        accepted = sum(
+            app.state.experience.submit(e, source="browser", room=room) for e in batch.events
+        )
         if accepted != len(batch.events):
             raise HTTPException(503, "统计队列已满，请稍后重试")
         return {"queued": accepted}
@@ -266,8 +288,11 @@ def create_app(
             )
         ):
             raise HTTPException(422, "未知统计筛选")
-        result = await anyio.to_thread.run_sync(lambda: app.state.experience.snapshot(
-            hours=hours, room=room, release=release, **filters))
+        result = await anyio.to_thread.run_sync(
+            lambda: app.state.experience.snapshot(
+                hours=hours, room=room, release=release, **filters
+            )
+        )
         return JSONResponse(result, headers={"Cache-Control": "no-store"})
 
     @app.get("/api/state")
@@ -342,9 +367,10 @@ def create_app(
             raise HTTPException(422, "请选择有效的物理场景")
         selected = get_room(room)
         async with selected.scene_lock:
-            if (selected.scene_motion
-                    and getattr(selected.scene_motion.backend, "scene", None)
-                    in {"balance", "seesaw"}):
+            if selected.scene_motion and getattr(selected.scene_motion.backend, "scene", None) in {
+                "balance",
+                "seesaw",
+            }:
                 if selected.voice:
                     raise HTTPException(409, "请先断开当前房间语音，再切换物理世界")
                 await selected.scene_motion.close()
@@ -357,7 +383,8 @@ def create_app(
                         limit = app.state.room_registry.physics_limit
                         if count >= limit:
                             raise HTTPException(
-                                409, f"物理场景已达并发上限（{limit}）；"
+                                409,
+                                f"物理场景已达并发上限（{limit}）；"
                                 "请释放空闲场景后重试，语音工作台仍可使用",
                             )
                         backend = app.state.warm_worlds.take()
@@ -370,7 +397,9 @@ def create_app(
                             def publish(phase, completed, total):
                                 if accepting_progress:
                                     selected.preparing = {
-                                        "phase": phase, "completed": completed, "total": total,
+                                        "phase": phase,
+                                        "completed": completed,
+                                        "total": total,
                                     }
 
                             def progress(phase, completed, total):
@@ -439,7 +468,8 @@ def create_app(
                     raise ValueError("排练文本长度超限")
                 studio.heard(text)
             return await studio.invoke(
-                body.get("name"), body.get("arguments", {}), wait=False, manual=True)
+                body.get("name"), body.get("arguments", {}), wait=False, manual=True
+            )
         except (ValueError, TypeError) as exc:
             raise HTTPException(422, str(exc)) from exc
 
@@ -493,11 +523,18 @@ def create_app(
                 lambda: gzip.compress(pack_visual_model(model), compresslevel=6, mtime=0)
             )
         prepared_ms = (time.perf_counter() - started) * 1000
-        return Response(backend.packed_visual_cache[key], media_type="application/octet-stream",
-                        headers={"Content-Encoding": "gzip", "Cache-Control": "no-store",
-                                 "Server-Timing": f"model_prepare;dur={prepared_ms:.1f}",
-                                 "X-Model-Decoded-Bytes": str(int.from_bytes(
-                                     backend.packed_visual_cache[key][-4:], "little"))})
+        return Response(
+            backend.packed_visual_cache[key],
+            media_type="application/octet-stream",
+            headers={
+                "Content-Encoding": "gzip",
+                "Cache-Control": "no-store",
+                "Server-Timing": f"model_prepare;dur={prepared_ms:.1f}",
+                "X-Model-Decoded-Bytes": str(
+                    int.from_bytes(backend.packed_visual_cache[key][-4:], "little")
+                ),
+            },
+        )
 
     async def load_visual_asset():
         try:
@@ -515,7 +552,8 @@ def create_app(
         started = time.perf_counter()
         asset = await load_visual_asset()
         headers = {
-            "Cache-Control": "no-cache", "ETag": f'"{asset.version}"',
+            "Cache-Control": "no-cache",
+            "ETag": f'"{asset.version}"',
             "Server-Timing": f"model_prepare;dur={(time.perf_counter() - started) * 1000:.1f}",
         }
         if request.headers.get("if-none-match") == headers["ETag"]:
@@ -534,8 +572,11 @@ def create_app(
             return Response(status_code=304, headers=headers)
         # This explicit .gz representation is always gzip. The HTTPS bridge
         # sends Accept-Encoding: identity but forwards encoded bytes unchanged.
-        return Response(asset.compressed, media_type="application/octet-stream",
-                        headers={**headers, "Content-Encoding": "gzip"})
+        return Response(
+            asset.compressed,
+            media_type="application/octet-stream",
+            headers={**headers, "Content-Encoding": "gzip"},
+        )
 
     @app.post("/api/models/load-metrics", status_code=204)
     async def model_load_metrics(request: Request, room: str = "1"):
@@ -674,9 +715,7 @@ def create_app(
                     finished.set()
                 initial_status = False
 
-        session = VoiceSession(
-            send_voice, voice_motion, room.settings, room.voice_diagnostics
-        )
+        session = VoiceSession(send_voice, voice_motion, room.settings, room.voice_diagnostics)
         # Reserve without yielding after room selection. Each room has its own device.
         room.voice = session
         receiver = None
@@ -687,7 +726,8 @@ def create_app(
             while True:
                 receiver = asyncio.create_task(ws.receive())
                 done, _ = await asyncio.wait(
-                    {receiver, terminal}, timeout=VOICE_BROWSER_IDLE_TIMEOUT,
+                    {receiver, terminal},
+                    timeout=VOICE_BROWSER_IDLE_TIMEOUT,
                     return_when=asyncio.FIRST_COMPLETED,
                 )
                 if not done:
@@ -710,12 +750,16 @@ def create_app(
                         mode = data.get("mode", "cloud")
                         if mode not in {"cloud", "local_first"}:
                             raise ValueError("未知语音模式")
-                        if (mode != "cloud"
-                                and getattr(voice_motion.backend, "scene", None)
-                                in {"balance", "seesaw"}):
+                        if mode != "cloud" and getattr(voice_motion.backend, "scene", None) in {
+                            "balance",
+                            "seesaw",
+                        }:
                             raise ValueError("平衡与跷跷板教练使用灵矽理解，请选择灵矽模式")
-                        if (mode == "local_first" and voice_motion.studio
-                                and voice_motion.studio.active):
+                        if (
+                            mode == "local_first"
+                            and voice_motion.studio
+                            and voice_motion.studio.active
+                        ):
                             raise ValueError("现场互动节目使用灵矽理解，请选择灵矽模式")
                         if mode == "local_first" and not isinstance(session, HybridVoiceSession):
                             if not room.settings.local_asr:
@@ -737,10 +781,13 @@ def create_app(
                         try:
                             room.voice_diagnostics.experience.pending = (
                                 ExperienceContext.model_validate(data["experience"])
-                                if "experience" in data else None)
+                                if "experience" in data
+                                else None
+                            )
                             if room.voice_diagnostics.experience.pending:
                                 room.voice_diagnostics.experience.pending.scene = getattr(
-                                    voice_motion.backend, "scene", "unknown")
+                                    voice_motion.backend, "scene", "unknown"
+                                )
                         except (ValueError, TypeError):
                             room.voice_diagnostics.experience.pending = None
                         await session.listen(True)

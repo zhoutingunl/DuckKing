@@ -11,6 +11,8 @@ from urllib.parse import urlparse
 
 from dotenv import dotenv_values
 
+DEFAULT_GEO_DB_DIR = Path("~/.local/share/duckking/geo").expanduser()
+
 
 @dataclass
 class Settings:
@@ -26,6 +28,9 @@ class Settings:
     max_rooms: int = 10
     max_physics_rooms: int = 4
     room_idle_seconds: int = 300
+    geo_db_dir: Path = field(default_factory=lambda: DEFAULT_GEO_DB_DIR)
+    geo_country_header: str = ""
+    french_room: str = ""
 
     def __post_init__(self):
         if not 1 <= self.max_rooms <= 32 or not 1 <= self.max_physics_rooms <= 32:
@@ -51,18 +56,29 @@ class Settings:
             max_rooms=int(values.get("DUCKKING_MAX_ROOMS", "10")),
             max_physics_rooms=int(values.get("DUCKKING_MAX_PHYSICS_ROOMS", "4")),
             room_idle_seconds=int(values.get("DUCKKING_ROOM_IDLE_SECONDS", "300")),
+            geo_db_dir=(
+                Path(values["DUCKKING_GEO_DB_DIR"]).expanduser()
+                if values.get("DUCKKING_GEO_DB_DIR")
+                else DEFAULT_GEO_DB_DIR
+            ),
+            geo_country_header=values.get("DUCKKING_GEO_COUNTRY_HEADER", ""),
+            french_room=values.get("DUCKKING_FRENCH_ROOM", ""),
         )
 
     def for_room(self, room: str):
         if room == "1":
             return self
-        if (not isinstance(room, str) or not re.fullmatch(r"[1-9][0-9]?", room)
-                or int(room) > self.max_rooms):
+        if (
+            not isinstance(room, str)
+            or not re.fullmatch(r"[1-9][0-9]?", room)
+            or int(room) > self.max_rooms
+        ):
             raise ValueError("房间编号超出配置上限")
         directory = self.data_dir / "rooms" / room
         values = dotenv_values(directory / "linx.env") if (directory / "linx.env").is_file() else {}
         return replace(
-            self, data_dir=directory,
+            self,
+            data_dir=directory,
             ota_url=values.get("LINX_OTA_URL") or self.ota_url,
             ws_url=values.get("LINX_WS_URL") or "",
             ws_token=values.get("LINX_WS_TOKEN") or "",
