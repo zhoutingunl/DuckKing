@@ -10,20 +10,52 @@ import httpx
 
 from .config import Settings, provision
 
-PROMPT = """你是 DuckKing，一个友好的虚拟机器人鸭子，中文名字叫鸭王。
+DEFAULT_LANG_CODE = "zh"
+
+# Only languages with a hand-written prompt are offered; the cloud accepts more
+# codes (GET /v1/languages), but reusing the Chinese prompt for them would
+# silently produce a confused agent.
+PROMPTS = {
+    "zh": """你是 DuckKing，一个友好的虚拟机器人鸭子，中文名字叫鸭王。
 用简短中文回答，一般不超过两句话。用户要求点头、前进或停止时，必须调用对应设备工具，
 不要仅口头答应。工具返回完成后才能说完成；取消、失败或未连接时如实说明。
 可用工具为 duck_nod、duck_walk_short、duck_stop、duck_get_status、duck_flash_step、duck_bear_shake。
 用户说“闪身步”时调用 duck_flash_step；说“狗熊哆嗦毛”或“抖抖毛”时调用 duck_bear_shake。
 这两个动作是机器人改编舞步，必须等待工具返回，再说明是否完成。
-你控制的是本地虚拟鸭子，不要声称已经制造或操控实体硬件。"""
+你控制的是本地虚拟鸭子，不要声称已经制造或操控实体硬件。""",
+    "fr": """Tu es DuckKing, un canard-robot virtuel et sympathique, dont le nom chinois est 鸭王.
+Réponds en français, très brièvement, en général pas plus de deux phrases. Quand l'utilisateur
+demande un hochement de tête, d'avancer ou de s'arrêter, appelle l'outil d'appareil correspondant,
+sans te contenter de répondre verbalement. Dis que c'est terminé seulement après le retour de
+l'outil ; en cas d'annulation, d'échec ou de déconnexion, dis-le honnêtement.
+Outils disponibles : duck_nod, duck_walk_short, duck_stop, duck_get_status, duck_flash_step,
+duck_bear_shake. Quand l'utilisateur dit « pas éclair » appelle duck_flash_step ; quand il dit
+« l'ours qui frissonne » ou « secoue ta fourrure » appelle duck_bear_shake. Ces deux gestes sont
+des pas de danse adaptés pour le robot ; attends le retour de l'outil avant de dire si c'est fait.
+Tu contrôles un canard virtuel local, ne prétends pas fabriquer ni manipuler du matériel réel.""",
+}
+
+
+def agent_prompt(lang_code: str) -> str:
+    prompt = PROMPTS.get(lang_code)
+    if prompt is None:
+        supported = "、".join(sorted(PROMPTS))
+        raise ValueError(f"暂无 {lang_code} 的智能体提示词；已准备的语言为：{supported}")
+    return prompt
 
 
 def read_key(path: Path) -> str:
     return path.expanduser().read_text().strip()
 
 
-async def setup_device(settings: Settings, key_file: Path, agent_id=None, model_id=None, http=None):
+async def setup_device(
+    settings: Settings,
+    key_file: Path,
+    agent_id=None,
+    model_id=None,
+    lang_code=DEFAULT_LANG_CODE,
+    http=None,
+):
     key = await asyncio.to_thread(read_key, key_file)
     if not key or "\n" in key:
         raise ValueError("API Key 文件应仅包含一行原始平台 API Key")
@@ -60,10 +92,10 @@ async def setup_device(settings: Settings, key_file: Path, agent_id=None, model_
                 body = {
                     "agentName": "DuckKing",
                     "assistantName": "鸭王",
-                    "langCode": "zh",
+                    "langCode": lang_code,
                     "intentModelId": "Intent_function_call",
                     "memModelId": "Memory_nomem",
-                    "systemPrompt": PROMPT,
+                    "systemPrompt": agent_prompt(lang_code),
                 }
                 if model_id:
                     body["llmModelId"] = model_id
@@ -99,11 +131,20 @@ def main():
     parser.add_argument("--key-file", type=Path, default=Path("~/.secrets/lingxi"))
     parser.add_argument("--agent-id")
     parser.add_argument("--model-id")
+    parser.add_argument(
+        "--lang-code",
+        default=DEFAULT_LANG_CODE,
+        help="新建智能体的交互语言代码，默认 zh，法语为 fr；全量列表见灵矽 GET /v1/languages",
+    )
     args = parser.parse_args()
     try:
         result = asyncio.run(
             setup_device(
-                Settings.load(), args.key_file, agent_id=args.agent_id, model_id=args.model_id
+                Settings.load(),
+                args.key_file,
+                agent_id=args.agent_id,
+                model_id=args.model_id,
+                lang_code=args.lang_code,
             )
         )
         print(json.dumps(result, ensure_ascii=False))

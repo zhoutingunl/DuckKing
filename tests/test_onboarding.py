@@ -118,6 +118,35 @@ async def test_key_file_must_be_nonempty_and_one_line(tmp_path, content):
         await setup_device(Settings(data_dir=tmp_path), key)
 
 
+async def test_created_agent_defaults_to_chinese(tmp_path):
+    key, calls, http = platform(tmp_path)
+    async with http:
+        await setup_device(Settings(data_dir=tmp_path / "state"), key, http=http)
+    body = next(b for _, p, b in calls if p == "/xiaozhi/agent")
+    assert body["langCode"] == "zh"
+    assert "用简短中文回答" in body["systemPrompt"]
+
+
+async def test_french_lang_code_selects_french_prompt(tmp_path):
+    key, calls, http = platform(tmp_path)
+    async with http:
+        await setup_device(Settings(data_dir=tmp_path / "state"), key, http=http, lang_code="fr")
+    body = next(b for _, p, b in calls if p == "/xiaozhi/agent")
+    assert body["langCode"] == "fr"
+    assert "français" in body["systemPrompt"]
+    assert "duck_flash_step" in body["systemPrompt"]
+
+
+async def test_unsupported_lang_code_fails_before_creating_agent(tmp_path):
+    key, calls, http = platform(tmp_path)
+    async with http:
+        with pytest.raises(ValueError, match="暂无"):
+            await setup_device(
+                Settings(data_dir=tmp_path / "state"), key, http=http, lang_code="xx"
+            )
+    assert not any(p == "/xiaozhi/agent" for _, p, _ in calls)
+
+
 async def test_owned_http_client_is_closed(tmp_path, monkeypatch):
     key, _, http = platform(tmp_path)
     monkeypatch.setattr("duckking.onboarding.httpx.AsyncClient", lambda **kwargs: http)
