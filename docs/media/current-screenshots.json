@@ -1,0 +1,254 @@
+{
+  "captured_at": "2026-10-25T14:47:45.414Z",
+  "application_commit": "a8a6675309738844caf8956fb669e71c8994ad7c",
+  "viewport": {
+    "width": 1440,
+    "height": 1080
+  },
+  "source": "local production build, actual backend and shipped audio; no response interception",
+  "cloud_voice_tested": false,
+  "screenshots": [
+    {
+      "file": "workbench.png",
+      "page": "/",
+      "physics": false
+    },
+    {
+      "file": "practice-current.png",
+      "page": "scenarios.html",
+      "physics": true,
+      "action": "yawn",
+      "status": "completed"
+    },
+    {
+      "file": "theatre-current.png",
+      "page": "demos.html",
+      "physics": true,
+      "mode": "scripted_rehearsal",
+      "cue": "鸭 A 已站稳，轮到它独唱。"
+    }
+  ],
+  "errors": [],
+  "seated_result": {
+    "scene": "seated",
+    "mode": "scripted_rehearsal",
+    "status": "completed",
+    "results": [
+      {
+        "id": "ac58ccaf-e1c5-4899-97a8-8201a294d714",
+        "name": "seated_show",
+        "input": {
+          "name": "seated_show",
+          "duration": 44,
+          "speed": null,
+          "target": "a"
+        },
+        "status": "completed",
+        "started_at": 1792939674.68498,
+        "outcome": {
+          "phase": "completed",
+          "error": null,
+          "elapsed": 40,
+          "duration": 40,
+          "running": false,
+          "music_started": true,
+          "solo": null,
+          "postures": [
+            {
+              "target": "sit",
+              "observed": "sit",
+              "supported": true,
+              "height_m": 0.06178115083770097,
+              "upright": 0.9972642765223422,
+              "knee_deg": [
+                74.6756529366209,
+                75.37658977314474
+              ]
+            },
+            {
+              "target": "sit",
+              "observed": "sit",
+              "supported": true,
+              "height_m": 0.061781157359387606,
+              "upright": 0.9972642641956018,
+              "knee_deg": [
+                74.67564473910035,
+                75.3766150458609
+              ]
+            },
+            {
+              "target": "sit",
+              "observed": "sit",
+              "supported": true,
+              "height_m": 0.0617813682020627,
+              "upright": 0.9972639041953956,
+              "knee_deg": [
+                74.67560518123467,
+                75.37728866938994
+              ]
+            },
+            {
+              "target": "sit",
+              "observed": "sit",
+              "supported": true,
+              "height_m": 0.061790206335342435,
+              "upright": 0.9972466472217438,
+              "knee_deg": [
+                74.68587202801166,
+                75.39508723658581
+              ]
+            }
+          ],
+          "standing_confirmations": [
+            {
+              "at": 4.537295577116311,
+              "target": "stand",
+              "observed": "stand",
+              "supported": true,
+              "height_m": 0.11613962870026195,
+              "upright": 0.9973690394878257,
+              "knee_deg": [
+                1.420378253600761,
+                1.275116512071293
+              ]
+            },
+            {
+              "at": 12.518456391058862,
+              "target": "stand",
+              "observed": "stand",
+              "supported": true,
+              "height_m": 0.11614335527875574,
+              "upright": 0.9987186232385686,
+              "knee_deg": [
+                1.757428734212989,
+                1.9220804859549168
+              ]
+            },
+            {
+              "at": 20.54005493107252,
+              "target": "stand",
+              "observed": "stand",
+              "supported": true,
+              "height_m": 0.11612356312337624,
+              "upright": 0.9973507252183853,
+              "knee_deg": [
+                1.4259935043827925,
+                1.2257641689301129
+              ]
+            },
+            {
+              "at": 28.543346893042326,
+              "target": "stand",
+              "observed": "stand",
+              "supported": true,
+              "height_m": 0.11614039937633958,
+              "upright": 0.9985888055178755,
+              "knee_deg": [
+                1.5921939526187243,
+                1.9439278422315338
+              ]
+            }
+          ],
+          "seated_returns": [
+            {
+              "at": 10.915444683050737,
+              "target": "sit",
+              "observed": "sit",
+              "supported": true,
+              "height_m": 0.062010610332843,
+              "upright": 0.9961521466772573,
+              "knee_deg": [
+                74.89629253303274,
+                75.45221112813678
+              ]
+            },
+            {
+              "at": 18.959938874002546,
+              "target": "sit",
+              "observed": "sit",
+              "supported": true,
+              "height_m": 0.06202098704786824,
+              "upright": 0.9962624341985779,
+              "knee_deg": [
+                74.8854624974775,
+                75.4139296504651
+              ]
+            },
+            {
+              "at": 26.957736327080056,
+              "target": "sit",
+              "observed": "sit",
+              "supported": true,
+              "height_m": 0.06201667131685429,
+              "upright": 0.9962876807644291,
+              "knee_deg": [
+                74.89533582164918,
+                75.42856754063197
+              ]
+            },
+            {
+              "at": 34.93816691101529,
+              "target": "sit",
+              "observed": "sit",
+              "supported": true,
+              "height_m": 0.06202703368121626,
+              "upright": 0.9962449568373695,
+              "knee_deg": [
+                74.87415459794714,
+                75.45703928040878
+              ]
+            }
+          ],
+          "completed_solos": [
+            "a",
+            "b",
+            "c",
+            "d"
+          ],
+          "max_drift_m": [
+            0.08665847106115396,
+            0.09157188123146903,
+            0.08856963357027789,
+            0.09166847135292862
+          ],
+          "floor_contacts": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "table_contacts": [
+            43165,
+            43160,
+            43145,
+            43159
+          ],
+          "source": "scripted_solos_official_sitstand_real_contacts",
+          "verified": true,
+          "message": "四位歌手均已站稳独唱并坐回原位"
+        },
+        "finished_at": 1792939715.632564,
+        "room": "1"
+      },
+      {
+        "name": "seated_music",
+        "status": "completed",
+        "outcome": {
+          "source": "public_domain_ode_seated_solos",
+          "parts": 4,
+          "solos": [
+            "a",
+            "b",
+            "c",
+            "d"
+          ],
+          "duration": 40,
+          "physical_ducks": 4,
+          "ble": false
+        }
+      }
+    ],
+    "cloud_audio_frames": 0
+  },
+  "passed": true
+}

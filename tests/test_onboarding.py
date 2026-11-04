@@ -4,7 +4,7 @@ import httpx
 import pytest
 
 from duckking.config import Settings
-from duckking.onboarding import main, setup_device
+from duckking.onboarding import PROMPT, agent_prompt, main, setup_device
 
 
 def platform(tmp_path, agents=None, bound=False, failure=None, created="duck-agent"):
@@ -127,14 +127,18 @@ async def test_created_agent_defaults_to_chinese(tmp_path):
     assert "用简短中文回答" in body["systemPrompt"]
 
 
-async def test_french_lang_code_selects_french_prompt(tmp_path):
+async def test_french_lang_code_keeps_rules_and_swaps_reply_language(tmp_path):
     key, calls, http = platform(tmp_path)
     async with http:
         await setup_device(Settings(data_dir=tmp_path / "state"), key, http=http, lang_code="fr")
     body = next(b for _, p, b in calls if p == "/xiaozhi/agent")
     assert body["langCode"] == "fr"
-    assert "français" in body["systemPrompt"]
+    # 权威中文规则保持完整，只替换回复语言子句并追加法语触发词映射。
+    assert "用法语回答" in body["systemPrompt"]
+    assert "闪身步" in body["systemPrompt"]
     assert "duck_flash_step" in body["systemPrompt"]
+    assert "pas éclair" in body["systemPrompt"]
+    assert "用简短中文回答" not in body["systemPrompt"]
 
 
 async def test_unsupported_lang_code_fails_before_creating_agent(tmp_path):
@@ -172,3 +176,103 @@ def test_cli_prints_only_result_and_sanitizes_errors(tmp_path, monkeypatch, caps
     with pytest.raises(SystemExit) as error:
         main()
     assert "a-private-key" not in str(error.value)
+
+
+@pytest.mark.parametrize("mode", ["updated", "current", "unreadable", "verify_failed"])
+async def test_prompt_sync_backs_up_and_updates_only_prompt_without_binding(tmp_path, mode):
+    key = tmp_path / "key"
+    key.write_text("test-key")
+    before = PROMPT if mode == "current" else "original dedicated DuckKing instructions"
+    state = {"systemPrompt": before, "llmModelId": "unchanged-model"}
+    calls = []
+
+    def respond(request):
+        calls.append((request.method, request.url.path))
+        if request.url.path == "/xiaozhi/agent/list":
+            data = [{"id": "duck", "agentName": "DuckKing"}]
+        else:
+            assert request.url.path == "/xiaozhi/agent/duck"
+            if request.method == "PUT":
+                assert json.loads(request.content) == {"systemPrompt": PROMPT}
+                if mode != "verify_failed":
+                    state.update(systemPrompt=PROMPT)
+            data = None if mode == "unreadable" else dict(state)
+        return httpx.Response(200, json={"code": 0, "data": data})
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(respond)) as http:
+        if mode in {"unreadable", "verify_failed"}:
+            with pytest.raises(ValueError):
+                await setup_device(Settings(data_dir=tmp_path), key, http=http, sync_prompt=True)
+        else:
+            result = await setup_device(
+                Settings(data_dir=tmp_path), key, http=http, sync_prompt=True
+            )
+            assert result == {"status": f"prompt_{mode}"}
+    backups = list(tmp_path.glob("prompt-backup-*.txt"))
+    assert len(backups) == (1 if mode in {"updated", "verify_failed"} else 0)
+    for backup in backups:
+        assert backup.read_text() == before
+        assert backup.stat().st_mode & 0o777 == 0o600
+    assert not any("/device/" in path or "/ota/" in path for _, path in calls)
+
+
+@pytest.mark.parametrize(
+    "agents,agent_id", [([], None), ([{"id": "a", "agentName": "Other"}], "a")]
+)
+async def test_prompt_sync_does_not_create_agents_or_modify_unrelated_agents(
+    tmp_path,
+    agents,
+    agent_id,
+):
+    key, calls, http = platform(tmp_path, agents=agents)
+    async with http:
+        with pytest.raises(ValueError):
+            await setup_device(
+                Settings(data_dir=tmp_path), key, agent_id=agent_id, http=http, sync_prompt=True
+            )
+    assert all(method == "GET" for method, _, _ in calls)
+
+
+async def test_prompt_sync_follows_agent_language_instead_of_forcing_chinese(tmp_path):
+    key = tmp_path / "key"
+    key.write_text("test-key")
+    french_prompt = agent_prompt("fr")
+    state = {"systemPrompt": "old french instructions", "langCode": "fr"}
+    calls = []
+
+    def respond(request):
+        calls.append((request.method, request.url.path, json.loads(request.content or b"null")))
+        if request.url.path == "/xiaozhi/agent/list":
+            data = [{"id": "duck", "agentName": "DuckKing"}]
+        else:
+            assert request.url.path == "/xiaozhi/agent/duck"
+            if request.method == "PUT":
+                assert json.loads(request.content) == {"systemPrompt": french_prompt}
+                state.update(systemPrompt=french_prompt)
+            data = dict(state)
+        return httpx.Response(200, json={"code": 0, "data": data})
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(respond)) as http:
+        result = await setup_device(Settings(data_dir=tmp_path), key, http=http, sync_prompt=True)
+    assert result == {"status": "prompt_updated"}
+    backup = next(tmp_path.glob("prompt-backup-*.txt"))
+    assert backup.read_text() == "old french instructions"
+
+
+async def test_prompt_sync_refuses_languages_without_a_directive(tmp_path):
+    key, calls, http = platform(tmp_path, agents=[{"id": "duck", "agentName": "DuckKing"}])
+    original = http._transport.handler
+
+    def with_japanese(request):
+        if request.url.path == "/xiaozhi/agent/duck":
+            return httpx.Response(
+                200, json={"code": 0, "data": {"systemPrompt": "ancien", "langCode": "ja"}}
+            )
+        return original(request)
+
+    http._transport.handler = with_japanese
+    async with http:
+        with pytest.raises(ValueError, match="暂无"):
+            await setup_device(Settings(data_dir=tmp_path / "s"), key, http=http, sync_prompt=True)
+    assert not any(method == "PUT" for method, _, _ in calls)
+    assert not list((tmp_path / "s").glob("prompt-backup-*.txt"))

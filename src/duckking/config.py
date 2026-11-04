@@ -5,7 +5,7 @@ import json
 import os
 import re
 import uuid
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -21,6 +21,17 @@ class Settings:
     ws_token: str = field(default="", repr=False)
     device_id: str = ""
     client_id: str = ""
+    local_asr: bool = False
+    prewarm_physics: bool = False
+    max_rooms: int = 10
+    max_physics_rooms: int = 4
+    room_idle_seconds: int = 300
+
+    def __post_init__(self):
+        if not 1 <= self.max_rooms <= 32 or not 1 <= self.max_physics_rooms <= 32:
+            raise ValueError("房间并发上限必须在 1 到 32 之间")
+        if not 30 <= self.room_idle_seconds <= 86400:
+            raise ValueError("空闲回收时间必须在 30 到 86400 秒之间")
 
     @classmethod
     def load(cls):
@@ -35,6 +46,28 @@ class Settings:
             ws_token=values.get("LINX_WS_TOKEN", ""),
             device_id=values.get("LINX_DEVICE_ID", ""),
             client_id=values.get("LINX_CLIENT_ID", ""),
+            local_asr=values.get("DUCKKING_LOCAL_ASR", "0") == "1",
+            prewarm_physics=values.get("DUCKKING_PHYSICS_PREWARM", "0") == "1",
+            max_rooms=int(values.get("DUCKKING_MAX_ROOMS", "10")),
+            max_physics_rooms=int(values.get("DUCKKING_MAX_PHYSICS_ROOMS", "4")),
+            room_idle_seconds=int(values.get("DUCKKING_ROOM_IDLE_SECONDS", "300")),
+        )
+
+    def for_room(self, room: str):
+        if room == "1":
+            return self
+        if (not isinstance(room, str) or not re.fullmatch(r"[1-9][0-9]?", room)
+                or int(room) > self.max_rooms):
+            raise ValueError("房间编号超出配置上限")
+        directory = self.data_dir / "rooms" / room
+        values = dotenv_values(directory / "linx.env") if (directory / "linx.env").is_file() else {}
+        return replace(
+            self, data_dir=directory,
+            ota_url=values.get("LINX_OTA_URL") or self.ota_url,
+            ws_url=values.get("LINX_WS_URL") or "",
+            ws_token=values.get("LINX_WS_TOKEN") or "",
+            device_id=values.get("LINX_DEVICE_ID") or "",
+            client_id=values.get("LINX_CLIENT_ID") or "",
         )
 
     def identity(self) -> dict:
@@ -43,8 +76,8 @@ class Settings:
         if path.exists():
             saved = json.loads(path.read_text())
         else:
-            # Stable locally administered pseudo-MAC derived from host NIC identity.
-            digest = bytearray(hashlib.sha256(str(uuid.getnode()).encode()).digest()[:6])
+            # Independent locally administered identity, persisted across restarts.
+            digest = bytearray(os.urandom(6))
             digest[0] = (digest[0] | 2) & 0xFE
             saved = {
                 "device_id": ":".join(f"{x:02x}" for x in digest),

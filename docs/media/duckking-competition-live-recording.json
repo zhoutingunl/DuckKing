@@ -1,0 +1,2950 @@
+{
+  "recorded_at": "2026-11-02T02:20:07.165Z",
+  "base_url": "http://127.0.0.1:8903/",
+  "release": null,
+  "source_commit": "8d2314423fc7f98a8053fffd4c23d6c912050954",
+  "room": "1",
+  "validation_type": "live_tabletop",
+  "source": "Actual Linx STT/MCP/TTS performance; actual offline SenseVoice and MuJoCo; public balance comparison, saved CPU training and commit-bound coverage. Separate recordings and versions are retained per chapter.",
+  "chapters": [
+    {
+      "id": "tabletop",
+      "page": "demos.html",
+      "started_at": "2026-11-02T02:20:07.679Z",
+      "segments": [
+        {
+          "name": "live-tabletop-two-tigers",
+          "start_seconds": 0.277,
+          "status": "completed",
+          "end_seconds": 84.987
+        }
+      ],
+      "screenshots": [
+        {
+          "file": "competition-live-selection.png",
+          "at_seconds": 0.28,
+          "capture": "recorded_video_frame",
+          "sha256": "a9e99e90c9db56ffbdbfcdd91f5c1b2d38607b3c83cf39fe7ded4684401df737"
+        },
+        {
+          "file": "competition-live-running.png",
+          "at_seconds": 23.792,
+          "capture": "recorded_video_frame",
+          "sha256": "7140e7df2479c519baacfd4fb31fc0f881e30be26a8b2bb7dbec68c84b1b326e"
+        },
+        {
+          "file": "competition-live-fall.png",
+          "at_seconds": 39.704,
+          "capture": "recorded_video_frame",
+          "sha256": "217d15a30ae62a724dfe3127b7ca3d2491ba41e9c7e34b82008fcc8aa752d745"
+        },
+        {
+          "file": "competition-live-result.png",
+          "at_seconds": 84.285,
+          "capture": "recorded_video_frame",
+          "sha256": "240667eab4cc40d675f04297c424d60236fe893e71975b9207d5f4f3fc621fc7"
+        }
+      ],
+      "result": {
+        "scene": "tabletop",
+        "mode": "live_linx",
+        "status": "completed",
+        "results": [
+          {
+            "id": "7a37b99776de:3",
+            "name": "table_show",
+            "input": {
+              "name": "table_show",
+              "duration": 36,
+              "speed": null,
+              "target": "a",
+              "member": "selected",
+              "members": null
+            },
+            "status": "completed",
+            "started_at": 1793586028.1305459,
+            "outcome": {
+              "phase": "completed",
+              "elapsed": 36,
+              "duration": 36,
+              "tempo": 72,
+              "running": false,
+              "table_height_m": 0.4,
+              "falling_duck": "d",
+              "dropped_at": 17.539999999997562,
+              "landed_at": 17.679999999997534,
+              "table_contacts": [
+                16801,
+                16806,
+                16834,
+                10909
+              ],
+              "ground_contacts": [
+                0,
+                0,
+                0,
+                11825
+              ],
+              "supported": [
+                true,
+                true,
+                true,
+                false
+              ],
+              "min_root_height_m": [
+                0.5119008834056024,
+                0.5120470818544655,
+                0.5116641386663988,
+                0.0488372404518479
+              ],
+              "knee_excursion_deg": [
+                [
+                  48.73934715368752,
+                  41.45544484563514
+                ],
+                [
+                  46.571809218845964,
+                  41.649026153059395
+                ],
+                [
+                  47.409098537827774,
+                  41.444453046364806
+                ],
+                [
+                  44.247707059988635,
+                  36.620402770870434
+                ]
+              ],
+              "ankle_vertical_excursion_m": [
+                [
+                  0.023656462490771468,
+                  0.02345558991094515
+                ],
+                [
+                  0.024403121050679155,
+                  0.0223122484264196
+                ],
+                [
+                  0.024050347019652918,
+                  0.022666748613190624
+                ],
+                [
+                  0.023748947752902316,
+                  0.021745656498250054
+                ]
+              ],
+              "dance_max_drift_m": [
+                0.05172547161656286,
+                0.05233429650985176,
+                0.055606004731962276,
+                0.048312960867337475
+              ],
+              "floor_dance": {
+                "started_at": 19.299999999997453,
+                "knee_excursion_deg": [
+                  45.03600248833273,
+                  38.16557715520643
+                ],
+                "ankle_vertical_excursion_m": [
+                  0.022712664507058625,
+                  0.02212719878234755
+                ],
+                "max_drift_m": 0.051683650433757077
+              },
+              "source": "scripted_gait_real_contacts_gravity",
+              "departure_stable": true,
+              "verified": true,
+              "message": "鸭 D 已真实落地并恢复踏步，其余三只留在桌上"
+            },
+            "finished_at": 1793586064.153318,
+            "room": "1"
+          },
+          {
+            "name": "table_music",
+            "status": "completed",
+            "outcome": {
+              "source": "traditional_frere_jacques_canon",
+              "parts": 4,
+              "duration": 36,
+              "physical_ducks": 4,
+              "fall_cue": true,
+              "ble": false
+            }
+          }
+        ],
+        "cloud_audio_frames": 412
+      },
+      "timeline": [
+        "识别：请开始桌上四鸭合唱表演。",
+        "灵矽：我来启动四鸭合唱表演表演已受理开演，",
+        "灵矽：正在等待完成，稍后我确认结果。",
+        "灵矽开演已受理；等待实际物理结果",
+        "灵矽开演动作 · 实际物理表演已完成",
+        "真实跌落验收通过：桌面支撑 → 离桌 → 地面接触；其余三只留在桌上",
+        "识别：请读取当前状态，告诉我桌上表演的真实结果。",
+        "灵矽：表演已完成。",
+        "灵矽：四只小鸭在桌上完成了36秒的合唱与踏步表演，鸭子D在约17.5秒时从桌面跌落落地，之后在地面继续完成了舞蹈部分，整场演出顺利结束。",
+        "本幕完成"
+      ],
+      "audio": [
+        {
+          "file": "tabletop-0.wav",
+          "mime": "audio/wav",
+          "sample_rate_hz": 48000,
+          "channels": 2,
+          "started_elapsed_seconds": 2.222030029296875,
+          "clock_method": "AudioWorklet PCM + AudioContext.getOutputTimestamp wall-clock anchors",
+          "clock_segments": [
+            {
+              "first_frame": 256,
+              "last_frame": 3974400,
+              "offset_ms": 1793586009895.6968,
+              "max_anchor_jitter_ms": 1.352294921875
+            }
+          ],
+          "sha256": "aab01d699268506d4f3c2b5929147e427a4ba198df013632677e43da3c1c2616"
+        }
+      ],
+      "sync_evidence": {
+        "method": "Actual oscillator scheduling mapped through captured output-clock anchors",
+        "physical_start_wall_time_ms": 1793586028130.546,
+        "physical_end_wall_time_ms": 1793586064153.3179,
+        "music_start_wall_time_ms": 1793586028237.03,
+        "music_end_wall_time_ms": 1793586064227.03,
+        "start_delta_ms": 106.484130859375,
+        "end_delta_ms": 73.712158203125,
+        "max_anchor_jitter_ms": 1.352294921875
+      },
+      "video_start_elapsed_seconds": 0.207344970703125,
+      "capture": {
+        "method": "Chrome CDP screencast with original wall-clock timestamps",
+        "frames": 1238,
+        "max_frame_gap_seconds": 6.983076171875,
+        "performance_frames": 593,
+        "performance_fps": 16.461809179649247,
+        "performance_max_gap_seconds": 0.183326904296875
+      },
+      "video": "capture.webm",
+      "finished_at": "2026-11-02T02:21:50.604Z",
+      "provenance": {
+        "recorded_at": "2026-11-02T02:20:07.165Z",
+        "base_url": "http://127.0.0.1:8903/",
+        "source_commit": "8d2314423fc7f98a8053fffd4c23d6c912050954",
+        "release": null,
+        "source": "Real Linx STT/MCP/TTS from shipped prerecorded command; actual MuJoCo; browser synthesis of Two Tigers"
+      },
+      "video_sha256": "c6d9a3140a1cdbc625a135111517bc82ceaf18d2f8b16df8e7402803751ad243"
+    },
+    {
+      "id": "experience",
+      "page": "experience.html",
+      "started_at": "2026-11-02T02:21:50.970Z",
+      "segments": [
+        {
+          "name": "persistent-experience",
+          "start_seconds": 0.469,
+          "status": "completed",
+          "end_seconds": 15.738
+        }
+      ],
+      "screenshots": [
+        {
+          "file": "competition-experience.png",
+          "at_seconds": 0.471,
+          "capture": "browser_screenshot",
+          "sha256": "2339ff6bc34edf2cf6dcdaede9b2afec431d13f7d4827052bf6113fe735fac9b"
+        },
+        {
+          "file": "competition-experience-server.png",
+          "at_seconds": 7.621,
+          "capture": "browser_screenshot",
+          "sha256": "9902b38c10660866394c6f82137bc0d67d348e67cab3e15d554008ae667a0344"
+        }
+      ],
+      "summary": {
+        "storage_ok": true,
+        "dropped_since_start": 0,
+        "queued": 0,
+        "retention_days": 90,
+        "capacity": 50000,
+        "collection_started_at": 1793585533.600734,
+        "from": 1793582511.543316,
+        "to": 1793586111.543316,
+        "filters": {
+          "traffic": "verification",
+          "page": "demos",
+          "device": "all",
+          "cache": "all",
+          "room": "1",
+          "release": "all",
+          "backend": "mujoco",
+          "scene": "all"
+        },
+        "releases": [
+          "development"
+        ],
+        "samples": 10,
+        "statuses": {
+          "completed": 10
+        },
+        "hidden_samples": 0,
+        "groups": [
+          {
+            "source": "browser",
+            "metric": "action_ms",
+            "route": "cloud",
+            "count": 2,
+            "mean_ms": 1507.5,
+            "p90_ms": 1523,
+            "p50_ms": 1492,
+            "p95_ms": 1523
+          },
+          {
+            "source": "browser",
+            "metric": "assemble_ms",
+            "route": "pending",
+            "count": 2,
+            "mean_ms": 70.5,
+            "p90_ms": 71,
+            "p50_ms": 70,
+            "p95_ms": 71
+          },
+          {
+            "source": "browser",
+            "metric": "asset_ms",
+            "route": "pending",
+            "count": 2,
+            "mean_ms": 382.5,
+            "p90_ms": 704,
+            "p50_ms": 61,
+            "p95_ms": 704
+          },
+          {
+            "source": "browser",
+            "metric": "audio_ms",
+            "route": "cloud",
+            "count": 4,
+            "mean_ms": 2837.5,
+            "p90_ms": 3070,
+            "p50_ms": 2836,
+            "p95_ms": 3070
+          },
+          {
+            "source": "browser",
+            "metric": "first_frame_ms",
+            "route": "pending",
+            "count": 2,
+            "mean_ms": 90,
+            "p90_ms": 91,
+            "p50_ms": 89,
+            "p95_ms": 91
+          },
+          {
+            "source": "browser",
+            "metric": "parse_ms",
+            "route": "pending",
+            "count": 2,
+            "mean_ms": 1,
+            "p90_ms": 1,
+            "p50_ms": 1,
+            "p95_ms": 1
+          },
+          {
+            "source": "browser",
+            "metric": "reply_ms",
+            "route": "cloud",
+            "count": 4,
+            "mean_ms": 20294.8,
+            "p90_ms": 29408,
+            "p50_ms": 19262,
+            "p95_ms": 29408
+          },
+          {
+            "source": "browser",
+            "metric": "scene_ms",
+            "route": "pending",
+            "count": 2,
+            "mean_ms": 4091.5,
+            "p90_ms": 7247,
+            "p50_ms": 936,
+            "p95_ms": 7247
+          },
+          {
+            "source": "browser",
+            "metric": "stt_cloud_ms",
+            "route": "cloud",
+            "count": 4,
+            "mean_ms": 318,
+            "p90_ms": 389,
+            "p50_ms": 281,
+            "p95_ms": 389
+          },
+          {
+            "source": "server",
+            "metric": "action_ms",
+            "route": "cloud",
+            "count": 2,
+            "mean_ms": 1496.5,
+            "p90_ms": 1515,
+            "p50_ms": 1478,
+            "p95_ms": 1515
+          },
+          {
+            "source": "server",
+            "metric": "audio_ms",
+            "route": "cloud",
+            "count": 4,
+            "mean_ms": 2828.8,
+            "p90_ms": 3067,
+            "p50_ms": 2828,
+            "p95_ms": 3067
+          },
+          {
+            "source": "server",
+            "metric": "reply_ms",
+            "route": "cloud",
+            "count": 4,
+            "mean_ms": 20286.5,
+            "p90_ms": 29399,
+            "p50_ms": 19259,
+            "p95_ms": 29399
+          },
+          {
+            "source": "server",
+            "metric": "stt_cloud_ms",
+            "route": "cloud",
+            "count": 4,
+            "mean_ms": 308.2,
+            "p90_ms": 385,
+            "p50_ms": 266,
+            "p95_ms": 385
+          }
+        ],
+        "trend": [
+          {
+            "at": "2026-11-02T02:00:00Z",
+            "source": "browser",
+            "metric": "action_ms",
+            "route": "cloud",
+            "count": 2,
+            "mean_ms": 1507.5,
+            "p90_ms": 1523,
+            "p50_ms": 1492,
+            "p95_ms": 1523
+          },
+          {
+            "at": "2026-11-02T02:00:00Z",
+            "source": "browser",
+            "metric": "assemble_ms",
+            "route": "pending",
+            "count": 2,
+            "mean_ms": 70.5,
+            "p90_ms": 71,
+            "p50_ms": 70,
+            "p95_ms": 71
+          },
+          {
+            "at": "2026-11-02T02:00:00Z",
+            "source": "browser",
+            "metric": "asset_ms",
+            "route": "pending",
+            "count": 2,
+            "mean_ms": 382.5,
+            "p90_ms": 704,
+            "p50_ms": 61,
+            "p95_ms": 704
+          },
+          {
+            "at": "2026-11-02T02:00:00Z",
+            "source": "browser",
+            "metric": "audio_ms",
+            "route": "cloud",
+            "count": 4,
+            "mean_ms": 2837.5,
+            "p90_ms": 3070,
+            "p50_ms": 2836,
+            "p95_ms": 3070
+          },
+          {
+            "at": "2026-11-02T02:00:00Z",
+            "source": "browser",
+            "metric": "first_frame_ms",
+            "route": "pending",
+            "count": 2,
+            "mean_ms": 90,
+            "p90_ms": 91,
+            "p50_ms": 89,
+            "p95_ms": 91
+          },
+          {
+            "at": "2026-11-02T02:00:00Z",
+            "source": "browser",
+            "metric": "parse_ms",
+            "route": "pending",
+            "count": 2,
+            "mean_ms": 1,
+            "p90_ms": 1,
+            "p50_ms": 1,
+            "p95_ms": 1
+          },
+          {
+            "at": "2026-11-02T02:00:00Z",
+            "source": "browser",
+            "metric": "reply_ms",
+            "route": "cloud",
+            "count": 4,
+            "mean_ms": 20294.8,
+            "p90_ms": 29408,
+            "p50_ms": 19262,
+            "p95_ms": 29408
+          },
+          {
+            "at": "2026-11-02T02:00:00Z",
+            "source": "browser",
+            "metric": "scene_ms",
+            "route": "pending",
+            "count": 2,
+            "mean_ms": 4091.5,
+            "p90_ms": 7247,
+            "p50_ms": 936,
+            "p95_ms": 7247
+          },
+          {
+            "at": "2026-11-02T02:00:00Z",
+            "source": "browser",
+            "metric": "stt_cloud_ms",
+            "route": "cloud",
+            "count": 4,
+            "mean_ms": 318,
+            "p90_ms": 389,
+            "p50_ms": 281,
+            "p95_ms": 389
+          },
+          {
+            "at": "2026-11-02T02:00:00Z",
+            "source": "server",
+            "metric": "action_ms",
+            "route": "cloud",
+            "count": 2,
+            "mean_ms": 1496.5,
+            "p90_ms": 1515,
+            "p50_ms": 1478,
+            "p95_ms": 1515
+          },
+          {
+            "at": "2026-11-02T02:00:00Z",
+            "source": "server",
+            "metric": "audio_ms",
+            "route": "cloud",
+            "count": 4,
+            "mean_ms": 2828.8,
+            "p90_ms": 3067,
+            "p50_ms": 2828,
+            "p95_ms": 3067
+          },
+          {
+            "at": "2026-11-02T02:00:00Z",
+            "source": "server",
+            "metric": "reply_ms",
+            "route": "cloud",
+            "count": 4,
+            "mean_ms": 20286.5,
+            "p90_ms": 29399,
+            "p50_ms": 19259,
+            "p95_ms": 29399
+          },
+          {
+            "at": "2026-11-02T02:00:00Z",
+            "source": "server",
+            "metric": "stt_cloud_ms",
+            "route": "cloud",
+            "count": 4,
+            "mean_ms": 308.2,
+            "p90_ms": 385,
+            "p50_ms": 266,
+            "p95_ms": 385
+          }
+        ],
+        "outcomes": [
+          {
+            "source": "browser",
+            "kind": "load",
+            "route": "pending",
+            "status": "completed",
+            "count": 2
+          },
+          {
+            "source": "browser",
+            "kind": "voice",
+            "route": "cloud",
+            "status": "completed",
+            "count": 4
+          },
+          {
+            "source": "server",
+            "kind": "voice",
+            "route": "cloud",
+            "status": "completed",
+            "count": 4
+          }
+        ]
+      },
+      "audio": [],
+      "video_start_elapsed_seconds": 0.2189169921875,
+      "capture": {
+        "method": "Chrome CDP screencast with original wall-clock timestamps",
+        "frames": 6,
+        "max_frame_gap_seconds": 7.183068115234375
+      },
+      "video": "capture.webm",
+      "finished_at": "2026-11-02T02:22:11.063Z",
+      "provenance": {
+        "recorded_at": "2026-11-02T02:20:07.165Z",
+        "base_url": "http://127.0.0.1:8903/",
+        "source_commit": "8d2314423fc7f98a8053fffd4c23d6c912050954",
+        "release": null,
+        "source": "Real Linx STT/MCP/TTS from shipped prerecorded command; actual MuJoCo; browser synthesis of Two Tigers"
+      },
+      "video_sha256": "8b5f3db95cc4e67fe94820da332da95c5c86dcfef85314b5eb35238cc619e28d"
+    },
+    {
+      "id": "statistics",
+      "page": "statistics.html",
+      "started_at": "2026-11-02T02:22:11.562Z",
+      "segments": [
+        {
+          "name": "round-timeline-and-latency",
+          "start_seconds": 0.492,
+          "status": "completed",
+          "end_seconds": 15.832
+        }
+      ],
+      "screenshots": [
+        {
+          "file": "competition-statistics.png",
+          "at_seconds": 0.511,
+          "capture": "browser_screenshot",
+          "sha256": "d6880b0e3e4a1d6f6577e8ce7a08131480a134d97a2fef3b50682346af8db840"
+        },
+        {
+          "file": "competition-statistics-latency.png",
+          "at_seconds": 7.664,
+          "capture": "browser_screenshot",
+          "sha256": "aaafab197b3e7e71b93d5c533897653798bff282042c35a31fe7d25cc5715ee1"
+        }
+      ],
+      "statistics": {
+        "started_at": "2026-11-02T02:11:25+00:00",
+        "capacity": 500,
+        "total_rounds": 4,
+        "backend": "mujoco",
+        "counts": {
+          "rounds": 4,
+          "submitted": 4,
+          "closed": 4,
+          "pending": 0,
+          "recognized": 4,
+          "replied": 4,
+          "cloud_closed": 4,
+          "timeouts": 0,
+          "interrupted": 0,
+          "errors": 0,
+          "actions": 2,
+          "finished_actions": 2,
+          "completed_actions": 2
+        },
+        "service": {},
+        "latencies": {
+          "stt": {
+            "count": 4,
+            "mean_ms": 308.2,
+            "p90_ms": 385,
+            "p50_ms": 266,
+            "p95_ms": 385
+          },
+          "action_start": {
+            "count": 2,
+            "mean_ms": 1496.5,
+            "p90_ms": 1515,
+            "p50_ms": 1478,
+            "p95_ms": 1515
+          },
+          "first_audio": {
+            "count": 4,
+            "mean_ms": 2828.8,
+            "p90_ms": 3067,
+            "p50_ms": 2828,
+            "p95_ms": 3067
+          },
+          "reply_end": {
+            "count": 4,
+            "mean_ms": 20286.5,
+            "p90_ms": 29399,
+            "p50_ms": 19259,
+            "p95_ms": 29399
+          },
+          "local_end": {
+            "count": 0,
+            "mean_ms": null,
+            "p90_ms": null,
+            "p50_ms": null,
+            "p95_ms": null
+          },
+          "action_duration": {
+            "count": 2,
+            "mean_ms": 36036,
+            "p90_ms": 36049,
+            "p50_ms": 36023,
+            "p95_ms": 36049
+          },
+          "recovery": {
+            "count": 0,
+            "mean_ms": null,
+            "p90_ms": null,
+            "p50_ms": null,
+            "p95_ms": null
+          },
+          "local_asr": {
+            "count": 0,
+            "mean_ms": null,
+            "p90_ms": null,
+            "p50_ms": null,
+            "p95_ms": null
+          }
+        },
+        "routing": {
+          "submitted": 0,
+          "decided": 0,
+          "local": 0,
+          "fallback": 0,
+          "reasons": {},
+          "recognition_latency": {
+            "local": {
+              "count": 0,
+              "mean_ms": null,
+              "p90_ms": null,
+              "p50_ms": null,
+              "p95_ms": null
+            },
+            "cloud": {
+              "count": 4,
+              "mean_ms": 308.2,
+              "p90_ms": 385,
+              "p50_ms": 266,
+              "p95_ms": 385
+            }
+          },
+          "action_latency": {
+            "local": {
+              "count": 0,
+              "mean_ms": null,
+              "p90_ms": null,
+              "p50_ms": null,
+              "p95_ms": null
+            },
+            "cloud": {
+              "count": 2,
+              "mean_ms": 1496.5,
+              "p90_ms": 1515,
+              "p50_ms": 1478,
+              "p95_ms": 1515
+            },
+            "cloud_fallback": {
+              "count": 0,
+              "mean_ms": null,
+              "p90_ms": null,
+              "p50_ms": null,
+              "p95_ms": null
+            }
+          }
+        },
+        "rounds": [
+          {
+            "turn": 4,
+            "time": "2026-11-02T02:21:04.265+00:00",
+            "backend": "mujoco",
+            "status": "completed",
+            "text": "请读取当前状态，告诉我桌上表演的真实结果。",
+            "timings": {
+              "listen_stop": 4502,
+              "stt": 4887,
+              "cloud_stt": 4887,
+              "first_audio": 7569,
+              "reply_end": 23761
+            },
+            "actions": [],
+            "uplink_frames": 73,
+            "downlink_frames": 271,
+            "mode": "cloud",
+            "route": "cloud",
+            "experience_sequence": 10
+          },
+          {
+            "turn": 3,
+            "time": "2026-11-02T02:20:24.035+00:00",
+            "backend": "mujoco",
+            "status": "completed",
+            "text": "请开始桌上四鸭合唱表演。",
+            "timings": {
+              "listen_stop": 2617,
+              "stt": 2883,
+              "cloud_stt": 2883,
+              "action_start": 4095,
+              "first_audio": 5094,
+              "reply_end": 13557
+            },
+            "actions": [
+              {
+                "call": 62,
+                "tool": "duck_table_show",
+                "at_ms": 4095,
+                "result": "completed",
+                "duration_ms": 36023
+              }
+            ],
+            "uplink_frames": 42,
+            "downlink_frames": 141,
+            "mode": "cloud",
+            "route": "cloud",
+            "experience_sequence": 10
+          },
+          {
+            "turn": 2,
+            "time": "2026-11-02T02:13:01.568+00:00",
+            "backend": "mujoco",
+            "status": "completed",
+            "text": "请读取当前状态，告诉我桌上表演的真实结果。",
+            "timings": {
+              "listen_stop": 4521,
+              "stt": 4858,
+              "cloud_stt": 4858,
+              "first_audio": 7464,
+              "reply_end": 33920
+            },
+            "actions": [],
+            "uplink_frames": 73,
+            "downlink_frames": 441,
+            "mode": "cloud",
+            "route": "cloud",
+            "experience_sequence": 10
+          },
+          {
+            "turn": 1,
+            "time": "2026-11-02T02:12:21.323+00:00",
+            "backend": "mujoco",
+            "status": "completed",
+            "text": "请开始桌上四鸭合唱表演。",
+            "timings": {
+              "listen_stop": 2600,
+              "stt": 2845,
+              "cloud_stt": 2845,
+              "action_start": 4115,
+              "first_audio": 5428,
+              "reply_end": 24148
+            },
+            "actions": [
+              {
+                "call": 14,
+                "tool": "duck_table_show",
+                "at_ms": 4115,
+                "result": "completed",
+                "duration_ms": 36049
+              }
+            ],
+            "uplink_frames": 42,
+            "downlink_frames": 312,
+            "mode": "cloud",
+            "route": "cloud",
+            "experience_sequence": 10
+          }
+        ],
+        "storage_ok": true,
+        "current_backend": "preview"
+      },
+      "audio": [],
+      "video_start_elapsed_seconds": 0.211822998046875,
+      "capture": {
+        "method": "Chrome CDP screencast with original wall-clock timestamps",
+        "frames": 9,
+        "max_frame_gap_seconds": 4.999815185546875
+      },
+      "video": "capture.webm",
+      "finished_at": "2026-11-02T02:22:30.084Z",
+      "provenance": {
+        "recorded_at": "2026-11-02T02:20:07.165Z",
+        "base_url": "http://127.0.0.1:8903/",
+        "source_commit": "8d2314423fc7f98a8053fffd4c23d6c912050954",
+        "release": null,
+        "source": "Real Linx STT/MCP/TTS from shipped prerecorded command; actual MuJoCo; browser synthesis of Two Tigers"
+      },
+      "video_sha256": "5079791134899a817f20ba8b293eb9aaaecd1f6250d381a48b0c49e43fe927b7"
+    },
+    {
+      "id": "local_asr",
+      "page": "scenarios.html?room=1&measurement=verification",
+      "started_at": "2026-11-02T01:26:14.418Z",
+      "screenshots": [
+        {
+          "file": "finals-local-asr-mode.png",
+          "at_seconds": 6.452,
+          "capture": "browser_screenshot",
+          "sha256": "6b80b4a1e7cd293bcc16ab466685b4b0c7cb623a553dffdbf4ffcc001a6c0a97"
+        },
+        {
+          "file": "finals-local-asr-actions.png",
+          "at_seconds": 23.165,
+          "capture": "browser_screenshot",
+          "sha256": "a44b092cbfa082434d49e199732f97ed82429d3e282f5a9bfa8f93c48b39a74d"
+        },
+        {
+          "file": "finals-local-asr-result.png",
+          "at_seconds": 25.311,
+          "capture": "browser_screenshot",
+          "sha256": "a62e38492ec8f3264d9dc4d4f2dc417b156b4305839f9d8a76519f9f719a53de"
+        }
+      ],
+      "segments": [
+        {
+          "name": "real-local-asr-and-two-actions",
+          "start_seconds": 6.346,
+          "status": "completed",
+          "end_seconds": 26.812
+        }
+      ],
+      "audio": [],
+      "provenance": {
+        "base_url": "http://127.0.0.1:8901/",
+        "source_commit": "c5f04bc70af715beeb1442f2c2b2623afcf761a6",
+        "recorded_at": "2026-11-02T01:26:14.418Z"
+      },
+      "rounds": [
+        {
+          "turn": 1,
+          "time": "2026-11-02T01:26:23.394+00:00",
+          "backend": "mujoco",
+          "status": "completed",
+          "text": "前滚翻再打个哈欠。",
+          "timings": {
+            "listen_stop": 2664,
+            "stt": 3153,
+            "local_stt": 3153,
+            "route": 3157,
+            "action_start": 3158,
+            "local_end": 13672
+          },
+          "actions": [
+            {
+              "call": 13,
+              "tool": "duck_roulade",
+              "at_ms": 3158,
+              "result": "completed",
+              "duration_ms": 5993
+            },
+            {
+              "call": 16,
+              "tool": "duck_yawn",
+              "at_ms": 9152,
+              "result": "completed",
+              "duration_ms": 4519
+            }
+          ],
+          "uplink_frames": 0,
+          "downlink_frames": 0,
+          "mode": "local_first",
+          "route": "local",
+          "experience_sequence": 11,
+          "asr_ms": 478,
+          "local_text": "前滚翻再打个哈欠。",
+          "route_reason": "matched"
+        }
+      ],
+      "state": {
+        "backend": {
+          "kind": "mujoco",
+          "connected": true,
+          "physics": true,
+          "runtime": "mujoco_cpu_onnx",
+          "scene": "skills",
+          "revision": "8bdc40a6519c4ff0ac0b8a4d6854d2ea",
+          "pose": {},
+          "velocity": {
+            "forward": 0
+          },
+          "sim_time": 19.160000000000473,
+          "real_time_factor": 0.9999753817233653,
+          "ducks": [
+            {
+              "id": "a",
+              "position": [
+                0.5690053810498911,
+                0.09191419052804087,
+                0.11547050398239292
+              ],
+              "yaw": 0.15231341957832795,
+              "policy": "walk",
+              "posture": {
+                "target": "stand",
+                "observed": "stand",
+                "supported": true,
+                "height_m": 0.11547050398239292,
+                "upright": 0.9998908543173756,
+                "knee_deg": [
+                  2.5325936371842293,
+                  2.712924526080792
+                ]
+              },
+              "fallen": false
+            }
+          ],
+          "ball": null,
+          "grasp": null,
+          "tabletop": null,
+          "seated_choir": null,
+          "idle": {
+            "enabled": false,
+            "phase": "off",
+            "source": "local_choreography_official_inspired"
+          },
+          "stage": null,
+          "owners": {},
+          "skill": {
+            "name": "yawn",
+            "status": "completed",
+            "source": "local_choreography",
+            "rotation_rad": 0.015908948484758,
+            "min_upright": 0.9998734300354457,
+            "min_mouth_height_m": 0.20965736758078798,
+            "min_body_height_m": 0.11530279146049857,
+            "max_mouth_open_rad": 0.48559664696604854,
+            "displacement_m": 0.001038652531467206,
+            "wheel_rotation_rad": 0,
+            "supported": true,
+            "stable_s": 4.519999999999992
+          },
+          "contacts": {
+            "ball": 0,
+            "ducks": 0
+          },
+          "discovered": [],
+          "chorus": null,
+          "error": null,
+          "geoms": [
+            {
+              "id": 1,
+              "position": [
+                0.5723246153897933,
+                0.11008656558356984,
+                0.11256418404764017
+              ],
+              "rotation": [
+                -0.014656552370942266,
+                -0.9883148853367989,
+                0.1517197182119413,
+                -0.0018614309184816213,
+                -0.15170878454600795,
+                -0.9884234819987391,
+                0.9998908543173782,
+                -0.014769296303006718,
+                0.0003838478610689866
+              ]
+            },
+            {
+              "id": 2,
+              "position": [
+                0.5617179536060101,
+                0.06910621876870764,
+                0.13917154112049818
+              ],
+              "rotation": [
+                -0.2136986920160792,
+                0.09438401030190946,
+                0.9723294336951573,
+                0.9501291035548941,
+                0.2514929731841181,
+                0.18440707962815633,
+                -0.22712894049105609,
+                0.96324604491186,
+                -0.14342071451875008
+              ]
+            },
+            {
+              "id": 3,
+              "position": [
+                0.5375888350733087,
+                0.0870435747361965,
+                0.1495725375121113
+              ],
+              "rotation": [
+                -0.9883148853367985,
+                -0.014656552370942322,
+                -0.15171971821194133,
+                -0.15170878454600792,
+                -0.0018614309184817324,
+                0.9884234819987388,
+                -0.014769296303006718,
+                0.9998908543173779,
+                -0.0003838478610688756
+              ]
+            },
+            {
+              "id": 4,
+              "position": [
+                0.5691902248991473,
+                0.09190121268045948,
+                0.11508076599242209
+              ],
+              "rotation": [
+                -0.02364834564229845,
+                0.9881406189678053,
+                -0.15171971821194152,
+                -0.0032417095497185855,
+                0.1516855680435244,
+                0.9884234819987405,
+                0.9997150829449276,
+                0.02386641140267859,
+                -0.00038384786106884783
+              ]
+            },
+            {
+              "id": 5,
+              "position": [
+                0.5652843531659477,
+                0.1090111999392504,
+                0.12682831255285762
+              ],
+              "rotation": [
+                0.151719718211941,
+                0.017287993540399615,
+                0.9882723573919471,
+                -0.9884234819987376,
+                0.002265365037037531,
+                0.15170329052047682,
+                0.0003838478610689311,
+                -0.9998479851460401,
+                0.01743155931704002
+              ]
+            },
+            {
+              "id": 6,
+              "position": [
+                0.5448901419574181,
+                0.08817737485747323,
+                0.11801389664664
+              ],
+              "rotation": [
+                -0.9880429337697799,
+                0.1515159205353972,
+                -0.028532207273862215,
+                -0.15149759212471547,
+                -0.9884536166062324,
+                -0.0028155636156510745,
+                -0.028629366182659086,
+                0.0015406629649700803,
+                0.9995889083766429
+              ]
+            },
+            {
+              "id": 8,
+              "position": [
+                0.5338896501212941,
+                0.08647394876495858,
+                0.11086293214872836
+              ],
+              "rotation": [
+                -0.9883147466288861,
+                -0.1523931706215298,
+                -0.0032067341329124455,
+                -0.15239185368779984,
+                0.9883199366318781,
+                -0.0006525224575613675,
+                0.003268719241244837,
+                -0.0001562174085159538,
+                -0.9999946455209868
+              ]
+            },
+            {
+              "id": 10,
+              "position": [
+                0.5705945433033657,
+                0.07441637806929462,
+                0.12684174722799504
+              ],
+              "rotation": [
+                0.151719718211941,
+                0.017287993540399615,
+                0.9882723573919471,
+                -0.9884234819987376,
+                0.002265365037037531,
+                0.15170329052047682,
+                0.0003838478610689311,
+                -0.9998479851460401,
+                0.01743155931704002
+              ]
+            },
+            {
+              "id": 11,
+              "position": [
+                0.5553579331824222,
+                0.11052254758395433,
+                0.13904465454674786
+              ],
+              "rotation": [
+                -0.07220305527860046,
+                0.17825835778753257,
+                0.9813310739436142,
+                0.9638296218862967,
+                -0.24061204981256,
+                0.1146224300017945,
+                0.2565524873840702,
+                0.9541120475939343,
+                -0.15443776045111607
+              ]
+            },
+            {
+              "id": 12,
+              "position": [
+                0.5776348055272112,
+                0.07549174371361406,
+                0.11257761872277758
+              ],
+              "rotation": [
+                -0.014656552370942266,
+                -0.9883148853367989,
+                0.1517197182119413,
+                -0.0018614309184816213,
+                -0.15170878454600795,
+                -0.9884234819987391,
+                0.9998908543173782,
+                -0.014769296303006718,
+                0.0003838478610689866
+              ]
+            },
+            {
+              "id": 13,
+              "position": [
+                0.5679472869680627,
+                0.10944150275415165,
+                0.10610238344906252
+              ],
+              "rotation": [
+                -0.42267544602936924,
+                0.14531112232153298,
+                0.8945558367444332,
+                -0.061815042539570556,
+                -0.9893859685268137,
+                0.13150781649047566,
+                0.9041705413469893,
+                0.00028811788908196523,
+                0.42717156875004814
+              ]
+            },
+            {
+              "id": 14,
+              "position": [
+                0.5727690873935207,
+                0.11014536060228451,
+                0.09115880416589235
+              ],
+              "rotation": [
+                0.14531112232153293,
+                0.9892349136514768,
+                -0.017290556457536733,
+                -0.9893859685268122,
+                0.14529401374860434,
+                -0.0022482995978891094,
+                0.0002881178890818785,
+                0.017433736884991828,
+                0.999847979348014
+              ]
+            },
+            {
+              "id": 15,
+              "position": [
+                0.5868814683610882,
+                0.11222036798201918,
+                0.0982807500561061
+              ],
+              "rotation": [
+                -0.9892774450083539,
+                0.014656552370942405,
+                0.14531112232153293,
+                -0.1452994850548247,
+                0.0018614309184816769,
+                -0.9893859685268137,
+                -0.014771473878677374,
+                -0.999890854317378,
+                0.00028811788908189584
+              ]
+            },
+            {
+              "id": 16,
+              "position": [
+                0.584384435262297,
+                0.1118523857405385,
+                0.09486491192112817
+              ],
+              "rotation": [
+                -0.9892774450083528,
+                0.14531112232153287,
+                -0.014656552370942315,
+                -0.14529948505482465,
+                -0.9893859685268125,
+                -0.0018614309184816825,
+                -0.014771473878677284,
+                0.0002881178890818776,
+                0.9998908543173769
+              ]
+            },
+            {
+              "id": 17,
+              "position": [
+                0.5672538638467588,
+                0.13250895964245601,
+                0.09619301511203236
+              ],
+              "rotation": [
+                -0.14367557539632742,
+                0.026219569643300855,
+                -0.9892774450083539,
+                0.986371774721213,
+                -0.07719314526646581,
+                -0.14529948505482476,
+                -0.08017512748889871,
+                -0.996671336244598,
+                -0.014771473878677388
+              ]
+            },
+            {
+              "id": 18,
+              "position": [
+                0.5805674953848412,
+                0.12283846708017379,
+                0.0972936008263772
+              ],
+              "rotation": [
+                -0.026219569643300633,
+                -0.5437841536605711,
+                0.8388154316626385,
+                0.07719314526646578,
+                -0.8376997905050035,
+                -0.5406480179485961,
+                0.9966713362445979,
+                0.05057524310897152,
+                0.06394053716444692
+              ]
+            },
+            {
+              "id": 20,
+              "position": [
+                0.540389008264749,
+                0.1493910439480593,
+                0.08082257583556302
+              ],
+              "rotation": [
+                -0.49762363166912005,
+                0.45423025347158597,
+                -0.7389489820248559,
+                0.8481608032331399,
+                0.4332161112905744,
+                -0.3048721908885487,
+                0.18164243189119378,
+                -0.7784591689673952,
+                -0.6008388712352436
+              ]
+            },
+            {
+              "id": 21,
+              "position": [
+                0.5400233842367828,
+                0.14066193272571753,
+                0.06608963956473804
+              ],
+              "rotation": [
+                0.8878124680095584,
+                0.1448391650828648,
+                0.4368187700922141,
+                0.16426219856338944,
+                -0.986393348127751,
+                -0.006789174651304054,
+                0.429891790768209,
+                0.07778032545202507,
+                -0.8995239125241076
+              ]
+            },
+            {
+              "id": 22,
+              "position": [
+                0.5490156753586187,
+                0.13117185700963802,
+                0.08124066688406885
+              ],
+              "rotation": [
+                -0.14367557539632675,
+                0.7682065673228312,
+                -0.623871780862545,
+                0.9863717747212103,
+                0.060089752428647614,
+                -0.15316639215699548,
+                -0.08017512748889843,
+                -0.6373757852124073,
+                -0.76637070491832
+              ]
+            },
+            {
+              "id": 23,
+              "position": [
+                0.5451087448734587,
+                0.1264249643064649,
+                0.061027887789490816
+              ],
+              "rotation": [
+                -0.14367557539632725,
+                0.4372028713095453,
+                -0.8878124680095596,
+                0.9863717747212128,
+                -0.009415527412119928,
+                -0.1642621985633897,
+                -0.08017512748889838,
+                -0.8993136255846692,
+                -0.42989179076820955
+              ]
+            },
+            {
+              "id": 24,
+              "position": [
+                0.559054574927119,
+                0.14554579047950983,
+                0.09207004311908468
+              ],
+              "rotation": [
+                -0.4372028713095447,
+                0.14603896088937712,
+                0.8874267694976526,
+                0.009415527412120109,
+                -0.9859309127760941,
+                0.16688793568154842,
+                0.899313625584668,
+                0.08131947574134997,
+                0.4296767921390574
+              ]
+            },
+            {
+              "id": 25,
+              "position": [
+                0.5538791400980554,
+                0.1225738056226185,
+                0.046160204711968494
+              ],
+              "rotation": [
+                -0.12951168820459835,
+                -0.8676251448502352,
+                -0.4800555495377581,
+                0.985875278446136,
+                -0.16451781063041182,
+                0.031365990086805184,
+                -0.10619160968336683,
+                -0.4692126362418002,
+                0.8766771606605657
+              ]
+            },
+            {
+              "id": 27,
+              "position": [
+                0.5604278791986756,
+                0.1358511408406131,
+                0.029395519678892916
+              ],
+              "rotation": [
+                -0.8676251448502366,
+                -0.14240764345877782,
+                0.476389201292517,
+                -0.1645178106304121,
+                0.986362560179124,
+                -0.004773872878328929,
+                -0.4692126362418008,
+                -0.08251644055217239,
+                -0.8792215528691377
+              ]
+            },
+            {
+              "id": 28,
+              "position": [
+                0.5708344550256648,
+                0.13401221760910748,
+                0.0052496121692698315
+              ],
+              "rotation": [
+                -0.0049217371862895765,
+                0.14769232896582207,
+                0.9890211082012974,
+                0.04475776870315385,
+                -0.988009387056562,
+                0.1477639781165673,
+                0.9989857449652553,
+                0.044993633469300916,
+                -0.0017476565584028658
+              ]
+            },
+            {
+              "id": 30,
+              "position": [
+                0.5710419963994843,
+                0.1347536348975508,
+                0.008373431419257948
+              ],
+              "rotation": [
+                -0.017482700697893816,
+                0.14556877064243226,
+                0.9891936555548468,
+                0.03759220843444725,
+                -0.9885496428794666,
+                0.14613839135525716,
+                0.9991402209106244,
+                0.03974086783818622,
+                0.011810265963934974
+              ]
+            },
+            {
+              "id": 31,
+              "position": [
+                0.5660645470563117,
+                0.11972580707860661,
+                0.024628890177100366
+              ],
+              "rotation": [
+                -0.1436755753963272,
+                -0.9895862472655247,
+                -0.00874003761273888,
+                0.986371774721213,
+                -0.14391320756968656,
+                0.07974779445433686,
+                -0.0801751274888985,
+                0.002836883843607481,
+                0.9967767558597054
+              ]
+            },
+            {
+              "id": 32,
+              "position": [
+                0.564322181529342,
+                0.13589583257903032,
+                0.016604209005329343
+              ],
+              "rotation": [
+                -0.023799566673890077,
+                0.9889046595330976,
+                -0.14663272138192096,
+                0.04095803031766254,
+                0.14751563209573523,
+                0.9882113023234949,
+                0.9988773800515443,
+                0.01751321332961764,
+                -0.044014395147937785
+              ]
+            },
+            {
+              "id": 33,
+              "position": [
+                0.5903511078606595,
+                0.08252527468620345,
+                0.17259782943675386
+              ],
+              "rotation": [
+                -0.15171971821194122,
+                -0.23087150802210632,
+                0.961082449059022,
+                0.9884234819987375,
+                -0.03506040214263445,
+                0.14761364582953718,
+                -0.0003838478610689866,
+                0.9723523615362875,
+                0.2335181741869876
+              ]
+            },
+            {
+              "id": 34,
+              "position": [
+                0.5926109715138861,
+                0.09564582655037093,
+                0.1550031035723411
+              ],
+              "rotation": [
+                -0.9610824490590218,
+                -0.15110446054703283,
+                0.23127465947116316,
+                -0.14761364582953715,
+                0.9885133303293013,
+                0.032428495589299354,
+                -0.23351817418698756,
+                -0.0029728377122595715,
+                -0.9723478927628278
+              ]
+            },
+            {
+              "id": 35,
+              "position": [
+                0.5842580293655867,
+                0.09437733953219155,
+                0.19018285829069803
+              ],
+              "rotation": [
+                0.9610824490590218,
+                -0.15233390026246119,
+                -0.23046671981337963,
+                0.14761364582953712,
+                0.9883266262565366,
+                -0.03769206013583884,
+                0.23351817418698761,
+                0.0022051447114045317,
+                0.9723499368340479
+              ]
+            },
+            {
+              "id": 36,
+              "position": [
+                0.586558114905361,
+                0.10723586173617186,
+                0.17258823324022715
+              ],
+              "rotation": [
+                -0.15171971821194122,
+                -0.23087150802210632,
+                0.961082449059022,
+                0.9884234819987375,
+                -0.03506040214263445,
+                0.14761364582953718,
+                -0.0003838478610689866,
+                0.9723523615362875,
+                0.2335181741869876
+              ]
+            },
+            {
+              "id": 37,
+              "position": [
+                0.5840894451849954,
+                0.09422271080370136,
+                0.20396860475505224
+              ],
+              "rotation": [
+                -0.9689705147886505,
+                0.19513397596498622,
+                -0.15171971821194094,
+                -0.1486570634545255,
+                0.03033311257633131,
+                0.988423481998736,
+                0.1974771352721417,
+                0.9803074179590424,
+                -0.0003838478610690421
+              ]
+            },
+            {
+              "id": 38,
+              "position": [
+                0.586349542667699,
+                0.09457429007906576,
+                0.21532525573287692
+              ],
+              "rotation": [
+                -0.19513397596498655,
+                0.9689705147886525,
+                0.15171971821194125,
+                -0.030333112576331367,
+                0.1486570634545259,
+                -0.9884234819987381,
+                -0.9803074179590445,
+                -0.19747713527214206,
+                0.0003838478610690421
+              ]
+            },
+            {
+              "id": 39,
+              "position": [
+                0.5899845865781124,
+                0.09092315889275954,
+                0.23486895450543904
+              ],
+              "rotation": [
+                0.16791755644261375,
+                0.02608739939988025,
+                0.9854558040982329,
+                0.42461492415053426,
+                -0.9040783822331518,
+                -0.04841946888726553,
+                0.8896661511078072,
+                0.4265697204106733,
+                -0.16288773189464678
+              ]
+            },
+            {
+              "id": 40,
+              "position": [
+                0.5898429258043127,
+                0.08813373982545078,
+                0.22938291331895744
+              ],
+              "rotation": [
+                0.9753967744816757,
+                -0.1954064300556603,
+                -0.10206595624224865,
+                0.09854461992601612,
+                -0.027684590159846218,
+                0.9947474661195764,
+                -0.19720570532917983,
+                -0.9803315207421329,
+                -0.007747207563826446
+              ]
+            },
+            {
+              "id": 41,
+              "position": [
+                0.5716031545478558,
+                0.09323739422304397,
+                0.23299140362482934
+              ],
+              "rotation": [
+                -0.9753967744816765,
+                -0.19513397596498663,
+                0.10258588477387315,
+                -0.09854461992601624,
+                -0.03033311257633131,
+                -0.9946702268415747,
+                0.19720570532917997,
+                -0.9803074179590444,
+                0.010357416670821129
+              ]
+            },
+            {
+              "id": 42,
+              "position": [
+                0.6047666448802327,
+                0.09658791130052852,
+                0.22628640964363725
+              ],
+              "rotation": [
+                -0.9753967744816765,
+                -0.19513397596498663,
+                0.10258588477387315,
+                -0.09854461992601624,
+                -0.03033311257633131,
+                -0.9946702268415747,
+                0.19720570532917997,
+                -0.9803074179590444,
+                0.010357416670821129
+              ]
+            },
+            {
+              "id": 43,
+              "position": [
+                0.64619928146641,
+                0.10082863943627084,
+                0.2337186143420938
+              ],
+              "rotation": [
+                0.1023638307470911,
+                0.19525055309914768,
+                -0.9753967744816754,
+                -0.9947040906560121,
+                0.02920153961406241,
+                -0.09854461992601621,
+                0.009242196003955316,
+                0.980318566384746,
+                0.1972057053291797
+              ]
+            },
+            {
+              "id": 44,
+              "position": [
+                0.6424224744593087,
+                0.10238533891437342,
+                0.23408358833201845
+              ],
+              "rotation": [
+                -0.9778175207724322,
+                0.18555252524133187,
+                -0.09717590466273196,
+                -0.09368380397167336,
+                0.02751727476462157,
+                0.9952216559455117,
+                0.18733990750465462,
+                0.9822489806388676,
+                -0.009523606987598188
+              ]
+            },
+            {
+              "id": 45,
+              "position": [
+                0.5939593385643699,
+                0.12128610988905195,
+                0.23076293035558657
+              ],
+              "rotation": [
+                0.19525055309914782,
+                -0.10496056517770735,
+                -0.9751207624043553,
+                0.02920153961406239,
+                0.994438179192814,
+                -0.10119277567023824,
+                0.9803185663847457,
+                -0.008717082152593501,
+                0.19722961461225788
+              ]
+            },
+            {
+              "id": 46,
+              "position": [
+                0.5904748583353984,
+                0.09117024708211043,
+                0.23572323849245946
+              ],
+              "rotation": [
+                0.18512167965106266,
+                0.9786181367821281,
+                0.08964656203251131,
+                -0.015637177978382266,
+                -0.08827833889995584,
+                0.9959730988063585,
+                0.9825911878233211,
+                -0.18577803218395894,
+                -0.0010394083962306233
+              ]
+            },
+            {
+              "id": 47,
+              "position": [
+                0.5963458473714718,
+                0.0959148501670865,
+                0.2468871126909824
+              ],
+              "rotation": [
+                0.07170133256859818,
+                0.10225099562592169,
+                0.9921711811987869,
+                0.016666030257809265,
+                -0.9947154224746448,
+                0.10130879392498643,
+                0.9972869007178095,
+                0.009271579401446309,
+                -0.07302653950496091
+              ]
+            },
+            {
+              "id": 49,
+              "position": [
+                0.5583936891045489,
+                0.08495774281142715,
+                0.23586847170746542
+              ],
+              "rotation": [
+                0.195250553099148,
+                0.9751207624043556,
+                -0.10496056517770752,
+                0.029201539614062355,
+                0.10119277567023852,
+                0.9944381791928143,
+                0.9803185663847462,
+                -0.1972296146122578,
+                -0.008717082152593453
+              ]
+            },
+            {
+              "id": 50,
+              "position": [
+                0.593824259333262,
+                0.05681749204751208,
+                0.23291499380354913
+              ],
+              "rotation": [
+                -0.10236383074709132,
+                -0.9753967744816768,
+                0.195250553099148,
+                0.9947040906560135,
+                -0.09854461992601637,
+                0.029201539614062424,
+                -0.009242196003955372,
+                0.19720570532917991,
+                0.9803185663847475
+              ]
+            },
+            {
+              "id": 51,
+              "position": [
+                0.6253078793102993,
+                0.09767032237809146,
+                0.23928212061284493
+              ],
+              "rotation": [
+                -0.9753967744816779,
+                -0.19772959503131413,
+                0.09748917673000954,
+                -0.09854461992601629,
+                -0.0045190827344976925,
+                -0.995122372261261,
+                0.19720570532918033,
+                -0.9802461859859466,
+                -0.015077289067641053
+              ]
+            },
+            {
+              "id": 52,
+              "position": [
+                0.6312137379526556,
+                0.09919040087179753,
+                0.2134794801454319
+              ],
+              "rotation": [
+                0.2170803758194347,
+                0.9707717324834291,
+                -0.10236383074709121,
+                0.031404628941331614,
+                0.09786481141478767,
+                0.9947040906560152,
+                0.9756484303862508,
+                -0.21914543595036196,
+                -0.00924219600395551
+              ]
+            },
+            {
+              "id": 53,
+              "position": [
+                0.6499671736034071,
+                0.10120931067415069,
+                0.232956821856888
+              ],
+              "rotation": [
+                -0.9753967744816754,
+                0.10236383074709104,
+                0.19525055309914774,
+                -0.09854461992601612,
+                -0.9947040906560121,
+                0.029201539614062386,
+                0.19720570532917964,
+                0.009242196003955382,
+                0.980318566384746
+              ]
+            },
+            {
+              "id": 54,
+              "position": [
+                0.6351938802498489,
+                0.09971673883632498,
+                0.23594134562755106
+              ],
+              "rotation": [
+                0.9753967744816767,
+                0.195250553099148,
+                0.10236383074709121,
+                0.09854461992601629,
+                0.029201539614062494,
+                -0.9947040906560135,
+                -0.19720570532917991,
+                0.9803185663847475,
+                0.009242196003955455
+              ]
+            },
+            {
+              "id": 55,
+              "position": [
+                0.633550770497418,
+                0.09964502171217793,
+                0.23778466893101655
+              ],
+              "rotation": [
+                0.9753967744816767,
+                -0.195250553099148,
+                -0.10236383074709121,
+                0.09854461992601629,
+                -0.029201539614062494,
+                0.9947040906560135,
+                -0.19720570532917991,
+                -0.9803185663847475,
+                -0.009242196003955457
+              ]
+            },
+            {
+              "id": 56,
+              "position": [
+                0.5610732168796655,
+                0.09301881948661786,
+                0.24886570078680748
+              ],
+              "rotation": [
+                0.1952505530991484,
+                0.975396774481678,
+                -0.1023638307470911,
+                0.02920153961406252,
+                0.09854461992601626,
+                0.9947040906560148,
+                0.9803185663847487,
+                -0.19720570532918036,
+                -0.009242196003955455
+              ]
+            },
+            {
+              "id": 57,
+              "position": [
+                0.6284923600863138,
+                0.09887206738712428,
+                0.20925509898447606
+              ],
+              "rotation": [
+                0.21519923474832922,
+                0.9711904733462531,
+                -0.10236383074709132,
+                0.031214970698643152,
+                0.09792546980473224,
+                0.9947040906560152,
+                0.9760711628605883,
+                -0.21725484308757803,
+                -0.009242196003955594
+              ]
+            },
+            {
+              "id": 58,
+              "position": [
+                0.613851563368698,
+                0.0971813703288485,
+                0.21491264346563124
+              ],
+              "rotation": [
+                0.42010227652746257,
+                0.9026422270362837,
+                -0.09354724596387182,
+                0.05295732262249736,
+                0.07852416274286836,
+                0.995504634768815,
+                0.905930239718878,
+                -0.4231677750449734,
+                -0.014813336099158053
+              ]
+            },
+            {
+              "id": 60,
+              "position": [
+                0.5826105039136369,
+                0.09272323506008101,
+                0.22156449709137224
+              ],
+              "rotation": [
+                0.17316010081043393,
+                0.10062678831615379,
+                0.9797396740769961,
+                0.032529158544095486,
+                -0.9948085375763871,
+                0.09642524259521118,
+                0.9843563548490637,
+                0.015173102461533715,
+                -0.17553445140472673
+              ]
+            },
+            {
+              "id": 62,
+              "position": [
+                0.5732699166348763,
+                0.07476694535684643,
+                0.10611585202633836
+              ],
+              "rotation": [
+                -0.42153652775945066,
+                0.1629533945315667,
+                0.892049968877948,
+                -0.06911567131874088,
+                -0.9866336131907685,
+                0.14757078742180452,
+                0.9041736446848405,
+                0.0005518448796541925,
+                0.42716474073191385
+              ]
+            },
+            {
+              "id": 63,
+              "position": [
+                0.5780789126825622,
+                0.07555287746253245,
+                0.09117223784688663
+              ],
+              "rotation": [
+                0.16295339453156654,
+                0.9864823775706233,
+                -0.01728322751253035,
+                -0.9866336131907671,
+                0.1629381631650716,
+                -0.0022952791821558858,
+                0.0005518448796542324,
+                0.01742623674241583,
+                0.9998479993180093
+              ]
+            },
+            {
+              "id": 64,
+              "position": [
+                0.5896617981977178,
+                0.0774679909600656,
+                0.0948782571483879
+              ],
+              "rotation": [
+                -0.9865248991704354,
+                0.1629533945315665,
+                -0.014656552370942313,
+                -0.16294369701546385,
+                -0.9866336131907673,
+                -0.001861430918481679,
+                -0.014763973709515122,
+                0.0005518448796542333,
+                0.9998908543173768
+              ]
+            },
+            {
+              "id": 65,
+              "position": [
+                0.592151741406182,
+                0.07788139195807252,
+                0.09829407591178033
+              ],
+              "rotation": [
+                -0.9865248991704367,
+                0.014656552370942391,
+                0.16295339453156668,
+                -0.16294369701546407,
+                0.0018614309184817324,
+                -0.9866336131907686,
+                -0.01476397370951521,
+                -0.9998908543173782,
+                0.0005518448796541509
+              ]
+            },
+            {
+              "id": 66,
+              "position": [
+                0.5893722067601226,
+                0.06584401021139241,
+                0.09730838254202653
+              ],
+              "rotation": [
+                0.0015257094487557826,
+                -0.7731092067634501,
+                0.6342710986859394,
+                0.08107221541059029,
+                0.63227958322866,
+                0.7704867451946287,
+                -0.9967070623303009,
+                0.050246224234093695,
+                0.0636423510810243
+              ]
+            },
+            {
+              "id": 68,
+              "position": [
+                0.5796370087906572,
+                0.052576352321841706,
+                0.09621662681232812
+              ],
+              "rotation": [
+                -0.16360408163441575,
+                0.001525709448755741,
+                -0.9865248991704363,
+                0.983298859702051,
+                0.08107221541059029,
+                -0.16294369701546396,
+                0.0797311543953047,
+                -0.9967070623303013,
+                -0.014763973709515321
+              ]
+            },
+            {
+              "id": 69,
+              "position": [
+                0.5555537851787926,
+                0.036351068352531254,
+                0.06670554936489023
+              ],
+              "rotation": [
+                -0.9047304929753089,
+                -0.16255625967456436,
+                0.3937489016127783,
+                -0.11732650081096353,
+                0.9836658291130912,
+                0.1365138412129297,
+                -0.4095085191886839,
+                0.07731105403413933,
+                -0.9090246276289883
+              ]
+            },
+            {
+              "id": 70,
+              "position": [
+                0.5559210860451125,
+                0.051439625050542684,
+                0.061571711005117526
+              ],
+              "rotation": [
+                -0.16360408163441598,
+                0.3933146826056889,
+                -0.9047304929753102,
+                0.983298859702051,
+                0.13913247182488875,
+                -0.1173265008109638,
+                0.0797311543953047,
+                -0.9088155564968532,
+                -0.4095085191886847
+              ]
+            },
+            {
+              "id": 71,
+              "position": [
+                0.5615398676240361,
+                0.048201950406726736,
+                0.0816788542086976
+              ],
+              "rotation": [
+                -0.1636040816344154,
+                0.7354041707298993,
+                -0.6575822459172886,
+                0.9832988597020482,
+                0.17543115801374867,
+                -0.04844854287389305,
+                0.07973115439530443,
+                -0.6545262519341917,
+                -0.7518233359957429
+              ]
+            },
+            {
+              "id": 72,
+              "position": [
+                0.558901200336793,
+                0.028214596935356454,
+                0.0814019502937053
+              ],
+              "rotation": [
+                0.20978690280299497,
+                0.5477798038911252,
+                -0.8098930434701388,
+                0.9590474772224771,
+                -0.276509910111447,
+                0.061402003577725184,
+                -0.19030867517148603,
+                -0.7896072163165411,
+                -0.5833549966318229
+              ]
+            },
+            {
+              "id": 73,
+              "position": [
+                0.5757356244021591,
+                0.037638434665339,
+                0.09224093085874609
+              ],
+              "rotation": [
+                0.39331468260568836,
+                -0.16119456087995565,
+                0.9051628991455102,
+                0.13913247182488864,
+                0.9836077684042851,
+                0.11470794749553664,
+                -0.9088155564968522,
+                0.08082123160074023,
+                0.4092947749383765
+              ]
+            },
+            {
+              "id": 74,
+              "position": [
+                0.5727855187953139,
+                0.047039846665790135,
+                0.029628694624104633
+              ],
+              "rotation": [
+                0.8851003243836644,
+                0.16476358882892495,
+                0.4352589752918882,
+                0.11060965504467651,
+                -0.982910548310685,
+                0.1471474030708175,
+                0.45206517227810106,
+                -0.08209636907805926,
+                -0.8881988888742032
+              ]
+            },
+            {
+              "id": 75,
+              "position": [
+                0.562807494447007,
+                0.05773670394150074,
+                0.046547457967945426
+              ],
+              "rotation": [
+                0.17643894443299718,
+                0.885100324383663,
+                -0.43065846637828986,
+                -0.9785859119933162,
+                0.11060965504467618,
+                -0.173594691909355,
+                -0.10601373371208042,
+                0.45206517227810045,
+                0.8856625589227491
+              ]
+            },
+            {
+              "id": 77,
+              "position": [
+                0.576406494570007,
+                0.04816566535345919,
+                0.016776760148560135
+              ],
+              "rotation": [
+                -0.0125555365716922,
+                0.9868318086284029,
+                -0.16126171269274986,
+                -0.046200852865263986,
+                0.16052965601047156,
+                0.9859491420634682,
+                0.9988532623443376,
+                0.019829549171924588,
+                0.043576935226322444
+              ]
+            },
+            {
+              "id": 78,
+              "position": [
+                0.5820631461365083,
+                0.05194176320475727,
+                0.0054352626852747395
+              ],
+              "rotation": [
+                0.00658031141657428,
+                0.16019561878003755,
+                0.9870633531974252,
+                -0.04406970283418313,
+                -0.9860792314173144,
+                0.16032969363018404,
+                0.9990067871610137,
+                -0.04455460796733337,
+                0.0005710648908321403
+              ]
+            },
+            {
+              "id": 80,
+              "position": [
+                0.573124998553482,
+                0.06409769209620757,
+                0.024792676833664998
+              ],
+              "rotation": [
+                -0.16360408163441575,
+                -0.9864323284390234,
+                0.013600216282431653,
+                0.9832988597020512,
+                -0.1641675710991488,
+                -0.07856437556586601,
+                0.0797311543953049,
+                0.0005196246485814696,
+                0.9968162684311583
+              ]
+            },
+            {
+              "id": 81,
+              "position": [
+                0.5824790807261594,
+                0.05129883444269035,
+                0.008560098830164023
+              ],
+              "rotation": [
+                -0.007566555561299759,
+                0.1623717111071577,
+                0.9867006509925264,
+                -0.041069395301284464,
+                -0.9859468040565056,
+                0.16193271547267118,
+                0.9991276455020791,
+                -0.0392979261908306,
+                0.014128729262585293
+              ]
+            }
+          ]
+        },
+        "action": null,
+        "error": null,
+        "events": [
+          {
+            "id": 1,
+            "time": 1793582779.361891,
+            "kind": "action",
+            "text": "开始动作 · scene_skills",
+            "action_id": "f03394788482a03f1958a1b99266b5f4"
+          },
+          {
+            "id": 2,
+            "time": 1793582779.6499069,
+            "kind": "result",
+            "text": "scene_skills · completed",
+            "action_id": "f03394788482a03f1958a1b99266b5f4",
+            "status": "completed"
+          },
+          {
+            "id": 3,
+            "time": 1793582786.552659,
+            "kind": "action",
+            "text": "开始动作 · roulade",
+            "action_id": "188a8013-0773-4d55-a66d-72d0fca67a5b"
+          },
+          {
+            "id": 4,
+            "time": 1793582792.546038,
+            "kind": "result",
+            "text": "roulade · completed",
+            "action_id": "188a8013-0773-4d55-a66d-72d0fca67a5b",
+            "status": "completed"
+          },
+          {
+            "id": 5,
+            "time": 1793582792.54725,
+            "kind": "action",
+            "text": "开始动作 · yawn",
+            "action_id": "a80b75ac-538c-4210-b42c-70eb03c120d1"
+          },
+          {
+            "id": 6,
+            "time": 1793582797.06588,
+            "kind": "result",
+            "text": "yawn · completed",
+            "action_id": "a80b75ac-538c-4210-b42c-70eb03c120d1",
+            "status": "completed"
+          }
+        ],
+        "studio": {
+          "scene": null,
+          "task": {
+            "status": "idle",
+            "results": []
+          },
+          "queue": [],
+          "singer": null,
+          "recipes": {},
+          "draft": null,
+          "game": {
+            "prefix": null,
+            "accepted": 0,
+            "refused": 0
+          },
+          "discussion": {
+            "facts": [],
+            "question": ""
+          },
+          "focus_remaining_s": null
+        }
+      },
+      "video_start_elapsed_seconds": 0.3267529296875,
+      "capture": {
+        "method": "Chrome CDP screencast with original wall-clock timestamps",
+        "frames": 366
+      },
+      "video": "capture.webm",
+      "video_sha256": "f5626c16f0d049f0fd5089d54ce5295e8853c6c6e8881ca0d9ae1392a6f96327"
+    },
+    {
+      "id": "coverage",
+      "page": "deploys.html",
+      "started_at": "2026-11-02T01:26:45.049Z",
+      "screenshots": [
+        {
+          "file": "finals-coverage-current.png",
+          "at_seconds": 1.631,
+          "capture": "browser_screenshot",
+          "sha256": "566bb31181aaf9b3b1727ba9be8ea831e588956174f0ddab01b5fa4307c36d51"
+        },
+        {
+          "file": "finals-coverage-scope.png",
+          "at_seconds": 8.825,
+          "capture": "browser_screenshot",
+          "sha256": "73be1da438568d4387c05ed4e3d8391b334baf9c63b7153223ba02c2dbe56f02"
+        }
+      ],
+      "segments": [
+        {
+          "name": "commit-bound-test-coverage",
+          "start_seconds": 0.892,
+          "status": "completed",
+          "end_seconds": 16.828
+        }
+      ],
+      "audio": [],
+      "provenance": {
+        "base_url": "https://ztmonitor.qbox.net/duckking/",
+        "source_commit": "62c6784c077da169ea550eccb06793d687607cfd",
+        "recorded_at": "2026-11-02T01:26:45.049Z",
+        "release": {
+          "version": "deploy-yzh737-20261101T160751Z",
+          "commit": "62c6784c077da169ea550eccb06793d687607cfd",
+          "built_at": "2026-11-01T16:07:53.367377+00:00",
+          "operator": "zhouting",
+          "git_ref": "62c6784c077da169ea550eccb06793d687607cfd",
+          "target": "yzh737"
+        }
+      },
+      "deployment": {
+        "version": "deploy-yzh737-20261101T160751Z",
+        "commit": "62c6784c077da169ea550eccb06793d687607cfd",
+        "built_at": "2026-11-01T16:07:53.367377+00:00",
+        "operator": "zhouting",
+        "git_ref": "62c6784c077da169ea550eccb06793d687607cfd",
+        "target": "yzh737",
+        "ts": "2026-11-01T16:17:55.415275+00:00",
+        "status": "success",
+        "selftest": "passed",
+        "rollback": "not_needed",
+        "previous_version": "deploy-yzh737-20261101T154249Z",
+        "coverage": {
+          "commit": "62c6784c077da169ea550eccb06793d687607cfd",
+          "scope": "backend",
+          "source_url": "https://github.com/zhoutingunl/DuckKing/actions/runs/41323697759",
+          "lines": {
+            "covered": 5600,
+            "total": 5837
+          },
+          "branches": {
+            "covered": 1853,
+            "total": 2046
+          }
+        },
+        "changes": [
+          {
+            "commit": "62c6784c077da169ea550eccb06793d687607cfd",
+            "subject": "Keep balance controls disabled until room initialization completes"
+          }
+        ],
+        "change_count": 1,
+        "change_state": "available",
+        "previous_commit": "0ea9b2d10614abf4343ce7fdac836fa79ec77306"
+      },
+      "video_start_elapsed_seconds": 0.066585205078125,
+      "capture": {
+        "method": "Chrome CDP screencast with original wall-clock timestamps",
+        "frames": 6
+      },
+      "video": "capture.webm",
+      "video_sha256": "8b1852c54cc563ab9ebf2eabf2f91ec7b0c4442d1b9715dbef9366fbf8969a6f"
+    },
+    {
+      "id": "training",
+      "page": "balance.html?measurement=verification",
+      "started_at": "2026-11-02T01:34:31.825Z",
+      "screenshots": [
+        {
+          "file": "finals-training-curves.png",
+          "at_seconds": 11.774,
+          "capture": "browser_screenshot",
+          "sha256": "75d3ececca555bf369f8c0d154f2250bd18f6c2c56c245848dcc21f74299306a"
+        },
+        {
+          "file": "finals-training-reward.png",
+          "at_seconds": 20.278,
+          "capture": "browser_screenshot",
+          "sha256": "3ce77a6d5e9b7f1f8400e817e251e1ef88dcca9ea3c5fda6bfe379a7cecd57b8"
+        },
+        {
+          "file": "finals-training-ppo.png",
+          "at_seconds": 26.854,
+          "capture": "browser_screenshot",
+          "sha256": "e8fe7db1626e3c65a9b3ba953bd5a5e07027077aba8947232794a394411cdfd8"
+        }
+      ],
+      "segments": [
+        {
+          "name": "saved-cpu-training-and-ppo-explanation",
+          "start_seconds": 10.758,
+          "status": "completed",
+          "end_seconds": 33.856
+        }
+      ],
+      "audio": [],
+      "provenance": {
+        "base_url": "https://ztmonitor.qbox.net/duckking/",
+        "source_commit": "62c6784c077da169ea550eccb06793d687607cfd",
+        "recorded_at": "2026-11-02T01:34:31.825Z",
+        "release": {
+          "version": "deploy-yzh737-20261101T160751Z",
+          "commit": "62c6784c077da169ea550eccb06793d687607cfd",
+          "built_at": "2026-11-01T16:07:53.367377+00:00",
+          "operator": "zhouting",
+          "git_ref": "62c6784c077da169ea550eccb06793d687607cfd",
+          "target": "yzh737"
+        }
+      },
+      "training": {
+        "run": "level2-cpu-v4",
+        "gate": "尚未达到预定验证门槛，不能标为已收敛。 官方基线 0%。 最终未见测试：89/100；95% 区间 81.4%–93.7%。 同组未见种子的基线：0/100。",
+        "capability": "此服务展示训练记录；管理员可按训练文档启用 CPU 任务。",
+        "evidence": "{\n  \"id\": \"level2-cpu-v4\",\n  \"manifest\": {\n    \"contract\": \"balance-v4-gain-bodyframe\",\n    \"model_sha256\": \"f6b767337d24f366313142b669c9b2d5f4e55a673bbe542a5433c12ae7833dd0\",\n    \"config\": {\n      \"level\": 2,\n      \"challenge_seconds\": 10,\n      \"stop_seconds\": 3,\n      \"difficulty\": 1\n    },\n    \"joints\": [\n      \"left_hip_yaw\",\n      \"left_hip_roll\",\n      \"left_hip_pitch\",\n      \"left_knee\",\n      \"left_ankle\",\n      \"neck_pitch\",\n      \"head_pitch\",\n      \"head_yaw\",\n      \"head_roll\",\n      \"right_hip_yaw\",\n      \"right_hip_roll\",\n      \"right_hip_pitch\",\n      \"right_knee\",\n      \"right_ankle\"\n    ],\n    \"physics_hz\": 200,\n    \"gait_hz\": 50,\n    \"ppo_hz\": 10,\n    \"observation_size\": 25,\n    \"goal_observation_scale_m\": 0.1,\n    \"action_size\": 3,\n    \"action_scale\": [\n      0.18,\n      0.12,\n      1.8\n    ],\n    \"reward\": {\n      \"upright\": 1,\n      \"center\": 2,\n      \"heading\": 1,\n      \"progress\": 8,\n      \"slip\": 0.15,\n      \"smooth\": 0.025,\n      \"fall\": 10,\n      \"success\": 20\n    },\n    \"reward_version\": 2,\n    \"controller\": \"PPO feedback gains + explicit centering law + frozen official gait\",\n    \"feedback\": {\n      \"xy_gain_max\": 3,\n      \"heading_gain_max\": 4,\n      \"spin_feedforward_max\": 1.5,\n      \"action_map\": \"gain=max(action,0), action in [-1,1]\"\n    },\n    \"observation_source\": \"MuJoCo ground truth, not camera vision\",\n    \"seed\": 42,\n    \"trainer_sha256\": \"977084006160db5a7f2a25c8f054a0066c4a3fd1d07e79e90ed3cbf025eea8ba\",\n    \"engine_sha256\": \"0855fdf11c944cf0c845bafb89d4d37bf7d884cf971d32f540a2168380370aed\",\n    \"device\": \"cpu\",\n    \"cpu\": \"i386\",\n    \"platform\": \"macOS-26.5.2-x86_64-i386-64bit\",\n    \"logical_cpus\": 12,\n    \"envs\": 2,\n    \"torch_threads\": 1,\n    \"torch\": \"2.2.2\",\n    \"policy_kwargs\": {\n      \"net_arch\": {\n        \"pi\": [\n          64,\n          64\n        ],\n        \"vf\": [\n          64,\n          64\n        ]\n      },\n      \"log_std_init\": -0.5108256237659907\n    },\n    \"optimization_reward_scale\": 0.05,\n    \"training_budget\": 131072,\n    \"validation_seeds\": [\n      1000000,\n      1000020\n    ],\n    \"test_seeds\": [\n      2000000,\n      2000100\n    ],\n    \"gate\": \"success >= 90% of 20 validation episodes, 2 consecutive checks\",\n    \"hyperparameters\": {\n      \"learning_rate\": 0.0003,\n      \"gamma\": 0.995,\n      \"gae_lambda\": 0.95,\n      \"clip_range\": 0.2,\n      \"ent_coef\": 0.0005,\n      \"vf_coef\": 0.5,\n      \"n_steps\": 256,\n      \"batch_size\": 128,\n      \"n_epochs\": 10\n    },\n    \"training_model_sha256\": \"cebae8665b14963ec85d15ec62e70f6594918ec600c2bb94d3c549fb78ddbdb2\",\n    \"model_fingerprint_note\": \"Portable signature: decorative stripe coordinates normalized to 12 significant digits for macOS/Linux libm differences. Original training model signature retained; policy weights and evaluation measurements unchanged.\"\n  },\n  \"status\": {\n    \"phase\": \"completed\",\n    \"level\": 2,\n    \"seed\": 42,\n    \"steps\": 131072,\n    \"budget_steps\": 131072,\n    \"elapsed_s\": 1856.8950230902992,\n    \"device\": \"cpu\",\n    \"converged_at\": null,\n    \"baseline_success_rate\": 0,\n    \"best_success_rate\": 0.9,\n    \"best_steps\": 131072\n  },\n  \"baseline_test\": {\n    \"episodes\": 100,\n    \"successes\": 0,\n    \"success_rate\": 0,\n    \"ci95\": [\n      0,\n      0.03699480747600191\n    ],\n    \"mean_return\": 362.3446561375029\n  },\n  \"test\": {\n    \"selected_steps\": 131072,\n    \"episodes\": 100,\n    \"successes\": 89,\n    \"success_rate\": 0.89,\n    \"ci95\": [\n      0.8136853697209698,\n      0.9374586804477487\n    ],\n    \"mean_return\": 458.81406421284277\n  }\n}"
+      },
+      "video_start_elapsed_seconds": 0.103572998046875,
+      "capture": {
+        "method": "Chrome CDP screencast with original wall-clock timestamps",
+        "frames": 16
+      },
+      "video": "capture.webm",
+      "video_sha256": "d051efb3c45b562e0a2d4a52b13e1fad817fe3cf880b850f50bd66b0265e96eb"
+    },
+    {
+      "id": "balance",
+      "page": "balance.html",
+      "started_at": "2026-11-01T17:16:51.975Z",
+      "segments": [
+        {
+          "name": "paired-standard-13-seconds",
+          "start_seconds": 21.981,
+          "status": "completed",
+          "end_seconds": 42.161
+        }
+      ],
+      "screenshots": [
+        {
+          "file": "current-balance-running.png",
+          "at_seconds": 34.724,
+          "sha256": "195a2b69719a7c13197de8cfaa1d6d6382167a010ec68d3b2cac52d3396d3cde"
+        },
+        {
+          "file": "current-balance-result.png",
+          "at_seconds": 42.161,
+          "sha256": "f6809e0f885c7f24bb388a8e3d7350603d315503497d29a49a5fa856d53b4c02"
+        }
+      ],
+      "standard": {
+        "level": 2,
+        "title": "转盘转，我不转",
+        "phase": "completed",
+        "controller": "trained",
+        "seed": 0,
+        "duration_seconds": 13,
+        "challenge_seconds": 10,
+        "stop_seconds": 3,
+        "evaluation_duration_seconds": 13,
+        "seed_info": {
+          "rotation": "clockwise",
+          "friction": 1.043981071760082
+        },
+        "result": {
+          "radius": 0.02562436728589061,
+          "height": 0.11524322235416687,
+          "upright": 0.9999108843751611,
+          "heading_error": -0.016136143234474307,
+          "contacts": 2,
+          "slip": 0.0006705962193620182,
+          "rim_margin": 0.26172135921726597,
+          "body_contact": false,
+          "rpm": 0.00391575545933465,
+          "tilt_deg": [
+            -0.07358449618534062,
+            0.061341907599209655
+          ],
+          "success": true,
+          "reason": "success",
+          "reward_terms": {
+            "upright": 0.9999108843751611,
+            "center": 1.872896870248218,
+            "heading": 0.9978767461279878,
+            "progress": -0.0029789705673652356,
+            "slip": -0.00010058943290430273,
+            "smooth": -8.968102633843955e-08,
+            "fall": 0,
+            "success": 20
+          },
+          "seconds": 13.000000000000632,
+          "center_hold": 12.99999999999997,
+          "heading_fraction": 1,
+          "mean_slip": 0.014440496664474445,
+          "disk_stopped": true
+        },
+        "error": null,
+        "sim_time": 13.000000000000632,
+        "physics_time": 13.000000000000632,
+        "aftermath": null,
+        "operation_failed": false,
+        "source": "MuJoCo; PPO feedback-gain inference + official gait",
+        "execution": "paused",
+        "run": "level2-cpu-v4",
+        "command_revision": 2,
+        "policy_steps": 131072,
+        "comparison": {
+          "enabled": true,
+          "phase": "completed",
+          "execution": "paused",
+          "clock": "shared_task_ticks",
+          "tick": 130,
+          "sim_time": 13.000000000000632,
+          "physics_time": 13,
+          "disturbance": "same_seed_and_motor_targets; independent_contact_dynamics",
+          "terminal_behavior": "bounded_physics_after_failure; score_frozen",
+          "baseline": {
+            "level": 2,
+            "title": "转盘转，我不转",
+            "phase": "failed",
+            "controller": "baseline",
+            "seed": 0,
+            "duration_seconds": 13,
+            "challenge_seconds": 10,
+            "stop_seconds": 3,
+            "evaluation_duration_seconds": 13,
+            "seed_info": {
+              "rotation": "clockwise",
+              "friction": 1.043981071760082
+            },
+            "result": {
+              "radius": 0.1151757734709232,
+              "height": 0.11523236600385808,
+              "upright": 0.9998719611693684,
+              "heading_error": -2.6221855849953206,
+              "contacts": 2,
+              "slip": 0.00068337642952061,
+              "rim_margin": 0.2038518092797544,
+              "body_contact": false,
+              "rpm": 0.0011637882116782368,
+              "tilt_deg": [
+                -0.12510316440567648,
+                0.36542967557344347
+              ],
+              "success": false,
+              "reason": "criteria_not_met",
+              "reward_terms": {
+                "upright": 0.9998719611693684,
+                "center": 0.5307847543804324,
+                "heading": 4.200402903520624e-25,
+                "progress": 0.0007315760438075802,
+                "slip": -0.0001025064644280915,
+                "smooth": 0,
+                "fall": -10,
+                "success": 0
+              },
+              "seconds": 13.000000000000632,
+              "center_hold": 0,
+              "heading_fraction": 0.16153846153846155,
+              "mean_slip": 0.0030847736720058753,
+              "disk_stopped": true
+            },
+            "error": null,
+            "sim_time": 13.000000000000632,
+            "physics_time": 13.000000000000632,
+            "aftermath": null,
+            "operation_failed": true,
+            "source": "MuJoCo; frozen official gait baseline, no task PPO",
+            "execution": "paused"
+          }
+        }
+      },
+      "video": "page@74e4725fe66d2d0e3971ab493cc97f78.webm",
+      "finished_at": "2026-11-01T17:18:20.854Z",
+      "video_start_elapsed_seconds": 2.370999999999995,
+      "capture_clock_source": "Original final-marker alignment retained before trimming",
+      "provenance": {
+        "recorded_at": "2026-11-01T17:16:50.797Z",
+        "base_url": "https://ztmonitor.qbox.net/duckking/",
+        "source_commit": "62c6784c077da169ea550eccb06793d687607cfd",
+        "release": {
+          "version": "deploy-yzh737-20261101T160751Z",
+          "commit": "62c6784c077da169ea550eccb06793d687607cfd",
+          "built_at": "2026-11-01T16:07:53.367377+00:00",
+          "operator": "zhouting",
+          "git_ref": "62c6784c077da169ea550eccb06793d687607cfd",
+          "target": "yzh737"
+        },
+        "source": "actual deployed browser UI; buttons and local rehearsal; no cloud session or microphone"
+      },
+      "video_sha256": "dce9913ad4fc3fddf8710f638a89b5d7f0da4f78d4087c89907f403a97238059"
+    }
+  ],
+  "page_errors": [],
+  "before_turns": [
+    2,
+    1
+  ],
+  "new_rounds": [
+    {
+      "turn": 4,
+      "time": "2026-11-02T02:21:04.265+00:00",
+      "backend": "mujoco",
+      "status": "completed",
+      "text": "请读取当前状态，告诉我桌上表演的真实结果。",
+      "timings": {
+        "listen_stop": 4502,
+        "stt": 4887,
+        "cloud_stt": 4887,
+        "first_audio": 7569,
+        "reply_end": 23761
+      },
+      "actions": [],
+      "uplink_frames": 73,
+      "downlink_frames": 271,
+      "mode": "cloud",
+      "route": "cloud",
+      "experience_sequence": 10
+    },
+    {
+      "turn": 3,
+      "time": "2026-11-02T02:20:24.035+00:00",
+      "backend": "mujoco",
+      "status": "completed",
+      "text": "请开始桌上四鸭合唱表演。",
+      "timings": {
+        "listen_stop": 2617,
+        "stt": 2883,
+        "cloud_stt": 2883,
+        "action_start": 4095,
+        "first_audio": 5094,
+        "reply_end": 13557
+      },
+      "actions": [
+        {
+          "call": 62,
+          "tool": "duck_table_show",
+          "at_ms": 4095,
+          "result": "completed",
+          "duration_ms": 36023
+        }
+      ],
+      "uplink_frames": 42,
+      "downlink_frames": 141,
+      "mode": "cloud",
+      "route": "cloud",
+      "experience_sequence": 10
+    }
+  ],
+  "cloud_tool_events": [
+    {
+      "id": 52,
+      "time": "2026-11-02T02:20:23.985+00:00",
+      "event": "tool_start",
+      "state": "ready",
+      "turn": 0,
+      "uplink_frames": 0,
+      "downlink_frames": 0,
+      "elapsed_ms": 0,
+      "backend": "mujoco",
+      "method": "initialize"
+    },
+    {
+      "id": 53,
+      "time": "2026-11-02T02:20:23.986+00:00",
+      "event": "tool_start",
+      "state": "ready",
+      "turn": 0,
+      "uplink_frames": 0,
+      "downlink_frames": 0,
+      "elapsed_ms": 0,
+      "backend": "mujoco",
+      "method": "tools/list"
+    },
+    {
+      "id": 54,
+      "time": "2026-11-02T02:20:24.018+00:00",
+      "event": "tool_end",
+      "state": "ready",
+      "turn": 0,
+      "uplink_frames": 0,
+      "downlink_frames": 0,
+      "elapsed_ms": 0,
+      "backend": "mujoco",
+      "result": "ok"
+    },
+    {
+      "id": 55,
+      "time": "2026-11-02T02:20:24.019+00:00",
+      "event": "tool_end",
+      "state": "ready",
+      "turn": 0,
+      "uplink_frames": 0,
+      "downlink_frames": 0,
+      "elapsed_ms": 0,
+      "backend": "mujoco",
+      "result": "ok"
+    },
+    {
+      "id": 62,
+      "time": "2026-11-02T02:20:28.129+00:00",
+      "event": "tool_start",
+      "state": "thinking",
+      "turn": 3,
+      "uplink_frames": 42,
+      "downlink_frames": 0,
+      "elapsed_ms": 4094,
+      "backend": "mujoco",
+      "method": "tools/call",
+      "tool": "duck_table_show"
+    },
+    {
+      "id": 63,
+      "time": "2026-11-02T02:20:28.130+00:00",
+      "event": "action_start",
+      "turn": 3,
+      "call": 62,
+      "backend": "mujoco",
+      "elapsed_ms": 4095,
+      "tool": "duck_table_show"
+    },
+    {
+      "id": 64,
+      "time": "2026-11-02T02:20:28.132+00:00",
+      "event": "tool_end",
+      "state": "thinking",
+      "turn": 3,
+      "uplink_frames": 42,
+      "downlink_frames": 0,
+      "elapsed_ms": 4096,
+      "backend": "mujoco",
+      "tool": "duck_table_show",
+      "result": "ok"
+    },
+    {
+      "id": 72,
+      "time": "2026-11-02T02:21:04.153+00:00",
+      "event": "action_end",
+      "turn": 3,
+      "call": 62,
+      "backend": "mujoco",
+      "elapsed_ms": 40118,
+      "tool": "duck_table_show",
+      "result": "completed"
+    },
+    {
+      "id": 79,
+      "time": "2026-11-02T02:21:10.470+00:00",
+      "event": "tool_start",
+      "state": "thinking",
+      "turn": 4,
+      "uplink_frames": 73,
+      "downlink_frames": 0,
+      "elapsed_ms": 6205,
+      "backend": "mujoco",
+      "method": "tools/call",
+      "tool": "duck_get_status"
+    },
+    {
+      "id": 80,
+      "time": "2026-11-02T02:21:10.472+00:00",
+      "event": "tool_end",
+      "state": "thinking",
+      "turn": 4,
+      "uplink_frames": 73,
+      "downlink_frames": 0,
+      "elapsed_ms": 6207,
+      "backend": "mujoco",
+      "tool": "duck_get_status",
+      "result": "ok"
+    }
+  ],
+  "completed": true,
+  "edited_at": "2026-11-02T02:23:54.604028+00:00",
+  "editorial": {
+    "historical_wait_removal": {
+      "previous_video_duration_seconds": 177.6,
+      "measured_silent_interval_seconds": [
+        92.451604,
+        106.069917
+      ],
+      "removed_redundant_wait_seconds": [
+        93.0,
+        105.88
+      ],
+      "note": "Prior edit only; these cut points do not apply to the new recording."
+    },
+    "current_performance": "New real Linx recording with output-clock PCM and 0.7s end wait",
+    "closing_card": "Three seconds, intentionally without narration"
+  }
+}

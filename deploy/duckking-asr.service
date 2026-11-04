@@ -1,0 +1,26 @@
+[Unit]
+Description=DuckKing offline speech recognition (SenseVoiceSmall INT8)
+After=network.target
+
+[Service]
+Type=simple
+User=root
+Group=root
+WorkingDirectory=/root/zt_dir/hackathon_base/DuckKing/current
+Environment=OMP_NUM_THREADS=1
+Environment=OPENBLAS_NUM_THREADS=1
+ExecStart=/root/zt_dir/hackathon_base/DuckKing/current/.venv/bin/duckking-asr --port 8768 --model-dir external/asr
+Restart=on-failure
+RestartSec=3
+TimeoutStopSec=15
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=read-only
+ProtectSystem=strict
+CPUQuota=100%
+MemoryMax=1G
+TasksMax=32
+
+[Install]
+WantedBy=multi-user.target

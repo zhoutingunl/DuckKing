@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#f6f7f2" />
+    <title>DuckKing · 部署记录</title>
+    <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+  </head>
+  <body class="deploys-page">
+    <header class="topbar site-topbar"><a class="brand" href="./" aria-label="DuckKing 首页" title="返回工作台"><span class="brand-mark">dk<span>●</span></span>DuckKing</a><nav class="home-nav" aria-label="工作台导航"></nav><a class="repo-link" href="https://github.com/zhoutingunl/DuckKing" target="_blank" rel="noopener">源代码 ↗</a></header>
+    <main>
+      <section class="intro"><div><p class="eyebrow">RELEASE JOURNAL</p><h1>每次上线，都有记录。</h1><p class="subtitle">核对正在运行的版本，回看每次发布的结果。</p></div><button id="refresh-deploys" class="stats-button">刷新记录</button></section>
+      <p id="deploy-error" class="notice" role="alert" hidden></p>
+      <section class="release-card" aria-labelledby="current-heading">
+        <div class="section-heading"><h2 id="current-heading">正在运行</h2><span id="release-state" class="tag neutral" role="status">正在读取</span></div>
+        <p id="release-version" class="release-version">—</p>
+        <dl class="release-facts"><div><dt>代码提交</dt><dd id="release-commit">—</dd></div><div><dt>部署目标</dt><dd id="release-target">—</dd></div><div><dt>构建时间</dt><dd id="release-built">—</dd></div></dl>
+        <p id="release-note" class="stats-note">正在读取服务的发布信息…</p>
+      </section>
+      <section class="release-history" aria-labelledby="history-heading">
+        <div class="section-heading"><h2 id="history-heading">发布流水</h2><span id="deploy-updated" class="stats-note">每 10 秒更新</span></div>
+        <div class="table-scroll"><table class="stats-table"><thead><tr><th scope="col">版本 / 提交</th><th scope="col">发布时间</th><th scope="col">发布人 / 目标</th><th scope="col">结果 / 自检</th><th scope="col">行覆盖率</th><th scope="col">分支覆盖率</th><th scope="col">变更提交</th></tr></thead><tbody id="deploy-rows"></tbody></table></div>
+        <p id="deploy-empty" class="stats-empty" hidden>尚无部署记录。本地开发不会生成上线成功记录。</p>
+        <p class="stats-note">最近 100 次发布。只有页面、静态资源、版本、状态流和受限动作检查通过后才记录成功。云端语音与 MuJoCo 需要单独验证。</p>
+        <p class="stats-note">变更提交对比同一目标的上一次成功部署；待验收和失败记录不改变比较基准。每次最多显示 50 项，完整差异可通过 GitHub 链接查看。</p>
+        <p class="stats-note">覆盖率为该提交对应的 Python 后端测试报告，包含单元与集成测试，点击百分比查看 CI。缺少可核验报告的版本显示“未记录”，不以当前版本或前端局部覆盖率替代。</p>
+      </section>
+    </main>
+    <script type="module" src="/src/deploys.js"></script>
+  </body>
+</html>

@@ -10,7 +10,7 @@ def test_http_action_and_real_state_stream():
         assert client.get("/api/health").json()["backend"] == "preview"
         response = client.post("/api/actions", json={"name": "walk", "duration": 0.2})
         assert response.status_code == 202
-        with client.websocket_connect("/ws") as ws:
+        with client.websocket_connect("/ws?room=1") as ws:
             frame = ws.receive_json()
             assert frame["type"] == "state"
             assert frame["backend"]["physics"] is False
@@ -37,7 +37,7 @@ def test_results_conflicts_unknown_ids_and_origin_websocket():
         assert client.post("/api/actions", json=body | {"name": "nod"}).status_code == 409
         assert client.get("/api/state").json()["backend"]["kind"] == "preview"
         with pytest.raises(WebSocketDisconnect):
-            with client.websocket_connect("/ws", headers={"Origin": "https://bad.example"}):
+            with client.websocket_connect("/ws?room=1", headers={"Origin": "https://bad.example"}):
                 pass
         assert client.get("/api/health", headers={"Host": "bad.example"}).status_code == 400
 

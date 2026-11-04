@@ -1,0 +1,1 @@
+{"phase": "completed", "level": 3, "seed": 42, "steps": 131072, "budget_steps": 131072, "elapsed_s": 1826.5810720659792, "device": "cpu", "converged_at": null, "baseline_success_rate": 0.0, "best_success_rate": 0.55, "best_steps": 122880}

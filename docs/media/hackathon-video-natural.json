@@ -1,0 +1,282 @@
+{
+  "revision_date": "2026-10-27",
+  "timezone": "Asia/Shanghai",
+  "release_tag": "deploy-yzh737-20261025T165552Z",
+  "original_recording_metadata": "hackathon-video.json",
+  "source_video": {
+    "file": "duckking-hackathon-20261026.mp4",
+    "sha256": "7427e82015f014b440e80e9dca405ee6f9e82cc440060ee7a79bd9970e1dfcef"
+  },
+  "video": {
+    "file": "duckking-hackathon-20261027-natural.mp4",
+    "sha256": "75a5d548c74c3e2aec57426f1a1f2bd69fb053707c67d26ec646d3023f064391",
+    "bytes": 10741101,
+    "duration_seconds": 285.521333,
+    "video_codec": "h264",
+    "width": 1600,
+    "height": 1000,
+    "audio_codec": "aac",
+    "audio_sample_rate": 48000,
+    "audio_channels": 2,
+    "chapters": [
+      {
+        "file": "intro-card.mp4",
+        "start_seconds": 0,
+        "duration_seconds": 18.033333,
+        "original_demo_streams": false
+      },
+      {
+        "file": "cloud-card.mp4",
+        "start_seconds": 18.033,
+        "duration_seconds": 14.9,
+        "original_demo_streams": false
+      },
+      {
+        "file": "football-live.mp4",
+        "start_seconds": 32.933,
+        "duration_seconds": 46.833333,
+        "original_demo_streams": true
+      },
+      {
+        "file": "delivery-card.mp4",
+        "start_seconds": 79.767,
+        "duration_seconds": 15.166667,
+        "original_demo_streams": false
+      },
+      {
+        "file": "delivery.mp4",
+        "start_seconds": 94.933,
+        "duration_seconds": 26.8,
+        "original_demo_streams": true
+      },
+      {
+        "file": "tabletop-card.mp4",
+        "start_seconds": 121.733,
+        "duration_seconds": 13.666667,
+        "original_demo_streams": false
+      },
+      {
+        "file": "tabletop.mp4",
+        "start_seconds": 135.4,
+        "duration_seconds": 46.9,
+        "original_demo_streams": true
+      },
+      {
+        "file": "seated-card.mp4",
+        "start_seconds": 182.3,
+        "duration_seconds": 14.8,
+        "original_demo_streams": false
+      },
+      {
+        "file": "seated.mp4",
+        "start_seconds": 197.1,
+        "duration_seconds": 42.433333,
+        "original_demo_streams": true
+      },
+      {
+        "file": "metrics-card.mp4",
+        "start_seconds": 239.533,
+        "duration_seconds": 31.6,
+        "original_demo_streams": false
+      },
+      {
+        "file": "end-card.mp4",
+        "start_seconds": 271.133,
+        "duration_seconds": 14.366667,
+        "original_demo_streams": false
+      }
+    ]
+  },
+  "narration": {
+    "source": "Microsoft neural speech via edge-tts 7.3.1; synthesized narration, not a human recording or voice clone",
+    "voice": "zh-CN-XiaoxiaoNeural",
+    "segments": [
+      {
+        "name": "intro",
+        "text": "大家好，这是 DuckKing。说一句话，就能让小鸭开始表演。接下来，我们看看真实的灵矽语音，怎么驱动物理仿真里的小鸭。这里展示的还是软件仿真，还没有接入实体机器人。",
+        "voice": "zh-CN-XiaoxiaoNeural",
+        "rate": "-3%",
+        "duration_seconds": 17.016,
+        "sha256": "41016a1da98aa66460454a29265b7afd3e31e9e3d2ef3a0d0ccbe4941436b3ca"
+      },
+      {
+        "name": "cloud",
+        "text": "先来踢个球。这次用的是预录指令，但识别和回答，都来自真实的灵矽。左脚还是右脚，不能只听小鸭说了什么，还得看它有没有真的碰到球。",
+        "voice": "zh-CN-XiaoxiaoNeural",
+        "rate": "-3%",
+        "duration_seconds": 13.872,
+        "sha256": "e79d931ee92d2736ee47c102f0c975162ba02e8e19e9e46f28aa091373988401"
+      },
+      {
+        "name": "delivery",
+        "text": "没有手，能不能送个东西？可以试试用嘴。夹起这根小棒，搬过去，再轻轻放稳。这一段是本地剧本，动作和接触，都在实时仿真里完成。",
+        "voice": "zh-CN-XiaoxiaoNeural",
+        "rate": "-3%",
+        "duration_seconds": 14.136,
+        "sha256": "7a8fa74f330bad1e1731dc7e190f10bded73fc4b581cbba2d2e9d6a39242db7a"
+      },
+      {
+        "name": "tabletop",
+        "text": "接下来，四只小鸭要开演唱会了。这首欢乐颂，是本地合成的四声部。听和声的时候，也留意一下鸭 D。桌子可没那么宽。",
+        "voice": "zh-CN-XiaoxiaoNeural",
+        "rate": "-3%",
+        "duration_seconds": 12.648,
+        "sha256": "7920221525c39b55cc5a3298c7821c69d6f9c94223ea460515f4849895711139"
+      },
+      {
+        "name": "seated",
+        "text": "这一段，我们换个唱法。大家先坐着唱，轮到谁独唱，谁就站起来。唱完以后，再坐回去。每次交接，都要等它真的站稳或者坐稳。",
+        "voice": "zh-CN-XiaoxiaoNeural",
+        "rate": "-3%",
+        "duration_seconds": 13.8,
+        "sha256": "7472fec38feb36617f519c3542bdc07d0a39b14757acbfbe0530a938b09345c8"
+      },
+      {
+        "name": "metrics",
+        "text": "那从说完一句话，到小鸭开始响应，要等多久？我们用同一句点头口令，两条路径各测了十次。本地识别，平均二百八十四毫秒；灵矽识别，四百二十七毫秒。到动作被受理，本地大约二百八十六毫秒，灵矽大约一点六六秒。这只是短口令的小样本，不代表识别准确率，也不包含扬声器出声和画面显示的时间。",
+        "voice": "zh-CN-XiaoxiaoNeural",
+        "rate": "-3%",
+        "duration_seconds": 30.6,
+        "sha256": "252a71ac3e8438c48974ef770852c6837ba86985159d22fd3a570622271c5834"
+      },
+      {
+        "name": "end",
+        "text": "代码、部署记录，还有刚才的实测数据，都可以在项目的代码仓库里找到。下一步，我们希望把这套软件接到实体小鸭上。谢谢观看。",
+        "voice": "zh-CN-XiaoxiaoNeural",
+        "rate": "-3%",
+        "duration_seconds": 13.344,
+        "sha256": "db121ebc589e960fb6a7004f6d4299d0efdc58215481ac29753ef804b22eecc7"
+      }
+    ]
+  },
+  "chapter_audio_levels": [
+    {
+      "name": "intro",
+      "narration_seconds": 17.016,
+      "card_seconds": 18.033333333333335,
+      "input_loudness_lufs": -20.02,
+      "target_loudness_lufs": -18.5
+    },
+    {
+      "name": "cloud",
+      "narration_seconds": 13.872,
+      "card_seconds": 14.9,
+      "input_loudness_lufs": -20.06,
+      "target_loudness_lufs": -18.5
+    },
+    {
+      "name": "delivery",
+      "narration_seconds": 14.136,
+      "card_seconds": 15.166666666666666,
+      "input_loudness_lufs": -19.9,
+      "target_loudness_lufs": -18.5
+    },
+    {
+      "name": "tabletop",
+      "narration_seconds": 12.648,
+      "card_seconds": 13.666666666666666,
+      "input_loudness_lufs": -19.97,
+      "target_loudness_lufs": -18.5
+    },
+    {
+      "name": "seated",
+      "narration_seconds": 13.8,
+      "card_seconds": 14.8,
+      "input_loudness_lufs": -19.9,
+      "target_loudness_lufs": -18.5
+    },
+    {
+      "name": "metrics",
+      "narration_seconds": 30.6,
+      "card_seconds": 31.6,
+      "input_loudness_lufs": -19.71,
+      "target_loudness_lufs": -18.5
+    },
+    {
+      "name": "end",
+      "narration_seconds": 13.344,
+      "card_seconds": 14.366666666666667,
+      "input_loudness_lufs": -19.83,
+      "target_loudness_lufs": -18.5
+    }
+  ],
+  "original_demos": [
+    {
+      "name": "delivery",
+      "sha256": "7fa8b4c5c715ebc16aa0c6ab8e5b6840308d1383b5f184a612c49eaf572c2ee1"
+    },
+    {
+      "name": "football-live",
+      "sha256": "9195fc1e16701c9eada42088d18383e4282149b40a60875da09fe83c8f4e2d39"
+    },
+    {
+      "name": "seated",
+      "sha256": "990ce953faa160af836fa9b148220bb7153630463a14ba62e22b2b9a07fff750"
+    },
+    {
+      "name": "tabletop",
+      "sha256": "7e136372af7e27928fe386141dcb2d90f6975dc88f6db2d0c11dc5bb89718c99"
+    }
+  ],
+  "verification": {
+    "method": "Compare every original AAC audio packet and every non-key video packet as contiguous SHA-256 sequences in original clip order; keyframes excluded because MP4 concatenation may repeat codec headers. Decode full output with ffmpeg.",
+    "source_unchanged": true,
+    "original_demo_packets_preserved": [
+      {
+        "clip": "football-live",
+        "stream": "v:0",
+        "matching_original_packets": 1399,
+        "output_packet_offset": 983
+      },
+      {
+        "clip": "delivery",
+        "stream": "v:0",
+        "matching_original_packets": 800,
+        "output_packet_offset": 2835
+      },
+      {
+        "clip": "tabletop",
+        "stream": "v:0",
+        "matching_original_packets": 1401,
+        "output_packet_offset": 4043
+      },
+      {
+        "clip": "seated",
+        "stream": "v:0",
+        "matching_original_packets": 1267,
+        "output_packet_offset": 5886
+      },
+      {
+        "clip": "football-live",
+        "stream": "a:0",
+        "matching_original_packets": 2196,
+        "output_packet_offset": 1547
+      },
+      {
+        "clip": "delivery",
+        "stream": "a:0",
+        "matching_original_packets": 1257,
+        "output_packet_offset": 4438
+      },
+      {
+        "clip": "tabletop",
+        "stream": "a:0",
+        "matching_original_packets": 2200,
+        "output_packet_offset": 6337
+      },
+      {
+        "clip": "seated",
+        "stream": "a:0",
+        "matching_original_packets": 1989,
+        "output_packet_offset": 9232
+      }
+    ],
+    "full_decode_passed": true
+  },
+  "notes": [
+    "Only seven title-card narration segments replaced; title cards extended to speech duration.",
+    "Original recorded demo clips concatenated by stream copy; no voice substitutions within real Linx or music footage.",
+    "Synthetic narration is not a human recording.",
+    "Recorded application versions and benchmark samples remain those of the original October 26 video."
+  ]
+}

@@ -1,0 +1,91 @@
+{
+  "input": "macOS Tingting synthesized speech; PCM16 via real scene WebSocket",
+  "backend": "MuJoCo CPU / official ONNX policies",
+  "turns": [
+    {
+      "requested_foot": "left",
+      "transcripts": [
+        {
+          "role": "user",
+          "text": "用左脚踢球"
+        },
+        {
+          "role": "assistant",
+          "text": "我先查看一下当前场景状态。"
+        },
+        {
+          "role": "assistant",
+          "text": "当前已在踢球场景，用左脚踢球。"
+        },
+        {
+          "role": "assistant",
+          "text": "用左脚踢球完成，已确认脚触球，球向前滚了约1.46米。"
+        }
+      ],
+      "audio_frames": 207,
+      "actions": [
+        {
+          "name": "kick_left",
+          "status": "completed",
+          "outcome": {
+            "position": [
+              1.542657518824943,
+              0.22064759872299797,
+              0.034632818157539845
+            ],
+            "displacement_m": 1.4633921060317734,
+            "contacts": 6,
+            "contact_feet": [
+              "left"
+            ],
+            "foot": "left",
+            "verified": true,
+            "message": "已确认脚球接触及球位移"
+          }
+        }
+      ],
+      "elapsed_s": 16.684
+    },
+    {
+      "requested_foot": "right",
+      "transcripts": [
+        {
+          "role": "user",
+          "text": "用右脚踢球"
+        },
+        {
+          "role": "assistant",
+          "text": "用右脚踢球。"
+        },
+        {
+          "role": "assistant",
+          "text": "用右脚踢球完成，已确认脚触球，球滚动了约1.17米。"
+        }
+      ],
+      "audio_frames": 124,
+      "actions": [
+        {
+          "name": "kick_right",
+          "status": "completed",
+          "outcome": {
+            "position": [
+              1.2180143765077196,
+              -0.3508173251043662,
+              0.034632818157539845
+            ],
+            "displacement_m": 1.169042321083887,
+            "contacts": 6,
+            "contact_feet": [
+              "right"
+            ],
+            "foot": "right",
+            "verified": true,
+            "message": "已确认脚球接触及球位移"
+          }
+        }
+      ],
+      "elapsed_s": 12.665
+    }
+  ],
+  "recorded_at": "2026-10-23T17:25:26.832391+00:00"
+}

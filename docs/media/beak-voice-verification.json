@@ -1,0 +1,160 @@
+{
+  "tested_at": "2026-10-24T13:50:29.050979+00:00",
+  "input": "macOS Tingting synthesized Chinese; PCM16 over real scene WebSocket",
+  "cloud": "real Linx STT/MCP/TTS",
+  "backend": "MuJoCo CPU + official ONNX + experimental beak",
+  "transcripts": [
+    {
+      "role": "user",
+      "text": "请用嘴夹起小棒，搬过去，再放下。"
+    },
+    {
+      "role": "assistant",
+      "text": "我先确认当前场景是否为搬运场景当前已是 carry 场景。"
+    },
+    {
+      "role": "assistant",
+      "text": "我先用嘴夹起小棒已成功夹起小棒，verified 为 true。"
+    },
+    {
+      "role": "assistant",
+      "text": "现在搬运过去搬运成功，已到达接物台上方。"
+    },
+    {
+      "role": "assistant",
+      "text": "现在放下小棒已经完成啦！"
+    },
+    {
+      "role": "assistant",
+      "text": "我用嘴夹起小棒，搬运到接物台上方，再稳稳地放了下去，verified 全部通过，小棒已落稳。"
+    }
+  ],
+  "audio_frames": 478,
+  "passed": true,
+  "elapsed_s": 36.701,
+  "actions": [
+    {
+      "name": "pick_up",
+      "status": "completed",
+      "outcome": {
+        "phase": "holding",
+        "held": true,
+        "carried": false,
+        "position": [
+          0.06465341330191587,
+          0.0005494584966813285,
+          0.2274840013273907
+        ],
+        "mouth_angle_deg": 1.6416664017564437,
+        "normal_force_n": {
+          "upper": 0.44149686022260787,
+          "lower": 0.48072919940174774,
+          "source": 0.0,
+          "destination": 0.0,
+          "floor": 0.0
+        },
+        "contact_samples": {
+          "upper": 1294,
+          "lower": 305
+        },
+        "bilateral_s": 1.50499999999999,
+        "max_bilateral_s": 1.50499999999999,
+        "peak_normal_force_n": 0.49663107469315504,
+        "lift_clearance_m": 0.017019599649717887,
+        "max_lift_clearance_m": 0.017234453702512892,
+        "carry_distance_m": 0.0,
+        "robot_distance_m": 0.0,
+        "max_slip_m": 0.0,
+        "released_stable_s": 0.0,
+        "linear_speed_mps": 0.0188085830078025,
+        "angular_speed_radps": 0.08618225747353357,
+        "error": null,
+        "model": "experimental_beak_contact_v1",
+        "verified": true,
+        "message": "已验证双侧接触、持续夹持和物品离架"
+      }
+    },
+    {
+      "name": "carry",
+      "status": "completed",
+      "outcome": {
+        "phase": "carried",
+        "held": true,
+        "carried": true,
+        "position": [
+          0.2947876238915409,
+          0.03987811775351314,
+          0.20442858136953307
+        ],
+        "mouth_angle_deg": 1.5923308747123426,
+        "normal_force_n": {
+          "upper": 0.4502923204775492,
+          "lower": 0.49638112274307866,
+          "source": 0.0,
+          "destination": 0.0,
+          "floor": 0.0
+        },
+        "contact_samples": {
+          "upper": 2178,
+          "lower": 1189
+        },
+        "bilateral_s": 5.924999999999896,
+        "max_bilateral_s": 5.924999999999896,
+        "peak_normal_force_n": 2.110383142677353,
+        "lift_clearance_m": -0.007288541189304276,
+        "max_lift_clearance_m": 0.017234453702512892,
+        "carry_distance_m": 0.2333201190148229,
+        "robot_distance_m": 0.22651940102416254,
+        "max_slip_m": 0.0017413886581685923,
+        "released_stable_s": 0.0,
+        "linear_speed_mps": 0.07106525879500135,
+        "angular_speed_radps": 0.6384229666032397,
+        "error": null,
+        "model": "experimental_beak_contact_v1",
+        "verified": true,
+        "message": "已夹持搬运到接物台上方"
+      }
+    },
+    {
+      "name": "put_down",
+      "status": "completed",
+      "outcome": {
+        "phase": "released",
+        "held": false,
+        "carried": true,
+        "position": [
+          0.27509238358426136,
+          0.034429037938008625,
+          0.1857844891595675
+        ],
+        "mouth_angle_deg": 30.05029334770775,
+        "normal_force_n": {
+          "upper": 0.0,
+          "lower": 0.0,
+          "source": 0.0,
+          "destination": 0.039240000000000004,
+          "floor": 0.0
+        },
+        "contact_samples": {
+          "upper": 2453,
+          "lower": 1588
+        },
+        "bilateral_s": 0.0,
+        "max_bilateral_s": 7.284999999999867,
+        "peak_normal_force_n": 2.110383142677353,
+        "lift_clearance_m": -0.02821551084043253,
+        "max_lift_clearance_m": 0.017234453702512892,
+        "carry_distance_m": 0.2333201190148229,
+        "robot_distance_m": 0.22651940102416254,
+        "max_slip_m": 0.001969945481997409,
+        "released_stable_s": 3.6499999999999444,
+        "linear_speed_mps": 2.1430880689338685e-15,
+        "angular_speed_radps": 2.445457429383147e-14,
+        "error": null,
+        "model": "experimental_beak_contact_v1",
+        "verified": true,
+        "message": "已脱离嘴部并在接物台稳定落下"
+      }
+    }
+  ]
+}

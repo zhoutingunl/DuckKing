@@ -4,7 +4,7 @@
 
 ## 结论
 
-灵矽支持法语。平台级已实测确认；语音端到端未实测；音色克隆按官方文档分套餐。
+灵矽支持法语。智能体级平台配置已实测确认；语音端到端未实测；音色克隆按官方文档分套餐。
 
 ## 验证方法与真实结果
 
@@ -27,14 +27,17 @@
 ## 未验证与限制
 
 - **法语语音端到端未实测**：未验证法语语音 STT → 工具调用（点头/前进/闪身步等）→ 法语 TTS 的完整链路；现有实测记录（[VALIDATION.md](../../docs/VALIDATION.md)）全部基于中文语音。
-- 法语提示词中的触发词（« pas éclair »、« l'ours qui frissonne » 等）是笔译草案，未经过真实语音识别回路验证能否触发对应工具。
+- 法语触发词映射（pas éclair → 闪身步、secoue ta fourrure → 抖抖毛等）是笔译草案，未经真实语音识别回路验证能否触发对应工具。
 - 音色克隆免费版不支持法语音色；未核对任何账单消耗。
 - 36 种语言列表是 2026-11-04 一次观测，服务端配置可能变化，以实时调用为准。
 
 ## 对应代码变更
 
-分支 `feat/configurable-agent-language`：
+分支 `feat/configurable-agent-language`（已合并 main 的 PR #55 后重做设计）：
 
-- `src/duckking/onboarding.py`：`PROMPTS` 内置中/法双语提示词（zh 保持原文逐字不变），`setup_device` 新增 `lang_code` 参数，CLI 新增 `--lang-code`；未内置提示词的语言在创建前显式报错，不用中文提示词冒充其他语言。
-- `tests/test_onboarding.py`：新增默认中文、法语文案选择、不支持语言提前失败三项测试。
-- 同步更新 `README.md` 与 `docs/VALIDATION.md`。
+- `src/duckking/onboarding.py`：行为规则只保留一份中文权威提示词 `PROMPT`（与已实测 live 记录对应，逐字不变）。非中文语言经 `agent_prompt(lang_code)` 只替换回答语言子句并追加触发词映射（当前内置 `fr`）；该子句在权威提示词中缺失时拒绝生成，不静默降级。`setup_device` 新增 `lang_code` 参数，CLI 新增 `--lang-code`（默认 `zh`）；无指令的语言在创建/同步前显式报错。
+- `--sync-prompt` 按智能体自身 `langCode` 同步对应提示词并校验，避免把法语智能体覆盖回中文；对无指令语言（如 ja）拒绝同步且不产生备份文件。
+- `tests/test_onboarding.py`：新增 5 项测试（默认中文、法语替换且规则保留、不支持语言提前失败、按语言同步、无指令语言拒绝同步且无备份）。
+- 同步更新 `README.md` 与 `docs/VALIDATION.md`（新增 2026-11-04 平台级验证小节）。
+
+设计取舍：曾考虑为法语维护完整翻译提示词，但 main 上的权威中文提示词已扩展到约 60 行、覆盖数十个工具与场景规则，双语全文重复维护成本高且未经验证，故改为「单一权威规则 + 语言指令」结构。

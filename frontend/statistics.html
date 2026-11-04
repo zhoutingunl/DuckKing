@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#f6f7f2" />
+    <title>DuckKing · 交互统计</title>
+    <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+  </head>
+  <body class="statistics-page">
+    <header class="topbar site-topbar"><a class="brand" href="./" aria-label="DuckKing 首页" title="返回工作台"><span class="brand-mark">dk<span>●</span></span>DuckKing</a><nav class="home-nav" aria-label="工作台导航"></nav><a class="repo-link" href="https://github.com/zhoutingunl/DuckKing" target="_blank" rel="noopener">源代码 ↗</a></header>
+    <main>
+      <section class="intro">
+        <div><h1>一句话，花了多久？</h1><p class="subtitle">从听清指令到小鸭行动，逐轮查看真实交互。</p></div>
+        <div class="stats-controls"><label for="backend-filter">动作后端</label><select id="backend-filter"><option value="all">全部后端</option><option value="preview">动画预览</option><option value="robotd">官方 robotd 仿真</option><option value="mujoco">MuJoCo 物理实验室</option></select><button id="refresh-stats" class="stats-button">刷新</button></div>
+      </section>
+      <div class="stats-meta"><span id="stats-scope">正在读取本地统计…</span><span id="stats-updated" role="status">每 5 秒更新</span></div>
+      <p id="stats-error" class="notice" role="alert" hidden></p>
+
+      <section class="round-focus" aria-labelledby="timeline-heading">
+        <div class="section-heading"><h2 id="timeline-heading">最近一轮</h2><span id="round-label" class="tag neutral">等待样本</span></div>
+        <p id="round-text" class="round-text">先回到工作台，连接灵矽并说一句话。</p>
+        <div id="round-timeline" class="round-timeline" aria-label="本轮事件时间线"></div>
+        <p class="stats-note">以本地服务收到“结束录音”为 0；动作受理表示控制器接受了指令，首段语音表示音频到达本地服务。</p>
+      </section>
+
+      <section class="quality-strip" aria-label="交互质量">
+        <div><span>识别返回率</span><strong id="recognition-rate">—</strong><small id="recognition-count">尚无已结束轮次</small></div>
+        <div><span>回复结束率</span><strong id="reply-rate">—</strong><small id="reply-count">尚无已结束轮次</small></div>
+        <div><span>动作完成率</span><strong id="action-rate">—</strong><small id="action-summary">尚无已结束动作</small></div>
+        <div><span>超时轮次</span><strong id="timeout-count">—</strong><small id="round-summary">等待统计</small></div>
+      </section>
+
+      <section class="quality-strip" aria-label="本地识别与转交">
+        <div><span>本地命中率</span><strong id="local-hit-rate">—</strong><small id="local-hit-count">等待本地优先样本</small></div>
+        <div><span>转交灵矽</span><strong id="fallback-count">—</strong><small id="fallback-reasons">等待记录</small></div>
+        <div><span>本地识别 P50</span><strong id="local-asr-time">—</strong><small>包含本地工作进程排队与返回</small></div>
+      </section>
+      <section class="latency-panel"><h2>本地与灵矽：识别延迟</h2><div class="table-scroll"><table class="stats-table"><thead><tr><th>识别路径</th><th>均值</th><th>P50</th><th>P90</th><th>P95</th><th>样本</th></tr></thead><tbody id="recognition-latency"></tbody></table></div><p class="stats-note">前两行从 DuckKing 收到结束录音，到该识别引擎返回首个非空文本；灵矽含网络与转交等待，不是云端纯推理耗时。第三行只测本地 ASR 工作进程排队、识别与返回。转交轮次可同时产生本地和云端样本，不混为一个识别结果。</p></section>
+      <section class="latency-panel"><h2>不同路径的动作响应</h2><div class="table-scroll"><table class="stats-table"><thead><tr><th>处理路径</th><th>均值</th><th>P50</th><th>P90</th><th>P95</th><th>样本</th></tr></thead><tbody id="route-latency"></tbody></table></div><p class="stats-note">从结束录音到首个动作受理。仅比较实际发生的阶段，不能据此认定识别准确率或物理响应时间。</p></section>
+      <div class="stats-columns">
+        <section class="latency-panel" aria-labelledby="latency-heading">
+          <div class="section-heading"><h2 id="latency-heading">响应延迟</h2><span class="stats-note">P50 典型值 / P95 慢请求</span></div>
+          <div class="table-scroll"><table class="stats-table"><thead><tr><th scope="col">测量阶段</th><th scope="col">均值</th><th scope="col">P50</th><th scope="col">P90</th><th scope="col">P95</th><th scope="col">样本</th></tr></thead><tbody id="latency-rows"></tbody></table></div>
+          <p class="stats-note">百分位采用最近秩法。缺失阶段不补零；少量样本的 P95 不代表稳定性能。</p>
+        </section>
+        <section class="recovery-panel" aria-labelledby="recovery-heading">
+          <h2 id="recovery-heading">连接与恢复</h2>
+          <dl class="recovery-list"><div><dt>重连成功 / 尝试</dt><dd id="reconnect-count">—</dd></div><div><dt>连接异常</dt><dd id="connection-errors">—</dd></div><div><dt>手动重置</dt><dd id="reset-count">—</dd></div><div><dt>恢复耗时 P50</dt><dd id="recovery-latency">—</dd></div></dl>
+          <p class="stats-note">连接计数来自当前及可恢复的保留日志；重连耗时仅使用本次采集的单调时钟样本，最多保留500次。</p>
+          <p id="backend-note" class="backend-note"></p>
+        </section>
+      </div>
+
+      <section class="rounds-panel" aria-labelledby="rounds-heading">
+        <div class="section-heading"><h2 id="rounds-heading">逐轮记录</h2><span class="stats-note">点击轮次查看时间线</span></div>
+        <div class="table-scroll"><table class="stats-table round-table"><thead><tr><th scope="col">轮次 / 时间</th><th scope="col">识别文本</th><th scope="col">实际动作顺序</th><th scope="col">结果</th></tr></thead><tbody id="round-rows"></tbody></table></div>
+        <p id="stats-empty" class="stats-empty" hidden>当前筛选下还没有可用语音记录。可先体验一次语音，或查看“使用体验”中的长期聚合数据。</p>
+      </section>
+
+      <details class="metric-definitions"><summary>这些指标能说明什么？</summary><div>
+        <p>识别返回率 = 返回非空文字的已结束轮次 / 已结束且提交录音的轮次。回复结束率 = 收到云端正常回复结束事件的轮次 / 已结束且走云端的提交轮次。本地命中率 = 完整匹配并选择本地执行的轮次 / 已完成路径判定的本地优先轮次；不代表识别或意图准确率。本地预录语音和提示音不计作云端回复。进行中和录音未提交的轮次不进入这两个比率。</p>
+        <p>动作完成率只统计真正被控制器受理且已经结束的动作；重复 MCP 请求不重复计数。完成表示控制流程正常结束，不保证物理位移或转角达标。</p>
+        <p>识别准确率（CER / WER）、意图正确率、动作顺序符合率，需要与人工标注的原话和目标动作比较。这里展示识别文字与实际动作，供核对，不自动给出准确率。</p>
+        <p>延迟使用本地单调时钟。这里没有测量麦克风硬件、浏览器扬声器、画面呈现或 MuJoCo 物理反馈延迟；语音回复结束也不等于扬声器已经播完。结束录音之前返回的阶段只出现在时间线，不纳入非负延迟分布。</p>
+        <p>本页最多保留最近 500 轮，并在启动时恢复私有轮转日志中的有效记录；轮转清理的旧记录不会伪造补齐。重启时未完成的轮次标为已中断。历史轮次仅恢复指标与动作，不回显识别文字；本次采集的识别文字经过已知凭据与常见设备标识脱敏，最多保留 2000 字符。原始录音不保存，脱敏事件另写入本地私有轮转日志。</p>
+      </div></details>
+    </main>
+    <script type="module" src="/src/statistics.js"></script>
+  </body>
+</html>
