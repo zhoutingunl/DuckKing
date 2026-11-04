@@ -35,9 +35,15 @@ def is_public_ip(ip: str | None) -> bool:
 
 
 def extract_client_ip(forwarded: str | None, client_host: str | None) -> str | None:
-    """First X-Forwarded-For hop when present, else the socket peer address."""
-    candidate = (forwarded or "").split(",")[0].strip() or client_host
-    return candidate or None
+    """Last X-Forwarded-For hop when present, else the socket peer address.
+
+    Production sits behind exactly one trusted proxy (OpenResty), which either
+    appends the visitor IP or sets the header itself; the last hop is therefore
+    the proxy-attested address and defeats client-supplied spoofing. Direct
+    access without a proxy falls back to the socket peer.
+    """
+    hops = [hop.strip() for hop in (forwarded or "").split(",") if hop.strip()]
+    return (hops[-1] if hops else None) or client_host or None
 
 
 def language_for(country_code: str | None) -> str:

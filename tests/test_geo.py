@@ -21,8 +21,12 @@ def test_language_rule_is_geographic_europe_excluding_britain():
     assert language_for("") == "zh"
 
 
-def test_client_ip_prefers_first_forwarded_hop():
-    assert extract_client_ip("212.27.48.10, 10.0.0.2", "127.0.0.1") == "212.27.48.10"
+def test_client_ip_prefers_last_forwarded_hop_added_by_the_trusted_proxy():
+    # 生产拓扑只有一个可信代理（OpenResty）：末跳是代理追加/背书的真实访客 IP，
+    # 访客自带伪造 XFF 或隐私插件注入的垃圾值排在前面，不应被采信。
+    assert extract_client_ip("1.2.3.4, 212.27.48.10", "127.0.0.1") == "212.27.48.10"
+    assert extract_client_ip("junk-without-ip, 212.27.48.10", "127.0.0.1") == "212.27.48.10"
+    assert extract_client_ip("212.27.48.10", "127.0.0.1") == "212.27.48.10"
     assert extract_client_ip(None, "127.0.0.1") == "127.0.0.1"
     assert extract_client_ip("", None) is None
     assert extract_client_ip("   ", "127.0.0.1") == "127.0.0.1"
