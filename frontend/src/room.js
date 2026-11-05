@@ -17,7 +17,7 @@ export async function setupRoom({claim=true}={}){
   const banner=document.createElement('section');banner.id='room-recovery';banner.className='room-recovery';banner.hidden=true;banner.setAttribute('role','alert');
   const heading=document.createElement('strong'),explanation=document.createElement('p'),reconnect=document.createElement('button');reconnect.id='reconnect-room';reconnect.textContent='重新连接房间';
   banner.append(heading,explanation,reconnect);
-  const roomLanguageNote=document.createElement('small');roomLanguageNote.className='room-language-note';roomLanguageNote.hidden=true;roomLanguageNote.setAttribute('role','status');
+  const roomLanguageNote=document.createElement('small');roomLanguageNote.id='room-language-note';roomLanguageNote.className='room-language-note';roomLanguageNote.hidden=true;roomLanguageNote.setAttribute('role','status');
   bar.after(banner,roomLanguageNote);
   let room=new URL(location.href).searchParams.get('room'),creating=false,signature='',instance=null,lost=false,polling=false,timer,language='zh';
   if(!room&&claim){
