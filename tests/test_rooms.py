@@ -35,8 +35,8 @@ def test_french_voice_pool_allocates_distinct_rooms_and_degrades_without_sharing
 
         # When every configured French voice room is occupied, the next visitor
         # gets an independent general room and a visible language notice in UI.
-        app.state.rooms["2"].voice = object()
-        app.state.rooms["3"].voice = object()
+        app.state.rooms["2"].viewers = 1
+        app.state.rooms["3"].viewers = 1
         third = client.post('/api/rooms/claim?language=fr').json()
         assert third == {"room": "1", "voice_language": "default"}
         assert len({first["room"], second["room"], third["room"]}) == 3
