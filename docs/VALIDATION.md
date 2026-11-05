@@ -1,12 +1,30 @@
 # 验证记录
 
+## 2026-11-04 欧洲访客默认法语（IP 属地本地查询）
+
+新增功能：来自欧洲（不含英国）的访客默认获得法语界面。本地进程查询 ipdb 地址库；访客 IP 不发送到外部服务、不写入 DuckKing 的应用或 Uvicorn access logs，也不进入接口响应。反向代理的 X-Forwarded-For / 国家码仅在 socket peer 命中 DUCKKING_GEO_TRUSTED_PROXIES 时采纳，DuckKing 关闭 Uvicorn 的代理头自动改写，直接检查 socket peer。未知代理、转发头和缺失地址库会回退中文。OR 自身是否记录请求由代理配置决定，DuckKing 无法控制 OR 日志。
+
+回归验证覆盖 GeoResolver 的可信 socket peer、伪造 XFF/国家码拒绝、本地地址库失败回退，以及法国房间池分配。OR 的真实 socket peer 尚未从线上确认。
+
+回归测试：可信代理从已配置的 IP/CIDR 上追加 XFF 时采用末跳；直连伪造 XFF 或国家码则忽略。
+回归测试：法国房间池先给访客分配不同空闲房间；池满时使用独立普通房间并发出语言提示。
+回归测试：偏好接口只返回 language、region 与 French voice availability，不返回 IP 或房间号。
+
+配套链路：前端只翻译主工作台；法国语音房由 DUCKKING_FRENCH_ROOMS 配置。不同访客独立申领空闲法国房，房间池耗尽后回退独立普通房，并显示语音语言可能不同。语音转写、日志与云端回复保持原文。法语 STT→工具→TTS 尚未端到端实测。
+
+边界：法语界面只覆盖主工作台；法语语音链路尚未端到端实测。法国语音房需管理员逐个绑定法语智能体。可信代理地址未核实时，反向代理请求回退中文。地址库为 2024-12 版。
+
+线上代理探测：短时限定 GET 探测未捕获可归属到测试请求的代理包，未将内部地址猜作可信代理。部署后如需地域法语默认，运维须确认 OR 的上游源 IP/CIDR 和 XFF 追加配置，再加入 DUCKKING_GEO_TRUSTED_PROXIES；不要信任整个内网网段。
+
+PR #57 合并前复核修正：原实现只取 XFF 末跳，却未验证 socket peer，直连访问者可伪造末跳；现由 CLI 关闭 Uvicorn 代理头改写，只有 socket peer 命中可信 CIDR 才使用 XFF / 国家码，并关闭会打印 peer IP 的 Uvicorn access log。原实现还把所有法国访客送入单个房间；现支持法国房间池并原子分配空闲房，池满回退独立普通房间并明确提示。法国语音房需管理员预绑定；OR peer 尚未确认时，区域功能安全回退中文。
+
 ## 2026-11-04 灵矽语言支持平台级验证（法语）
 
 针对“灵矽是否支持法语”的调研与解冻后验证（用户明确指示冻结解除、可修改仓库）。Key 只放在本地 `~/.secrets/lingxi`，未写入仓库或命令输出。三步都在真实云端 `https://xrobo.qiniu.com` 执行：
 
 1. `GET /v1/languages` 返回 `code: 0`，共 36 种语言，含 `fr=法语`（另有 en、ja、es、yue、de、ko、ru、pt、th、vi、ar 等）。
 2. `POST /xiaozhi/agent` 创建临时智能体 `DuckKing-FR-langcheck`（`langCode: "fr"`）返回成功；`GET /xiaozhi/agent/{id}` 查询详情确认 `langCode: fr`、`language: 法语`。
-3. `DELETE /xiaozhi/agent/{id}` 删除临时智能体返回成功；既有 DuckKing 智能体、设备绑定与聊天历史未受影响。
+3. 删除临时智能体成功；既有 DuckKing 智能体、设备绑定与聊天历史未受影响。
 
 据此新增 `duckking-setup --lang-code`：行为规则保持一份中文权威提示词，非中文语言只替换回答语言子句并追加触发词映射（当前内置 fr）；`--sync-prompt` 按智能体自身 `langCode` 同步对应提示词，不会把法语智能体覆盖回中文；无指令的语言在创建/同步前显式报错。官方文档（[Xrobot-docs](https://github.com/qiniu/Xrobot-docs)）显示音色克隆免费版仅 zh/en，法语音色需付费套餐；商务版列表未列 fr，需向七牛确认。测试新增 5 项（默认中文、法语替换、不支持语言提前失败、按语言同步、无指令语言拒绝同步），全套 pytest 与 `ruff check src tests` 本机通过。
 

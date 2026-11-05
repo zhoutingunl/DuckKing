@@ -200,6 +200,7 @@ dependencies = [
     { name = "anyio" },
     { name = "fastapi" },
     { name = "httpx" },
+    { name = "ipip-ipdb" },
     { name = "python-dotenv" },
     { name = "uvicorn", extra = ["standard"] },
     { name = "websockets" },
@@ -229,6 +230,7 @@ requires-dist = [
     { name = "anyio", specifier = ">=4,<5" },
     { name = "fastapi", specifier = ">=0.115,<1" },
     { name = "httpx", specifier = ">=0.28,<1" },
+    { name = "ipip-ipdb", specifier = ">=1.6,<2" },
     { name = "mujoco", marker = "extra == 'simulation'", specifier = "==3.3.7" },
     { name = "numpy", marker = "extra == 'local-asr'", specifier = ">=2.0" },
     { name = "numpy", marker = "extra == 'simulation'", specifier = ">=2,<3" },
@@ -467,6 +469,12 @@ sdist = { url = "https://files.pythonhosted.org/packages/01/e1/2069291243c926a2f
 wheels = [
     { url = "https://files.pythonhosted.org/packages/56/43/4ca9e49d27a1fcf6bece6f6aec0ea46bb9112489b93d4b688fb415457bdb/iniconfig-2.3.1-py3-none-any.whl", hash = "sha256:9121e2c1fdb355232495be3194c8dfe87ccc2d5dee45947b78e68f499790d7a7", size = 7552, upload-time = "2026-10-06T22:48:36.959Z" },
 ]
+
+[[package]]
+name = "ipip-ipdb"
+version = "1.6.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/7a/11/ce5a155b2997ed3f622ad545e2c5c02a2b0bd886bbfdd98e63df33b50e22/ipip-ipdb-1.6.1.tar.gz", hash = "sha256:4f396f8f8b1a2fc7fe3c41e1b05b479aac9aa1bc310b5b0182dbaa5376dc0bb9", size = 4759, upload-time = "2021-12-23T01:52:53.553Z" }
 
 [[package]]
 name = "mpmath"
