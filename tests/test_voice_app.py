@@ -99,11 +99,14 @@ def test_abandoned_browser_times_out_and_can_be_replaced(tmp_path, monkeypatch):
 
 async def test_concurrent_handshakes_cannot_both_reserve_voice(tmp_path):
     app = create_app(settings=Settings(data_dir=tmp_path))
+    owner, token = app.state.room_sessions.issue()
+    app.state.rooms['1'].owner = owner
     endpoint = next(route.endpoint for route in app.routes if route.path == "/voice")
     gate, entered = asyncio.Event(), asyncio.Event()
 
     class Socket:
         headers = {"host": "testserver"}
+        cookies = {"duckking_session": token}
         url = SimpleNamespace(path="/voice")
         query_params = {"room": "1"}
 

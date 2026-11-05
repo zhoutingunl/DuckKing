@@ -55,8 +55,10 @@ async def connection(client, base, endpoint, transport):
     else:
         url = urlsplit(urljoin(base, endpoint))
         scheme = 'wss' if url.scheme == 'https' else 'ws'
+        cookie = client.build_request('GET', url.geturl()).headers.get('cookie')
         async with websockets.connect(url._replace(scheme=scheme).geturl(),
-                origin=f'{url.scheme}://{url.netloc}', open_timeout=15) as socket:
+                origin=f'{url.scheme}://{url.netloc}', open_timeout=15,
+                additional_headers={'Cookie': cookie} if cookie else None) as socket:
             yield socket
 
 
@@ -66,7 +68,10 @@ async def verify(base, commit):
         response = await client.get(urljoin(base, "api/health"))
         response.raise_for_status()
         assert response.json()["release"]["commit"] == commit, "Wrong running release"
-        modes = await client.get(urljoin(base, "api/voice/modes"))
+        claim = await client.post(urljoin(base, 'api/rooms/claim'))
+        claim.raise_for_status()
+        room = claim.json()['room']
+        modes = await client.get(urljoin(base, "api/voice/modes"), params={'room': room})
         modes.raise_for_status()
         assert modes.json()["local_first"] is True and modes.json()["available"] is True
         for page in ["", "training.html", "balance.html", "seesaw.html", "scenarios.html",
@@ -121,15 +126,17 @@ async def verify(base, commit):
             assert transport in {'https-poll', 'websocket'}
         for endpoint in ["ws", "scene-ws", "voice", "scene-voice"]:
             async with connection(client, base, endpoint, transport) as socket:
-                await socket.send(json.dumps({"type": "join_room", "room": "1"}))
+                await socket.send(json.dumps({"type": "join_room", "room": room}))
                 message = json.loads(await asyncio.wait_for(socket.recv(), timeout=15))
                 assert message["type"] in {"state", "not_started", "voice_status"}
                 if endpoint == "scene-ws":
                     await socket.send("next")
                     await asyncio.wait_for(socket.recv(), timeout=5)
-        action = (await client.post(urljoin(base, "api/actions"), json={"name": "stop"})).json()
+        action = (await client.post(urljoin(base, "api/actions"), params={'room': room},
+                                    json={"name": "stop"})).json()
         for _ in range(30):
-            result = (await client.get(urljoin(base, "api/actions/" + action["id"]))).json()
+            result = (await client.get(urljoin(base, "api/actions/" + action["id"]),
+                                       params={'room': room})).json()
             if result["status"] != "running":
                 break
             await asyncio.sleep(0.1)

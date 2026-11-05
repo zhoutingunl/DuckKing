@@ -7,6 +7,7 @@ from duckking.app import create_app
 from duckking.config import Settings
 from duckking.motion import Action, MotionController
 from duckking.robotd import RobotdBackend
+from duckking.room_access import COOKIE_NAME
 
 
 def join(client, room, endpoint="ws"):
@@ -91,14 +92,18 @@ def test_room_actions_and_voice_ownership_are_separate(tmp_path):
         assert client.get('/api/actions/missing?room=2').status_code == 404
 
 
-def test_first_protocol_frame_selects_room_through_unchanged_gateway(tmp_path):
+def test_first_protocol_frame_selects_owned_room_and_rejects_invalid_framing(tmp_path):
     with TestClient(create_app(settings=Settings(data_dir=tmp_path))) as client:
         with client.websocket_connect('/voice') as ws:
             ws.send_json({"type": "join_room", "room": "2"})
             assert ws.receive_json()['state'] == 'disconnected'
             assert client.get('/api/rooms').json()['rooms'][1]['voice_busy']
-        for data in [{"type": "connect"}, {"type": "join_room", "room": []},
-                     {"type": "join_room", "room": "3"}, []]:
+        with client.websocket_connect('/voice') as ws:
+            ws.send_json({"type": "join_room", "room": "3"})
+            assert ws.receive_json() == {"type": "room_expired", "reason": "unavailable"}
+            with pytest.raises(WebSocketDisconnect):
+                ws.receive_json()
+        for data in [{"type": "connect"}, {"type": "join_room", "room": []}, []]:
             with client.websocket_connect('/voice') as ws:
                 ws.send_json(data)
                 with pytest.raises(WebSocketDisconnect):
@@ -206,8 +211,11 @@ def test_dynamic_room_claims_are_bounded_and_concurrent(tmp_path):
     app = create_app(settings=Settings(data_dir=tmp_path))
     with TestClient(app) as client:
         async def claims():
-            return await asyncio.gather(*(app.state.room_registry.claim() for _ in range(12)),
-                                        return_exceptions=True)
+            owner = app.state.room_sessions.read(client.cookies.get(COOKIE_NAME))
+            return await asyncio.gather(
+                *(app.state.room_registry.claim(owner=owner) for _ in range(12)),
+                return_exceptions=True,
+            )
         results = client.portal.call(claims)
         assert {r['room'] for r in results if isinstance(r, dict)} == {str(i) for i in range(1, 11)}
         assert sum(getattr(r, 'status_code', None) == 409 for r in results) == 2
@@ -284,7 +292,9 @@ def test_idle_reaping_preserves_viewers_voice_and_actions_and_closes_worlds(tmp_
         app.state.rooms['3'].last_used -= 31
         client.portal.call(registry.reap)
         assert client.get('/api/state?room=3').status_code == 404
-        assert client.post('/api/rooms').json() == {'room': '3'}
+        # Idle permanent slots also lose their previous visitor's ownership.
+        for number in ('1', '2', '3'):
+            assert client.post('/api/rooms').json() == {'room': number}
         assert client.get('/api/voice/statistics?room=3').json()['counts']['rounds'] == 0
 
 

@@ -1,4 +1,4 @@
-"""Bounded public demo rooms; identities persist privately, live state does not."""
+"""Bounded visitor-owned rooms; identities persist privately, live state does not."""
 
 import asyncio
 import time
@@ -11,6 +11,8 @@ from fastapi import HTTPException
 from .diagnostics import VoiceDiagnostics
 from .experience import VoiceExperience
 from .motion import MotionController, PreviewBackend
+
+INTERNAL = object()
 
 
 class RoomRegistry:
@@ -26,6 +28,8 @@ class RoomRegistry:
         self.english_rooms = set(primary.settings.english_rooms)
         self.lock = asyncio.Lock()
         primary.last_used = time.monotonic()
+        primary.owner = None
+        primary.lease = ""
         self.rooms = {"1": primary}
         if self.limit >= 2:
             self.rooms["2"] = self._make("2")
@@ -35,6 +39,7 @@ class RoomRegistry:
         return SimpleNamespace(
             motion=MotionController(PreviewBackend()), voice=None, scene_motion=None,
             preparing=None,
+            owner=None, lease="",
             settings=settings, scene_lock=asyncio.Lock(), viewers=0, reserved_until=0.0,
             last_used=time.monotonic(), voice_diagnostics=VoiceDiagnostics(
                 settings.data_dir / "voice.jsonl",
@@ -42,8 +47,10 @@ class RoomRegistry:
             ),
         )
 
-    def get(self, number):
-        if not isinstance(number, str) or number not in self.rooms:
+    def get(self, number, *, owner=INTERNAL):
+        if (not isinstance(number, str) or number not in self.rooms
+                or (owner is not INTERNAL and (
+                    owner is None or self.rooms[number].owner != owner))):
             raise HTTPException(404, "房间不存在或已回收，请新建房间")
         room = self.rooms[number]
         room.last_used = time.monotonic()
@@ -65,13 +72,21 @@ class RoomRegistry:
                         and room.scene_motion.studio.task is not None
                         and not room.scene_motion.studio.task.done()))))
 
-    def snapshot(self):
+    def owned(self, owner):
+        return {number: room for number, room in self.rooms.items()
+                if owner is INTERNAL or (owner is not None and room.owner == owner)}
+
+    def scopes(self, owner):
+        return tuple({room.lease for room in self.owned(owner).values()})
+
+    def snapshot(self, *, owner=INTERNAL):
+        rooms = self.owned(owner)
         return {"instance": self.instance, "rooms": [{"id": number, "viewers": room.viewers,
                            "voice_busy": room.voice is not None,
                            "physics": room.scene_motion is not None}
-                          for number, room in self.rooms.items()],
+                          for number, room in rooms.items()],
                 "capacity": self.limit, "physics_capacity": self.physics_limit,
-                "physics_active": sum(r.scene_motion is not None for r in self.rooms.values()),
+                "physics_active": sum(r.scene_motion is not None for r in rooms.values()),
                 "idle_seconds": self.idle_seconds}
 
     @staticmethod
@@ -81,7 +96,24 @@ class RoomRegistry:
             result["voice_language"] = "default"
         return result
 
-    async def claim(self, *, create=False, language="zh"):
+    def assign(self, room, number, owner):
+        if owner is INTERNAL or room.owner == owner:
+            return
+        # Reusing a numeric slot must not reveal the previous visitor's history.
+        backend = room.motion.backend
+        room.motion = MotionController(
+            PreviewBackend() if backend.kind == "preview" else backend
+        )
+        room.owner = owner
+        room.lease = uuid.uuid4().hex
+        room.voice_diagnostics = VoiceDiagnostics(
+            room.settings.data_dir / "voice.jsonl", restore=False,
+            experience=VoiceExperience(self.primary.experience, number, scope=room.lease),
+        )
+
+    async def claim(self, *, create=False, language="zh", owner=INTERNAL):
+        if owner is None:
+            raise HTTPException(401, "请先建立访客会话")
         if language not in {"zh", "fr", "en"}:
             raise HTTPException(422, "不支持的房间语言")
         # Iterate the configured order; the sets above are only for membership.
@@ -101,8 +133,10 @@ class RoomRegistry:
                     if room is None and len(self.rooms) < self.limit:
                         room = self._make(number)
                         self.rooms[number] = room
-                    if room is not None and not create and not self.busy(room) \
+                    if room is not None and (owner is INTERNAL or room.owner in {None, owner}) \
+                            and not create and not self.busy(room) \
                             and room.reserved_until <= now:
+                        self.assign(room, number, owner)
                         room.reserved_until = now + 15
                         room.last_used = now
                         return {"room": number, "voice_language": language}
@@ -110,19 +144,31 @@ class RoomRegistry:
                 for number, room in self.rooms.items():
                     if number in self.french_rooms or number in self.english_rooms:
                         continue
+                    if owner is not INTERNAL and room.owner not in {None, owner}:
+                        continue
                     if not self.busy(room) and room.reserved_until <= now:
+                        self.assign(room, number, owner)
                         room.reserved_until = now + 15
                         room.last_used = now
                         return self.claim_result(number, language)
             for index in range(1, self.limit + 1):
                 number = str(index)
+                existing = self.rooms.get(number)
+                if (owner is not INTERNAL and existing is not None and existing.owner is None
+                        and number not in self.french_rooms | self.english_rooms
+                        and not self.busy(existing) and existing.reserved_until <= now):
+                    self.assign(existing, number, owner)
+                    existing.reserved_until = now + 15
+                    existing.last_used = now
+                    return self.claim_result(number, language)
                 if number not in self.rooms and number not in self.french_rooms \
                         and number not in self.english_rooms:
                     room = self._make(number)
+                    self.assign(room, number, owner)
                     room.reserved_until = now + 15
                     self.rooms[number] = room
                     return self.claim_result(number, language)
-            raise HTTPException(409, f"房间已达上限（{self.limit}），可加入已有房间或稍后重试")
+            raise HTTPException(409, f"房间容量暂满（{self.limit}），请稍后重试")
 
     async def reap(self):
         async with self.lock:
@@ -141,6 +187,8 @@ class RoomRegistry:
                     if room.scene_motion:
                         controller, room.scene_motion = room.scene_motion, None
                         await controller.close()
+                    room.owner = None
+                    room.reserved_until = 0.0
 
     async def watch(self):
         while True:

@@ -16,7 +16,7 @@ test('retry clears only the voice notice left by the previous occupied session',
   await expect(page.locator('#notice')).toBeHidden();
 });
 
-test('a mobile page retries after the other browser releases the real server owner',async({page,browser,baseURL})=>{
+test('a mobile tab retries after the same visitor releases the real voice owner',async({page,browser,baseURL})=>{
   // Hold only the local device channel; this test never connects to Linx.
   await page.goto('/?room=1');
   await page.evaluate(async()=>{
@@ -24,7 +24,7 @@ test('a mobile page retries after the other browser releases the real server own
     window.testOwner=new WebSocket(url);
     await new Promise((resolve,reject)=>{window.testOwner.onmessage=e=>JSON.parse(e.data).state==='disconnected'?resolve():reject(Error('Unexpected owner status'));window.testOwner.onerror=reject});
   });
-  const mobile=await browser.newContext({baseURL,viewport:{width:390,height:844},isMobile:true,hasTouch:true});
+  const mobile=await browser.newContext({baseURL,storageState:await page.context().storageState(),viewport:{width:390,height:844},isMobile:true,hasTouch:true});
   const phone=await mobile.newPage();
   try{
     await phone.goto('/?room=1');await phone.locator('#connect-voice').click();

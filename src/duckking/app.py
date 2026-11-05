@@ -28,6 +28,7 @@ from .model_metrics import ModelLoadMetrics
 from .motion import Action, MotionController, PreviewBackend
 from .preparation import WarmWorldPool
 from .robotd import RobotdBackend
+from .room_access import COOKIE_NAME, RoomSessions, current_owner
 from .rooms import RoomRegistry
 from .studio import CATALOG, Studio
 from .voice import VoiceSession
@@ -96,6 +97,7 @@ def create_app(
     )
     app.state.room_registry = RoomRegistry(app.state)
     app.state.rooms = app.state.room_registry.rooms
+    app.state.room_sessions = RoomSessions()
     app.state.physics_lock = asyncio.Lock()
     app.state.region = RegionResolver(
         app.state.settings.geo_db_dir,
@@ -123,7 +125,7 @@ def create_app(
     )
 
     def get_room(number="1"):
-        return app.state.room_registry.get(number)
+        return app.state.room_registry.get(number, owner=current_owner.get())
 
     from .balance_api import install_balance_api
 
@@ -138,6 +140,10 @@ def create_app(
         if not same_origin(ws.headers.get("origin"), ws.headers.get("host", "")):
             if ws.url.path.endswith("/scene-ws"):
                 logging.getLogger(__name__).warning("scene_ws_rejected: origin_mismatch")
+            await ws.close(code=1008)
+            return None
+        owner = app.state.room_sessions.read(ws.cookies.get(COOKIE_NAME))
+        if owner is None:
             await ws.close(code=1008)
             return None
         await ws.accept()
@@ -160,9 +166,14 @@ def create_app(
                     await ws.send_json({"type": "room_expired", "reason": "service_updated"})
                     await ws.close(code=1008)
                     return None
-            if number not in app.state.rooms:
+            if not isinstance(number, str):
                 raise ValueError("invalid room")
-            return get_room(number)
+            return app.state.room_registry.get(number, owner=owner)
+        except HTTPException:
+            with suppress(RuntimeError, OSError, WebSocketDisconnect):
+                await ws.send_json({"type": "room_expired", "reason": "unavailable"})
+                await ws.close(code=1008)
+            return None
         except (ValueError, TypeError, TimeoutError, WebSocketDisconnect):
             with suppress(RuntimeError, OSError):
                 await ws.close(code=1008)
@@ -171,21 +182,22 @@ def create_app(
     @app.get("/api/rooms")
     async def rooms(room: str | None = None):
         # A visible page keeps its room alive while model download/rendering waits.
-        if room in app.state.rooms:
+        owner = current_owner.get()
+        if room in app.state.room_registry.owned(owner):
             get_room(room)
         return JSONResponse(
-            app.state.room_registry.snapshot(), headers={"Cache-Control": "no-store"}
+            app.state.room_registry.snapshot(owner=owner), headers={"Cache-Control": "no-store"}
         )
 
     @app.post("/api/rooms/claim")
     async def claim_room(language: str = "zh"):
         if language not in {"zh", "fr", "en"}:
             raise HTTPException(422, "不支持的房间语言")
-        return await app.state.room_registry.claim(language=language)
+        return await app.state.room_registry.claim(language=language, owner=current_owner.get())
 
     @app.post("/api/rooms", status_code=201)
     async def create_room():
-        return await app.state.room_registry.claim(create=True)
+        return await app.state.room_registry.claim(create=True, owner=current_owner.get())
 
     app.add_middleware(
         TrustedHostMiddleware,
@@ -194,17 +206,39 @@ def create_app(
 
     @app.middleware("http")
     async def protect_local_mutations(request: Request, call_next):
-        instance = request.query_params.get("server_instance")
-        if instance is not None and instance != app.state.room_registry.instance:
-            return JSONResponse(
-                {"detail": "服务已更新，请重新连接房间；未重放动作或语音", "code": "room_expired"},
-                status_code=409,
-            )
-        if request.method not in {"GET", "HEAD", "OPTIONS"} and not same_origin(
-            request.headers.get("origin"), request.headers.get("host", "")
-        ):
-            return JSONResponse({"detail": "仅允许同源本地操作"}, status_code=403)
-        return await call_next(request)
+        path = request.url.path.removeprefix(request.scope.get("root_path", ""))
+        owner = app.state.room_sessions.read(request.cookies.get(COOKIE_NAME))
+        cookie = None
+        if owner is None and path in {"/api/rooms", "/api/rooms/claim"}:
+            owner, cookie = app.state.room_sessions.issue()
+        context = current_owner.set(owner)
+        try:
+            instance = request.query_params.get("server_instance")
+            if instance is not None and instance != app.state.room_registry.instance:
+                return JSONResponse(
+                    {"detail": "服务已更新，请重新连接房间；未重放动作或语音",
+                     "code": "room_expired"},
+                    status_code=409,
+                )
+            if request.method not in {"GET", "HEAD", "OPTIONS"} and not same_origin(
+                request.headers.get("origin"), request.headers.get("host", "")
+            ):
+                return JSONResponse({"detail": "仅允许同源本地操作"}, status_code=403)
+            response = await call_next(request)
+            if cookie:
+                response.set_cookie(
+                    COOKIE_NAME, cookie, httponly=True, samesite="lax", path="/",
+                    secure=request.url.scheme == "https" or request.url.hostname
+                    in {"duck.qbox.net", "ztmonitor.qbox.net"},
+                )
+            if path.startswith("/api/") and not path.startswith("/api/models/"):
+                response.headers["Cache-Control"] = "no-store"
+                vary = response.headers.get("Vary", "")
+                if "cookie" not in {part.strip().lower() for part in vary.split(",")}:
+                    response.headers["Vary"] = (vary + ", " if vary else "") + "Cookie"
+            return response
+        finally:
+            current_owner.reset(context)
 
     @app.get("/api/health")
     async def health():
@@ -228,20 +262,22 @@ def create_app(
 
     @app.post("/api/experience", status_code=202)
     async def experience_ingest(request: Request, room: str = "1"):
+        if not re.fullmatch(r"[1-9][0-9]?", room):
+            raise HTTPException(422, "无效统计房间")
+        selected = get_room(room)
         # Bound streamed bodies too; Content-Length is not trusted.
         body = bytearray()
         async for part in request.stream():
             body.extend(part)
             if len(body) > 32768:
                 raise HTTPException(413, "统计批次过大")
-        if not re.fullmatch(r"[1-9][0-9]?", room):
-            raise HTTPException(422, "无效统计房间")
         try:
             batch = ExperienceBatch.model_validate_json(body)
         except ValueError as exc:
             raise HTTPException(422, "统计格式无效") from exc
         accepted = sum(
-            app.state.experience.submit(e, source="browser", room=room) for e in batch.events
+            app.state.experience.submit(e, source="browser", room=room, scope=selected.lease)
+            for e in batch.events
         )
         if accepted != len(batch.events):
             raise HTTPException(503, "统计队列已满，请稍后重试")
@@ -292,9 +328,12 @@ def create_app(
             )
         ):
             raise HTTPException(422, "未知统计筛选")
+        if room != "all":
+            get_room(room)
+        scopes = app.state.room_registry.scopes(current_owner.get())
         result = await anyio.to_thread.run_sync(
             lambda: app.state.experience.snapshot(
-                hours=hours, room=room, release=release, **filters
+                hours=hours, room=room, release=release, scopes=scopes, **filters
             )
         )
         return JSONResponse(result, headers={"Cache-Control": "no-store"})

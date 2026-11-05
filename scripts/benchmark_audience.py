@@ -65,12 +65,16 @@ class Probe:
         return (await self.request("api/rooms/claim", "POST")).json()["room"]
 
     async def socket(self, endpoint, room):
+        cookie = self.client.build_request(
+            'GET', urljoin(self.base, endpoint)
+        ).headers.get('cookie')
         return await websockets.connect(
             self.wsbase + endpoint + "?room=" + room,
             origin=self.origin,
             open_timeout=20,
             max_size=8 * 1024 * 1024,
             proxy=None,
+            additional_headers={'Cookie': cookie} if cookie else None,
         )
 
     async def health(self, stop):

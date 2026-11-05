@@ -11,6 +11,7 @@ await mkdir(output,{recursive:true});
 const input=await readFile(resolve('../.duckking/finals-input/local-skills.wav'));
 const browser=await chromium.launch({channel:'chrome',args:process.platform==='darwin'?['--use-gl=angle','--use-angle=metal']:[]});
 const context=await browser.newContext({viewport:{width:1600,height:1000}});
+let localRoom=null;
 await context.addInitScript(({wav})=>{
  // Disclosed synthetic microphone input. ASR, routing and motion stay real.
  const bytes=Uint8Array.from(atob(wav),c=>c.charCodeAt(0));
@@ -63,7 +64,9 @@ async function close(){
 }
 try{
  if(needed('local_asr')){
- await open('local_asr','scenarios.html?room=1&measurement=verification');
+ const claim=await context.request.post(new URL('api/rooms/claim',base).href);
+ if(!claim.ok())throw Error('Cannot claim a private recording room');localRoom=(await claim.json()).room;
+ await open('local_asr',`scenarios.html?room=${localRoom}&measurement=verification`);
  await page.locator('[data-scene="skills"]').click();await expect(page.locator('#skills-controls')).toBeVisible({timeout:90000});
  await expect(page.locator('#voice-mode')).toBeEnabled();await page.selectOption('#voice-mode','local_first');await page.locator('#connect-voice').click();await expect(page.locator('#talk-button')).toBeEnabled({timeout:20000});
  await mark('real-local-asr-and-two-actions',async()=>{
@@ -72,11 +75,11 @@ try{
   const playing=page.evaluate(()=>window.playRecordedInput());await page.locator('.scene-stage').scrollIntoViewIfNeeded();await playing;await page.waitForTimeout(200);await page.locator('#talk-button').dispatchEvent('pointerup',{pointerId:1});
   await expect(page.locator('#voice-route')).toContainText('本轮未调用灵矽',{timeout:45000});
   await shot('finals-local-asr-actions');
-  const stats=await get('api/voice/statistics?room=1&backend=mujoco');chapter.rounds=stats.rounds;
+  const stats=await get(`api/voice/statistics?room=${localRoom}&backend=mujoco`);chapter.rounds=stats.rounds;
   if(stats.rounds.length!==1||stats.rounds[0].route!=='local'||stats.rounds[0].status!=='completed'||stats.rounds[0].uplink_frames||stats.rounds[0].downlink_frames||stats.rounds[0].actions.length!==2||stats.rounds[0].actions.some(a=>a.result!=='completed'))throw Error('Missing real local-only two-action result');
-  chapter.state=await get('api/scenes/state?room=1');
+  chapter.state=await get(`api/scenes/state?room=${localRoom}`);
   await page.locator('#voice-route').scrollIntoViewIfNeeded();await page.waitForTimeout(2000);await shot('finals-local-asr-result');await page.waitForTimeout(1500);
- });await page.locator('#connect-voice').click();await close();await context.request.post(new URL('api/scenes/close?room=1',base).href);
+ });await page.locator('#connect-voice').click();await close();await context.request.post(new URL(`api/scenes/close?room=${localRoom}`,base).href);
  }
  if(needed('training')){
  await open('training','balance.html?measurement=verification',publicBase);
@@ -101,5 +104,5 @@ try{
  }
  proof.completed=true;
 }catch(e){proof.completed=false;proof.error=e.message;console.error(e.message);if(page&&!page.isClosed()){await shot('finals-supplement-failure');await close()}}
-finally{await context.request.post(new URL('api/scenes/close?room=1',base).href).catch(()=>{});await context.close();await browser.close();await save();console.log(resolve(output,'recording.json'))}
+finally{if(localRoom)await context.request.post(new URL(`api/scenes/close?room=${localRoom}`,base).href).catch(()=>{});await context.close();await browser.close();await save();console.log(resolve(output,'recording.json'))}
 if(!proof.completed)process.exitCode=1;

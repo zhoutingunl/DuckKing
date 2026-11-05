@@ -20,7 +20,7 @@ await page.addInitScript(()=>{
 });
 try{
  const health=await (await context.request.get(new URL('api/health',base).href)).json();proof.release=health.release;
- await page.goto(new URL('demos.html?room=1',base).href);await page.locator('#demo-mode').selectOption(mode);
+ await page.goto(new URL('demos.html',base).href);await page.locator('#demo-mode').selectOption(mode);
  for(const id of ids){
   const beforeAudio=await page.evaluate(()=>window.theatreAudio.oscillators);
   const started=Date.now();await page.locator(`[data-demo="${id}"]`).click();

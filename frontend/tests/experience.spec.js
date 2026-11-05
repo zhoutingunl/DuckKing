@@ -3,13 +3,15 @@ test.setTimeout(120000);
 
 // Protocol/data fixtures are explicitly verification traffic, never production benchmarks.
 test('persistent experience filters, nearest-rank table, trend, export and failure state',async({page,request})=>{
+  const created=await request.post('/api/rooms');expect(created.ok()).toBe(true);
+  const {room}=await created.json();
   const events=Array.from({length:20},(_,i)=>({id:crypto.randomUUID(),sequence:1,kind:'voice',status:'completed',page:'unknown',traffic:'verification',device:'mobile',route:'local',metrics:{stt_local_ms:(i+1)*10}}));
-  expect((await request.post('/api/experience?room=9',{data:{events}})).status()).toBe(202);
+  expect((await request.post(`/api/experience?room=${room}`,{data:{events}})).status()).toBe(202);
   await page.goto('/experience.html');
   await expect(page.locator('#experience-empty')).toBeVisible();
   await page.locator('[name=traffic]').selectOption('verification');
   await page.locator('[name=page]').selectOption('unknown');
-  await page.locator('[name=room]').selectOption('9');
+  await page.locator('[name=room]').selectOption(room);
   await page.locator('[name=device]').selectOption('mobile');
   await expect(page.locator('#browser-experience')).toContainText('105');
   await expect(page.locator('#browser-experience')).toContainText('190');

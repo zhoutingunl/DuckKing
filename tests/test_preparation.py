@@ -98,7 +98,9 @@ async def test_watch_keeps_one_ready_world_and_cancels_cleanly():
     assert world.closed
 
 
-async def test_real_prewarmed_world_is_claimed_once_without_starting_a_background_motion(tmp_path):
+async def test_real_prewarmed_world_is_claimed_once_without_starting_a_background_motion(
+    tmp_path, direct_room_visitor
+):
     from duckking.app import create_app
     from duckking.config import Settings
     from duckking.motion import Action

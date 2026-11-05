@@ -38,10 +38,12 @@ def test_old_service_requests_cannot_replay_actions_or_acquire_voice(tmp_path):
                            json={'name': 'stop'}).status_code == 202
 
 
-async def test_visible_room_heartbeat_and_pending_preparation_prevent_reaping(tmp_path):
+async def test_visible_room_heartbeat_and_pending_preparation_prevent_reaping(
+    tmp_path, direct_room_visitor
+):
     app = create_app(settings=Settings(data_dir=tmp_path, max_rooms=3, room_idle_seconds=30))
     registry = app.state.room_registry
-    number = (await registry.claim(create=True))['room']
+    number = (await registry.claim(create=True, owner=direct_room_visitor))['room']
     room = registry.get(number)
     room.reserved_until = 0
     room.last_used = 0
@@ -67,7 +69,9 @@ async def test_visible_room_heartbeat_and_pending_preparation_prevent_reaping(tm
     assert number not in registry.rooms
 
 
-async def test_cancelled_build_retains_admission_and_disposes_late_world(tmp_path, monkeypatch):
+async def test_cancelled_build_retains_admission_and_disposes_late_world(
+    tmp_path, monkeypatch, direct_room_visitor
+):
     app = create_app(settings=Settings(data_dir=tmp_path))
     started, release = threading.Event(), threading.Event()
     closed = []
@@ -98,7 +102,9 @@ async def test_cancelled_build_retains_admission_and_disposes_late_world(tmp_pat
     assert not app.state.physics_lock.locked()
 
 
-async def test_native_failure_clears_progress_without_preview_fallback(tmp_path, monkeypatch):
+async def test_native_failure_clears_progress_without_preview_fallback(
+    tmp_path, monkeypatch, direct_room_visitor
+):
     app = create_app(settings=Settings(data_dir=tmp_path))
 
     def fail(*args, **kwargs):
