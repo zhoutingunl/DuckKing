@@ -9,3 +9,8 @@
 @media(max-width:640px){.balance-comparison,.balance-page .balance-side{grid-template-columns:1fr}.balance-page .balance-viewport,.balance-page #physics-viewport{height:340px}.balance-comparison .balance-outcome{min-height:70px}.comparison-heading{padding:12px 16px}}
 
 .balance-replay{border-top:1px solid var(--line);padding:12px 0;margin-bottom:14px}.balance-replay label{display:flex;flex-direction:column;gap:8px;margin-top:12px}.balance-replay .seed-toggle{flex-direction:row;align-items:center}.balance-replay input[type=checkbox]{accent-color:var(--blue)}.balance-replay input[type=number]{width:120px}.balance-voice-help{font-size:13px;line-height:1.8;color:#466371}.balance-voice-help a{color:var(--blue);text-decoration:underline}
+/* balance.js 的日志行只有「标签 + 内容」两个元素；基础 .log-line 是为首页
+   「时间 + 标签 + 内容」三列设计的网格，直接复用会把内容挤进 63px 的标签列。
+   与 seesaw 页相同，改为两列布局并允许内容换行。 */
+.balance-page .log-line{display:grid;grid-template-columns:92px minmax(0,1fr);gap:16px}
+.balance-page .log-line>span{min-width:0;overflow-wrap:anywhere}
