@@ -10,14 +10,17 @@ test('all pages keep the same navigation, room, source link and language menu',a
   await expect(page.locator('.site-topbar .brand')).toHaveAttribute('aria-label','DuckKing 首页');
   for(const link of await page.locator('.site-topbar nav a').all()){
    const url=new URL(await link.getAttribute('href'));
-   if(!url.pathname.endsWith('deploys.html'))expect(url.searchParams.get('room')).toBe('1');
+   if(url.origin!==new URL(page.url()).origin){
+    expect(url.href).toBe('https://github.com/zhoutingunl/DuckKing');
+    expect(url.searchParams.has('room')).toBe(false);
+   }else if(!url.pathname.endsWith('deploys.html'))expect(url.searchParams.get('room')).toBe('1');
   }
   // 源代码在语言菜单之前，语言菜单贴右缘。
   const source=await page.locator('.home-nav .repo-link').boundingBox();
   const lang=await page.locator('.lang-switch').boundingBox();
   expect(source.x+source.width).toBeLessThanOrEqual(lang.x);
-  const header=await page.locator('.site-topbar').boundingBox();
-  expect(header.x+header.width-lang.x-lang.width).toBeLessThan(2);
+  const nav=await page.locator('.home-nav').boundingBox();
+  expect(Math.abs(nav.x+nav.width-lang.x-lang.width)).toBeLessThan(2);
  }
  await page.setViewportSize({width:390,height:844});await page.goto('/seesaw.html?room=1');
  const source=await page.locator('.home-nav .repo-link').boundingBox();

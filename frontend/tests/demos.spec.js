@@ -192,13 +192,22 @@ test('stopping the table song silences every music node and cancels the real cho
 });
 
 test('source link sits before the language menu at the right edge without viewport overlap',async({page})=>{
- for(const width of [1440,820,390]){
-  await page.setViewportSize({width,height:900});await page.goto('/');
+ for(const language of ['zh','en','fr'])for(const width of [1440,820,390]){
+  await page.setViewportSize({width,height:900});await page.goto(`/?lang=${language}`);
+  await expect(page.locator('html')).toHaveAttribute('lang',language==='zh'?'zh-CN':language);
   const source=await page.locator('.home-nav .repo-link').boundingBox();
   const lang=await page.locator('.lang-switch').boundingBox();
-  const header=await page.locator('.site-topbar').boundingBox();
+  const nav=await page.locator('.home-nav').boundingBox();
   expect(source.x+source.width).toBeLessThanOrEqual(lang.x);
-  expect(header.x+header.width-lang.x-lang.width).toBeLessThan(width*.05+1);
+  expect(Math.abs(nav.x+nav.width-lang.x-lang.width)).toBeLessThan(2);
+  await expect(page.locator('.home-nav .repo-link')).toBeInViewport({ratio:1});
+  await page.locator('#lang-switch-button').click();
+  await expect(page.getByRole('menuitem')).toHaveCount(3);
+  for(const option of await page.getByRole('menuitem').all())await expect(option).toBeInViewport({ratio:1});
+  // Scrolling destinations must leave source/language controls reachable.
+  await page.locator('.nav-destinations a').last().scrollIntoViewIfNeeded();
+  await expect(page.locator('.home-nav .repo-link')).toBeInViewport({ratio:1});
+  await expect(page.locator('#lang-switch-button')).toBeInViewport({ratio:1});
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
  }
 });

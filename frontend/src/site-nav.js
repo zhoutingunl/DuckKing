@@ -15,6 +15,9 @@ if(nav){
  const page=location.pathname.split('/').at(-1)||'index.html';
  const params=new URL(location.href).searchParams;
  const room=params.get('room');
+ const links=document.createElement('div');links.className='nav-destinations';
+ const actions=document.createElement('div');actions.className='nav-actions';
+ nav.append(links,actions);
  for(const [path,label,newTab] of destinations){
   const link=document.createElement('a'),url=new URL('./'+path,location.href);
   if(room&&/^\d+$/.test(room)&&path!=='deploys.html')url.searchParams.set('room',room);
@@ -22,12 +25,12 @@ if(nav){
   if(newTab){link.target='_blank';link.rel='noopener';link.title='新标签页打开，保留当前语音与场景'}
   if(page===path)link.setAttribute('aria-current','page');
   else if(path==='training.html'&&['balance.html','seesaw.html'].includes(page))link.setAttribute('aria-current','location');
-  nav.append(link);
+  links.append(link);
  }
  const repo=document.createElement('a');
  repo.href='https://github.com/zhoutingunl/DuckKing';repo.target='_blank';repo.rel='noopener';
  repo.className='repo-link';repo.textContent='源代码 ↗';repo.title='源代码 ↗';
- nav.append(repo);
+ actions.append(repo);
  // 语言菜单在最右侧；选择保存在本地并立即生效（重新加载当前页，保留房间参数）。
  const wrap=document.createElement('div');wrap.className='lang-switch';
  const button=document.createElement('button');
@@ -54,5 +57,5 @@ if(nav){
   button.textContent=current==='zh'?'语言':current==='en'?'Language':'Langue';
  }).catch(()=>{});
  wrap.append(button,menu);
- nav.append(wrap);
+ actions.append(wrap);
 }
