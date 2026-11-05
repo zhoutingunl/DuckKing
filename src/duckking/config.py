@@ -33,6 +33,7 @@ class Settings:
     geo_country_header: str = ""
     geo_trusted_proxies: tuple[str, ...] = ("127.0.0.1/32", "::1/128")
     french_rooms: tuple[str, ...] = ()
+    english_rooms: tuple[str, ...] = ()
 
     def __post_init__(self):
         if not 1 <= self.max_rooms <= 32 or not 1 <= self.max_physics_rooms <= 32:
@@ -46,9 +47,14 @@ class Settings:
                 raise ValueError(f"无效的受信代理网段：{cidr}") from exc
         if len(set(self.french_rooms)) != len(self.french_rooms):
             raise ValueError("法语房间编号不能重复")
-        for room in self.french_rooms:
-            if not re.fullmatch(r"[1-9][0-9]?", room) or int(room) > self.max_rooms:
-                raise ValueError(f"法语房间必须在 1 到 {self.max_rooms} 之间：{room}")
+        if len(set(self.english_rooms)) != len(self.english_rooms):
+            raise ValueError("英语房间编号不能重复")
+        if set(self.french_rooms) & set(self.english_rooms):
+            raise ValueError("同一房间不能同时配置为法语和英语房间")
+        for label, rooms in (("法语", self.french_rooms), ("英语", self.english_rooms)):
+            for room in rooms:
+                if not re.fullmatch(r"[1-9][0-9]?", room) or int(room) > self.max_rooms:
+                    raise ValueError(f"{label}房间必须在 1 到 {self.max_rooms} 之间：{room}")
 
     @classmethod
     def load(cls):
@@ -86,6 +92,14 @@ class Settings:
                     None,
                     values.get(
                         "DUCKKING_FRENCH_ROOMS", values.get("DUCKKING_FRENCH_ROOM", "")
+                    ).replace(" ", "").split(","),
+                )
+            ),
+            english_rooms=tuple(
+                filter(
+                    None,
+                    values.get(
+                        "DUCKKING_ENGLISH_ROOMS", values.get("DUCKKING_ENGLISH_ROOM", "")
                     ).replace(" ", "").split(","),
                 )
             ),

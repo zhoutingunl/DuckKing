@@ -101,6 +101,7 @@ def create_app(
         app.state.settings.geo_db_dir,
         country_header=app.state.settings.geo_country_header,
         french_rooms=app.state.settings.french_rooms,
+        english_rooms=app.state.settings.english_rooms,
         trusted_proxies=app.state.settings.geo_trusted_proxies,
     )
 
@@ -178,7 +179,7 @@ def create_app(
 
     @app.post("/api/rooms/claim")
     async def claim_room(language: str = "zh"):
-        if language not in {"zh", "fr"}:
+        if language not in {"zh", "fr", "en"}:
             raise HTTPException(422, "不支持的房间语言")
         return await app.state.room_registry.claim(language=language)
 

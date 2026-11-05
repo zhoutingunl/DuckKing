@@ -15,6 +15,13 @@ for(const demo of DEMOS)test(`automated ${demo.id} validates actual MuJoCo outco
   await expect.poll(async()=>{const state=await page.locator('#show-status').textContent();if(state.includes('未完成'))throw Error(await page.locator('#demo-notice').textContent());return state},{timeout:90000}).toBe('本幕完成 · 可重演或进入下一幕');
   const proof=await page.locator('#theatre-result').textContent();expect(JSON.parse(proof).scene).toBe(demo.id);
   expect(JSON.parse(proof).mode).toBe('scripted_rehearsal');
+  if(demo.id==='lonely'){
+   const discoveries=JSON.parse(proof).results.filter(result=>result.name==='find_companion');
+   expect(discoveries).toHaveLength(2);
+   expect(discoveries[0]).toMatchObject({status:'failed',outcome:{verified:false,peers:[]}});
+   expect(discoveries[1]).toMatchObject({status:'completed',outcome:{verified:true}});
+   expect(discoveries[1].outcome.peers.length).toBeGreaterThan(0);
+  }
   if(demo.id==='seated'){const result=JSON.parse(proof);expect(result.results.find(r=>r.name==='seated_show').outcome.completed_solos).toEqual(['a','b','c','d']);expect(result.results.find(r=>r.name==='seated_music').outcome.solos).toEqual(['a','b','c','d']);}
   if(demo.id==='tabletop')await expect(page.locator('#table-beat')).toHaveText('36 / 36 秒');await expect(page.locator('#demo-notice')).toBeHidden();
   await expect(page.locator('#demo-mode')).toBeEnabled({timeout:10000});
@@ -191,13 +198,23 @@ test('stopping the table song silences every music node and cancels the real cho
  await expect(page.locator('#theatre-result')).toHaveCount(0);
 });
 
-test('source link stays at the right edge with no navigation or viewport overlap',async({page})=>{
- for(const width of [1440,820,390]){
-  await page.setViewportSize({width,height:900});await page.goto('/');
-  const source=await page.locator('.site-topbar > .repo-link').boundingBox(),header=await page.locator('.site-topbar').boundingBox();
-  expect(header.x+header.width-source.x-source.width).toBeLessThan(width*.05+1);
+test('source link sits before the language menu at the right edge without viewport overlap',async({page})=>{
+ for(const language of ['zh','en','fr'])for(const width of [1440,820,390]){
+  await page.setViewportSize({width,height:900});await page.goto(`/?lang=${language}`);
+  await expect(page.locator('html')).toHaveAttribute('lang',language==='zh'?'zh-CN':language);
+  const source=await page.locator('.home-nav .repo-link').boundingBox();
+  const lang=await page.locator('.lang-switch').boundingBox();
   const nav=await page.locator('.home-nav').boundingBox();
-  expect(nav.y>=source.y+source.height||nav.x+nav.width<=source.x).toBe(true);
+  expect(source.x+source.width).toBeLessThanOrEqual(lang.x);
+  expect(Math.abs(nav.x+nav.width-lang.x-lang.width)).toBeLessThan(2);
+  await expect(page.locator('.home-nav .repo-link')).toBeInViewport({ratio:1});
+  await page.locator('#lang-switch-button').click();
+  await expect(page.getByRole('menuitem')).toHaveCount(3);
+  for(const option of await page.getByRole('menuitem').all())await expect(option).toBeInViewport({ratio:1});
+  // Scrolling destinations must leave source/language controls reachable.
+  await page.locator('.nav-destinations a').last().scrollIntoViewIfNeeded();
+  await expect(page.locator('.home-nav .repo-link')).toBeInViewport({ratio:1});
+  await expect(page.locator('#lang-switch-button')).toBeInViewport({ratio:1});
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
  }
 });

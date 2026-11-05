@@ -382,3 +382,28 @@ test('leaving during model download cannot create a renderer or reconnect later'
  await expect(page.locator('#physics-viewport canvas')).toHaveCount(0);
  await page.waitForTimeout(1600);await expect(page.locator('#physics-viewport canvas')).toHaveCount(0);
 });
+
+test('dialog log rows use the two-column layout without squeezing text into the label column',async({page})=>{
+ await page.goto('/balance.html?room=1');
+ await page.evaluate(()=>{
+  const row=document.createElement('div');row.className='log-line';
+  const tag=document.createElement('span');tag.className='log-label';tag.textContent='本地排练';
+  const body=document.createElement('span');body.textContent='第 2 关 · running · trained · 下一次随机配对已就绪';
+  row.append(tag,body);document.getElementById('activity-log').append(row);
+ });
+ const columns=await page.evaluate(()=>{
+  const style=getComputedStyle(document.querySelector('#activity-log .log-line'));
+  return style.gridTemplateColumns.split(' ').map(value=>parseFloat(value));
+ });
+ // 两列布局:固定标签列 + 占满剩余宽度的内容列;旧三列网格会把内容挤进 63px 标签列。
+ expect(columns).toHaveLength(2);
+ const label=await page.locator('#activity-log .log-line .log-label').boundingBox();
+ const body=await page.locator('#activity-log .log-line span:not(.log-label)').boundingBox();
+ expect(body.x).toBeGreaterThanOrEqual(label.x+label.width);
+ expect(body.width).toBeGreaterThan(300);
+ // 桌面视口下这一行文本应单行显示;挤进 63px 列时会折成五六行(高度明显增大)。
+ const bodyHeight=await page.evaluate(
+  ()=>document.querySelector('#activity-log .log-line span:not(.log-label)').clientHeight,
+ );
+ expect(bodyHeight).toBeLessThan(60);
+});

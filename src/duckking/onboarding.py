@@ -86,6 +86,16 @@ REPLY_DIRECTIVES = {
         "用法语回答，尽量简短，一般不超过两句话。用户说法语时，先把法语表述映射到规则中的"
         "中文触发词再调用对应工具，例如 pas éclair 对应闪身步，secoue ta fourrure 或"
         " l'ours qui frissonne 对应抖抖毛；其余动作按法语语义理解，不要编造新工具。"
+        "用户说中文或英语时，理解其意图并改用用户所说的语言回答，同样调用对应工具。"
+    ),
+    "en": (
+        "Reply in English, keep it brief, usually no more than two sentences. When the user "
+        "speaks English, map their words onto the Chinese trigger phrases in the rules before "
+        "calling the matching tool: flash step -> 闪身步, shake your fur or shiver like a bear -> "
+        "抖抖毛, nod -> 点头, walk or forward -> 前进, turn left -> 左转, turn right -> 右转, "
+        "stop -> 停止; understand other requests semantically and never invent tools. "
+        "Users may also speak Chinese or French: understand them, answer in the language they "
+        "spoke, and call the same tools."
     ),
 }
 

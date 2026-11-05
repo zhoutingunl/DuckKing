@@ -47,6 +47,26 @@ def test_french_voice_pool_allocates_distinct_rooms_and_degrades_without_sharing
         assert created["room"] == "4" and created["room"] not in {"2", "3"}
 
 
+def test_english_voice_pool_is_independent_from_the_french_pool(tmp_path):
+    settings = Settings(data_dir=tmp_path, max_rooms=5, french_rooms=("2",), english_rooms=("3",))
+    app = create_app(settings=settings)
+    with TestClient(app) as client:
+        assert client.post('/api/rooms/claim?language=en').json() == {
+            "room": "3", "voice_language": "en",
+        }
+        assert client.post('/api/rooms/claim?language=fr').json() == {
+            "room": "2", "voice_language": "fr",
+        }
+        # Both dedicated pools occupied: further claims fall back to general rooms.
+        app.state.rooms["2"].viewers = 1
+        app.state.rooms["3"].viewers = 1
+        assert client.post('/api/rooms/claim?language=en').json() == {
+            "room": "1", "voice_language": "default",
+        }
+        created = client.post('/api/rooms').json()
+        assert created["room"] == "4" and created["room"] not in {"2", "3"}
+
+
 def test_room_actions_and_voice_ownership_are_separate(tmp_path):
     app = create_app(settings=Settings(data_dir=tmp_path))
     with TestClient(app) as client:
