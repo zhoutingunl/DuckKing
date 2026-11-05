@@ -16,8 +16,11 @@ export const DEMOS=[
   steps:[line('delivery-intro','这根小棒，是项目最后一根救命稻草。接下来，这活我用嘴干。'),command('delivery-command','请用嘴夹起小棒，搬过去，再放下。每一步成功后再继续。',['pick_up','carry','put_down']),{kind:'inspect',label:'本轮交付验收'},line('delivery-end','确认放稳，才算交付。需求终于落地了。')]},
  {id:'duel',title:'一屏双魂，舞林争霸',hook:'两个独立房间，同一时刻，两套舞步。',scene:'ball',source:'方案 0 · 4',duration:'约 30 秒',
   steps:[line('duel-intro','左边闪身步，右边抖抖毛。两个房间，各跳各的，不串台。','旁白'),{kind:'duel',id:'duel-left',text:'请表演闪身步。',second:'duel-right',secondText:'请表演狗熊哆嗦毛。'},line('duel-end','两份动作记录，两套物理世界。谁也没有抢走谁的身体。')]},
+ // A single 3 s turn can end just inside the 60° sensor field of view.
+ // Give the slower left-turn policy more time; the faster right turn restores visibility.
+ // Keep each movement within the existing 3 s action bound and validate both discoveries.
  {id:'lonely',title:'孤独鸭的寻友记',hook:'先背过身，再转回来：看见需要满足条件。',scene:'duo',source:'方案 0 · 5',duration:'约 40 秒',
-  steps:[line('lonely-intro','同伴就在附近，但背对着对方，可不算看见。','旁白'),{kind:'action',name:'turn_left',target:'both',duration:3},{kind:'action',name:'find_companion',expectFailure:true},line('lonely-turn','没有发现，就调整方向。不能把希望当作检测结果。'),{kind:'action',name:'turn_right',target:'both',duration:3},command('lonely-find','请发现同伴。',['find_companion']),{kind:'inspect',label:'视野与距离验证'},line('lonely-end','原来同伴一直在附近。这一次，我们是真的看见了。')]},
+  steps:[line('lonely-intro','同伴就在附近，但背对着对方，可不算看见。','旁白'),{kind:'action',name:'turn_left',target:'both',duration:3},{kind:'action',name:'turn_left',target:'both',duration:1.5},{kind:'action',name:'find_companion',expectFailure:true},line('lonely-turn','没有发现，就调整方向。不能把希望当作检测结果。'),{kind:'action',name:'turn_right',target:'both',duration:3},command('lonely-find','请发现同伴。',['find_companion']),{kind:'inspect',label:'视野与距离验证'},line('lonely-end','原来同伴一直在附近。这一次，我们是真的看见了。')]},
  {id:'debut',title:'社恐鸭组团出道',hook:'先见面，再合唱，组合名叫“鸭力山大”。',scene:'duo',source:'故事方案 · 5',duration:'约 35 秒',
   steps:[line('debut-intro','一个鸭是打工，两个鸭就是创业团队。请两位成员见面。','旁白'),command('debut-meet','请发现同伴，然后相向碰面。',['find_companion','collide']),{kind:'inspect',label:'本轮接触验收'},command('debut-chorus','你们的团名叫鸭力山大。请来一段同步合唱。',['chorus']),line('debut-end','我们的第一张专辑，叫明天一定交付。')]},
  {id:'chorale',title:'四声部谢幕',hook:'从两条旋律，到四层和声。听见成员的加入。',scene:'duo',source:'方案 1 · 幕三',duration:'约 35 秒',

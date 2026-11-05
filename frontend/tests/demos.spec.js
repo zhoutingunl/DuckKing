@@ -15,6 +15,13 @@ for(const demo of DEMOS)test(`automated ${demo.id} validates actual MuJoCo outco
   await expect.poll(async()=>{const state=await page.locator('#show-status').textContent();if(state.includes('未完成'))throw Error(await page.locator('#demo-notice').textContent());return state},{timeout:90000}).toBe('本幕完成 · 可重演或进入下一幕');
   const proof=await page.locator('#theatre-result').textContent();expect(JSON.parse(proof).scene).toBe(demo.id);
   expect(JSON.parse(proof).mode).toBe('scripted_rehearsal');
+  if(demo.id==='lonely'){
+   const discoveries=JSON.parse(proof).results.filter(result=>result.name==='find_companion');
+   expect(discoveries).toHaveLength(2);
+   expect(discoveries[0]).toMatchObject({status:'failed',outcome:{verified:false,peers:[]}});
+   expect(discoveries[1]).toMatchObject({status:'completed',outcome:{verified:true}});
+   expect(discoveries[1].outcome.peers.length).toBeGreaterThan(0);
+  }
   if(demo.id==='seated'){const result=JSON.parse(proof);expect(result.results.find(r=>r.name==='seated_show').outcome.completed_solos).toEqual(['a','b','c','d']);expect(result.results.find(r=>r.name==='seated_music').outcome.solos).toEqual(['a','b','c','d']);}
   if(demo.id==='tabletop')await expect(page.locator('#table-beat')).toHaveText('36 / 36 秒');await expect(page.locator('#demo-notice')).toBeHidden();
   await expect(page.locator('#demo-mode')).toBeEnabled({timeout:10000});
