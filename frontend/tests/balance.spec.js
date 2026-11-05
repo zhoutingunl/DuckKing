@@ -20,26 +20,33 @@ test('default starts randomize the paired seed and explain available voice contr
  await expect(page.locator('#challenge-seed')).not.toBeVisible();
  await expect(page.locator('.balance-voice-help')).toContainText('选关、时长、策略、开始和停盘');
  await expect(page.locator('.balance-voice-help a')).toHaveAttribute('href',new RegExp(`seesaw\\.html\\?room=${room}$`));
- await page.locator('#challenge-duration').fill('6');await page.locator('#prepare-balance').click();
+ // This test cancels active runs. Leave room for software rendering and state
+ // assertions before Stop; natural completion of a 6 s run must stay completed.
+ await page.locator('#challenge-duration').fill('30');await page.locator('#prepare-balance').click();
  await expect(page.locator('#start-challenge')).toBeEnabled({timeout:45000});
  await page.selectOption('#controller','baseline');
  const state=async()=> (await(await request.get(`/api/scenes/state?room=${room}`)).json()).backend;
+ const stop=async()=>{
+  const accepted=page.waitForResponse(response=>new URL(response.url()).pathname.endsWith('/api/balance/command')&&response.request().method()==='POST'&&response.request().postDataJSON()?.operation==='stop');
+  await page.locator('#stop-balance').click();
+  const response=await accepted;expect(response.ok()).toBe(true);
+  expect((await response.json()).comparison.phase).toBe('cancelled');
+  await expect(page.locator('#comparison-status')).toContainText('对照已停止',{timeout:10000});
+ };
  let seed=(await state()).balance.seed;
  for(let i=0;i<2;i++){
   await page.locator('#start-challenge').click();
   await expect.poll(async()=> (await state()).balance.seed).not.toBe(seed);
   const b=await state();seed=b.balance.seed;
   expect(b.comparison.baseline.balance.seed).toBe(seed);expect(b.disc_target).toEqual(b.comparison.baseline.disc_target);
-  await page.locator('#stop-balance').click();
-  await expect(page.locator('#comparison-status')).toContainText('对照已停止',{timeout:10000});
+  await stop();
  }
  // A cloud tool uses the same operation; the form must reflect its real choice.
  await page.selectOption('#controller','trained');
- const start=await request.post(`/api/balance/command?room=${room}`,{data:{operation:'start',controller:'baseline',duration_seconds:6}});
+ const start=await request.post(`/api/balance/command?room=${room}`,{data:{operation:'start',controller:'baseline',duration_seconds:30}});
  expect(start.ok()).toBe(true);
  await expect(page.locator('#controller')).toHaveValue('baseline');
- await page.locator('#stop-balance').click();
- await expect(page.locator('#comparison-status')).toContainText('对照已停止',{timeout:10000});
+ await stop();
 });
 
 test('automatic preparation waits for room initialization and sends just one request',async({page,request})=>{
