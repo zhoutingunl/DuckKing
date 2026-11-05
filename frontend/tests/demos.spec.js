@@ -191,13 +191,14 @@ test('stopping the table song silences every music node and cancels the real cho
  await expect(page.locator('#theatre-result')).toHaveCount(0);
 });
 
-test('source link stays at the right edge with no navigation or viewport overlap',async({page})=>{
+test('source link sits before the language menu at the right edge without viewport overlap',async({page})=>{
  for(const width of [1440,820,390]){
   await page.setViewportSize({width,height:900});await page.goto('/');
-  const source=await page.locator('.site-topbar > .repo-link').boundingBox(),header=await page.locator('.site-topbar').boundingBox();
-  expect(header.x+header.width-source.x-source.width).toBeLessThan(width*.05+1);
-  const nav=await page.locator('.home-nav').boundingBox();
-  expect(nav.y>=source.y+source.height||nav.x+nav.width<=source.x).toBe(true);
+  const source=await page.locator('.home-nav .repo-link').boundingBox();
+  const lang=await page.locator('.lang-switch').boundingBox();
+  const header=await page.locator('.site-topbar').boundingBox();
+  expect(source.x+source.width).toBeLessThanOrEqual(lang.x);
+  expect(header.x+header.width-lang.x-lang.width).toBeLessThan(width*.05+1);
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
  }
 });

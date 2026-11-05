@@ -24,6 +24,9 @@ EUROPE_COUNTRY_CODES = frozenset(
     TR UA VA XK""".split()
 )
 
+# 美国/英国默认英语（用户指定）；加拿大、澳大利亚等仍按未指定区域回退中文。
+ENGLISH_COUNTRY_CODES = frozenset({"US", "GB"})
+
 
 def is_public_ip(ip: str | None) -> bool:
     if not ip:
@@ -57,7 +60,11 @@ def extract_client_ip(
 
 
 def language_for(country_code: str | None) -> str:
-    return "fr" if country_code in EUROPE_COUNTRY_CODES else "zh"
+    if country_code in EUROPE_COUNTRY_CODES:
+        return "fr"
+    if country_code in ENGLISH_COUNTRY_CODES:
+        return "en"
+    return "zh"
 
 
 @dataclass
@@ -65,12 +72,14 @@ class RegionResult:
     language: str
     region: str | None
     french_voice_available: bool
+    english_voice_available: bool
 
     def public(self) -> dict:
         return {
             "language": self.language,
             "region": self.region,
             "french_voice_available": self.french_voice_available,
+            "english_voice_available": self.english_voice_available,
         }
 
 
@@ -82,12 +91,14 @@ class RegionResolver:
         db_dir: Path | None,
         country_header: str = "",
         french_rooms: tuple[str, ...] = (),
+        english_rooms: tuple[str, ...] = (),
         trusted_proxies: tuple[str, ...] = ("127.0.0.1/32", "::1/128"),
         lookup=None,
     ):
         self.db_dir = Path(db_dir).expanduser() if db_dir else None
         self.country_header = (country_header or "").strip()
         self.french_rooms = tuple(french_rooms)
+        self.english_rooms = tuple(english_rooms)
         self.trusted_proxies = tuple(trusted_proxies)
         self._lookup = lookup or self._lookup_ipdb
         self._dbs: dict[int, object] = {}
@@ -145,4 +156,5 @@ class RegionResolver:
             language=language,
             region=country or None,
             french_voice_available=bool(self.french_rooms),
+            english_voice_available=bool(self.english_rooms),
         )

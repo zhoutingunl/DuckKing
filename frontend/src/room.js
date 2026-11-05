@@ -69,8 +69,12 @@ export async function setupRoom({claim=true}={}){
     if(!room&&claim){
       const data=await request(`api/rooms/claim?language=${language}`,'POST');
       room=data.room;
-      if(language==='fr'&&data.voice_language!=='fr'){
-        roomLanguageNote.textContent='界面为法语；本房间的语音语言取决于所配置的智能体。';roomLanguageNote.hidden=false;
+      if(['fr','en'].includes(language)&&data.voice_language!==language){
+        // 译回提示文本在主工作台由字典处理；此处写入原文供匹配。
+        roomLanguageNote.textContent=language==='fr'
+          ?'界面为法语；本房间的语音语言取决于所配置的智能体。'
+          :'界面为英语；本房间的语音语言取决于所配置的智能体。';
+        roomLanguageNote.hidden=false;
       }
     }
     room??='1';const data=await request(`api/rooms?room=${encodeURIComponent(room)}`);render(data);

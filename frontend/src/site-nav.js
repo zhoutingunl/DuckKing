@@ -1,5 +1,6 @@
 import './style.css';
 import './site-nav.css';
+import {pickLanguage, savedLanguage, storeLanguage, uiPreferences} from './ui-language.js';
 
 // Every page shares the same destinations, order and room-preservation rules.
 const destinations=[
@@ -8,10 +9,12 @@ const destinations=[
  ['experience.html','使用体验',true],['statistics.html','交互统计',true],
  ['deploys.html','部署记录',true],
 ];
+const languages=[['zh','中文'],['en','English'],['fr','Français']];
 const nav=document.querySelector('.site-topbar nav');
 if(nav){
  const page=location.pathname.split('/').at(-1)||'index.html';
- const room=new URL(location.href).searchParams.get('room');
+ const params=new URL(location.href).searchParams;
+ const room=params.get('room');
  for(const [path,label,newTab] of destinations){
   const link=document.createElement('a'),url=new URL('./'+path,location.href);
   if(room&&/^\d+$/.test(room)&&path!=='deploys.html')url.searchParams.set('room',room);
@@ -21,4 +24,35 @@ if(nav){
   else if(path==='training.html'&&['balance.html','seesaw.html'].includes(page))link.setAttribute('aria-current','location');
   nav.append(link);
  }
+ const repo=document.createElement('a');
+ repo.href='https://github.com/zhoutingunl/DuckKing';repo.target='_blank';repo.rel='noopener';
+ repo.className='repo-link';repo.textContent='源代码 ↗';repo.title='源代码 ↗';
+ nav.append(repo);
+ // 语言菜单在最右侧；选择保存在本地并立即生效（重新加载当前页，保留房间参数）。
+ const wrap=document.createElement('div');wrap.className='lang-switch';
+ const button=document.createElement('button');
+ button.type='button';button.className='lang-button';button.id='lang-switch-button';
+ button.setAttribute('aria-haspopup','menu');button.setAttribute('aria-expanded','false');
+ button.setAttribute('aria-label','语言 / Language');button.textContent='语言';
+ const menu=document.createElement('div');menu.className='lang-menu';menu.hidden=true;
+ menu.setAttribute('role','menu');
+ let current=pickLanguage({urlLang:params.get('lang'),savedLang:savedLanguage()});
+ for(const [code,name] of languages){
+  const option=document.createElement('button');
+  option.type='button';option.setAttribute('role','menuitem');option.textContent=name;option.dataset.lang=code;
+  option.addEventListener('click',()=>{storeLanguage(code);const url=new URL(location.href);url.searchParams.delete('lang');location.assign(url)});
+  menu.append(option);
+ }
+ const markCurrent=()=>{for(const option of menu.children)option.setAttribute('aria-current',option.dataset.lang===current?'true':'false')};
+ markCurrent();
+ button.addEventListener('click',()=>{menu.hidden=!menu.hidden;button.setAttribute('aria-expanded',String(!menu.hidden))});
+ document.addEventListener('click',event=>{if(!wrap.contains(event.target)){menu.hidden=true;button.setAttribute('aria-expanded','false')}});
+ uiPreferences().then(prefs=>{
+  // 无本地覆写时以服务端区域默认为准，更新菜单的当前标记。
+  if(!savedLanguage())current=pickLanguage({urlLang:params.get('lang'),savedLang:savedLanguage(),serverLang:prefs?.language});
+  markCurrent();
+  button.textContent=current==='zh'?'语言':current==='en'?'Language':'Langue';
+ }).catch(()=>{});
+ wrap.append(button,menu);
+ nav.append(wrap);
 }

@@ -23,6 +23,7 @@ class RoomRegistry:
         self.physics_limit = min(self.limit, primary.settings.max_physics_rooms)
         self.idle_seconds = primary.settings.room_idle_seconds
         self.french_rooms = set(primary.settings.french_rooms)
+        self.english_rooms = set(primary.settings.english_rooms)
         self.lock = asyncio.Lock()
         primary.last_used = time.monotonic()
         self.rooms = {"1": primary}
@@ -76,20 +77,26 @@ class RoomRegistry:
     @staticmethod
     def claim_result(number, language):
         result = {"room": number}
-        if language == "fr":
+        if language in {"fr", "en"}:
             result["voice_language"] = "default"
         return result
 
     async def claim(self, *, create=False, language="zh"):
-        if language not in {"zh", "fr"}:
+        if language not in {"zh", "fr", "en"}:
             raise HTTPException(422, "不支持的房间语言")
+        # Iterate the configured order; the sets above are only for membership.
+        voice_rooms = {
+            "fr": self.primary.settings.french_rooms,
+            "en": self.primary.settings.english_rooms,
+        }.get(language, ())
         await self.reap()
         async with self.lock:
             now = time.monotonic()
-            if language == "fr":
-                # Each configured French room has its own provisioned identity.
-                # Never share a busy voice room with another visitor.
-                for number in self.primary.settings.french_rooms:
+            if voice_rooms:
+                # Each configured voice room has its own provisioned identity
+                # and agent language. Never share a busy voice room with another
+                # visitor.
+                for number in voice_rooms:
                     room = self.rooms.get(number)
                     if room is None and len(self.rooms) < self.limit:
                         room = self._make(number)
@@ -98,10 +105,10 @@ class RoomRegistry:
                             and room.reserved_until <= now:
                         room.reserved_until = now + 15
                         room.last_used = now
-                        return {"room": number, "voice_language": "fr"}
+                        return {"room": number, "voice_language": language}
             if not create:
                 for number, room in self.rooms.items():
-                    if number in self.french_rooms:
+                    if number in self.french_rooms or number in self.english_rooms:
                         continue
                     if not self.busy(room) and room.reserved_until <= now:
                         room.reserved_until = now + 15
@@ -109,7 +116,8 @@ class RoomRegistry:
                         return self.claim_result(number, language)
             for index in range(1, self.limit + 1):
                 number = str(index)
-                if number not in self.rooms and number not in self.french_rooms:
+                if number not in self.rooms and number not in self.french_rooms \
+                        and number not in self.english_rooms:
                     room = self._make(number)
                     room.reserved_until = now + 15
                     self.rooms[number] = room
@@ -125,7 +133,9 @@ class RoomRegistry:
                 async with room.scene_lock:
                     if self.busy(room) or time.monotonic() - room.last_used < self.idle_seconds:
                         continue
-                    if number not in {"1", "2"}:
+                    # Rooms 1 and 2 are permanent; configured voice rooms keep
+                    # their provisioned identities and are never reclaimed.
+                    if number not in {"1", "2"} | self.french_rooms | self.english_rooms:
                         del self.rooms[number]
                         await room.motion.close()
                     if room.scene_motion:

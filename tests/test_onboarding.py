@@ -141,6 +141,20 @@ async def test_french_lang_code_keeps_rules_and_swaps_reply_language(tmp_path):
     assert "用简短中文回答" not in body["systemPrompt"]
 
 
+async def test_english_lang_code_maps_triggers_and_keeps_multilingual_rules(tmp_path):
+    key, calls, http = platform(tmp_path)
+    async with http:
+        await setup_device(Settings(data_dir=tmp_path / "state"), key, http=http, lang_code="en")
+    body = next(b for _, p, b in calls if p == "/xiaozhi/agent")
+    assert body["langCode"] == "en"
+    # 英文指令替换回答语言，保留权威中文规则并声明同时理解中文与法语。
+    assert "Reply in English" in body["systemPrompt"]
+    assert "闪身步" in body["systemPrompt"]
+    assert "Chinese or French" in body["systemPrompt"]
+    assert "duck_flash_step" in body["systemPrompt"]
+    assert "用简短中文回答" not in body["systemPrompt"]
+
+
 async def test_unsupported_lang_code_fails_before_creating_agent(tmp_path):
     key, calls, http = platform(tmp_path)
     async with http:
