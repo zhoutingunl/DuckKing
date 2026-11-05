@@ -118,7 +118,7 @@ uv run duckking-setup --key-file ~/.secrets/lingxi
 uv run duckking-setup --room 2
 ```
 
-初始化显式创建或复用专用 DuckKing 智能体并绑定设备，不在页面加载时执行。也可按页面激活码在灵矽控制台绑定。手工设备凭证填写到 `~/.secrets/duckking.env`，参考 [.env.example](.env.example)，权限设为 600；设备 token 不等于平台管理 Key。新增工具后重新连接语音；已有专用智能体可用 `uv run duckking-setup --sync-prompt` 备份并同步工具提示词。
+初始化显式创建或复用专用 DuckKing 智能体并绑定设备，不在页面加载时执行。也可按页面激活码在灵矽控制台绑定。手工设备凭证填写到 `~/.secrets/duckking.env`，参考 [.env.example](.env.example)，权限设为 600；设备 token 不等于平台管理 Key。新增工具后重新连接语音；已有专用智能体可用 `uv run duckking-setup --sync-prompt` 备份并同步工具提示词。新建时可用 `--lang-code` 选择交互语言（默认 `zh`，法语为 `fr`；行为规则保持中文权威版本，仅切换回答语言并追加触发词映射。云端接受 36 种语种、法语配置已平台级验证，但法语语音链路尚未端到端实测，见 [验证记录](docs/VALIDATION.md)）。
 
 回答或思考时按住“打断并说话”，立即清空旧播放并录制新命令；每次最多录音 15 秒。无进展的回答有超时保护、一次重连及手动“重置语音”，不会重放旧录音。iPhone 的 Chrome / 企业微信首次使用先点“启用 / 测试声音”；麦克风权限与声音播放权限不同。详情见 [声音排查](docs/DEVELOPMENT.md#移动端声音排查) 和 [日志与恢复](docs/DEVELOPMENT.md#语音诊断与恢复)。
 

@@ -74,13 +74,46 @@ duck_stage_dance 选中鸭先站稳，再闪身步然后抖毛，不要切换场
 排队和翻滚先等待工具实际完成，再继续下一项。
 你控制的是本地虚拟鸭子，不要声称已经制造或操控实体硬件。"""
 
+DEFAULT_LANG_CODE = "zh"
+
+# 行为规则只维护这一份中文权威版本（对应已实测的 live 记录）。其他语言不改写规则正文，
+# 只替换回复语言子句并追加触发词映射；平台语种全量列表见 GET /v1/languages
+# （2026-11-04 实测 36 种，含 fr）。法语语音链路尚未端到端实测。
+REPLY_CLAUSE = "用简短中文回答，一般不超过两句话"
+
+REPLY_DIRECTIVES = {
+    "fr": (
+        "用法语回答，尽量简短，一般不超过两句话。用户说法语时，先把法语表述映射到规则中的"
+        "中文触发词再调用对应工具，例如 pas éclair 对应闪身步，secoue ta fourrure 或"
+        " l'ours qui frissonne 对应抖抖毛；其余动作按法语语义理解，不要编造新工具。"
+    ),
+}
+
+
+def agent_prompt(lang_code: str) -> str:
+    if lang_code == DEFAULT_LANG_CODE:
+        return PROMPT
+    directive = REPLY_DIRECTIVES.get(lang_code)
+    if directive is None:
+        supported = "、".join(sorted(REPLY_DIRECTIVES))
+        raise ValueError(f"暂无 {lang_code} 的回复语言指令；已准备的语言为：{supported}")
+    if REPLY_CLAUSE not in PROMPT:
+        raise ValueError("权威提示词缺少回复语言子句，拒绝生成其他语言提示词")
+    return PROMPT.replace(REPLY_CLAUSE, directive, 1)
+
 
 def read_key(path: Path) -> str:
     return path.expanduser().read_text().strip()
 
 
 async def setup_device(
-    settings: Settings, key_file: Path, agent_id=None, model_id=None, http=None, sync_prompt=False,
+    settings: Settings,
+    key_file: Path,
+    agent_id=None,
+    model_id=None,
+    lang_code=DEFAULT_LANG_CODE,
+    http=None,
+    sync_prompt=False,
 ):
     key = await asyncio.to_thread(read_key, key_file)
     if not key or "\n" in key:
@@ -120,10 +153,10 @@ async def setup_device(
                 body = {
                     "agentName": "DuckKing",
                     "assistantName": "鸭王",
-                    "langCode": "zh",
+                    "langCode": lang_code,
                     "intentModelId": "Intent_function_call",
                     "memModelId": "Memory_nomem",
-                    "systemPrompt": PROMPT,
+                    "systemPrompt": agent_prompt(lang_code),
                 }
                 if model_id:
                     body["llmModelId"] = model_id
@@ -137,16 +170,19 @@ async def setup_device(
             before = await api("GET", f"/xiaozhi/agent/{agent_id}")
             if not isinstance(before, dict) or not isinstance(before.get("systemPrompt"), str):
                 raise ValueError("无法读取原提示词，未进行更新")
-            if before["systemPrompt"] == PROMPT:
+            # Sync in the agent's own language; otherwise syncing would silently convert a
+            # French (or other language) agent back to the Chinese prompt.
+            prompt = agent_prompt(before.get("langCode") or DEFAULT_LANG_CODE)
+            if before["systemPrompt"] == prompt:
                 return {"status": "prompt_current"}
             settings.data_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
             backup = settings.data_dir / f"prompt-backup-{time.time_ns()}.txt"
             fd = os.open(backup, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
             with os.fdopen(fd, "w", encoding="utf-8") as stream:
                 stream.write(before["systemPrompt"])
-            await api("PUT", f"/xiaozhi/agent/{agent_id}", {"systemPrompt": PROMPT})
+            await api("PUT", f"/xiaozhi/agent/{agent_id}", {"systemPrompt": prompt})
             after = await api("GET", f"/xiaozhi/agent/{agent_id}")
-            if not isinstance(after, dict) or after.get("systemPrompt") != PROMPT:
+            if not isinstance(after, dict) or after.get("systemPrompt") != prompt:
                 raise ValueError("提示词更新后校验失败，请检查平台配置")
             return {"status": "prompt_updated"}
         config = await provision(settings, http)
@@ -180,15 +216,24 @@ def main():
     parser.add_argument("--agent-id")
     parser.add_argument("--model-id")
     parser.add_argument(
-        "--sync-prompt", action="store_true",
+        "--lang-code",
+        default=DEFAULT_LANG_CODE,
+        help="新建智能体的交互语言代码，默认 zh，法语为 fr；全量列表见灵矽 GET /v1/languages",
+    )
+    parser.add_argument(
+        "--sync-prompt",
+        action="store_true",
         help="备份并同步已有 DuckKing 智能体的提示词，不创建或重新绑定设备",
     )
     args = parser.parse_args()
     try:
         result = asyncio.run(
             setup_device(
-                Settings.load().for_room(args.room), args.key_file,
-                agent_id=args.agent_id, model_id=args.model_id,
+                Settings.load().for_room(args.room),
+                args.key_file,
+                agent_id=args.agent_id,
+                model_id=args.model_id,
+                lang_code=args.lang_code,
                 sync_prompt=args.sync_prompt,
             )
         )
