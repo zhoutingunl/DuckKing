@@ -58,4 +58,9 @@ def test_cli_binds_loopback(monkeypatch):
     monkeypatch.setattr("sys.argv", ["duckking", "--port", "9999"])
     monkeypatch.setattr("duckking.app.uvicorn.run", lambda app, **kw: captured.update(kw))
     main()
-    assert captured == {"host": "127.0.0.1", "port": 9999}
+    assert captured == {
+        "host": "127.0.0.1",
+        "port": 9999,
+        "proxy_headers": False,
+        "access_log": False,
+    }

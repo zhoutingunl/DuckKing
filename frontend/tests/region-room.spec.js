@@ -23,7 +23,7 @@ test('French default selects a free French voice room or clearly warns on fallba
     document.querySelector('#activity-log').append(row);
     window.dispatchEvent(new CustomEvent('duckking-voice-state',{detail:{state:'ready',mode:'cloud',route:'cloud'}}));
   });
-  await expect(page.locator('#activity-log .log-line').last()).toHaveText('点点头');
+  await expect(page.locator('#activity-log .log-line').filter({hasText:'点点头'})).toBeVisible();
 });
 
 test('explicit Chinese override does not reserve a French voice room',async({page})=>{

@@ -98,7 +98,13 @@ def test_cli_configures_proxy_prefix_without_changing_loopback_binding(monkeypat
     )
     monkeypatch.setattr("duckking.app.uvicorn.run", lambda app, **kw: captured.update(kw))
     main()
-    assert captured == {"host": "127.0.0.1", "port": 8765, "root_path": "/duckking"}
+    assert captured == {
+        "host": "127.0.0.1",
+        "port": 8765,
+        "root_path": "/duckking",
+        "proxy_headers": False,
+        "access_log": False,
+    }
 
 
 async def test_physics_release_failure_preserves_partial_evidence(tmp_path, monkeypatch):
