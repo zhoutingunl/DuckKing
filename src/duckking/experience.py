@@ -78,8 +78,8 @@ class ExperienceStore:
         self.worker = None
         self.lock = threading.Lock()
 
-    def submit(self, event, *, source, room):
-        item = (event.model_dump(mode="json"), source, room, time.time())
+    def submit(self, event, *, source, room, scope=""):
+        item = (event.model_dump(mode="json"), source, room, time.time(), scope)
         with self.lock:
             if self.closed:
                 return False
@@ -104,7 +104,10 @@ class ExperienceStore:
             id TEXT, source TEXT, at REAL, updated REAL, sequence INTEGER, room TEXT,
             release TEXT, page TEXT, traffic TEXT, device TEXT, transport TEXT,
             kind TEXT, status TEXT, route TEXT, cache TEXT, backend TEXT, hidden INTEGER,
-            metrics TEXT, scene TEXT, PRIMARY KEY (id, source))""")
+            metrics TEXT, scene TEXT, scope TEXT NOT NULL DEFAULT '', PRIMARY KEY (id, source))""")
+        if "scope" not in {row[1] for row in db.execute("PRAGMA table_info(samples)")}:
+            db.execute("ALTER TABLE samples ADD COLUMN scope TEXT NOT NULL DEFAULT ''")
+        db.execute("CREATE INDEX IF NOT EXISTS samples_scope_at ON samples(scope,at)")
         db.execute("CREATE INDEX IF NOT EXISTS samples_at ON samples(at)")
         db.execute("CREATE TABLE IF NOT EXISTS metadata (key TEXT PRIMARY KEY, value TEXT)")
         db.execute("INSERT OR IGNORE INTO metadata VALUES ('since', ?)", (str(time.time()),))
@@ -118,18 +121,22 @@ class ExperienceStore:
             try:
                 if item is None:
                     return
-                event, source, room, now = item
+                event, source, room, now, scope = item
                 db = db or self._connect()
                 values = [event["id"], source, now, now, event["sequence"], room, self.release]
                 values += [event[k] for k in ("page", "traffic", "device", "transport", "kind",
                                                "status", "route", "cache", "backend", "hidden")]
-                values.extend([json.dumps(event["metrics"]), event["scene"]])
-                db.execute("""INSERT INTO samples VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                values.extend([json.dumps(event["metrics"]), event["scene"], scope])
+                db.execute("""INSERT INTO samples
+                    (id,source,at,updated,sequence,room,release,page,traffic,device,transport,
+                     kind,status,route,cache,backend,hidden,metrics,scene,scope)
+                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
                     ON CONFLICT(id,source) DO UPDATE SET updated=excluded.updated,
                     sequence=excluded.sequence,status=excluded.status,route=excluded.route,
                     cache=excluded.cache,hidden=excluded.hidden,metrics=excluded.metrics,
                     scene=excluded.scene,backend=excluded.backend
-                    WHERE excluded.sequence > samples.sequence""", values)
+                    WHERE excluded.sequence > samples.sequence
+                    AND excluded.scope = samples.scope""", values)
                 db.execute("DELETE FROM samples WHERE at < ?", (now-self.retention_days*86400,))
                 db.execute("""DELETE FROM samples WHERE rowid IN
                     (SELECT rowid FROM samples ORDER BY at DESC LIMIT -1 OFFSET ?)""",
@@ -161,7 +168,8 @@ class ExperienceStore:
             self.worker.join(timeout=10)
 
     def snapshot(self, *, hours=168, traffic="interactive", page="all", device="all",
-                 cache="all", room="all", release="all", backend="all", scene="all", now=None):
+                 cache="all", room="all", release="all", backend="all", scene="all", now=None,
+                 scopes=None):
         now = time.time() if now is None else now
         filters = dict(traffic=traffic, page=page, device=device, cache=cache, room=room,
                        release=release, backend=backend, scene=scene)
@@ -173,6 +181,16 @@ class ExperienceStore:
                 )) as db:
                     db.row_factory = sqlite3.Row
                     clauses, params = ["at >= ?", "at <= ?"], [now-min(hours, 2160)*3600, now]
+                    scope_clause, scope_params = "1", []
+                    if scopes is not None:
+                        columns = {row[1] for row in db.execute("PRAGMA table_info(samples)")}
+                        if scopes and "scope" in columns:
+                            scope_clause = "scope IN (" + ",".join("?" for _ in scopes) + ")"
+                            scope_params = list(scopes)
+                        elif tuple(scopes) != ("",):
+                            scope_clause = "0"
+                    clauses.append(scope_clause)
+                    params.extend(scope_params)
                     for key, value in filters.items():
                         if value != "all":
                             clauses.append(f"{key} = ?")
@@ -182,7 +200,8 @@ class ExperienceStore:
                     since = float(db.execute("SELECT value FROM metadata WHERE key='since'")
                                   .fetchone()[0])
                     releases = [r[0] for r in db.execute(
-                        "SELECT DISTINCT release FROM samples ORDER BY at DESC LIMIT 30")]
+                        "SELECT DISTINCT release FROM samples WHERE " + scope_clause
+                        + " ORDER BY at DESC LIMIT 30", scope_params)]
             except sqlite3.Error:
                 self.storage_ok = False
         groups, trend, outcomes = defaultdict(list), defaultdict(list), Counter()
@@ -220,8 +239,9 @@ class ExperienceStore:
 
 
 class VoiceExperience:
-    def __init__(self, store, room):
+    def __init__(self, store, room, *, scope=""):
         self.store, self.room = store, room
+        self.scope = scope
         self.pending = None
         self.contexts = {}
 
@@ -250,4 +270,4 @@ class VoiceExperience:
         event = ExperienceEvent(**context.model_dump(), sequence=row["experience_sequence"],
                                 kind="voice", status=status, route=row["route"],
                                 backend=row["backend"], metrics=metrics)
-        self.store.submit(event, source="server", room=self.room)
+        self.store.submit(event, source="server", room=self.room, scope=self.scope)

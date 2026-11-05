@@ -31,7 +31,7 @@ export async function setupRoom({claim=true}={}){
     const data=await response.json();if(!response.ok)throw new Error(data.detail||'房间请求失败');return data;
   }
   function unavailable(text){
-    heading.textContent=text;explanation.textContent='服务可能刚更新，或房间已被回收。当前页面及链接中的选择会保留；重新连接后请手动继续，不会自动重放动作、演出或录音。';banner.hidden=false;
+    heading.textContent=text;explanation.textContent='房间可能已回收，或不属于当前访客。页面选择会保留；重新连接将选择自己的房间，请手动继续，不会自动重放动作、演出或录音。';banner.hidden=false;
     label.textContent='房间暂不可用';document.body.classList.add('room-unavailable');
     for(const child of main.children)if(child!==bar&&child!==banner)child.inert=true;
     setRoomUnavailable(true);
@@ -45,7 +45,7 @@ export async function setupRoom({claim=true}={}){
     }}
     create.disabled=creating||data.rooms.length>=data.capacity;
     capacity.textContent=`${data.rooms.length} / ${data.capacity} 个房间 · 物理场景 ${data.physics_active} / ${data.physics_capacity}`;
-    capacity.title=`无人使用 ${data.idle_seconds} 秒后回收；共享链接可加入同一房间。`;
+    capacity.title=`无人使用 ${data.idle_seconds} 秒后回收；仅当前浏览器可访问自己的房间。`;
   }
   async function recover(fresh=false){
     if(creating)return;creating=true;create.disabled=reconnect.disabled=true;reconnect.textContent='正在重新连接…';
@@ -66,7 +66,10 @@ export async function setupRoom({claim=true}={}){
     finally{polling=false}
   }
   try{
-    if(!room&&claim){
+    if(!room&&!claim){
+      const owned=await request('api/rooms');room=owned.rooms[0]?.id??null;
+    }
+    if(!room){
       const data=await request(`api/rooms/claim?language=${language}`,'POST');
       room=data.room;
       if(['fr','en'].includes(language)&&data.voice_language!==language){
@@ -77,7 +80,7 @@ export async function setupRoom({claim=true}={}){
         roomLanguageNote.hidden=false;
       }
     }
-    room??='1';const data=await request(`api/rooms?room=${encodeURIComponent(room)}`);render(data);
+    const data=await request(`api/rooms?room=${encodeURIComponent(room)}`);render(data);
     if(!data.rooms.some(r=>r.id===room))throw new Error('原房间不存在或已回收');
     instance=data.instance??null;setServiceInstance(instance);setRoomUnavailable(false);setRoom(room);
     history.replaceState(null,'',urlFor(room));label.textContent=`房间 ${room} · 独立语音与场景`;

@@ -183,11 +183,13 @@ async def main(args):
                         frames = 0
                         last_state = {}
                         begin_state = None
+                        cookie = client.build_request('GET', '/api/rooms').headers.get('cookie')
                         async with websockets.connect(
                             args.url.replace("http:", "ws:") + f"/scene-ws?room={room}",
                             origin=args.url,
                             max_size=16 * 1024 * 1024,
                             proxy=None,
+                            additional_headers={'Cookie': cookie} if cookie else None,
                         ) as ws:
                             watchers_ready += 1
                             await start_gate.wait()

@@ -121,6 +121,10 @@ worker 健康检查通过后才重启 DuckKing 主服务。部署失败恢复旧
 
 ## 动态房间容量
 
+房间现在默认按匿名浏览器会话隔离。发布验收应使用两个独立 Cookie 容器验证：列表互不可见、改编号的读写请求返回404、四个 WebSocket 不返回他人状态、回收后旧 Cookie 不能访问新访客的同编号房间。`release_smoke.py` 会先申领自己的房间，并在 HTTP 和 WebSocket 使用同一会话。勿把房间号当成访问凭证。
+
+发布包可先用 `qup-cdn-upload` 上传至 CDN，再在 YZH737 下载。上传文件名带本机秒级时间戳，GitHub Release 记录永久 URL、字节数和完整 SHA-256；服务器校验 SHA 后才提取安装脚本。仅上传从已提交源码构建的公开包，不包含 `.env`、身份或运行数据。
+
 基础默认最多 10 个房间、4 个同时加载的物理世界，空闲 300 秒后回收。2026-11-02 容量测试后，YZH737 使用 [duckking-audience.conf.example](duckking-audience.conf.example) 作为 `/etc/systemd/system/duckking.service.d/30-audience-capacity.conf`，将轻量房间提高到 32、CPU 时间上限提高到 1200%、内存提高到 32 GiB，空闲回收改为 60 秒。物理准入仍为 4；这不是四路重场景的稳定性能保证。汇报建议每批 20–24 人语音体验，重物理演示限定 1–2 房间；原始测试与公网限制见 [容量实测](../docs/PERFORMANCE.md)。该配置与直连域名 drop-in 分开保存，安装器不会删除。
 
 此次已为房间 11–32 初始化各自私有设备；没有复制其他房间身份。新环境管理员先为需要的房间独立绑定设备，例如在发布目录以 `DUCKKING_DATA_DIR=/var/lib/duckking` 运行 `duckking-setup --room 3`；管理 Key 只供初始化读取，页面不触发绑定。不要复制其他房间的身份或 token。配置变量见 `.env.example`。容量验证应包含多房间真实云端连接和独立动作；仅创建十个空房间不能当作十路云端或物理性能验收。

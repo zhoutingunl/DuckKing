@@ -87,7 +87,7 @@ def redact_transcript(text, sensitive_values=()):
 
 class VoiceDiagnostics:
     def __init__(self, path: Path | None = None, *, capacity=200, max_bytes=262144,
-                 experience=None):
+                 experience=None, restore=True):
         self.path = path
         self.events = deque(maxlen=capacity)
         self.sequence = 0
@@ -98,7 +98,8 @@ class VoiceDiagnostics:
         self.playback = None
         self.playback_logged_at = 0.0
         self.experience = experience
-        self._restore()
+        if restore:
+            self._restore()
 
     @staticmethod
     def _clean_fields(fields, event, sensitive_values=()):
