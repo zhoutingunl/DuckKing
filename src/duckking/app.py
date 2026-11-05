@@ -100,7 +100,8 @@ def create_app(
     app.state.region = RegionResolver(
         app.state.settings.geo_db_dir,
         country_header=app.state.settings.geo_country_header,
-        french_room=app.state.settings.french_room,
+        french_rooms=app.state.settings.french_rooms,
+        trusted_proxies=app.state.settings.geo_trusted_proxies,
     )
 
     def warm_factory():
@@ -176,8 +177,10 @@ def create_app(
         )
 
     @app.post("/api/rooms/claim")
-    async def claim_room():
-        return await app.state.room_registry.claim()
+    async def claim_room(language: str = "zh"):
+        if language not in {"zh", "fr"}:
+            raise HTTPException(422, "不支持的房间语言")
+        return await app.state.room_registry.claim(language=language)
 
     @app.post("/api/rooms", status_code=201)
     async def create_room():
@@ -870,7 +873,17 @@ def main():
     if args.root_path:
         options["root_path"] = args.root_path
     hosts = ["localhost", "127.0.0.1", "testserver", *args.allowed_host]
-    uvicorn.run(create_app(MotionController(backend), allowed_hosts=hosts), **options)
+    # The application must see the actual socket peer before it decides whether
+    # X-Forwarded-For or a gateway country header came from a trusted proxy.
+    uvicorn.run(
+        create_app(MotionController(backend), allowed_hosts=hosts),
+        # Preserve request.client.host as the actual socket peer; geo.py then
+        # decides whether forwarded headers came from a configured proxy.
+        proxy_headers=False,
+        # Uvicorn's access log records the peer IP; keep it out of DuckKing logs.
+        access_log=False,
+        **options,
+    )
 
 
 if __name__ == "__main__":

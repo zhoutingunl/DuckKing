@@ -22,6 +22,7 @@ class RoomRegistry:
         self.limit = primary.settings.max_rooms if primary.motion.backend.kind == "preview" else 1
         self.physics_limit = min(self.limit, primary.settings.max_physics_rooms)
         self.idle_seconds = primary.settings.room_idle_seconds
+        self.french_rooms = set(primary.settings.french_rooms)
         self.lock = asyncio.Lock()
         primary.last_used = time.monotonic()
         self.rooms = {"1": primary}
@@ -72,23 +73,40 @@ class RoomRegistry:
                 "physics_active": sum(r.scene_motion is not None for r in self.rooms.values()),
                 "idle_seconds": self.idle_seconds}
 
-    async def claim(self, *, create=False):
+    async def claim(self, *, create=False, language="zh"):
+        if language not in {"zh", "fr"}:
+            raise HTTPException(422, "不支持的房间语言")
         await self.reap()
         async with self.lock:
             now = time.monotonic()
+            if language == "fr":
+                # Each configured French room has its own provisioned identity.
+                # Never share a busy voice room with another visitor.
+                for number in self.primary.settings.french_rooms:
+                    room = self.rooms.get(number)
+                    if room is None and len(self.rooms) < self.limit:
+                        room = self._make(number)
+                        self.rooms[number] = room
+                    if room is not None and not create and not self.busy(room) \
+                            and room.reserved_until <= now:
+                        room.reserved_until = now + 15
+                        room.last_used = now
+                        return {"room": number, "voice_language": "fr"}
             if not create:
                 for number, room in self.rooms.items():
+                    if number in self.french_rooms:
+                        continue
                     if not self.busy(room) and room.reserved_until <= now:
                         room.reserved_until = now + 15
                         room.last_used = now
-                        return {"room": number}
+                        return {"room": number, **({"voice_language": "default"} if language == "fr" else {})}
             for index in range(1, self.limit + 1):
                 number = str(index)
-                if number not in self.rooms:
+                if number not in self.rooms and number not in self.french_rooms:
                     room = self._make(number)
                     room.reserved_until = now + 15
                     self.rooms[number] = room
-                    return {"room": number}
+                    return {"room": number, **({"voice_language": "default"} if language == "fr" else {})}
             raise HTTPException(409, f"房间已达上限（{self.limit}），可加入已有房间或稍后重试")
 
     async def reap(self):

@@ -39,17 +39,18 @@ bash scripts/install_release.sh <archive> <sha256> <tag> <完整commit>
 
 对外入口为 `https://duck.qbox.net/`：域名指向前置 OpenResty（OR），OR 上游为 YZH737 的 `8765`，不经过 ai_gateway。应用启动参数必须包含 `--allowed-host duck.qbox.net`；仅开放监听地址仍会返回 `Invalid host header`。OR 应保留 Host / Origin，并传递 WebSocket Upgrade / Connection。
 
-区域默认语言（欧洲访客默认法语）依赖 OR 传递 `X-Forwarded-For`：该功能在 OR 上配置 `proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;`（追加真实访客 IP），后端取**末跳**作为代理背书的访客地址，访客自带伪造头不影响。OR 侧是否已设置须在部署后实测确认（2026-11-05 时线上版本 `718379d` 尚无该接口，无法外部探测）：
+区域默认语言依赖可信代理转发。DuckKing 的 Uvicorn 保留原 socket peer；只有来源 IP 命中 DUCKKING_GEO_TRUSTED_PROXIES 时才信任 X-Forwarded-For 或网关国家码。默认只信任 loopback。代理上游地址尚未核实或转发头未到达时回退中文，不根据访客自带的 XFF/国家码选房。
 
 ```sh
-# 部署含 geo 功能的版本后，从外部验证（fr 即证明 XFF 已到达后端）：
-curl https://duck.qbox.net/api/ui-preferences -H 'X-Forwarded-For: 212.27.48.10'
-# 期望 {"language":"fr","region":"FR",...}；返回 {"language":"zh","region":null,...} 说明 OR 未传递，需改 OR 配置。
-# 或在 YZH737 上抓包观察（不依赖部署）：
-# timeout 20 tcpdump -i lo -A 'tcp port 8765 and tcp[32:4]=0x47455420'  然后从外部 curl 任意页面，看请求里是否带 x-forwarded-for。
+# 只在确认 OR→YZH737 上游源地址后加入该地址；不要使用任意网段。
+# 将 OR 到 YZH737 的真实上游源 IP 替换 OR_UPSTREAM_IP；不要填写未经核实的网段。
+# DUCKKING_GEO_TRUSTED_PROXIES=127.0.0.1/32,::1/128,OR_UPSTREAM_IP/32
+# OR 应配置：proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+# 从公网经 OR 请求 /api/ui-preferences 验证；客户端自带 XFF 不能证明代理身份。
 ```
 
-未配置该头的 OR 只会让区域功能失效（回退中文），不影响其他功能；后端也不信任首跳，伪造 XFF 只能改变访客自己的默认语言。
+未加入可信代理地址时，代理请求会回退中文；直连且不含转发头的请求根据 socket peer 查询，带未受信任转发头时回退中文。法国语音房使用 DUCKKING_FRENCH_ROOMS=2,3 配置池，池中每个房间须以 duckking-setup --room <编号> --lang-code fr 独立绑定。池满时分配独立普通房并提示语音语言可能不同。单房池最多一位访客同时使用法语语音。
+
 
 分享链接时使用完整的 HTTPS 地址。微信内打开裸域名可能进入 HTTP；此前体验统计直接调用仅安全上下文可用的 `crypto.randomUUID()`，会中断模型初始化。当前构建在应用模块启动前，将 `duck.qbox.net` 的 HTTP 页面自动切换为 HTTPS，保留页面、房间参数和锚点；同时兼容旧的 `ztmonitor.qbox.net/duckking/` 页面入口。不修改 ai_gateway 的其他页面，也不重定向 localhost、局域网地址或自定义端口。请求与统计 ID 同时兼容只有 `crypto.getRandomValues()` 的环境；远程 HTTP 页面仍不能因此获得麦克风权限。
 

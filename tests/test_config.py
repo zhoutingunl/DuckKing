@@ -28,6 +28,25 @@ def test_settings_load_scoped_secrets_and_environment_overrides(tmp_path, monkey
     assert Settings.load().data_dir == tmp_path / "state"
 
 
+def test_geo_and_french_room_pool_settings_are_validated(monkeypatch):
+    monkeypatch.setenv("DUCKKING_MAX_ROOMS", "4")
+    monkeypatch.setenv("DUCKKING_GEO_TRUSTED_PROXIES", "10.70.0.0/16,127.0.0.1")
+    monkeypatch.setenv("DUCKKING_FRENCH_ROOMS", "2,3")
+    settings = Settings.load()
+    assert settings.geo_trusted_proxies == ("10.70.0.0/16", "127.0.0.1")
+    assert settings.french_rooms == ("2", "3")
+    monkeypatch.setenv("DUCKKING_FRENCH_ROOMS", "2,2")
+    with pytest.raises(ValueError, match="不能重复"):
+        Settings.load()
+    monkeypatch.setenv("DUCKKING_FRENCH_ROOMS", "5")
+    with pytest.raises(ValueError, match="之间"):
+        Settings.load()
+    monkeypatch.setenv("DUCKKING_FRENCH_ROOMS", "2")
+    monkeypatch.setenv("DUCKKING_GEO_TRUSTED_PROXIES", "proxy.example")
+    with pytest.raises(ValueError, match="受信代理网段"):
+        Settings.load()
+
+
 @pytest.mark.parametrize("values", [{"device_id": "not-a-mac"}, {"client_id": str(uuid.uuid1())}])
 def test_bad_identity_overrides_are_rejected(tmp_path, values):
     with pytest.raises(ValueError):

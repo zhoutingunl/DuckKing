@@ -24,6 +24,29 @@ def test_rooms_allocate_atomically_and_release_viewers(tmp_path):
         assert client.post('/api/rooms/claim').json() == {"room": "1"}
 
 
+def test_french_voice_pool_allocates_distinct_rooms_and_degrades_without_sharing(tmp_path):
+    settings = Settings(data_dir=tmp_path, max_rooms=4, french_rooms=("2", "3"))
+    app = create_app(settings=settings)
+    with TestClient(app) as client:
+        first = client.post('/api/rooms/claim?language=fr').json()
+        second = client.post('/api/rooms/claim?language=fr').json()
+        assert first == {"room": "2", "voice_language": "fr"}
+        assert second == {"room": "3", "voice_language": "fr"}
+
+        # When every configured French voice room is occupied, the next visitor
+        # gets an independent general room and a visible language notice in UI.
+        app.state.rooms["2"].voice = object()
+        app.state.rooms["3"].voice = object()
+        third = client.post('/api/rooms/claim?language=fr').json()
+        assert third == {"room": "1", "voice_language": "default"}
+        assert len({first["room"], second["room"], third["room"]}) == 3
+        assert client.post('/api/rooms/claim?language=invalid').status_code == 422
+
+        # A manually created room always excludes the dedicated French pool.
+        created = client.post('/api/rooms').json()
+        assert created["room"] == "4" and created["room"] not in {"2", "3"}
+
+
 def test_room_actions_and_voice_ownership_are_separate(tmp_path):
     app = create_app(settings=Settings(data_dir=tmp_path))
     with TestClient(app) as client:

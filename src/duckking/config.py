@@ -1,6 +1,7 @@
 """Local identity and optional private settings. Public responses never expose tokens."""
 
 import hashlib
+import ipaddress
 import json
 import os
 import re
@@ -30,13 +31,24 @@ class Settings:
     room_idle_seconds: int = 300
     geo_db_dir: Path = field(default_factory=lambda: DEFAULT_GEO_DB_DIR)
     geo_country_header: str = ""
-    french_room: str = ""
+    geo_trusted_proxies: tuple[str, ...] = ("127.0.0.1/32", "::1/128")
+    french_rooms: tuple[str, ...] = ()
 
     def __post_init__(self):
         if not 1 <= self.max_rooms <= 32 or not 1 <= self.max_physics_rooms <= 32:
             raise ValueError("房间并发上限必须在 1 到 32 之间")
         if not 30 <= self.room_idle_seconds <= 86400:
             raise ValueError("空闲回收时间必须在 30 到 86400 秒之间")
+        for cidr in self.geo_trusted_proxies:
+            try:
+                ipaddress.ip_network(cidr, strict=False)
+            except ValueError as exc:
+                raise ValueError(f"无效的受信代理网段：{cidr}") from exc
+        if len(set(self.french_rooms)) != len(self.french_rooms):
+            raise ValueError("法语房间编号不能重复")
+        for room in self.french_rooms:
+            if not re.fullmatch(r"[1-9][0-9]?", room) or int(room) > self.max_rooms:
+                raise ValueError(f"法语房间必须在 1 到 {self.max_rooms} 之间：{room}")
 
     @classmethod
     def load(cls):
@@ -62,7 +74,21 @@ class Settings:
                 else DEFAULT_GEO_DB_DIR
             ),
             geo_country_header=values.get("DUCKKING_GEO_COUNTRY_HEADER", ""),
-            french_room=values.get("DUCKKING_FRENCH_ROOM", ""),
+            geo_trusted_proxies=tuple(
+                filter(
+                    None,
+                    values.get("DUCKKING_GEO_TRUSTED_PROXIES", "127.0.0.1/32,::1/128")
+                    .replace(" ", "").split(","),
+                )
+            ),
+            french_rooms=tuple(
+                filter(
+                    None,
+                    values.get(
+                        "DUCKKING_FRENCH_ROOMS", values.get("DUCKKING_FRENCH_ROOM", "")
+                    ).replace(" ", "").split(","),
+                )
+            ),
         )
 
     def for_room(self, room: str):

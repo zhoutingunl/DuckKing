@@ -9,8 +9,8 @@ import { createSocket } from './transport.js';
 import { initUILanguage } from './ui-language.js';
 
 import { setupRoom } from './room.js';
-initUILanguage();
 await setupRoom();
+await initUILanguage();
 
 const $ = (id) => document.getElementById(id);
 const names = {...actionLabels,reset:'回到起点'};

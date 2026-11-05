@@ -27,7 +27,7 @@ export function uiPreferences() {
   return prefsPromise;
 }
 
-function savedLanguage() {
+export function savedLanguage() {
   try {return localStorage.getItem(STORAGE_KEY)} catch {return null}
 }
 
@@ -110,6 +110,8 @@ export const FRENCH_STRINGS = new Map(Object.entries({
   '小鸭已经准备好了。试着让它点点头吧。': 'Le canard est prêt. Essaie de lui faire hocher la tête.',
   '使用官方 MicroDuck 外观的动画预览，不进行物理计算。灵矽语音尚未连接。':
     "Aperçu animé à l'apparence officielle du MicroDuck, sans calcul physique. La voix Linx n'est pas connectée.",
+  '界面为法语；本房间的语音语言取决于所配置的智能体。':
+    'Interface en français ; la langue vocale dépend de l’agent configuré pour ce salon.',
   // voice.js 状态徽标与连接按钮
   '正在断开连接': 'Déconnexion en cours',
   '正在连接': 'Connexion en cours',
@@ -183,6 +185,9 @@ export const FRENCH_ARIA_LABELS = new Map([
 function translateTextNodes(root) {
   const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
   for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+    // Interaction rows may contain transcripts or action text that happens to
+    // match a UI label. Keep diagnostic/user content in its original language.
+    if (node.parentElement?.closest('[role="log"],.activity-log')) continue;
     const french = FRENCH_STRINGS.get(node.nodeValue.trim());
     if (french) node.nodeValue = french;
   }

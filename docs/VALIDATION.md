@@ -2,19 +2,21 @@
 
 ## 2026-11-04 欧洲访客默认法语（IP 属地本地查询）
 
-新增功能：来自欧洲（不含英国）的访客默认获得法语体验。实现为本地进程内查询 ipdb 地址库（`neo.ipv4/ipv6.ipdb`，2024-12 构建），访客 IP 不发送到任何外部服务、不写入日志或接口响应；`DUCKKING_GEO_COUNTRY_HEADER` 可让网关直接提供国家码（如 `CF-IPCountry`），优先于本地库。规则以地址库返回的 ISO 国家码为准：地理欧洲（含瑞士、北欧诸岛、皇家属地及 TR/RU 等跨洲国家）且非 GB → 默认 `fr`；其余、私有/内网/畸形地址、库文件缺失或查询异常一律回退 `zh`。
+新增功能：来自欧洲（不含英国）的访客默认获得法语界面。本地进程查询 ipdb 地址库；访客 IP 不发送到外部服务、不写入 DuckKing 的应用或 Uvicorn access logs，也不进入接口响应。反向代理的 X-Forwarded-For / 国家码仅在 socket peer 命中 DUCKKING_GEO_TRUSTED_PROXIES 时采纳，DuckKing 关闭 Uvicorn 的代理头自动改写，直接检查 socket peer。未知代理、转发头和缺失地址库会回退中文。OR 自身是否记录请求由代理配置决定，DuckKing 无法控制 OR 日志。
 
-真实端到端验证（本机起服务 `python -m duckking.app --port 8901`，指向真实地址库与 `DUCKKING_FRENCH_ROOM=2`）：
+回归验证覆盖 GeoResolver 的可信 socket peer、伪造 XFF/国家码拒绝、本地地址库失败回退，以及法国房间池分配。OR 的真实 socket peer 尚未从线上确认。
 
-1. `X-Forwarded-For: 212.27.48.10`（法国）→ `/api/ui-preferences` 返回 `{"language":"fr","region":"FR","room":"2"}`。
-2. `X-Forwarded-For: 51.140.62.30`（英国）→ `{"language":"zh","region":"GB","room":null}`。
-3. 本机直连（无 XFF）→ `{"language":"zh","region":null,"room":null}`，内网与畸形地址不触发查询。
+回归测试：可信代理从已配置的 IP/CIDR 上追加 XFF 时采用末跳；直连伪造 XFF 或国家码则忽略。
+回归测试：法国房间池先给访客分配不同空闲房间；池满时使用独立普通房间并发出语言提示。
+回归测试：偏好接口只返回 language、region 与 French voice availability，不返回 IP 或房间号。
 
-配套链路：前端 `ui-language.js` 只翻译主工作台界面文案（语音卡、动作按钮、语音状态提示，约 90 条精确匹配字典），语音状态每次变化后重新应用；欧洲访客未手动选房时默认进入 `DUCKKING_FRENCH_ROOM` 指定房间（该房间须已用 `--lang-code fr` 初始化，见同日上一节）；`?lang=zh|fr` 与语音卡右上角开关可覆写并本地保存。日志行、语音转写与云端回复保持原样，不冒充云端输出的语言。后端 11 项新测试（含真实库集成测试，无库环境自动跳过）+ 前端 3 项 node 测试通过；全套 pytest 557 项通过、1 项（真实库集成测试）本机跳过，`ruff check src tests` 与前端 `test:unit` 及生产构建通过。
+配套链路：前端只翻译主工作台；法国语音房由 DUCKKING_FRENCH_ROOMS 配置。不同访客独立申领空闲法国房，房间池耗尽后回退独立普通房，并显示语音语言可能不同。语音转写、日志与云端回复保持原文。法语 STT→工具→TTS 尚未端到端实测。
 
-边界：法语界面翻译覆盖主工作台页，其他页面（演示、统计、训练等）仍为中文；语音转写与日志不翻译。法语的语音识别→工具调用→TTS 链路仍未端到端实测，`DUCKKING_FRENCH_ROOM` 的房间路由已在接口层验证，但与真实 fr 智能体的完整组合未在真机/真云上跑通；地址库为 2024-12 版本，个别边界 IP 的国家归属可能与最新归属有出入，以库为准。
+边界：法语界面只覆盖主工作台；法语语音链路尚未端到端实测。法国语音房需管理员逐个绑定法语智能体。可信代理地址未核实时，反向代理请求回退中文。地址库为 2024-12 版。
 
-线上 XFF 前提（2026-11-05 排查）：对外入口 `duck.qbox.net` 为前置 OpenResty → YZH737 的 8765。后端取 `X-Forwarded-For` **末跳**（唯一可信代理追加/背书的地址），访客伪造首跳或隐私插件注入垃圾值不影响判定；直连 8765 无代理时回退 socket 对端地址。线上版本 `718379d` 尚无 `/api/ui-preferences`，无法从外部探测 OR 是否传递该头；待含本功能的版本部署后按 [部署文档](../deploy/README.md) 的验证命令确认（`fr` 即证明 XFF 已到达，`zh` 且 `region:null` 则需在 OR 配置 `proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;`）。该前提缺失只影响区域默认语言，不影响其他功能。
+线上代理探测：短时限定 GET 探测未捕获可归属到测试请求的代理包，未将内部地址猜作可信代理。部署后如需地域法语默认，运维须确认 OR 的上游源 IP/CIDR 和 XFF 追加配置，再加入 DUCKKING_GEO_TRUSTED_PROXIES；不要信任整个内网网段。
+
+PR #57 合并前复核修正：原实现只取 XFF 末跳，却未验证 socket peer，直连访问者可伪造末跳；现由 CLI 关闭 Uvicorn 代理头改写，只有 socket peer 命中可信 CIDR 才使用 XFF / 国家码，并关闭会打印 peer IP 的 Uvicorn access log。原实现还把所有法国访客送入单个房间；现支持法国房间池并原子分配空闲房，池满回退独立普通房间并明确提示。法国语音房需管理员预绑定；OR peer 尚未确认时，区域功能安全回退中文。
 
 ## 2026-11-04 灵矽语言支持平台级验证（法语）
 
@@ -22,7 +24,7 @@
 
 1. `GET /v1/languages` 返回 `code: 0`，共 36 种语言，含 `fr=法语`（另有 en、ja、es、yue、de、ko、ru、pt、th、vi、ar 等）。
 2. `POST /xiaozhi/agent` 创建临时智能体 `DuckKing-FR-langcheck`（`langCode: "fr"`）返回成功；`GET /xiaozhi/agent/{id}` 查询详情确认 `langCode: fr`、`language: 法语`。
-3. `DELETE /xiaozhi/agent/{id}` 删除临时智能体返回成功；既有 DuckKing 智能体、设备绑定与聊天历史未受影响。
+3. 删除临时智能体成功；既有 DuckKing 智能体、设备绑定与聊天历史未受影响。
 
 据此新增 `duckking-setup --lang-code`：行为规则保持一份中文权威提示词，非中文语言只替换回答语言子句并追加触发词映射（当前内置 fr）；`--sync-prompt` 按智能体自身 `langCode` 同步对应提示词，不会把法语智能体覆盖回中文；无指令的语言在创建/同步前显式报错。官方文档（[Xrobot-docs](https://github.com/qiniu/Xrobot-docs)）显示音色克隆免费版仅 zh/en，法语音色需付费套餐；商务版列表未列 fr，需向七牛确认。测试新增 5 项（默认中文、法语替换、不支持语言提前失败、按语言同步、无指令语言拒绝同步），全套 pytest 与 `ruff check src tests` 本机通过。
 

@@ -1,5 +1,5 @@
 import {appURL,setRoom,setServiceInstance,setRoomUnavailable} from './urls.js';
-import {uiPreferences} from './ui-language.js';
+import {pickLanguage,savedLanguage,uiPreferences} from './ui-language.js';
 
 export function rememberChoice(key,value){const url=new URL(location.href);url.searchParams.set(key,value);history.replaceState(null,'',url)}
 export const savedChoice=key=>new URL(location.href).searchParams.get(key);
@@ -16,13 +16,13 @@ export async function setupRoom({claim=true}={}){
   bar.append(label,toggle,options);main.prepend(bar);
   const banner=document.createElement('section');banner.id='room-recovery';banner.className='room-recovery';banner.hidden=true;banner.setAttribute('role','alert');
   const heading=document.createElement('strong'),explanation=document.createElement('p'),reconnect=document.createElement('button');reconnect.id='reconnect-room';reconnect.textContent='重新连接房间';
-  banner.append(heading,explanation,reconnect);bar.after(banner);
-  let room=new URL(location.href).searchParams.get('room'),creating=false,signature='',instance=null,lost=false,polling=false,timer;
-  if(!room){
-    // Region-based default (e.g. the French room) applies only when the visitor
-    // did not explicitly pick a room; any failure keeps normal claim behaviour.
-    const prefs=await uiPreferences();
-    if(prefs?.room){room=prefs.room;rememberChoice('room',room)}
+  banner.append(heading,explanation,reconnect);
+  const roomLanguageNote=document.createElement('small');roomLanguageNote.className='room-language-note';roomLanguageNote.hidden=true;roomLanguageNote.setAttribute('role','status');
+  bar.after(banner,roomLanguageNote);
+  let room=new URL(location.href).searchParams.get('room'),creating=false,signature='',instance=null,lost=false,polling=false,timer,language='zh';
+  if(!room&&claim){
+    const preferences=await uiPreferences(),params=new URLSearchParams(location.search);
+    language=pickLanguage({urlLang:params.get('lang'),savedLang:savedLanguage(),serverLang:preferences?.language});
   }
   const urlFor=id=>{const url=new URL(location.href);url.searchParams.set('room',id);return url};
   async function request(path,method='GET'){
@@ -49,7 +49,10 @@ export async function setupRoom({claim=true}={}){
   }
   async function recover(fresh=false){
     if(creating)return;creating=true;create.disabled=reconnect.disabled=true;reconnect.textContent='正在重新连接…';
-    try{const data=await request(fresh?'api/rooms':'api/rooms/claim','POST');const url=urlFor(data.room);url.searchParams.set('reconnected','1');location.assign(url);}
+    try{
+      const path=fresh?'api/rooms':`api/rooms/claim?language=${language}`;
+      const data=await request(path,'POST');const url=urlFor(data.room);url.searchParams.set('reconnected','1');location.assign(url);
+    }
     catch(error){heading.textContent=error.message;banner.hidden=false;creating=false;reconnect.disabled=false;reconnect.textContent='重试连接';create.disabled=false;}
   }
   reconnect.addEventListener('click',()=>recover());create.addEventListener('click',()=>recover(true));
@@ -63,7 +66,13 @@ export async function setupRoom({claim=true}={}){
     finally{polling=false}
   }
   try{
-    if(!room&&claim)room=(await request('api/rooms/claim','POST')).room;
+    if(!room&&claim){
+      const data=await request(`api/rooms/claim?language=${language}`,'POST');
+      room=data.room;
+      if(language==='fr'&&data.voice_language!=='fr'){
+        roomLanguageNote.textContent='界面为法语；本房间的语音语言取决于所配置的智能体。';roomLanguageNote.hidden=false;
+      }
+    }
     room??='1';const data=await request(`api/rooms?room=${encodeURIComponent(room)}`);render(data);
     if(!data.rooms.some(r=>r.id===room))throw new Error('原房间不存在或已回收');
     instance=data.instance??null;setServiceInstance(instance);setRoomUnavailable(false);setRoom(room);

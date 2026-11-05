@@ -34,16 +34,26 @@ def is_public_ip(ip: str | None) -> bool:
         return False
 
 
-def extract_client_ip(forwarded: str | None, client_host: str | None) -> str | None:
-    """Last X-Forwarded-For hop when present, else the socket peer address.
+def is_trusted_proxy(client_host: str | None, trusted_proxies: tuple[str, ...]) -> bool:
+    if not client_host:
+        return False
+    try:
+        address = ipaddress.ip_address(client_host)
+        return any(address in ipaddress.ip_network(cidr, strict=False) for cidr in trusted_proxies)
+    except ValueError:
+        return False
 
-    Production sits behind exactly one trusted proxy (OpenResty), which either
-    appends the visitor IP or sets the header itself; the last hop is therefore
-    the proxy-attested address and defeats client-supplied spoofing. Direct
-    access without a proxy falls back to the socket peer.
-    """
+
+def extract_client_ip(
+    forwarded: str | None,
+    client_host: str | None,
+    trusted_proxies: tuple[str, ...] = (),
+) -> str | None:
+    """Extract XFF only when the socket peer is in the configured proxy ranges."""
+    if not is_trusted_proxy(client_host, trusted_proxies):
+        return client_host if not forwarded else None
     hops = [hop.strip() for hop in (forwarded or "").split(",") if hop.strip()]
-    return (hops[-1] if hops else None) or client_host or None
+    return hops[-1] if hops else None
 
 
 def language_for(country_code: str | None) -> str:
@@ -54,10 +64,14 @@ def language_for(country_code: str | None) -> str:
 class RegionResult:
     language: str
     region: str | None
-    room: str | None
+    french_voice_available: bool
 
     def public(self) -> dict:
-        return {"language": self.language, "region": self.region, "room": self.room}
+        return {
+            "language": self.language,
+            "region": self.region,
+            "french_voice_available": self.french_voice_available,
+        }
 
 
 class RegionResolver:
@@ -67,12 +81,14 @@ class RegionResolver:
         self,
         db_dir: Path | None,
         country_header: str = "",
-        french_room: str = "",
+        french_rooms: tuple[str, ...] = (),
+        trusted_proxies: tuple[str, ...] = ("127.0.0.1/32", "::1/128"),
         lookup=None,
     ):
         self.db_dir = Path(db_dir).expanduser() if db_dir else None
         self.country_header = (country_header or "").strip()
-        self.french_room = (french_room or "").strip()
+        self.french_rooms = tuple(french_rooms)
+        self.trusted_proxies = tuple(trusted_proxies)
         self._lookup = lookup or self._lookup_ipdb
         self._dbs: dict[int, object] = {}
 
@@ -98,11 +114,26 @@ class RegionResolver:
 
     def resolve(self, headers, client_ip: str | None) -> RegionResult:
         country = None
-        gateway = headers.get(self.country_header, "").strip() if self.country_header else ""
+        trusted_proxy = is_trusted_proxy(client_ip, self.trusted_proxies)
+        gateway = (
+            headers.get(self.country_header, "").strip()
+            if trusted_proxy and self.country_header
+            else ""
+        )
         if gateway:
             country = gateway.upper()
         else:
-            ip = extract_client_ip(headers.get("x-forwarded-for"), client_ip)
+            forwarded = headers.get("x-forwarded-for")
+            # Never let a direct client choose another country's room by
+            # forging XFF. If the socket peer is not a trusted proxy, use its
+            # actual IP only when no forwarded header was supplied.
+            if trusted_proxy:
+                ip = extract_client_ip(forwarded, client_ip, self.trusted_proxies)
+            else:
+                has_forwarded_country = bool(
+                    self.country_header and headers.get(self.country_header)
+                )
+                ip = None if forwarded or has_forwarded_country else client_ip
             if is_public_ip(ip):
                 try:
                     country = self._lookup(ip)
@@ -110,5 +141,8 @@ class RegionResolver:
                     logger.debug("IP 属地查询异常: %s", type(exc).__name__)
                     country = None
         language = language_for(country)
-        room = self.french_room or None if language == FRENCH_LANGUAGE else None
-        return RegionResult(language=language, region=country or None, room=room)
+        return RegionResult(
+            language=language,
+            region=country or None,
+            french_voice_available=bool(self.french_rooms),
+        )
