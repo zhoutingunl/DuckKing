@@ -73,6 +73,13 @@ class RoomRegistry:
                 "physics_active": sum(r.scene_motion is not None for r in self.rooms.values()),
                 "idle_seconds": self.idle_seconds}
 
+    @staticmethod
+    def claim_result(number, language):
+        result = {"room": number}
+        if language == "fr":
+            result["voice_language"] = "default"
+        return result
+
     async def claim(self, *, create=False, language="zh"):
         if language not in {"zh", "fr"}:
             raise HTTPException(422, "不支持的房间语言")
@@ -99,14 +106,14 @@ class RoomRegistry:
                     if not self.busy(room) and room.reserved_until <= now:
                         room.reserved_until = now + 15
                         room.last_used = now
-                        return {"room": number, **({"voice_language": "default"} if language == "fr" else {})}
+                        return self.claim_result(number, language)
             for index in range(1, self.limit + 1):
                 number = str(index)
                 if number not in self.rooms and number not in self.french_rooms:
                     room = self._make(number)
                     room.reserved_until = now + 15
                     self.rooms[number] = room
-                    return {"room": number, **({"voice_language": "default"} if language == "fr" else {})}
+                    return self.claim_result(number, language)
             raise HTTPException(409, f"房间已达上限（{self.limit}），可加入已有房间或稍后重试")
 
     async def reap(self):
