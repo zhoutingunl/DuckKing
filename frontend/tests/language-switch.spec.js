@@ -10,19 +10,25 @@ async function localModes(page){
  await page.route('**/api/voice/modes*',route=>route.fulfill({json:{local_first:true,available:true}}));
 }
 
-test('language cycles preserve the document, canvas, room and canonical status logs',async({page})=>{
+test('language cycles preserve the document, canvas, room and canonical status logs',async({page,request})=>{
  test.setTimeout(60000);
  await localModes(page);
+ // CI shares the preview room with earlier cases. Reproduce a completed
+ // historical action so it cannot accidentally satisfy this round's wait.
+ const prior=await request.post('/api/actions?room=1',{data:{name:'stop',request_id:crypto.randomUUID()}});
+ expect(prior.ok()).toBe(true);
  let modelRequests=0;
  page.on('request',request=>{if(/(?:model|manifest|\.dkm|\.glb)/.test(request.url()))modelRequests++});
  await page.goto('/?room=1&lang=zh&measurement=verification#duck');
  await expect(page.locator('#data-source')).toHaveText('本地预览');
  await expect(page.locator('#voice-mode')).toBeEnabled();
  await page.evaluate(()=>{window.originalCanvas=document.querySelector('#viewport canvas');window.originalDocument=document;});
- await page.locator('[data-action=nod]').click();
- await expect(page.locator('#activity-log')).toContainText('诊断详情');
- await expect(page.locator('#activity-log')).toContainText('完成');
+ await expect(page.locator('#activity-log')).toContainText('stop · completed');
  await expect(page.locator('#viewport')).toHaveAttribute('data-model','official',{timeout:45000});
+ await page.locator('#clear-log').click();
+ await page.locator('[data-action=nod]').click();
+ // Wait for this action's exact terminal record, not any old “completed” row.
+ await expect(page.locator('.action-diagnostics code')).toHaveText(['开始动作 · nod','nod · completed']);
  const raw=await page.locator('.action-diagnostics code').allTextContents();
  const count=modelRequests;
  for(const [lang,source,action,diagnostic] of [['fr','Aperçu local','Début du mouvement','Diagnostic'],['en','Local preview','Starting action','Diagnostics'],['zh','本地预览','开始动作','诊断详情']]){
