@@ -104,7 +104,7 @@ test('routing follows fallback, new local turn, stale generation and disconnect'
 
 test.describe('touch viewport',()=>{
 test.use({isMobile:true,hasTouch:true});
-for(const viewport of [{width:390,height:844},{width:430,height:932}])test(`mobile ${viewport.width} keeps the duck and stop beside speech and actions`,async({page,context},info)=>{
+for(const viewport of [{width:390,height:844},{width:430,height:932}])test(`mobile ${viewport.width} keeps the duck beside speech and retains one action stop`,async({page,context},info)=>{
   await page.setViewportSize(viewport);await context.grantPermissions(['microphone']);const voice=await voiceFixture(page);
   await page.goto('/?room=1');await expect(page.locator('#viewport')).toHaveAttribute('data-model','official',{timeout:45000});
   await expect(page.locator('#connect-voice')).toBeInViewport();await expect(page.locator('.room-options')).toBeHidden();
@@ -113,13 +113,13 @@ for(const viewport of [{width:390,height:844},{width:430,height:932}])test(`mobi
   await page.locator('#connect-voice').click();await expect(page.locator('#talk-button')).toBeEnabled();
   for(const selector of ['#talk-button','[data-action="nod"]','.audio-details summary']){
     await page.locator(selector).scrollIntoViewIfNeeded();
-    await expect(page.locator('#viewport')).toBeInViewport({ratio:1});await expect(page.locator('#mobile-stop')).toBeInViewport({ratio:1});
+    await expect(page.locator('#viewport')).toBeInViewport({ratio:1});await expect(page.locator('#mobile-stop')).toHaveCount(0);
     if(selector==='#talk-button'){
       await page.locator(selector).tap();await expect.poll(()=>voice.commands.includes('listen_start')).toBe(true);
     }else await page.locator(selector).click();
     await expect(page.locator('#viewport')).toBeInViewport({ratio:1});
   }
-  const accepted=page.waitForResponse(r=>new URL(r.url()).pathname==='/api/actions'&&r.request().postDataJSON()?.name==='stop');await page.locator('#mobile-stop').click();expect((await accepted).ok()).toBe(true);
+  const accepted=page.waitForResponse(r=>new URL(r.url()).pathname==='/api/actions'&&r.request().postDataJSON()?.name==='stop');await page.locator('[data-action=stop]').click();expect((await accepted).ok()).toBe(true);
   await page.locator('[data-action="nod"]').scrollIntoViewIfNeeded();await page.screenshot({path:info.outputPath('mobile-action.png')});
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
 });

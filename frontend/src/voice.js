@@ -83,6 +83,7 @@ export function setupVoice({appendLog,notify,endpoint='/voice',cloudOnly=false,b
     connect.disabled=state==='disconnecting';
     const connected=['connecting','recovering','interrupting','ready','listening','thinking','speaking'].includes(state);
     connect.classList.toggle('connected',connected);
+    connect.dataset.state=state;
     $('voice-badge').classList.toggle('connected',connected);
     let connectText=state==='disconnecting'?'正在释放语音…':connected?'断开连接':state==='awaiting_binding'?'我已绑定，重新连接':state==='busy'?'本房间释放后重试':'连接灵矽';
     if(mode==='local_first'&&['disconnected','error'].includes(state))connectText='启用语音';
