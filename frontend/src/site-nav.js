@@ -61,4 +61,9 @@ if(nav){
  }).catch(()=>{});
  wrap.append(button,menu);
  actions.append(wrap);
+ // On narrow screens the source link scrolls with the page links; only the
+ // language menu stays beside the brand. Desktop keeps both controls at right.
+ const narrow=matchMedia('(max-width:1150px)');
+ const placeSource=()=>narrow.matches?links.append(repo):actions.prepend(repo);
+ placeSource();narrow.addEventListener('change',placeSource);
 }
