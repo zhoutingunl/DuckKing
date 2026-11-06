@@ -61,3 +61,15 @@ test('missing language connection exits preparation and leaves a visible transla
  await expect(page.locator('#notice')).not.toHaveText(/[\u4e00-\u9fff]/);
  await expect(page.locator('#connect-voice')).toBeEnabled();
 });
+
+for(const language of ['fr','en'])for(const scene of ['balance','seesaw'])test(`${language}: ${scene} scene conflict stays localized and requires an explicit switch`,async({page})=>{
+ const name=scene==='balance'?'圆盘':'跷跷板';
+ const message=`本房间已有其他场景。点击“切换为${name}”会结束原场景；也可新建房间。`;
+ await page.route(`**/api/${scene}/prepare?*`,route=>route.fulfill({status:409,json:{detail:{code:'scene_conflict',message}}}));
+ await page.goto(`/${scene}.html?room=1&lang=${language}`);
+ await expect(page.locator('#notice')).toBeVisible();
+ await expect(page.locator('#notice')).toContainText(language==='fr'?'Un autre scénario':'Another scene');
+ await expect(page.locator('#notice')).not.toHaveText(/[\u4e00-\u9fff]/);
+ await expect(page.locator('#connect-voice')).toBeDisabled();
+ await expect(page.locator(scene==='balance'?'#prepare-balance':'#prepare')).toBeEnabled();
+});

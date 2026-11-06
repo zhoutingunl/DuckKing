@@ -1,5 +1,6 @@
 // UI translations only; never rewrite transcripts or user-authored content.
 export const messages = [
+  ["本房间已有其他场景。点击“切换为圆盘”会结束原场景；也可新建房间。", "Another scene is active in this room. Switching to the disc ends it; you can also create a new room.", "Un autre scénario est actif dans ce salon. Passer au disque le termine ; tu peux aussi créer un salon."],
   ["(aₜ | sₜ)。Âₜ 表示这次动作比原本预计好多少；H 是动作分布的熵；L", "(aₜ | sₜ). Âₜ measures how much better this action was than expected; H is action-distribution entropy; L", "(aₜ | sₜ). Âₜ mesure l’avantage de cette action sur la prévision ; H est l’entropie de la distribution des actions ; L"],
   ["0 cm/s 指令", "0 cm/s command", "Consigne de 0 cm/s"],
   ["1 · 用嘴夹起", "1 · Pick up with the beak", "1 · Saisir avec le bec"],
