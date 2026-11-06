@@ -1,0 +1,38 @@
+.mobile-readout-label{display:none}
+@media(max-width:760px) and (min-height:480px){
+  [data-mobile-workspace].mobile-stage-layout{display:block;--mobile-stage-height:clamp(200px,32svh,280px)}
+  .theatre-layout[data-mobile-workspace].mobile-stage-layout,[data-mobile-workspace].mobile-stage-layout:has(.mobile-stage-pair){--mobile-stage-height:clamp(240px,36svh,300px)}
+  .mobile-stage-dock{position:sticky;top:0;z-index:8;height:var(--mobile-stage-height);display:flex;flex-direction:column;min-width:0;border:1px solid #d2dcce;border-radius:14px;background:#edf0e5;box-shadow:0 3px 12px #25351a18;overflow:hidden;margin-bottom:14px}
+  .mobile-stage-views{display:flex;gap:6px;min-height:0;flex:1}
+  .mobile-stage-views>[data-mobile-stage]{display:flex;flex-direction:column;min-height:0;min-width:0;flex:1;overflow:hidden}
+  .mobile-stage-dock .stage-toolbar,.mobile-stage-dock .show-heading{flex:none;min-height:0;padding:7px 10px;gap:6px;font-size:11px;line-height:1.4}
+  .mobile-stage-dock .stage-toolbar{flex-wrap:wrap}
+  .mobile-stage-dock .stage-toolbar>strong{min-width:0;overflow-wrap:anywhere}
+  .mobile-stage-dock .subtle-button{flex:none;font-size:11px}
+  .mobile-stage-dock .show-heading h2{font-size:13px;margin:2px 0;line-height:1.3}
+  .mobile-stage-dock .show-heading span{font-size:10px}
+  .mobile-stage-dock .source-strip{flex:none;padding:0 8px 4px;gap:4px;font-size:9px}
+  .mobile-stage-dock .source-strip span{padding:2px 4px}
+  .mobile-stage-dock [data-mobile-stage] :is(#physics-viewport,#baseline-viewport,#trained-viewport,#demo-viewport,#demo-second){height:auto;min-height:0;min-width:0;flex:1;position:relative}
+  .mobile-stage-dock .stage-worlds,.mobile-stage-dock .stage-worlds:has(#demo-second:not([hidden])){flex:1;min-height:0;flex-direction:row}
+  .mobile-stage-dock :is(.comparison-heading,.seesaw-stage-heading){height:38px;min-height:38px;padding:4px 7px;align-items:center;background:#fff}
+  .mobile-stage-dock :is(.comparison-heading,.seesaw-stage-heading) h2{font-size:12px;line-height:1.25;margin:0}
+  .mobile-stage-dock :is(.comparison-heading,.seesaw-stage-heading)>span{display:none}
+  .mobile-stage-dock .human-motion{height:28px;min-height:28px;padding:2px 6px;font-size:10px;line-height:12px;overflow:hidden}
+  .mobile-stage-dock :is(.balance-result,.seesaw-result){inset:6px 6px auto;padding:6px;border-left-width:3px;font-size:13px}
+  .mobile-stage-dock .balance-result strong{font-size:15px}
+  .mobile-stage-dock .balance-result span{font-size:10px}
+  .mobile-stage-dock [data-mobile-stage] :is(.loading-feedback,#scene-placeholder,#baseline-placeholder,#stage-placeholder,.scene-placeholder){inset:0;width:auto;padding:6px;gap:4px;font-size:11px;line-height:1.4;overflow:auto}
+  .mobile-stage-dock .loading-feedback>small{font-size:10px}
+  .mobile-stage-dock .load-action{padding:5px;min-height:28px;font-size:11px}
+  .mobile-stage-dock:is(.mobile-stage-pair,:has(#demo-second:not([hidden]))) .appearance-swatch{width:28px}
+  .mobile-stage-dock:is(.mobile-stage-pair,:has(#demo-second:not([hidden]))) .appearance-swatch::before{width:18px;height:18px}
+  .mobile-stage-dock .duck-appearance{left:4px;bottom:4px;max-width:calc(100% - 8px)}
+  [data-mobile-workspace].mobile-stage-layout :is(.scene-controls,.balance-side){display:flex;flex-direction:column;gap:14px;margin-top:14px}
+  [data-mobile-workspace].mobile-stage-layout .seesaw-voice,[data-mobile-workspace].mobile-stage-layout .theatre-stage{position:static;top:auto}
+  [data-mobile-workspace].mobile-stage-layout .program{margin-top:16px}
+  [data-mobile-workspace].mobile-stage-layout .mobile-readout-label{display:block;margin:0;padding:10px 16px;color:#5c737d;font-size:12px;background:#fff}
+  [data-mobile-workspace].mobile-stage-layout :is(button,input,select,summary,a,.seesaw-arena){scroll-margin-top:calc(var(--mobile-stage-height) + 12px);scroll-margin-bottom:12px}
+  /* Focus/scroll targeting in the dock must not scroll the dock out of its workspace. */
+  [data-mobile-workspace] .mobile-stage-dock :is(button,input,select){scroll-margin:0}
+}

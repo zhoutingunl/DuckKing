@@ -1,5 +1,6 @@
 import './style.css';
 import './site-nav.css';
+import './mobile-stage.js';
 import {currentLanguage, setLanguage, initUILanguage} from './ui-language.js';
 
 await initUILanguage();

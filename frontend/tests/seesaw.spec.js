@@ -91,7 +91,8 @@ test('first left command starts a random PK; mic and both worlds stay in view',a
  const stop=await page.locator('#stop').boundingBox(),reset=await page.locator('#reset').boundingBox();
  expect(stop.height).toBe(reset.height);expect(stop.y).toBe(reset.y);
  await page.setViewportSize({width:390,height:844});
- await page.locator('#baseline-viewport').scrollIntoViewIfNeeded();
+ await page.locator('#talk-button').evaluate(el=>el.scrollIntoView({block:'center'}));
+ await expect(page.locator('#baseline-viewport')).toBeInViewport({ratio:1});await expect(page.locator('#trained-viewport')).toBeInViewport({ratio:1});
  const mic=await page.locator('#talk-button').boundingBox();expect(mic.y).toBeGreaterThanOrEqual(0);expect(mic.y+mic.height).toBeLessThan(844);
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
 });
