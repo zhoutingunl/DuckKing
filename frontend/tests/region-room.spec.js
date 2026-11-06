@@ -55,10 +55,8 @@ test('language menu saves each choice across reloads and preserves the selected 
   await expect(page.locator('html')).toHaveAttribute('lang','zh-CN');
   for(const [language,name,htmlLang] of [['en','English','en'],['fr','Français','fr'],['zh','中文','zh-CN']]){
     await page.locator('#lang-switch-button').click();
-    await Promise.all([
-      page.waitForNavigation({waitUntil:'domcontentloaded'}),
-      page.getByRole('menuitem',{name,exact:true}).click(),
-    ]);
+    await page.getByRole('menuitem',{name,exact:true}).click();
+    await expect(page.locator('.lang-menu')).toBeHidden();
     await expect(page.locator('html')).toHaveAttribute('lang',htmlLang);
     const url=new URL(page.url());
     expect(url.searchParams.get('room')).toBe('1');

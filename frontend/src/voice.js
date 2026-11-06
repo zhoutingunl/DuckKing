@@ -1,4 +1,4 @@
-import {currentLanguage} from './ui-language.js';
+import {currentLanguage,translate} from './ui-language.js';
 import {VoiceExperience} from './experience.js';
 import { PCMFramer } from './audio-codec.js';
 import { appURL } from './urls.js';
@@ -8,7 +8,6 @@ import {acquireMicrophone,microphoneError} from './microphone.js';
 import {voiceRouteText} from './voice-route.js';
 
 export function setupVoice({appendLog,notify,endpoint='/voice',cloudOnly=false,beforeListen=null,listenUnavailable=()=>''}){
-  cloudOnly ||= currentLanguage() !== 'zh';
   const $=id=>document.getElementById(id),talk=$('talk-button'),connect=$('connect-voice'),connectLabel=$('connect-label');
   let ws=null,state='disconnected',pressed=false,recording=null,timeout=null,heartbeat=null,closingTimer=null,voiceNotice=null;
   function voiceError(text){voiceNotice=text;notify(text)}
@@ -16,11 +15,42 @@ export function setupVoice({appendLog,notify,endpoint='/voice',cloudOnly=false,b
   let microphone=null,micPreparing=null,micEpoch=0,micController=null,micPhase='idle',micError='';
   const micRetry=document.createElement('button');micRetry.id='prepare-microphone';micRetry.type='button';
   micRetry.className='connect-button mic-retry';micRetry.hidden=true;$('voice-caption').after(micRetry);
-  let mode='cloud',route='cloud',modesReady=false,localAvailable=true;
+  let mode='cloud',route='cloud',modesReady=false,localAvailable=true,localSupported=false;
+  const cloudRequired=()=>cloudOnly||currentLanguage()!=='zh';
   let routeReason='',routeAsrMs,localFeedback='',spaceHeld=false;
   function clearRoute(){route=mode==='cloud'?'cloud':'local_ready';routeReason='';routeAsrMs=undefined;localFeedback='';}
   const experience=new VoiceExperience();
   const modeSelect=$('voice-mode');
+  const languageHint=document.createElement('p');languageHint.id='voice-language-hint';
+  languageHint.className='hint';languageHint.hidden=true;
+  languageHint.textContent='仅中文支持本地识别；当前语言使用灵矽云端。';
+  modeSelect?.closest('.voice-mode-row')?.after(languageHint);
+  const connectionProgress=document.createElement('p');connectionProgress.id='voice-connection-progress';
+  connectionProgress.className='hint';connectionProgress.hidden=true;
+  $('voice-caption').after(connectionProgress);
+  let connectionStarted=null,connectionTimer=null;
+  function renderConnectionProgress(){
+    const seconds=Math.floor((performance.now()-connectionStarted)/1000);
+    connectionProgress.textContent=`${ws?.readyState===WebSocket.OPEN?'正在等待语音服务就绪':'正在打开语音通道'} · ${seconds} s · 可点击断开连接取消`;
+  }
+  function syncConnectionProgress(){
+    const waiting=['connecting','recovering'].includes(state);
+    connectionProgress.hidden=!waiting;
+    if(!waiting){clearInterval(connectionTimer);connectionTimer=null;connectionStarted=null;return}
+    if(connectionStarted===null)connectionStarted=performance.now();
+    renderConnectionProgress();
+    if(connectionTimer===null)connectionTimer=setInterval(renderConnectionProgress,1000);
+  }
+  function restoreMode(){
+    let saved;try{saved=sessionStorage.getItem('duckking.voice-mode')}catch{}
+    mode=!cloudRequired()&&localSupported&&(saved==='local_first'||(!saved&&localAvailable))?'local_first':'cloud';
+    if(modeSelect){
+      modeSelect.value=mode;
+      modeSelect.querySelector('[value=local_first]').disabled=cloudRequired()||!localSupported;
+    }
+    languageHint.hidden=currentLanguage()==='zh';
+    clearRoute();update();
+  }
   const reasons={unmatched:'整句未完整匹配动作',unsupported_context:'当前场景不支持整句动作',plan_limit:'指令超出本地动作范围',empty_or_long:'识别内容不足或过长',asr_timeout:'本地识别超时',asr_unavailable:'本地识别暂不可用'};
   const stateLabel=(value=state)=>mode!=='local_first'?labels[value]??value:
     value==='ready'?'本地优先 · 已就绪':value==='disconnected'?'语音未启用':
@@ -36,6 +66,8 @@ export function setupVoice({appendLog,notify,endpoint='/voice',cloudOnly=false,b
   });
   const labels={disconnected:'未连接灵矽',disconnecting:'正在断开连接',connecting:'正在连接',recovering:'正在恢复连接',interrupting:'正在切换新指令',awaiting_binding:'等待设备绑定',ready:'灵矽已连接',listening:'正在聆听',thinking:'正在思考',speaking:'正在回答',error:'连接异常',busy:'本房间语音正在使用'};
   function update(){
+    syncConnectionProgress();
+    languageHint.hidden=currentLanguage()==='zh';
     const unavailable=listenUnavailable();
     if($('voice-route'))$('voice-route').textContent=voiceRouteText({mode,state,route,reason:routeReason,asrMs:routeAsrMs,localFeedback});
     if(mode==='local_first'&&!localAvailable&&state==='disconnected')$('voice-route').textContent='本地识别暂未就绪；本地优先模式会明确转交灵矽。';
@@ -75,19 +107,15 @@ export function setupVoice({appendLog,notify,endpoint='/voice',cloudOnly=false,b
     window.dispatchEvent(new CustomEvent('duckking-voice-state',{detail:{state,mode,route}}));
   }
   modeSelect?.addEventListener('change',()=>{
-    mode=cloudOnly?'cloud':modeSelect.value;clearRoute();
-    try{sessionStorage.setItem('duckking.voice-mode',mode)}catch{}
-    update();
+    // Persist an actual choice, never a language/page capability restriction.
+    if(!cloudRequired())try{sessionStorage.setItem('duckking.voice-mode',modeSelect.value)}catch{}
+    restoreMode();
   });
   if(modeSelect)fetch(appURL('api/voice/modes')).then(r=>{if(!r.ok)throw Error();return r.json()}).then(cap=>{
-    localAvailable=cap.available!==false;
-    modeSelect.querySelector('[value=local_first]').disabled=cloudOnly||!cap.local_first;
-    if(currentLanguage()!=='zh')modeSelect.querySelector('[value=local_first]').title='仅中文支持本地识别；当前语言使用灵矽云端。';
-    let saved;try{saved=sessionStorage.getItem('duckking.voice-mode')}catch{}
-    if(state==='disconnected')mode=!cloudOnly&&cap.local_first&&(saved==='local_first'||(!saved&&cap.available))?'local_first':'cloud';
-    modeSelect.value=mode;modesReady=true;
-    if(state==='disconnected')modeSelect.dispatchEvent(new Event('change'));else update();
-  }).catch(()=>{modesReady=true;modeSelect.querySelector('[value=local_first]').disabled=true;update()});
+    localAvailable=cap.available!==false;localSupported=!!cap.local_first;modesReady=true;
+    modeSelect.querySelector('[value=local_first]').disabled=cloudRequired()||!localSupported;
+    if(state==='disconnected')restoreMode();else update();
+  }).catch(()=>{modesReady=true;localSupported=false;modeSelect.querySelector('[value=local_first]').disabled=true;if(state==='disconnected')restoreMode();else update()});
   function send(data){if(ws?.readyState===WebSocket.OPEN)ws.send(typeof data==='object'&&!(data instanceof ArrayBuffer)?JSON.stringify(data):data)}
   function playback(data){output.enqueue(data)}
   function clearPlayback(){output.clear()}
@@ -202,7 +230,8 @@ export function setupVoice({appendLog,notify,endpoint='/voice',cloudOnly=false,b
       closingTimer=setTimeout(()=>closing?.close(),7000);return;
     }
     if(ws?.readyState===WebSocket.CONNECTING)return;
-    if(voiceNotice&&$('notice').textContent===voiceNotice)$('notice').hidden=true;
+    const notice=$('notice')??$('demo-notice');
+    if(voiceNotice&&notice&&[voiceNotice,translate(voiceNotice)].includes(notice.textContent))notice.hidden=true;
     voiceNotice=null;
     generation=minGeneration=0;clearRoute();
     state='connecting';update();
@@ -213,6 +242,7 @@ export function setupVoice({appendLog,notify,endpoint='/voice',cloudOnly=false,b
     channel.onopen=()=>{
       if(ws!==channel)return;
       send({type:'connect',mode,language:currentLanguage()});send({type:'playback_status',...output.snapshot()});
+      update();
       heartbeat=setInterval(()=>{if(ws===channel&&channel.readyState===WebSocket.OPEN)send({type:'ping'})},10000);
     };
     channel.onmessage=async(event)=>{
@@ -261,6 +291,7 @@ export function setupVoice({appendLog,notify,endpoint='/voice',cloudOnly=false,b
       else if(data.type==='playback_end'&&data.aborted){clearPlayback()}
       else if(data.type==='error'){
         voiceError(data.message);await release(false);
+        if(ws!==channel)return;
         if(['connecting','disconnected'].includes(state)){state='error';closeMicrophone();channel.close();update()}
       }
     };
@@ -292,11 +323,23 @@ export function setupVoice({appendLog,notify,endpoint='/voice',cloudOnly=false,b
   });
   window.addEventListener('keyup',event=>{if(event.code==='Space'&&spaceHeld){spaceHeld=false;event.preventDefault();void release()}});
   window.addEventListener('duckking-voice-readiness',update);
+  window.addEventListener('duckking-language-changed',()=>{
+    const active=!['disconnected','error','busy','awaiting_binding'].includes(state);
+    // Do not submit a half-recorded command or allow old-language audio/status
+    // frames to enter the new session. The next connection needs a user gesture.
+    experience.finish('cancelled');
+    send({type:'disconnect'});
+    const previous=ws;ws=null;state='disconnected';
+    clearInterval(heartbeat);clearTimeout(closingTimer);spaceHeld=false;
+    void release(false);closeMicrophone();clearPlayback();previous?.close();
+    generation=minGeneration=0;restoreMode();
+    if(active)voiceError('对话语言已切换，请重新连接语音。');
+  });
   document.addEventListener('visibilitychange',()=>{if(!document.hidden&&output.ctx)void output.resume()});
   // A history-cache restore reuses a document whose microphone and audio were closed.
   window.addEventListener('pageshow',event=>{if(event.persisted)window.location.reload()});
   window.addEventListener('duckking-room-lost',()=>{void release(false);closeMicrophone();ws?.close();clearPlayback()});
-  window.addEventListener('pagehide',()=>{clearInterval(heartbeat);clearTimeout(closingTimer);release(false);closeMicrophone();ws?.close();output.close();clearTimeout(audioReportTimer)});
+  window.addEventListener('pagehide',()=>{clearInterval(connectionTimer);clearInterval(heartbeat);clearTimeout(closingTimer);release(false);closeMicrophone();ws?.close();output.close();clearTimeout(audioReportTimer)});
   return {send, disconnect(){void release(false);closeMicrophone();if(ws?.readyState===WebSocket.OPEN)send({type:'disconnect'});else ws?.close();clearPlayback()}, get state(){return state}, clearPlayback, interrupt(){
     clearPlayback();
     if(['ready','thinking','speaking'].includes(state)){

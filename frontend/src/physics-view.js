@@ -31,7 +31,7 @@ export function physicsView(container,{label=null,onCameraChange}={}) {
   const grid=new THREE.GridHelper(8,80,0xcbd6bd,0xe0e6d7);grid.position.y=.0001;scene.add(grid);
   const world=new THREE.Group();world.rotation.x=-Math.PI/2;scene.add(world);
   let objects=new Map(),labels=new Map(),textures=[],geometries=[],materials=[],revision=null;
-  let renderBatches=[],readyToRender=false,headingGuide=null,centerGuide=null;
+  let renderBatches=[],readyToRender=false,headingGuide=null,headingTexture=null,centerGuide=null;
   const appearance=appearanceControls(container,repaint);
   function repaint(){
     for(const {object,geoms} of renderBatches){
@@ -47,6 +47,15 @@ export function physicsView(container,{label=null,onCameraChange}={}) {
     for(const [id,sprite] of labels){paintLabel(sprite.material.map.image,id);sprite.material.map.needsUpdate=true}invalidate();
   }
   if(label)container.dataset.duckLabel=label;
+  function paintHeading(canvas){
+    const context=canvas.getContext('2d');context.fillStyle='#155d85';context.fillRect(0,0,384,96);
+    context.font='bold 48px sans-serif';context.textAlign='center';context.fillStyle='#fff';context.fillText(translate('目标朝向'),192,65,360);
+  }
+  function refreshLanguage(){
+    for(const [id,sprite] of labels){paintLabel(sprite.material.map.image,id);sprite.material.map.needsUpdate=true}
+    if(headingTexture){paintHeading(headingTexture.image);headingTexture.needsUpdate=true}
+    invalidate();
+  }
   function updateHeadingGuide(state){
     // Level 2's explicit facing task targets world +X (yaw=0). Paint this on
     // the floor outside the disc, never as an obstacle or floating label.
@@ -65,9 +74,8 @@ export function physicsView(container,{label=null,onCameraChange}={}) {
         const arrow=new THREE.Mesh(geometry,material);arrow.position.set(.56,0,height);arrow.scale.setScalar(scale);arrow.renderOrder=order;headingGuide.add(arrow);
       }
       const canvas=document.createElement('canvas');canvas.width=384;canvas.height=96;
-      const context=canvas.getContext('2d');context.fillStyle='#155d85';context.fillRect(0,0,384,96);
-      context.font='bold 48px sans-serif';context.textAlign='center';context.fillStyle='#fff';context.fillText(translate('目标朝向'),192,65,360);
-      const texture=new THREE.CanvasTexture(canvas);texture.colorSpace=THREE.SRGBColorSpace;textures.push(texture);
+      paintHeading(canvas);
+      const texture=new THREE.CanvasTexture(canvas);texture.colorSpace=THREE.SRGBColorSpace;textures.push(texture);headingTexture=texture;
       const material=new THREE.MeshBasicMaterial({map:texture,side:THREE.DoubleSide,depthWrite:false});materials.push(material);
       const plane=new THREE.PlaneGeometry(.22,.055);geometries.push(plane);
       const text=new THREE.Mesh(plane,material);text.position.set(.56,-.075,.003);text.renderOrder=12;headingGuide.add(text);
@@ -110,7 +118,7 @@ export function physicsView(container,{label=null,onCameraChange}={}) {
     // Geometry disposal does not release InstancedMesh's matrix/colour buffers.
     for(const {object} of renderBatches)object.dispose();
     world.clear();geometries.forEach(g=>g.dispose());materials.forEach(m=>m.dispose());textures.forEach(t=>t.dispose());
-    geometries=[];materials=[];textures=[];renderBatches=[];readyToRender=false;revision=null;latest=null;selection=null;headingGuide=null;centerGuide=null;
+    geometries=[];materials=[];textures=[];renderBatches=[];readyToRender=false;revision=null;latest=null;selection=null;headingGuide=null;headingTexture=null;centerGuide=null;
     objects.clear();labels.clear();renderer.renderLists.dispose();appearance.setDucks([]);delete container.dataset.renderedScene;
     delete container.dataset.headingTarget;
     delete container.dataset.headingSurface;
@@ -215,6 +223,7 @@ export function physicsView(container,{label=null,onCameraChange}={}) {
     }stick.visible=false;return null;
   }
   const events=new AbortController(),listen={signal:events.signal};
+  window.addEventListener('duckking-language-changed',refreshLanguage,listen);
   renderer.domElement.addEventListener('pointerdown',event=>{pointerStart={x:event.clientX,y:event.clientY}},listen);
   renderer.domElement.addEventListener('pointermove',event=>{if(!pointerStart&&interactionMode!=='select'){hit(event);invalidate()}},listen);
   renderer.domElement.addEventListener('pointerleave',()=>{stick.visible=false;invalidate()},listen);

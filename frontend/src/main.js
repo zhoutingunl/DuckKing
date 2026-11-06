@@ -1,4 +1,4 @@
-import {logText} from './ui-language.js';
+import {setLogText} from './ui-language.js';
 import {requestId} from './ids.js';
 import {actionLabels,actionEventText,appendActionDetails} from './action-labels.js';
 import './site-nav.js';
@@ -37,7 +37,7 @@ export function appendLog(text, label='系统', error=false, raw=null) {
   const row=document.createElement('div');row.className=`log-line${error?' error':''}`;
   const time=document.createElement('span');time.className='log-time';time.textContent=new Date().toLocaleTimeString('zh-CN',{hour12:false});
   const tag=document.createElement('span');tag.className='log-label';tag.textContent=label;
-  const body=document.createElement('span');body.textContent=logText(text,label);
+  const body=document.createElement('span');setLogText(body,text,label);
   row.append(time,tag,body);if(raw&&raw!==text)appendActionDetails(row,raw);log.append(row);
   while(log.children.length>80)log.firstChild.remove();log.scrollTop=log.scrollHeight;
 }
