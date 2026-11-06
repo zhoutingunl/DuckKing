@@ -10,13 +10,13 @@
 <label>实时回复音色<select id="voice-profile"><option value="">正在读取可用音色</option></select></label>
 <label>音调 <input id="voice-pitch" type="range" min="0.8" max="1.2" step="0.02" value="1"></label><button id="apply-voice">下一句用这个声音</button>
 <div id="persona-settings" hidden><label>角色<select id="voice-persona"><option value="default">默认鸭王</option></select></label><button id="apply-persona">切换角色并重连</button><p>切换会结束旧会话。音色切换只改变声音，角色切换改变回答方式。</p></div></div><button id="stop-studio" class="stop-button" disabled>■ 停止全部任务</button></section><section class="voice-card">
-            <div class="section-heading"><h2>和小鸭聊聊</h2><span id="voice-badge" class="tag neutral">未连接灵矽</span></div>
+            <div class="section-heading"><h2>和小鸭聊聊</h2><button id="connect-voice" class="connect-button voice-toggle" disabled aria-label="连接灵矽" aria-describedby="voice-badge"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M5 11a7 7 0 0 1 14 0"/><path d="M8.5 11a3.5 3.5 0 0 1 7 0"/><circle cx="12" cy="12" r="1.1" fill="currentColor" stroke="none"/><path d="M12 13v6M9 19h6"/></svg><span class="voice-toggle-copy"><span id="voice-badge" role="status" aria-live="polite">未连接灵矽</span><span id="connect-label">连接灵矽</span></span></button></div>
             <p id="voice-intro" class="muted">连接灵矽后，按住说话，松开等待回答。</p>
             <button id="talk-button" class="talk-button" disabled aria-label="按住说话"><svg viewBox="0 0 24 24" width="25" height="25" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="8" y="2" width="8" height="13" rx="4"/><path d="M5 10v2a7 7 0 0 0 14 0v-2M12 19v3M8 22h8"/></svg><span>按住说话</span><span class="key-hint">SPACE</span></button>
             <div class="voice-caption" id="voice-caption">当前可以先用下方按钮探索动作。</div>
             <div class="voice-mode-row"><label for="voice-mode">识别方式</label><select id="voice-mode" disabled><option value="local_first">本地优先</option><option value="cloud" selected>灵矽云端</option></select></div>
             <p id="voice-route" class="voice-caption" role="status">灵矽负责识别和回复。</p>
-            <div class="voice-setup"><button id="connect-voice" class="connect-button" disabled aria-label="连接灵矽"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M5 11a7 7 0 0 1 14 0"/><path d="M8.5 11a3.5 3.5 0 0 1 7 0"/><circle cx="12" cy="12" r="1.1" fill="currentColor" stroke="none"/><path d="M12 13v6M9 19h6"/></svg><span id="connect-label">连接灵矽</span><span class="key-hint connect-hint">↗</span></button><span id="voice-connection-hint">接入模块准备中</span></div>
+            <p id="voice-connection-hint" class="voice-caption">接入模块准备中</p>
             <div class="voice-setup"><button id="enable-sound" class="text-button">启用 / 测试声音 ♪</button></div>
             <p id="audio-status" class="voice-caption" role="status">可先播放本地提示音，检查手机声音。</p>
             <details class="audio-details"><summary>声音诊断</summary><pre id="audio-diagnostics">尚未初始化声音</pre></details>

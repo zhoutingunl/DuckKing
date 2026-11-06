@@ -58,7 +58,6 @@ function action(name){
 }
 document.querySelectorAll('[data-action]').forEach(button=>button.addEventListener('click',()=>action(button.dataset.action)));
 $('reset-camera').addEventListener('click',()=>scene?.resetCamera());
-$('mobile-stop').addEventListener('click',()=>action('stop'));
 $('clear-log').addEventListener('click',()=>{$('activity-log').replaceChildren();});
 window.addEventListener('keydown',e=>{if(e.key==='Escape')action('stop');});
 function connect(){
