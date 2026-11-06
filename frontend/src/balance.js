@@ -1,3 +1,4 @@
+import {logText,translate} from './ui-language.js';
 import {createLoadingState} from './loading-state.js';
 import './site-nav.js';
 import './style.css';
@@ -27,7 +28,7 @@ const loader=createPhysicsModelLoader();
 const loadFeedback=[...document.querySelectorAll('.balance-placeholder')].map(createLoadingState);let prepareAbort;
 const notify=text=>{$('notice').hidden=false;$('notice').textContent=text};
 function appendLog(text,label='实际执行'){
- const row=document.createElement('div');row.className='log-line';const tag=document.createElement('span');tag.className='log-label';tag.textContent=label;const body=document.createElement('span');body.textContent=text;row.append(tag,body);$('activity-log').append(row);while($('activity-log').children.length>80)$('activity-log').firstChild.remove();
+ const row=document.createElement('div');row.className='log-line';const tag=document.createElement('span');tag.className='log-label';tag.textContent=label;const body=document.createElement('span');body.textContent=logText(text,label);row.append(tag,body);$('activity-log').append(row);while($('activity-log').children.length>80)$('activity-log').firstChild.remove();
 }
 await setupRoom();
 const voice=setupVoice({appendLog,notify,endpoint:'scene-voice',cloudOnly:true});
@@ -93,8 +94,8 @@ function renderState(state){
  if(baseline){baselineViewer?.update(baseline);renderSide(baseline.balance,'baseline','baseline-status')}
  updateLabels(b.phase==='idle'?$('controller').value:b.controller);
  const phases={idle:'等待同时开始',running:'同步挑战中',stopping:'两侧正在减速',settling:'判分结束 · 正在显示后续物理过程',completed:'对照结束',cancelled:'对照已停止',failed:'对照计算异常，物理已暂停'};
- const frozen=[['左侧',baseline?.balance],['右侧',b]].filter(([,side])=>side?.phase==='failed').map(([name,side])=>`${name} ${side.sim_time.toFixed(1)} s 判定失败${side.aftermath?.phase==='running'?'（物理继续）':'（已定格）'}`);
- $('comparison-status').textContent=(comparison?.enabled?`${phases[comparison.phase]??comparison.phase} · 共同进度 ${comparison.sim_time.toFixed(1)} / ${b.duration_seconds??13} s · 种子 ${b.seed} · 左侧官方基线 / 右侧${$('trained-label').textContent}`:'本轮仅运行右侧策略，左侧未参与')+(frozen.length?' · '+frozen.join('；'):'');
+ const frozen=[['左侧',baseline?.balance],['右侧',b]].filter(([,side])=>side?.phase==='failed').map(([name,side])=>translate(`${name} ${side.sim_time.toFixed(1)} s 判定失败${side.aftermath?.phase==='running'?'（物理继续）':'（已定格）'}`));
+ $('comparison-status').textContent=translate(comparison?.enabled?`${phases[comparison.phase]??comparison.phase} · 共同进度 ${comparison.sim_time.toFixed(1)} / ${b.duration_seconds??13} s · 种子 ${b.seed} · 左侧官方基线 / 右侧${$('trained-label').textContent}`:'本轮仅运行右侧策略，左侧未参与')+(frozen.length?' · '+frozen.join(' / '):'');
  $('heading-guide-note').textContent=b.level===2?'圆盘外地面的蓝色标记表示目标朝向。拖动视角只改变观看位置，不改变目标方向。':b.level===3?'盘面红色圆区是目标范围：半径8 cm，以躯干投影计；标记随盘面倾斜。进入后须连续保持1秒，离开即重新计时。':'本关允许随盘转动，不要求保持固定朝向。';
  $('challenge-goal').textContent=b.goal?.description??'正在读取本关验收条件…';
  $('center-deadline').hidden=b.level!==3;

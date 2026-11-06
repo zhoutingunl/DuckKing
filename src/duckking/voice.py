@@ -15,7 +15,7 @@ from .diagnostics import VoiceDiagnostics, redact_transcript
 from .mcp import DeviceMCP
 from .motion import Action, MotionController
 from .opus import OpusCodec
-from .voice_profiles import PersonaChoice, VoiceStyle, profiles
+from .voice_profiles import PersonaChoice, VoiceStyle, language_agent, profiles, supports_language
 
 RECORDING_LIMIT = 15.0
 RESPONSE_TIMEOUT = 20.0
@@ -56,11 +56,24 @@ class VoiceSession:
         self.pending_input = None
         self.voice_style = None
         self.persona = "default"
+        self.language = None
+
+    def set_language(self, language):
+        if self.state not in {"disconnected", "error", "awaiting_binding"}:
+            raise ValueError("请先断开语音，再切换对话语言")
+        if language is not None:
+            language_agent(self.settings, language)
+        if language != self.language:
+            self.voice_style = None
+            if language in {"en", "fr"}:
+                self.persona = "default"
+        self.language = language
 
     def profile_tools(self):
         from .studio import tool
         return [tool("duck_voice_style", "更换下轮回答的音色。只用已配置的 profile：" +
-                     "、".join(profiles(self.settings)["voices"]) +
+                     "、".join(key for key, entry in profiles(self.settings)["voices"].items()
+                              if supports_language(entry, self.language or "zh")) +
                      "。pitch 音调、speed 语速；不改变识别或智能体。", VoiceStyle)]
 
     async def set_style(self, arguments):
@@ -68,6 +81,8 @@ class VoiceSession:
         entry = profiles(self.settings)["voices"].get(choice.profile)
         if not entry:
             raise ValueError("此音色尚未训练或配置成功，请先使用已就绪音色")
+        if not supports_language(entry, self.language or "zh"):
+            raise ValueError("此音色未验证支持当前对话语言，请使用默认音色")
         self.voice_style = {"id": entry["id"], "pitch": choice.pitch,
                             "speed": choice.speed, "emotion": choice.emotion}
         self.sensitive_values.add(entry["id"])
@@ -77,6 +92,8 @@ class VoiceSession:
 
     def set_persona(self, arguments):
         choice = PersonaChoice.model_validate(arguments)
+        if self.language in {"en", "fr"} and choice.persona != "default":
+            raise ValueError("此角色尚未配置当前对话语言，请使用默认角色")
         if choice.persona != "default" and choice.persona not in profiles(self.settings)["agents"]:
             raise ValueError("此角色尚未配置")
         if self.state not in {"ready", "disconnected"}:
@@ -132,6 +149,7 @@ class VoiceSession:
 
     def status(self):
         return {"state": self.state, "activation_code": self.activation_code,
+                "language": self.language,
                 "error": self.error, "generation": self.generation,
                 "backend": self.motion.backend.kind,
                 "scene": getattr(self.motion.backend, "scene", "unknown")}
@@ -189,6 +207,8 @@ class VoiceSession:
             agent_key = "studio"
         self.agent_id = (config_profiles["agents"].get(agent_key, {}).get("id")
                          if agent_key != "default" else None)
+        if self.language and (self.language != "zh" or agent_key == "default"):
+            self.agent_id = language_agent(self.settings, self.language)
         if self.persona != "default" and not self.agent_id:
             raise ValueError("所选角色尚未配置")
         if self.agent_id:

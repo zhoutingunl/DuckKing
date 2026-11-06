@@ -29,7 +29,7 @@ function changesCell(row,expanded) {
   if(messages[row.change_state])cell.append(node('small',messages[row.change_state]));
   const entries=Array.isArray(row.changes)?row.changes.filter(item=>valid(item?.commit)&&typeof item.subject==='string').slice(0,50):[];
   const entry=item=>{
-    const line=node('div','','change-entry');line.append(commitLink(item.commit),node('span',item.subject));return line;
+    const line=node('div','','change-entry'),subject=node('span',item.subject);subject.setAttribute('data-user-content','');line.append(commitLink(item.commit),subject);return line;
   };
   entries.slice(0,3).forEach(item=>cell.append(entry(item)));
   if(entries.length>3){

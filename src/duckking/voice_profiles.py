@@ -44,12 +44,32 @@ def profiles(settings):
     return {"voices": data.get("voices", {}), "agents": data.get("agents", {})}
 
 
-def public_profiles(settings):
+def supports_language(entry, language):
+    """Older clone/persona profiles are Chinese unless explicitly verified otherwise."""
+    return language in entry.get("languages", ["zh"])
+
+
+def public_profiles(settings, language="zh"):
     config = profiles(settings)
     return {"voices": [{"key": key, "label": item.get("label", key)}
-                       for key, item in config["voices"].items()],
+                       for key, item in config["voices"].items()
+                       if supports_language(item, language)],
             "personas": [{"key": key, "label": item.get("label", key)}
-                         for key, item in config["agents"].items() if key in {"coach", "buddy"}]}
+                         for key, item in config["agents"].items() if key in {"coach", "buddy"}
+                         and language == "zh"]}
+
+
+def language_agent(settings, language):
+    """Resolve a private per-connection agent; never rebind a shared device."""
+    if not isinstance(language, str) or language not in {"zh", "en", "fr"}:
+        raise ValueError("不支持的对话语言")
+    agents = profiles(settings)["agents"]
+    entry = agents.get(f"language_{language}")
+    if entry:
+        return entry["id"]
+    if language != "zh" or any(key.startswith("language_") for key in agents):
+        raise ValueError("所选对话语言尚未配置，请联系管理员启用")
+    return None
 
 
 def store_profiles(path: Path, config):

@@ -1,5 +1,5 @@
 import {appURL,setRoom,setServiceInstance,setRoomUnavailable} from './urls.js';
-import {pickLanguage,savedLanguage,uiPreferences} from './ui-language.js';
+import {pickLanguage,savedLanguage,uiPreferences,currentLanguage} from './ui-language.js';
 
 export function rememberChoice(key,value){const url=new URL(location.href);url.searchParams.set(key,value);history.replaceState(null,'',url)}
 export const savedChoice=key=>new URL(location.href).searchParams.get(key);
@@ -19,7 +19,7 @@ export async function setupRoom({claim=true}={}){
   banner.append(heading,explanation,reconnect);
   const roomLanguageNote=document.createElement('small');roomLanguageNote.id='room-language-note';roomLanguageNote.className='room-language-note';roomLanguageNote.hidden=true;roomLanguageNote.setAttribute('role','status');
   bar.after(banner,roomLanguageNote);
-  let room=new URL(location.href).searchParams.get('room'),creating=false,signature='',instance=null,lost=false,polling=false,timer,language='zh';
+  let room=new URL(location.href).searchParams.get('room'),creating=false,signature='',instance=null,lost=false,polling=false,timer,language=currentLanguage();
   if(!room&&claim){
     const preferences=await uiPreferences(),params=new URLSearchParams(location.search);
     language=pickLanguage({urlLang:params.get('lang'),savedLang:savedLanguage(),serverLang:preferences?.language});
@@ -75,8 +75,8 @@ export async function setupRoom({claim=true}={}){
       if(['fr','en'].includes(language)&&data.voice_language!==language){
         // 译回提示文本在主工作台由字典处理；此处写入原文供匹配。
         roomLanguageNote.textContent=language==='fr'
-          ?'界面为法语；本房间的语音语言取决于所配置的智能体。'
-          :'界面为英语；本房间的语音语言取决于所配置的智能体。';
+          ?'法语对话尚未配置，请联系管理员启用；不会自动切换成中文。'
+          :'英语对话尚未配置，请联系管理员启用；不会自动切换成中文。';
         roomLanguageNote.hidden=false;
       }
     }

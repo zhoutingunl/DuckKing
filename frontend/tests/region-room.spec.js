@@ -1,8 +1,8 @@
 import {test,expect} from '@playwright/test';
 
 for(const locale of [
-  {language:'fr',region:'FR',label:'Langue',name:'Français',note:'Interface en français ; la langue vocale dépend de l’agent configuré pour ce salon.'},
-  {language:'en',region:'US',label:'Language',name:'English',note:'Interface is English; the voice language of this room depends on the configured agent.'},
+  {language:'fr',region:'FR',label:'Langue',name:'Français',note:'La voix française n’est pas configurée. Demande son activation ; aucun repli automatique vers le chinois.'},
+  {language:'en',region:'US',label:'Language',name:'English',note:'English voice is not configured. Ask the administrator to enable it; Chinese is not used as a fallback.'},
 ]){
 test(`${locale.name} default claims its language and clearly warns on voice fallback`,async({page})=>{
   const claims=[];

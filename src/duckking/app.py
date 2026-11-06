@@ -715,8 +715,10 @@ def create_app(
             room.last_used = time.monotonic()
 
     @app.get("/api/voice/profiles")
-    async def voice_profiles(room: str = "1"):
-        return public_profiles(get_room(room).settings)
+    async def voice_profiles(room: str = "1", language: str = "zh"):
+        if language not in {"zh", "en", "fr"}:
+            raise HTTPException(status_code=400, detail="不支持的对话语言")
+        return public_profiles(get_room(room).settings, language)
 
     @app.get("/api/voice/modes")
     async def voice_modes():
@@ -791,6 +793,14 @@ def create_app(
                     command = data.get("type")
                     if command == "connect":
                         mode = data.get("mode", "cloud")
+                        language = data.get("language")
+                        if language is not None and (not isinstance(language, str)
+                                                     or language not in {"zh", "en", "fr"}):
+                            raise ValueError("不支持的对话语言")
+                        # The installed offline command model/parser is Chinese.
+                        # Other languages go directly to their real Linx agent.
+                        if language in {"en", "fr"}:
+                            mode = "cloud"
                         if mode not in {"cloud", "local_first"}:
                             raise ValueError("未知语音模式")
                         if mode != "cloud" and getattr(voice_motion.backend, "scene", None) in {
@@ -815,6 +825,7 @@ def create_app(
                             room.voice = session
                         if mode == "cloud" and isinstance(session, HybridVoiceSession):
                             raise ValueError("请先断开语音，再切换模式")
+                        session.set_language(language)
                         session.start_connect()
                     elif command == "voice_style":
                         await session.set_style(data.get("settings", {}))
