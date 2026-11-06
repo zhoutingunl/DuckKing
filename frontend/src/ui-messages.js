@@ -1723,6 +1723,8 @@ export const messages = [
   ["全程站稳，允许随盘转动，不要求回中心。", "Stay upright throughout; rotating with the disc is allowed, returning to centre is not required.", "Reste debout tout le long ; tourner avec le disque est autorisé, revenir au centre n’est pas requis."],
   ["全程站稳，至少85%的控制步朝向误差小于25°，不要求回中心。", "Stay upright throughout, with heading error below 25° for at least 85% of control steps; returning to centre is not required.", "Reste debout tout le long, erreur d’orientation inférieure à 25° sur au moins 85% des pas ; revenir au centre n’est pas requis."],
   ["全程站稳，结束时躯干投影在盘心8 cm内，并已连续保持至少1秒；不要求固定朝向。", "Stay upright throughout; finish with torso projection within 8 cm of centre for at least 1 continuous second. Fixed heading is not required.", "Reste debout tout le long ; termine avec la projection du torse à moins de 8 cm du centre durant au moins 1 seconde continue. Orientation fixe non requise."],
-  ["完整运行设定时长，结尾盘速小于0.25 RPM、两倾角均小于1°；手动停止不计成功。", "Complete the configured duration; finish below 0.25 RPM with both tilts below 1°. Manual stops do not count as success.", "Termine la durée prévue, vitesse finale <0,25 RPM et deux inclinaisons <1°. Les arrêts manuels ne comptent pas comme réussite."]
+  ["完整运行设定时长，结尾盘速小于0.25 RPM、两倾角均小于1°；手动停止不计成功。", "Complete the configured duration; finish below 0.25 RPM with both tilts below 1°. Manual stops do not count as success.", "Termine la durée prévue, vitesse finale <0,25 RPM et deux inclinaisons <1°. Les arrêts manuels ne comptent pas comme réussite."],
+  ["左侧实测", "Left measurements", "Mesures à gauche"],
+  ["右侧实测", "Right measurements", "Mesures à droite"],
 ];
 export {patterns} from "./ui-patterns.js";
