@@ -1,12 +1,15 @@
 import './style.css';
 import './site-nav.css';
-import {pickLanguage, savedLanguage, storeLanguage, uiPreferences} from './ui-language.js';
+import {pickLanguage, savedLanguage, storeLanguage, uiPreferences, initUILanguage} from './ui-language.js';
+
+await initUILanguage();
 
 // Every page shares the same destinations, order and room-preservation rules.
 const destinations=[
+ ['index.html','首页'],
  ['scenarios.html','动作训练场'],['demos.html','演示场景'],
  ['studio.html','现场互动'],['training.html','训练新动作'],
- ['experience.html','使用体验',true],['statistics.html','交互统计',true],
+ ['statistics.html','交互统计',true],['experience.html','使用体验',true],
  ['deploys.html','部署记录',true],
 ];
 const languages=[['zh','中文'],['en','English'],['fr','Français']];

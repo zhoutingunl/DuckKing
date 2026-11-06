@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import {pickLanguage, TRANSLATIONS, ARIA_LABELS} from '../src/ui-language.js';
+import {pickLanguage, TRANSLATIONS, ARIA_LABELS, translate} from '../src/ui-language.js';
 
 test('language pick prefers explicit URL over saved choice over server default', () => {
   assert.equal(pickLanguage({urlLang: 'fr', savedLang: 'zh', serverLang: 'zh'}), 'fr');
@@ -22,7 +22,8 @@ test('every entry provides distinct non-empty English and French translations', 
         (translations[language] ?? '').length > 0,
         `缺少${language === 'en' ? '英语' : '法语'}翻译: ${source}`,
       );
-      assert.notEqual(source, translations[language], `翻译与原文相同: ${source}`);
+      if (/[\u4e00-\u9fff]/.test(source)) assert.notEqual(source, translations[language], `翻译与原文相同: ${source}`);
+      assert.doesNotMatch(translations[language], /[\u4e00-\u9fff]/, `未翻译完整: ${source}`);
     }
   }
   for (const [source, translations] of ARIA_LABELS) {
@@ -52,4 +53,33 @@ test('key voice-panel copy and nav destinations stay covered', () => {
   ]) {
     assert.ok(TRANSLATIONS.has(key), `字典缺少原文: ${key}`);
   }
+});
+
+
+test('dynamic labels and multiline translation are idempotent', () => {
+  for (const language of ['en','fr']) {
+    for (const text of ['本地预览','房间 12 · 独立语音与场景',
+      '3 / 32 个房间 · 物理场景 1 / 4','未收录内容\n保持原样',
+      '使用官方 MicroDuck 外观的动画预览，不进行物理计算。灵矽语音已连接。']) {
+      const once=translate(text,language);
+      assert.equal(translate(once,language),once);
+    }
+    assert.doesNotMatch(translate('房间 12 · 独立语音与场景',language),/[\u4e00-\u9fff]/);
+    assert.doesNotMatch(translate('本地预览',language),/[\u4e00-\u9fff]/);
+  }
+});
+
+test('joined explanation and live status translate without losing sentences',()=>{
+  const explanation='4 × exp(−(距停靠中心 / 12 cm)²)。配重越靠近红色区中心，得分越高；奖励的是配重的位置，不是鸭子回中。';
+  for(const language of ['fr','en']){
+    const result=translate(explanation+' 等候实际采样。',language);
+    assert.doesNotMatch(result,/[\u4e00-\u9fff]/);
+    assert.equal(translate(result,language),result);
+    assert.match(result,/4 × exp/);
+  }
+});
+
+test('localized status preserves user-authored cue names even when they match a UI phrase',()=>{
+  assert.equal(translate('当前口令：点点头；通过 2，拒绝 1','fr'),'Mot-clé actuel : 点点头 ; acceptés 2, refusés 1');
+  assert.equal(translate('待确认暗号：下班，第 2 版','en'),'Shortcut awaiting confirmation: 下班, version 2');
 });

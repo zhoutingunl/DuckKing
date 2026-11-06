@@ -89,11 +89,12 @@ class RoomRegistry:
                 "physics_active": sum(r.scene_motion is not None for r in rooms.values()),
                 "idle_seconds": self.idle_seconds}
 
-    @staticmethod
-    def claim_result(number, language):
+    def claim_result(self, number, language):
         result = {"room": number}
         if language in {"fr", "en"}:
-            result["voice_language"] = "default"
+            from .voice_profiles import profiles
+            available = f"language_{language}" in profiles(self.primary.settings)["agents"]
+            result["voice_language"] = language if available else "default"
         return result
 
     def assign(self, room, number, owner):

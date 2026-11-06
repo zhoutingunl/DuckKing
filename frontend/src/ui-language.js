@@ -1,15 +1,17 @@
-// Region-aware default UI language for the main workbench page.
+// Region-aware language for every page and its real-time interface states.
 // The backend decides the default from a local IP database; the visitor can
 // always override with ?lang=zh|en|fr or the nav "语言" menu (stored locally).
-// Logs, transcripts and cloud data stay as produced; only interface labels
-// from the dictionary below are translated.
+// Human/cloud transcripts and diagnostic data retain their original content.
 
 import {appURL} from './urls.js';
+import {messages, patterns} from './ui-messages.js';
 
 const STORAGE_KEY = 'duckking-ui-language';
 const LANGUAGES = new Set(['zh', 'en', 'fr']);
 
-let prefsPromise = null;
+let prefsPromise = null, readyPromise = null, observer = null;
+let activeLanguage = 'zh';
+export const currentLanguage = () => activeLanguage;
 
 export function pickLanguage({urlLang, savedLang, serverLang} = {}) {
   for (const candidate of [urlLang, savedLang, serverLang]) {
@@ -35,14 +37,14 @@ export function storeLanguage(language) {
   try {localStorage.setItem(STORAGE_KEY, language)} catch {}
 }
 
-// 只覆盖主工作台界面文案；键为页面或 voice.js 写入的原文，值为各语言替换。
-// 日志行、转写文本和错误提示保持原文，不冒充云端输出的语言。
+// Shared UI copy, including dynamic status/error labels. Authored transcripts
+// stay in their original language and are never presented as translated cloud output.
 export const TRANSLATIONS = new Map(Object.entries({
   'DuckKing · 语音与动作工作台': {
     en: 'DuckKing · Voice & Motion Workbench',
     fr: 'DuckKing · Atelier voix et mouvements',
   },
-  '让一句话，': {en: 'Say one sentence,', fr: 'Dites une phrase,'},
+  '让一句话，': {en: 'Say one sentence,', fr: 'Dites une phrase, '},
   '变成一个动作。': {en: 'make it an action.', fr: 'elle devient une action.'},
   '遇见你的虚拟小鸭。先打个招呼，再一起迈出第一步。': {
     en: 'Meet your virtual duck. Say hello, then take the first step together.',
@@ -260,44 +262,125 @@ export const ARIA_LABELS = new Map(Object.entries({
   '清空显示': {en: 'Clear', fr: 'Effacer'},
 }));
 
+for (const [source, en, fr] of messages) TRANSLATIONS.set(source, {en, fr});
+
+// Long sentences are often joined with a live status. Index by their first two
+// characters, so translating an update does not scan the whole catalogue.
+const sentencePrefixes = new Map();
+for (const source of TRANSLATIONS.keys()) {
+  if (source.length < 8 || !/[。；！？]$/.test(source)) continue;
+  const key=source.slice(0,2), entries=sentencePrefixes.get(key)??[];
+  entries.push(source);sentencePrefixes.set(key,entries);
+}
+for (const entries of sentencePrefixes.values()) entries.sort((a,b)=>b.length-a.length);
+
+export function translate(text, language = activeLanguage) {
+  if (typeof text !== 'string' || language === 'zh') return text;
+  const source = text.trim();
+  let translated = TRANSLATIONS.get(source)?.[language];
+  if (!translated && !/[\u4e00-\u9fff]/.test(source)) return text;
+  if (!translated) {
+    const prefix=sentencePrefixes.get(source.slice(0,2))?.find(key=>source.startsWith(key));
+    if(prefix) translated=TRANSLATIONS.get(prefix)[language]+' '+translate(source.slice(prefix.length).trim(),language);
+  }
+  if (!translated) {
+    for (const [pattern, en, fr, allowContent, rawValues] of patterns) {
+      const match = source.match(pattern);
+      if (match) {
+        const values = match.slice(1).map((value,index) => rawValues?.includes(index) ? value : translate(value, language));
+        if (!allowContent && values.some(value => /[\u4e00-\u9fff]/.test(value ?? ''))) continue;
+        translated = (language === 'fr' ? fr : en)(...values); break;
+      }
+    }
+  }
+  if (!translated && /^(?: ·|· |；)/.test(source)) {
+    const prefix=source.match(/^(?:·\s*|；)/)?.[0];
+    if(prefix) translated=prefix+translate(source.slice(prefix.length),language);
+  }
+  if (!translated && /[\u4e00-\u9fff]/.test(source) && /[。；\n]| · /.test(source)) {
+    const parts = source.match(/[^。\n]+。?|\n/g) ?? [];
+    if (parts.length > 1) {
+      const values = parts.map(part => translate(part, language));
+      if (values.some((value, index) => value !== parts[index])) translated = values.join('');
+    }
+    else if (source.includes('；')) translated=source.split('；').map(part=>translate(part,language)).join('; ');
+    else if (source.includes(' · ')) translated = source.split(' · ').map(part => translate(part, language)).join(' · ');
+  }
+  if (!translated) return text;
+  return text.slice(0, text.indexOf(source)) + translated + text.slice(text.indexOf(source) + source.length);
+}
+// Preserve what a person or the cloud actually said, including mixed-language input.
+export function logText(text, label) {
+  return ['你说','灵矽','本地识别','本地反馈','本地任务提醒'].includes(label) ? text : translate(text);
+}
+const protectedContent = 'script,style,code,pre:not([data-ui-text]),[translate="no"],[data-user-content]';
+function translateNode(node, language) {
+  if (node.parentElement?.closest(protectedContent)) return;
+  // Transcripts are content, not UI. Explicitly marked status rows are translated.
+  if (node.parentElement?.closest('[role="log"],.activity-log') && !node.parentElement?.closest('[data-ui-text],.log-label,.empty-log')) return;
+  const value = translate(node.nodeValue, language);
+  if (value !== node.nodeValue) node.nodeValue = value;
+}
 function translateTextNodes(root, language) {
   const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
   for (let node = walker.nextNode(); node; node = walker.nextNode()) {
-    // Interaction rows may contain transcripts or action text that happens to
-    // match a UI label. Keep diagnostic/user content in its original language.
-    if (node.parentElement?.closest('[role="log"],.activity-log')) continue;
-    const entry = TRANSLATIONS.get(node.nodeValue.trim());
-    if (entry?.[language]) node.nodeValue = entry[language];
+    translateNode(node, language);
   }
 }
 
 function translateAriaLabels(root, language) {
-  for (const element of root.querySelectorAll('[aria-label]')) {
-    const entry = ARIA_LABELS.get(element.getAttribute('aria-label'));
-    if (entry?.[language]) element.setAttribute('aria-label', entry[language]);
+  const elements = [...(root.querySelectorAll?.('[aria-label],[title],[placeholder],[alt]') ?? [])];
+  if (root.nodeType === 1) elements.push(root);
+  for (const element of elements) {
+    if (element.closest(protectedContent)) continue;
+    for (const attribute of ['aria-label','title','placeholder','alt']) {
+      const source = element.getAttribute(attribute);
+      if (!source) continue;
+      const value = ARIA_LABELS.get(source)?.[language] ?? translate(source, language);
+      if (value !== source) element.setAttribute(attribute, value);
+    }
   }
 }
 
 export function applyInterface(language, root = document) {
   if (typeof document === 'undefined' || language === 'zh') return;
-  translateTextNodes(root, language);
-  translateAriaLabels(root, language);
-  document.documentElement.lang = language;
+  if (root.nodeType === 3) translateNode(root, language);
+  else {translateTextNodes(root, language); translateAriaLabels(root, language);}
 }
 
-export async function initUILanguage() {
-  const urlLang = new URLSearchParams(location.search).get('lang');
-  if (LANGUAGES.has(urlLang)) {
-    storeLanguage(urlLang);
-  }
-  const prefs = await uiPreferences();
-  const language = pickLanguage({urlLang, savedLang: savedLanguage(), serverLang: prefs?.language});
-  if (language !== 'zh') {
-    applyInterface(language);
-    // voice.js rewrites its captions on every state change; reapply after each one.
-    window.addEventListener('duckking-voice-state', () => applyInterface(language));
-  } else {
-    document.documentElement.lang = 'zh-CN';
-  }
-  return language;
+export function initUILanguage() {
+  if (readyPromise) return readyPromise;
+  readyPromise = (async () => {
+    const urlLang = new URLSearchParams(location.search).get('lang');
+    if (LANGUAGES.has(urlLang)) storeLanguage(urlLang);
+    const saved = savedLanguage();
+    const prefs = LANGUAGES.has(urlLang) || LANGUAGES.has(saved) ? null : await uiPreferences();
+    activeLanguage = pickLanguage({urlLang, savedLang:saved, serverLang:prefs?.language});
+    document.documentElement.lang = activeLanguage === 'zh' ? 'zh-CN' : activeLanguage;
+    document.getElementById('audio-diagnostics')?.setAttribute('data-ui-text','');
+    if (activeLanguage !== 'zh') {
+      applyInterface(activeLanguage);
+      // Only visit changed subtrees. Microtasks run before paint, so real-time
+      // physics/voice updates cannot expose a Chinese frame between translations.
+      observer = new MutationObserver(records => {
+        const roots = new Set();
+        for (const record of records) {
+          if (record.type === 'childList') for (const node of record.addedNodes) roots.add(node);
+          else roots.add(record.target);
+        }
+        for (const root of roots) if (root.isConnected) applyInterface(activeLanguage, root);
+      });
+      observer.observe(document.documentElement, {subtree:true, childList:true, characterData:true,
+        attributes:true, attributeFilter:['aria-label','title','placeholder','alt']});
+      window.addEventListener('pagehide', () => observer.disconnect());
+      window.addEventListener('pageshow', event => {
+        if (!event.persisted) return;
+        applyInterface(activeLanguage);
+        observer.observe(document.documentElement, {subtree:true,childList:true,characterData:true,
+          attributes:true,attributeFilter:['aria-label','title','placeholder','alt']});
+      });
+    }
+    return activeLanguage;
+  })();
+  return readyPromise;
 }

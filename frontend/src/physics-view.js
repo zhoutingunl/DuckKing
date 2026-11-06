@@ -1,3 +1,4 @@
+import {translate} from './ui-language.js';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import {appearanceControls,appearanceFor,studioEnvironment} from './duck-appearance.js';
@@ -40,7 +41,7 @@ export function physicsView(container,{label=null,onCameraChange}={}) {
     invalidate();
   }
   const instanceMatrix=new THREE.Matrix4();
-  function paintLabel(canvas,id){const context=canvas.getContext('2d');context.clearRect(0,0,192,72);context.fillStyle=({a:'#526d32',b:'#3f6580',c:'#987033',d:'#865872'}[id]??'#526d32');context.fillRect(0,0,192,72);context.font='40px sans-serif';context.textAlign='center';context.fillStyle='#fff';context.fillText(label??`鸭 ${id.toUpperCase()}`,96,51)}
+  function paintLabel(canvas,id){const context=canvas.getContext('2d');context.clearRect(0,0,192,72);context.fillStyle=({a:'#526d32',b:'#3f6580',c:'#987033',d:'#865872'}[id]??'#526d32');context.fillRect(0,0,192,72);context.font='40px sans-serif';context.textAlign='center';context.fillStyle='#fff';context.fillText(translate(label??`鸭 ${id.toUpperCase()}`),96,51,180)}
   function setLabel(text){
     if(disposed||text===label)return;label=text;container.dataset.duckLabel=text??'';
     for(const [id,sprite] of labels){paintLabel(sprite.material.map.image,id);sprite.material.map.needsUpdate=true}invalidate();
@@ -65,7 +66,7 @@ export function physicsView(container,{label=null,onCameraChange}={}) {
       }
       const canvas=document.createElement('canvas');canvas.width=384;canvas.height=96;
       const context=canvas.getContext('2d');context.fillStyle='#155d85';context.fillRect(0,0,384,96);
-      context.font='bold 48px sans-serif';context.textAlign='center';context.fillStyle='#fff';context.fillText('目标朝向',192,65);
+      context.font='bold 48px sans-serif';context.textAlign='center';context.fillStyle='#fff';context.fillText(translate('目标朝向'),192,65,360);
       const texture=new THREE.CanvasTexture(canvas);texture.colorSpace=THREE.SRGBColorSpace;textures.push(texture);
       const material=new THREE.MeshBasicMaterial({map:texture,side:THREE.DoubleSide,depthWrite:false});materials.push(material);
       const plane=new THREE.PlaneGeometry(.22,.055);geometries.push(plane);

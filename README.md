@@ -118,9 +118,21 @@ uv run duckking-setup --key-file ~/.secrets/lingxi
 uv run duckking-setup --room 2
 ```
 
-初始化显式创建或复用专用 DuckKing 智能体并绑定设备，不在页面加载时执行。也可按页面激活码在灵矽控制台绑定。手工设备凭证填写到 `~/.secrets/duckking.env`，参考 [.env.example](.env.example)，权限设为 600；设备 token 不等于平台管理 Key。新增工具后重新连接语音；已有专用智能体可用 `uv run duckking-setup --sync-prompt` 备份并同步工具提示词。新建时可用 `--lang-code` 选择交互语言（默认 `zh`，法语为 `fr`；行为规则保持中文权威版本，仅切换回答语言并追加触发词映射。云端接受 36 种语种、法语配置已平台级验证，但法语语音链路尚未端到端实测，见 [验证记录](docs/VALIDATION.md)）。
+初始化显式创建或复用专用 DuckKing 智能体并绑定设备，不在页面加载时执行。也可按页面激活码在灵矽控制台绑定。手工设备凭证填写到 `~/.secrets/duckking.env`，参考 [.env.example](.env.example)，权限设为 600；设备 token 不等于平台管理 Key。新增工具后重新连接语音；已有中文智能体可用 `uv run duckking-setup --sync-prompt` 备份并同步工具提示词。多语言配置和同步使用下方的 `--language-profile`，同时验证语种、音色和自动识别语言开关。
 
-**按地区默认语言：美国/英国→英语，欧洲（非英国）→法语，其他→中文。** 部署方可放置本地 IP 地址库并在服务器内查询，访客 IP 不发送到外部服务或写入日志。反向代理转发的地址和国家码只有在 socket 来源配置到 `DUCKKING_GEO_TRUSTED_PROXIES` 后才会被接受；未配置的转发头会被忽略（线上若全部回退中文，先检查这一项）。欧洲（非英国）访客默认获得法语主工作台与法语语音房间，美国/英国访客默认获得英语主工作台与英语语音房间；语音房间分别通过 `DUCKKING_FRENCH_ROOMS`、`DUCKKING_ENGLISH_ROOMS` 配置一个或多个用 `duckking-setup --lang-code fr|en` 初始化的房间，系统按语言申领空闲房，不共用忙碌的语音房。对应房间池满时分配独立普通房间，并提示语音语言由所配置的智能体决定；英语与法语智能体的提示词同时声明理解中文（和彼此）并按用户所说语言回答。界面语言可由 `?lang=zh|en|fr` 或顶部导航最右侧的「语言」菜单覆盖（本地保存），导航中「源代码」位于「部署记录」之后、「语言」之前。英语/法语的语音识别多语言能力是提示词层面的声明，云端 STT 的实际多语识别效果尚未端到端验收，详见验证记录。
+**按地区默认语言：美国/英国→英语，欧洲（非英国）→法语，其他→中文。** 地区查询使用服务器本地 IP 库，代理头仅在来源命中 `DUCKKING_GEO_TRUSTED_PROXIES` 时受信任；未核实代理时回退中文。十个页面共用中英法界面，覆盖动态状态、提示、动作标签与训练说明；用户转写和真实云端回复保留原文。顶部最右「语言」同时选择界面与下一次灵矽会话的默认回答语言，选择后保留房间并重新加载；手机上固定在品牌右侧第一行。所有页面顶部都有「首页」入口；导航顺序为首页、动作训练场、演示场景、现场互动、训练新动作、交互统计、使用体验、部署记录、源代码、语言。`?lang=zh|en|fr` 可覆盖默认并保存选择。
+
+首次启用多语言，在服务的数据目录下执行一次：
+
+```bash
+uv run duckking-setup --language-profile --lang-code zh
+uv run duckking-setup --language-profile --lang-code en
+uv run duckking-setup --language-profile --lang-code fr
+```
+
+语言智能体存于私有 `voice-profiles.json` 的 `language_zh/en/fr` 白名单；每次连接按所选语言发送 `X-Agent-ID`，不需要重新绑定设备，也不必给每种语言预留房间。已有 `DUCKKING_FRENCH_ROOMS` / `DUCKKING_ENGLISH_ROOMS` 仍可作为分房偏好，但不能代替语言智能体配置。缺少目标语言配置时明确报错，不偷偷用中文回复。当前离线命令链仅支持中文；英语/法语直接使用灵矽云端。预录剧场音轨仍为中文，界面明确标注；不会将它们称为法语实连回复。
+
+已用系统合成的法语/英语口令验证真实灵矽 STT → 点头工具完成 → 对应语言语音回复及自动告别，见 [验证记录](docs/VALIDATION.md)。这不等于 iPhone 真机、真人口音或噪声环境已验收。
 
 回答或思考时按住“打断并说话”，立即清空旧播放并录制新命令；每次最多录音 15 秒。无进展的回答有超时保护、一次重连及手动“重置语音”，不会重放旧录音。iPhone 的 Chrome / 企业微信首次使用先点“启用 / 测试声音”；麦克风权限与声音播放权限不同。详情见 [声音排查](docs/DEVELOPMENT.md#移动端声音排查) 和 [日志与恢复](docs/DEVELOPMENT.md#语音诊断与恢复)。
 

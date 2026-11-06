@@ -1,3 +1,4 @@
+import {logText} from './ui-language.js';
 import {createLoadingState} from './loading-state.js';
 import './site-nav.js';
 import './style.css';
@@ -22,7 +23,7 @@ const notify=message=>{$('notice').textContent=message;$('notice').hidden=false}
 function appendLog(text,label='实际执行'){
  const row=document.createElement('div');row.className='log-line';
  const tag=document.createElement('span');tag.className='log-label';tag.textContent=label;
- const body=document.createElement('span');body.textContent=text;row.append(tag,body);$('activity-log').append(row);
+ const body=document.createElement('span');body.textContent=logText(text,label);row.append(tag,body);$('activity-log').append(row);
  while($('activity-log').children.length>80)$('activity-log').firstChild.remove();
 }
 function controls(){

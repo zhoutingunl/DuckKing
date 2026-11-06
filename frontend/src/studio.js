@@ -1,3 +1,4 @@
+import {logText,currentLanguage} from './ui-language.js';
 import {createLoadingState} from './loading-state.js';
 import {requestId} from './ids.js';
 import {actionEventText,appendActionDetails} from './action-labels.js';
@@ -22,7 +23,7 @@ const loadingFeedback=createLoadingState($('scene-placeholder'));let loadAbort,l
 let viewer,selected=null,revision=null,latest=null,loading=false,connected=false,voiceState='disconnected',epoch=0,seen=0;
 try{viewer=physicsView($('physics-viewport'))}catch{$('scene-placeholder').textContent='WebGL 无法启动；仍可查看任务结果。'}
 const notify=text=>{$('notice').textContent=text;$('notice').hidden=false};
-function appendLog(text,label='任务',error=false,raw=null){const row=document.createElement('div');row.className=`log-line${error?' error':''}`;const tag=document.createElement('span');tag.className='log-label';tag.textContent=label;const body=document.createElement('span');body.textContent=text;row.append(tag,body);if(raw&&raw!==text)appendActionDetails(row,raw);$('activity-log').append(row);while($('activity-log').children.length>80)$('activity-log').firstChild.remove()}
+function appendLog(text,label='任务',error=false,raw=null){const row=document.createElement('div');row.className=`log-line${error?' error':''}`;const tag=document.createElement('span');tag.className='log-label';tag.textContent=label;const body=document.createElement('span');body.textContent=logText(text,label);row.append(tag,body);if(raw&&raw!==text)appendActionDetails(row,raw);$('activity-log').append(row);while($('activity-log').children.length>80)$('activity-log').firstChild.remove()}
 const voiceBusy=()=>!['disconnected','error','busy','awaiting_binding'].includes(voiceState);
 function controls(){
  document.querySelectorAll('[data-studio]').forEach(b=>b.disabled=loading||voiceBusy()||!STUDIO_SCENES.find(s=>s.id===b.dataset.studio).ready);
@@ -109,7 +110,7 @@ window.addEventListener('duckking-room-lost',()=>{loadAbort?.abort();choir.stop(
 const voice=setupVoice({appendLog,notify,endpoint:'scene-voice',cloudOnly:true});connect();
 
 async function loadVoiceProfiles(){
- const data=await api('api/voice/profiles',currentRoom);
+ const data=await api(`api/voice/profiles?language=${currentLanguage()}`,currentRoom);
  for(const [id,entries] of [['voice-profile',data.voices],['voice-persona',[{key:'default',label:'默认鸭王'},...data.personas]]]){
   const select=$(id);select.replaceChildren();
   for(const entry of entries){const option=document.createElement('option');option.value=entry.key;option.textContent=entry.label;select.append(option)}

@@ -49,7 +49,7 @@ bash scripts/install_release.sh <archive> <sha256> <tag> <完整commit>
 # 从公网经 OR 请求 /api/ui-preferences 验证；客户端自带 XFF 不能证明代理身份。
 ```
 
-未加入可信代理地址时，代理请求会回退中文；直连且不含转发头的请求根据 socket peer 查询，带未受信任转发头时回退中文。法国语音房使用 DUCKKING_FRENCH_ROOMS=2,3 配置池，池中每个房间须以 duckking-setup --room <编号> --lang-code fr 独立绑定。池满时分配独立普通房并提示语音语言可能不同。单房池最多一位访客同时使用法语语音。
+未加入可信代理地址时，代理请求会回退中文；直连且不含转发头的请求根据 socket peer 查询，带未受信任转发头时回退中文。每个房间均可通过连接时选择语言智能体使用中英法语；先在实际服务数据目录分别运行 `duckking-setup --language-profile --lang-code zh`、`en`、`fr`（见根目录 README）。对应私有 `voice-profiles.json` 必须在版本目录外持久保存，不能入库。无需重绑设备；每个房间仍保持独立身份与语音独占。旧 `DUCKKING_FRENCH_ROOMS` / `DUCKKING_ENGLISH_ROOMS` 仅作为分房偏好，不能代替该配置。未配置的语言会报错，不回退中文。
 
 
 分享链接时使用完整的 HTTPS 地址。微信内打开裸域名可能进入 HTTP；此前体验统计直接调用仅安全上下文可用的 `crypto.randomUUID()`，会中断模型初始化。当前构建在应用模块启动前，将 `duck.qbox.net` 的 HTTP 页面自动切换为 HTTPS，保留页面、房间参数和锚点；同时兼容旧的 `ztmonitor.qbox.net/duckking/` 页面入口。不修改 ai_gateway 的其他页面，也不重定向 localhost、局域网地址或自定义端口。请求与统计 ID 同时兼容只有 `crypto.getRandomValues()` 的环境；远程 HTTP 页面仍不能因此获得麦克风权限。

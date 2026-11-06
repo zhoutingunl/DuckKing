@@ -205,8 +205,14 @@ test('source link sits before the language menu at the right edge without viewpo
   const source=await page.locator('.home-nav .repo-link').boundingBox();
   const lang=await page.locator('.lang-switch').boundingBox();
   const nav=await page.locator('.home-nav').boundingBox();
-  expect(source.x+source.width).toBeLessThanOrEqual(lang.x);
-  expect(Math.abs(nav.x+nav.width-lang.x-lang.width)).toBeLessThan(2);
+  if(width>1150){
+   expect(source.x+source.width).toBeLessThanOrEqual(lang.x);
+   expect(Math.abs(nav.x+nav.width-lang.x-lang.width)).toBeLessThan(2);
+  }else{
+   const brand=await page.locator('.brand').boundingBox();
+   expect(Math.abs(lang.y+lang.height/2-brand.y-brand.height/2)).toBeLessThan(5);
+   expect(nav.y).toBeGreaterThanOrEqual(lang.y+lang.height);
+  }
   await expect(page.locator('.home-nav .repo-link')).toBeInViewport({ratio:1});
   await page.locator('#lang-switch-button').click();
   await expect(page.getByRole('menuitem')).toHaveCount(3);

@@ -235,8 +235,17 @@ def main():
         action="store_true",
         help="备份并同步已有 DuckKing 智能体的提示词，不创建或重新绑定设备",
     )
+    parser.add_argument("--language-profile", action="store_true",
+                        help="配置每个房间均可选择的语言智能体，不修改设备绑定")
     args = parser.parse_args()
     try:
+        if args.language_profile:
+            from .language_setup import setup_language_profile
+            result = asyncio.run(
+                setup_language_profile(Settings.load(), args.key_file, args.lang_code)
+            )
+            print(json.dumps(result, ensure_ascii=False))
+            return
         result = asyncio.run(
             setup_device(
                 Settings.load().for_room(args.room),

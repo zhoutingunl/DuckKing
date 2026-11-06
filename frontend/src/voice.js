@@ -1,3 +1,4 @@
+import {currentLanguage} from './ui-language.js';
 import {VoiceExperience} from './experience.js';
 import { PCMFramer } from './audio-codec.js';
 import { appURL } from './urls.js';
@@ -7,6 +8,7 @@ import {acquireMicrophone,microphoneError} from './microphone.js';
 import {voiceRouteText} from './voice-route.js';
 
 export function setupVoice({appendLog,notify,endpoint='/voice',cloudOnly=false,beforeListen=null,listenUnavailable=()=>''}){
+  cloudOnly ||= currentLanguage() !== 'zh';
   const $=id=>document.getElementById(id),talk=$('talk-button'),connect=$('connect-voice'),connectLabel=$('connect-label');
   let ws=null,state='disconnected',pressed=false,recording=null,timeout=null,heartbeat=null,closingTimer=null,voiceNotice=null;
   function voiceError(text){voiceNotice=text;notify(text)}
@@ -80,6 +82,7 @@ export function setupVoice({appendLog,notify,endpoint='/voice',cloudOnly=false,b
   if(modeSelect)fetch(appURL('api/voice/modes')).then(r=>{if(!r.ok)throw Error();return r.json()}).then(cap=>{
     localAvailable=cap.available!==false;
     modeSelect.querySelector('[value=local_first]').disabled=cloudOnly||!cap.local_first;
+    if(currentLanguage()!=='zh')modeSelect.querySelector('[value=local_first]').title='仅中文支持本地识别；当前语言使用灵矽云端。';
     let saved;try{saved=sessionStorage.getItem('duckking.voice-mode')}catch{}
     if(state==='disconnected')mode=!cloudOnly&&cap.local_first&&(saved==='local_first'||(!saved&&cap.available))?'local_first':'cloud';
     modeSelect.value=mode;modesReady=true;
@@ -203,13 +206,13 @@ export function setupVoice({appendLog,notify,endpoint='/voice',cloudOnly=false,b
     voiceNotice=null;
     generation=minGeneration=0;clearRoute();
     state='connecting';update();
-    if(ws?.readyState===WebSocket.OPEN){send({type:'connect',mode});void prepareMicrophone();return}
+    if(ws?.readyState===WebSocket.OPEN){send({type:'connect',mode,language:currentLanguage()});void prepareMicrophone();return}
     let receivedStatus=false;
     let owner=true;
     const channel=createSocket(endpoint);ws=channel;
     channel.onopen=()=>{
       if(ws!==channel)return;
-      send({type:'connect',mode});send({type:'playback_status',...output.snapshot()});
+      send({type:'connect',mode,language:currentLanguage()});send({type:'playback_status',...output.snapshot()});
       heartbeat=setInterval(()=>{if(ws===channel&&channel.readyState===WebSocket.OPEN)send({type:'ping'})},10000);
     };
     channel.onmessage=async(event)=>{
@@ -256,7 +259,10 @@ export function setupVoice({appendLog,notify,endpoint='/voice',cloudOnly=false,b
       }
       else if(data.type==='audio'){try{await playback(data)}catch(error){notify(error.message)}}
       else if(data.type==='playback_end'&&data.aborted){clearPlayback()}
-      else if(data.type==='error'){notify(data.message);await release(false)}
+      else if(data.type==='error'){
+        voiceError(data.message);await release(false);
+        if(['connecting','disconnected'].includes(state)){state='error';closeMicrophone();channel.close();update()}
+      }
     };
     channel.onclose=async()=>{
       if(ws!==channel)return;
