@@ -26,6 +26,15 @@ for(const language of ['fr','en'])test(`${language}: every page localizes visibl
    }return result;
   });
   expect(missing,`${name} untranslated UI`).toEqual([]);
+  // Reverse translation must work on existing nodes, without a page reload.
+  await page.locator('#lang-switch-button').click();
+  await page.locator('[role=menuitem][data-lang=zh]').click();
+  await expect(page.locator('.nav-destinations a').first()).toHaveText('首页');
+  await expect(page.locator('#lang-switch-button')).toHaveText('语言');
+  await page.locator('#lang-switch-button').click();
+  await page.locator(`[role=menuitem][data-lang=${language}]`).click();
+  await expect(page.locator('.nav-destinations a').first()).toHaveText(language==='fr'?'Accueil':'Home');
+  await expect(page.locator('#lang-switch-button')).toHaveText(language==='fr'?'Langue':'Language');
  }
  expect(errors).toEqual([]);
 });

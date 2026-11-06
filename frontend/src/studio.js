@@ -1,4 +1,4 @@
-import {logText,currentLanguage} from './ui-language.js';
+import {setLogText,currentLanguage} from './ui-language.js';
 import {createLoadingState} from './loading-state.js';
 import {requestId} from './ids.js';
 import {actionEventText,appendActionDetails} from './action-labels.js';
@@ -23,7 +23,7 @@ const loadingFeedback=createLoadingState($('scene-placeholder'));let loadAbort,l
 let viewer,selected=null,revision=null,latest=null,loading=false,connected=false,voiceState='disconnected',epoch=0,seen=0;
 try{viewer=physicsView($('physics-viewport'))}catch{$('scene-placeholder').textContent='WebGL 无法启动；仍可查看任务结果。'}
 const notify=text=>{$('notice').textContent=text;$('notice').hidden=false};
-function appendLog(text,label='任务',error=false,raw=null){const row=document.createElement('div');row.className=`log-line${error?' error':''}`;const tag=document.createElement('span');tag.className='log-label';tag.textContent=label;const body=document.createElement('span');body.textContent=logText(text,label);row.append(tag,body);if(raw&&raw!==text)appendActionDetails(row,raw);$('activity-log').append(row);while($('activity-log').children.length>80)$('activity-log').firstChild.remove()}
+function appendLog(text,label='任务',error=false,raw=null){const row=document.createElement('div');row.className=`log-line${error?' error':''}`;const tag=document.createElement('span');tag.className='log-label';tag.textContent=label;const body=document.createElement('span');setLogText(body,text,label);row.append(tag,body);if(raw&&raw!==text)appendActionDetails(row,raw);$('activity-log').append(row);while($('activity-log').children.length>80)$('activity-log').firstChild.remove()}
 const voiceBusy=()=>!['disconnected','error','busy','awaiting_binding'].includes(voiceState);
 function controls(){
  document.querySelectorAll('[data-studio]').forEach(b=>b.disabled=loading||voiceBusy()||!STUDIO_SCENES.find(s=>s.id===b.dataset.studio).ready);
@@ -109,15 +109,27 @@ const previous=savedChoice('studio'),previousButton=[...document.querySelectorAl
 window.addEventListener('duckking-room-lost',()=>{loadAbort?.abort();choir.stop();loadingFeedback.cancel()});
 const voice=setupVoice({appendLog,notify,endpoint:'scene-voice',cloudOnly:true});connect();
 
+let profileRequest=0;
 async function loadVoiceProfiles(){
- const data=await api(`api/voice/profiles?language=${currentLanguage()}`,currentRoom);
+ const request=++profileRequest,language=currentLanguage();
+ const previousValues=new Map(['voice-profile','voice-persona'].map(id=>[id,$(id).value]));
+ $('apply-voice').disabled=$('apply-persona').disabled=true;
+ for(const id of previousValues.keys()){$(id).replaceChildren();$(id).disabled=true}
+ let data;
+ try{data=await api(`api/voice/profiles?language=${language}`,currentRoom)}
+ catch(error){if(request===profileRequest&&language===currentLanguage())throw error;return}
+ if(request!==profileRequest||language!==currentLanguage())return;
  for(const [id,entries] of [['voice-profile',data.voices],['voice-persona',[{key:'default',label:'默认鸭王'},...data.personas]]]){
-  const select=$(id);select.replaceChildren();
+  const select=$(id),previous=previousValues.get(id);select.replaceChildren();select.disabled=!entries.length;
   for(const entry of entries){const option=document.createElement('option');option.value=entry.key;option.textContent=entry.label;select.append(option)}
+  if(entries.some(entry=>entry.key===previous))select.value=previous;
   if(!entries.length){const option=document.createElement('option');option.textContent='尚未配置克隆音色';option.value='';select.append(option)}
  }
- $('apply-voice').disabled=!data.voices.length;
+ $('apply-voice').disabled=!data.voices.length;$('apply-persona').disabled=false;
 }
+window.addEventListener('duckking-language-changed',()=>{
+ if(['voice','persona'].includes(selected?.id))void loadVoiceProfiles().catch(error=>notify(error.message));
+});
 $('apply-voice').addEventListener('click',()=>{
  if(voice.state!=='ready'){notify('先连接灵矽，等待就绪后再切换声音');return}
  voice.send({type:'voice_style',settings:{profile:$('voice-profile').value,pitch:Number($('voice-pitch').value),speed:1,emotion:'neutral'}});

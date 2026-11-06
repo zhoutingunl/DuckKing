@@ -18,7 +18,7 @@ export function actionEventText(event){
 }
 export function appendActionDetails(row,raw){
   const details=document.createElement('details');details.className='action-diagnostics';
-  const summary=document.createElement('summary');summary.textContent='诊断详情';
+  const summary=document.createElement('summary');summary.textContent='诊断详情';summary.setAttribute('data-ui-text','');
   const text=document.createElement('code');text.textContent=raw;
   details.append(summary,text);row.append(details);
 }

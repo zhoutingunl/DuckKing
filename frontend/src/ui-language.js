@@ -44,7 +44,7 @@ export const TRANSLATIONS = new Map(Object.entries({
     en: 'DuckKing · Voice & Motion Workbench',
     fr: 'DuckKing · Atelier voix et mouvements',
   },
-  '让一句话，': {en: 'Say one sentence,', fr: 'Dites une phrase, '},
+  '让一句话，': {en: 'Say one sentence, ', fr: 'Dites une phrase, '},
   '变成一个动作。': {en: 'make it an action.', fr: 'elle devient une action.'},
   '遇见你的虚拟小鸭。先打个招呼，再一起迈出第一步。': {
     en: 'Meet your virtual duck. Say hello, then take the first step together.',
@@ -309,16 +309,23 @@ export function translate(text, language = activeLanguage) {
   if (!translated) return text;
   return text.slice(0, text.indexOf(source)) + translated + text.slice(text.indexOf(source) + source.length);
 }
-// Preserve what a person or the cloud actually said, including mixed-language input.
-export function logText(text, label) {
-  return ['你说','灵矽','本地识别','本地反馈','本地任务提醒'].includes(label) ? text : translate(text);
+// Retain canonical UI copy per node, including when switching back to Chinese.
+// If application code changes a node, that new value becomes its source.
+const textSources = new WeakMap(), attributeSources = new WeakMap();
+const transcriptLabels = new Set(['你说','灵矽','本地识别','本地反馈','本地任务提醒']);
+export function setLogText(element, text, label) {
+  element.setAttribute(transcriptLabels.has(label) ? 'data-user-content' : 'data-ui-text', '');
+  element.textContent = text;
 }
 const protectedContent = 'script,style,code,pre:not([data-ui-text]),[translate="no"],[data-user-content]';
 function translateNode(node, language) {
   if (node.parentElement?.closest(protectedContent)) return;
   // Transcripts are content, not UI. Explicitly marked status rows are translated.
   if (node.parentElement?.closest('[role="log"],.activity-log') && !node.parentElement?.closest('[data-ui-text],.log-label,.empty-log')) return;
-  const value = translate(node.nodeValue, language);
+  const previous = textSources.get(node);
+  const source = previous?.rendered === node.nodeValue ? previous.source : node.nodeValue;
+  const value = translate(source, language);
+  textSources.set(node, {source, rendered:value});
   if (value !== node.nodeValue) node.nodeValue = value;
 }
 function translateTextNodes(root, language) {
@@ -333,19 +340,47 @@ function translateAriaLabels(root, language) {
   if (root.nodeType === 1) elements.push(root);
   for (const element of elements) {
     if (element.closest(protectedContent)) continue;
+    const sources = attributeSources.get(element) ?? new Map();
+    attributeSources.set(element, sources);
     for (const attribute of ['aria-label','title','placeholder','alt']) {
-      const source = element.getAttribute(attribute);
-      if (!source) continue;
+      const current = element.getAttribute(attribute), previous = sources.get(attribute);
+      if (current === null) {sources.delete(attribute); continue;}
+      const source = previous?.rendered === current ? previous.source : current;
       const value = ARIA_LABELS.get(source)?.[language] ?? translate(source, language);
-      if (value !== source) element.setAttribute(attribute, value);
+      sources.set(attribute, {source, rendered:value});
+      if (value !== current) element.setAttribute(attribute, value);
     }
   }
 }
 
 export function applyInterface(language, root = document) {
-  if (typeof document === 'undefined' || language === 'zh') return;
+  if (typeof document === 'undefined') return;
   if (root.nodeType === 3) translateNode(root, language);
   else {translateTextNodes(root, language); translateAriaLabels(root, language);}
+}
+
+function translateChanges(records) {
+  const roots = new Set();
+  for (const record of records) {
+    if (record.type === 'childList') for (const node of record.addedNodes) roots.add(node);
+    else roots.add(record.target);
+  }
+  for (const root of roots) if (root.isConnected) applyInterface(activeLanguage, root);
+}
+const observeOptions = {subtree:true, childList:true, characterData:true,
+  attributes:true, attributeFilter:['aria-label','title','placeholder','alt']};
+
+export function setLanguage(language) {
+  if (!LANGUAGES.has(language)) return;
+  // Resolve pending UI writes using the old language before changing it.
+  if (observer) translateChanges(observer.takeRecords());
+  const previous = activeLanguage;
+  activeLanguage = language; storeLanguage(language);
+  document.documentElement.lang = language === 'zh' ? 'zh-CN' : language;
+  const url = new URL(location.href); url.searchParams.delete('lang');
+  history.replaceState(history.state, '', url);
+  applyInterface(language);
+  if (previous !== language) window.dispatchEvent(new CustomEvent('duckking-language-changed', {detail:{language, previous}}));
 }
 
 export function initUILanguage() {
@@ -358,28 +393,16 @@ export function initUILanguage() {
     activeLanguage = pickLanguage({urlLang, savedLang:saved, serverLang:prefs?.language});
     document.documentElement.lang = activeLanguage === 'zh' ? 'zh-CN' : activeLanguage;
     document.getElementById('audio-diagnostics')?.setAttribute('data-ui-text','');
-    if (activeLanguage !== 'zh') {
+    applyInterface(activeLanguage);
+    // Observe Chinese too: later language changes reuse the document and model.
+    observer = new MutationObserver(translateChanges);
+    observer.observe(document.documentElement, observeOptions);
+    window.addEventListener('pagehide', () => observer.disconnect());
+    window.addEventListener('pageshow', event => {
+      if (!event.persisted) return;
       applyInterface(activeLanguage);
-      // Only visit changed subtrees. Microtasks run before paint, so real-time
-      // physics/voice updates cannot expose a Chinese frame between translations.
-      observer = new MutationObserver(records => {
-        const roots = new Set();
-        for (const record of records) {
-          if (record.type === 'childList') for (const node of record.addedNodes) roots.add(node);
-          else roots.add(record.target);
-        }
-        for (const root of roots) if (root.isConnected) applyInterface(activeLanguage, root);
-      });
-      observer.observe(document.documentElement, {subtree:true, childList:true, characterData:true,
-        attributes:true, attributeFilter:['aria-label','title','placeholder','alt']});
-      window.addEventListener('pagehide', () => observer.disconnect());
-      window.addEventListener('pageshow', event => {
-        if (!event.persisted) return;
-        applyInterface(activeLanguage);
-        observer.observe(document.documentElement, {subtree:true,childList:true,characterData:true,
-          attributes:true,attributeFilter:['aria-label','title','placeholder','alt']});
-      });
-    }
+      observer.observe(document.documentElement, observeOptions);
+    });
     return activeLanguage;
   })();
   return readyPromise;

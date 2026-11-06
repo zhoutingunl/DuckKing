@@ -24,6 +24,7 @@ export async function setupRoom({claim=true}={}){
     const preferences=await uiPreferences(),params=new URLSearchParams(location.search);
     language=pickLanguage({urlLang:params.get('lang'),savedLang:savedLanguage(),serverLang:preferences?.language});
   }
+  window.addEventListener('duckking-language-changed',()=>{language=currentLanguage();roomLanguageNote.hidden=true});
   const urlFor=id=>{const url=new URL(location.href);url.searchParams.set('room',id);return url};
   async function request(path,method='GET'){
     const response=await fetch(appURL(path),{method,cache:'no-store',signal:AbortSignal.timeout(10000)});

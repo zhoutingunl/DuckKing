@@ -1,5 +1,10 @@
 // UI translations only; never rewrite transcripts or user-authored content.
 export const messages = [
+  ["开始动作", "Starting action", "Début du mouvement"],
+  ["对话语言已切换，请重新连接语音。", "Conversation language changed. Reconnect voice to use it.", "Langue de conversation modifiée. Reconnecte la voix pour l’utiliser."],
+  ["正在打开语音通道", "Opening the voice channel", "Ouverture du canal vocal"],
+  ["正在等待语音服务就绪", "Waiting for the voice service", "En attente du service vocal"],
+  ["可点击断开连接取消", "Click Disconnect to cancel", "Clique sur Déconnecter pour annuler"],
   ["本房间已有其他场景。点击“切换为圆盘”会结束原场景；也可新建房间。", "Another scene is active in this room. Switching to the disc ends it; you can also create a new room.", "Un autre scénario est actif dans ce salon. Passer au disque le termine ; tu peux aussi créer un salon."],
   ["(aₜ | sₜ)。Âₜ 表示这次动作比原本预计好多少；H 是动作分布的熵；L", "(aₜ | sₜ). Âₜ measures how much better this action was than expected; H is action-distribution entropy; L", "(aₜ | sₜ). Âₜ mesure l’avantage de cette action sur la prévision ; H est l’entropie de la distribution des actions ; L"],
   ["0 cm/s 指令", "0 cm/s command", "Consigne de 0 cm/s"],

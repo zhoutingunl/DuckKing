@@ -198,7 +198,7 @@ test('stopping the table song silences every music node and cancels the real cho
  await expect(page.locator('#theatre-result')).toHaveCount(0);
 });
 
-test('source link sits before the language menu at the right edge without viewport overlap',async({page})=>{
+test('source link stays at the desktop edge and scrolls with mobile navigation',async({page})=>{
  for(const language of ['zh','en','fr'])for(const width of [1440,820,390]){
   await page.setViewportSize({width,height:900});await page.goto(`/?lang=${language}`);
   await expect(page.locator('html')).toHaveAttribute('lang',language==='zh'?'zh-CN':language);
@@ -208,16 +208,22 @@ test('source link sits before the language menu at the right edge without viewpo
   if(width>1150){
    expect(source.x+source.width).toBeLessThanOrEqual(lang.x);
    expect(Math.abs(nav.x+nav.width-lang.x-lang.width)).toBeLessThan(2);
+   await expect(page.locator('.home-nav .repo-link')).toBeInViewport({ratio:1});
   }else{
    const brand=await page.locator('.brand').boundingBox();
    expect(Math.abs(lang.y+lang.height/2-brand.y-brand.height/2)).toBeLessThan(5);
    expect(nav.y).toBeGreaterThanOrEqual(lang.y+lang.height);
+   await expect(page.locator('.nav-destinations a').last()).toHaveClass('repo-link');
+   const overflows=await page.locator('.nav-destinations').evaluate(el=>el.scrollWidth>el.clientWidth+1);
+   await page.locator('.repo-link').scrollIntoViewIfNeeded();
+   const scrolled=await page.locator('.repo-link').boundingBox();
+   if(overflows)expect(scrolled.x).toBeLessThan(source.x-10);
   }
   await expect(page.locator('.home-nav .repo-link')).toBeInViewport({ratio:1});
   await page.locator('#lang-switch-button').click();
   await expect(page.getByRole('menuitem')).toHaveCount(3);
   for(const option of await page.getByRole('menuitem').all())await expect(option).toBeInViewport({ratio:1});
-  // Scrolling destinations must leave source/language controls reachable.
+  // Source is reachable at the end of navigation; language never scrolls away.
   await page.locator('.nav-destinations a').last().scrollIntoViewIfNeeded();
   await expect(page.locator('.home-nav .repo-link')).toBeInViewport({ratio:1});
   await expect(page.locator('#lang-switch-button')).toBeInViewport({ratio:1});

@@ -1,4 +1,4 @@
-import {translate} from './ui-language.js';
+import {setLogText} from './ui-language.js';
 import {createLoadingState} from './loading-state.js';
 import {requestId} from './ids.js';
 import './site-nav.js';
@@ -30,11 +30,11 @@ let tableTracks=null,trackError=null,trackLoading=false,trackEpoch=0,preview=nul
 const controlsBusy=value=>document.querySelectorAll('[data-idle-control]').forEach(el=>{el.disabled=value});
 const message=(role,text)=>{$('caption-role').textContent=role;$('caption').toggleAttribute('data-user-content',['灵矽识别到','灵矽实时回答'].includes(role));$('caption').textContent=text};
 const status=text=>$('show-status').textContent=text;
-function entry(text,state='completed',original=false){const item=document.createElement('li');item.toggleAttribute('data-user-content',original);item.textContent=text;item.dataset.status=state;$('demo-timeline').append(item);}
+function entry(text,state='completed',original=false,label=''){const item=document.createElement('li');if(label){const prefix=document.createElement('span'),body=document.createElement('span');prefix.textContent=label;body.toggleAttribute('data-user-content',original);body.textContent=text;item.append(prefix,body)}else{item.toggleAttribute('data-user-content',original);item.textContent=text}item.dataset.status=state;$('demo-timeline').append(item);}
 function error(text){$('demo-notice').textContent=text;$('demo-notice').hidden=false;}
 function mode(){const live=$('demo-mode').value==='live';$('mode-note').textContent=live?'预录指令发往真实灵矽，现场识别和回答；依赖网络。':'本地编排 + 实时物理仿真；不使用麦克风。';$('voice-source').textContent=live?'预录指令 · 灵矽实时回答':'预录台词 · 本地编排';}
 $('demo-mode').addEventListener('change',mode);
-const stageVoice=setupVoice({endpoint:'/scene-voice',cloudOnly:true,appendLog:(text,label)=>entry(label+' · '+text),notify:error,beforeListen:async()=>{const stage=stages.get(currentRoom);if(!current||(!stageInteractive&&!current.completed)||DEMOS[selected]?.id!=='stage')throw Error('请先进入第13幕现场互动');await syncStageOrder(stage)}});
+const stageVoice=setupVoice({endpoint:'/scene-voice',cloudOnly:true,appendLog:(text,label)=>{const item=document.createElement('li'),prefix=document.createElement('span'),body=document.createElement('span');prefix.textContent=label+' · ';setLogText(body,text,label);item.append(prefix,body);item.dataset.status='completed';$('demo-timeline').append(item)},notify:error,beforeListen:async()=>{const stage=stages.get(currentRoom);if(!current||(!stageInteractive&&!current.completed)||DEMOS[selected]?.id!=='stage')throw Error('请先进入第13幕现场互动');await syncStageOrder(stage)}});
 const stageVoiceBusy=()=>!['disconnected','error','busy','awaiting_binding'].includes(stageVoice.state);
 $('stage-play').addEventListener('change',()=>{stageInteractive=$('stage-play').value==='interactive'});
 function renderSelection(state){
@@ -177,7 +177,7 @@ async function voiceFor(run,room){
   if(run.voiceMap?.has(room))return run.voiceMap.get(room);run.voiceMap??=new Map();
   const voice=new DemoVoice(room,output,data=>{
     if(current!==run||run.signal.aborted)return;
-    if(data.type==='transcript'){message(data.role==='user'?'灵矽识别到':'灵矽实时回答',data.text);entry(translate(data.role==='user'?'识别：':'灵矽：')+data.text,'completed',true);}
+    if(data.type==='transcript'){message(data.role==='user'?'灵矽识别到':'灵矽实时回答',data.text);entry(data.text,'completed',true,data.role==='user'?'识别：':'灵矽：');}
     if(data.type==='voice_status')status('灵矽 · '+({connecting:'正在连接',ready:'已就绪',listening:'收取预录指令',thinking:'正在思考',speaking:'正在回答',interrupting:'切换新指令'}[data.state]??data.state));
   });run.voices.push(voice);await voice.connect(run.signal);run.voiceMap.set(room,voice);return voice;
 }

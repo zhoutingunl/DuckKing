@@ -1,4 +1,4 @@
-import {logText} from './ui-language.js';
+import {setLogText} from './ui-language.js';
 import {createLoadingState,loadingError} from './loading-state.js';
 import {actionLabels as names,resultLabels as statuses,actionEventText,appendActionDetails} from './action-labels.js';
 import './site-nav.js';
@@ -28,7 +28,7 @@ function syncSceneError(error){
   if(error)notify(error,'scene');
   else if(noticeOwner==='scene'){$('notice').hidden=true;noticeOwner=null;}
 }
-function appendLog(text,label='场景',error=false,raw=null){const row=document.createElement('div');row.className=`log-line${error?' error':''}`;for(const [value,cls] of [[new Date().toLocaleTimeString('zh-CN',{hour12:false}),'log-time'],[label,'log-label'],[logText(text,label),'']]){const span=document.createElement('span');span.textContent=value;span.className=cls;row.append(span);}if(raw&&raw!==text)appendActionDetails(row,raw);$('activity-log').append(row);while($('activity-log').children.length>80)$('activity-log').firstChild.remove();$('activity-log').scrollTop=$('activity-log').scrollHeight;}
+function appendLog(text,label='场景',error=false,raw=null){const row=document.createElement('div');row.className=`log-line${error?' error':''}`;for(const [value,cls] of [[new Date().toLocaleTimeString('zh-CN',{hour12:false}),'log-time'],[label,'log-label'],[text,'']]){const span=document.createElement('span');if(cls)span.textContent=value;else setLogText(span,value,label);span.className=cls;row.append(span);}if(raw&&raw!==text)appendActionDetails(row,raw);$('activity-log').append(row);while($('activity-log').children.length>80)$('activity-log').firstChild.remove();$('activity-log').scrollTop=$('activity-log').scrollHeight;}
 const chorus=createChorus(text=>$('chorus-status').textContent=text);
 function listenUnavailable(){
   if(!online||!scene)return '请先选择场景，等小鸭显示后再说话。';
