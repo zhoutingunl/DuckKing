@@ -20,12 +20,16 @@ EVENTS = {
     "stt", "tts_start", "tts_stop", "tts_sentence", "tool_start", "tool_end",
     "timeout", "reset", "connection_error", "connection_closed", "command_error",
     "action_start", "action_end",
-    "voice_route", "local_asr", "local_end",
+    "voice_route", "local_asr", "local_end", "cloud_connect",
 }
 ENUMS = {
     "output_state": {"uninitialized", "running", "suspended", "interrupted", "closed"},
     "state": STATES,
     "mode": {"cloud", "local_first"},
+    "language": {"zh", "en", "fr", "unspecified"},
+    "agent_profile": {"default", "studio", "coach", "buddy",
+                      "language_zh", "language_en", "language_fr"},
+    "device_route": {"room", "language_device"},
     "source": {"local", "linx"},
     "route": {"local", "cloud_fallback", "no_speech"},
     "reason": {

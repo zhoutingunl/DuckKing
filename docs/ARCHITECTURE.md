@@ -135,9 +135,9 @@ flowchart TB
 
 `site-nav.js` 在十个页面统一初始化 `ui-language.js`。语言按 URL、已保存选择、地区默认的顺序确定；词典和参数化模板覆盖静态文案与动态状态。MutationObserver 只处理变更节点，在绘制前恢复所选语言，避免物理状态流把“本地预览”等标签写回中文。3D 画布标签直接调用翻译函数。语音转写、云端原话、提交内容和原始诊断保持原文，不借翻译伪造云端输出。
 
-`voice.js` 的连接指令包含 `language`；后台仅接受 zh/en/fr，从私有 `voice-profiles.json` 解析对应智能体，通过官方 `X-Agent-ID` 握手头选择本次会话。ID 不返回浏览器，不改设备绑定。缺失语言配置报错并可重试；语言切换重建会话，保持房间所有权。英语/法语强制云端，中文仍支持离线优先。未标记支持相应语言的克隆音色不列出也不能强行选择；角色切换目前仅支持中文配置。
+`voice.js` 的连接指令包含 `language`；后台仅接受 zh/en/fr，从私有 `voice-profiles.json` 解析对应智能体，通过官方 `X-Agent-ID` 握手头选择本次会话。英法语使用 `bound_device` 配置：`language_device.py` 从当前房间的 `languages/en|fr` 选择预绑定设备，校验私有 binding.json 与当前智能体及设备身份匹配；不继承原房间的固定 token 或身份覆盖。身份、ID 不返回浏览器，原房间绑定不变。实测仅切换 Header 时普通法语回复正常、闲置告别仍为中文，所以不能把 Header 选择等同于全链路语言切换。缺失语言配置报错并可重试；语言切换重建会话，保持房间所有权。英语/法语强制云端，中文仍支持离线优先。未标记支持相应语言的克隆音色不列出也不能强行选择；角色切换目前仅支持中文配置。
 
-`language_setup.py` 是显式运维入口：复用中文 DuckKing，为英语/法语创建或更新独立智能体，验证 langCode、兼容 TTS 音色和 `extra.asr.enable_auto_lang`。更新专用智能体前保存私有备份。提示词要求默认语言用于欢迎、动作确认、错误和告别。旧房间语言池不再是语言切换的必需条件。配置成功不代表真实语音测试通过，实际证据单列于 [验证记录](VALIDATION.md)。
+`language_setup.py` 是显式运维入口：复用中文 DuckKing，为英语/法语创建或更新独立智能体，验证 langCode、兼容 TTS 音色和 `extra.asr.enable_auto_lang`。更新专用智能体前保存私有备份。随后运维对每个房间执行 `--language-device --lang-code en|fr`，为新身份显式绑定并回读校验；普通页面连接不使用管理 Key，也不触发设备绑定。提示词要求默认语言用于欢迎、动作确认、错误和告别。旧房间语言池不再是语言切换的必需条件。配置成功不代表真实语音测试通过，实际证据单列于 [验证记录](VALIDATION.md)。
 
 官方协议依据：[智能体与音色切换](https://linx.qiniu.com/docs/xrobot/platform/agent-voice-switch)、[智能体 API](https://linx.qiniu.com/docs/xrobot/api/agent)。
 

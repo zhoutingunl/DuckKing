@@ -1,5 +1,6 @@
 // UI translations only; never rewrite transcripts or user-authored content.
 export const messages = [
+  ["当前语言的语音设备尚未准备，请联系管理员。", "Voice is not configured for this language in this room. Please contact the administrator.", "La voix n’est pas configurée pour cette langue dans ce salon. Contacte l’administrateur."],
   ["开始动作", "Starting action", "Début du mouvement"],
   ["对话语言已切换，请重新连接语音。", "Conversation language changed. Reconnect voice to use it.", "Langue de conversation modifiée. Reconnecte la voix pour l’utiliser."],
   ["正在打开语音通道", "Opening the voice channel", "Ouverture du canal vocal"],

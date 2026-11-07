@@ -130,7 +130,14 @@ uv run duckking-setup --language-profile --lang-code en
 uv run duckking-setup --language-profile --lang-code fr
 ```
 
-语言智能体存于私有 `voice-profiles.json` 的 `language_zh/en/fr` 白名单；每次连接按所选语言发送 `X-Agent-ID`，不需要重新绑定设备，也不必给每种语言预留房间。已有 `DUCKKING_FRENCH_ROOMS` / `DUCKKING_ENGLISH_ROOMS` 仍可作为分房偏好，但不能代替语言智能体配置。缺少目标语言配置时明确报错，不偷偷用中文回复。当前离线命令链仅支持中文；英语/法语直接使用灵矽云端。预录剧场音轨仍为中文，界面明确标注；不会将它们称为法语实连回复。
+语言智能体存于私有 `voice-profiles.json` 的 `language_zh/en/fr` 白名单。英法语配置使用 `transport: bound_device`：每个房间在 `languages/en`、`languages/fr` 下保留独立私有设备身份，预先绑定对应语言智能体；重连仍发送 `X-Agent-ID`，原房间设备、场景及所有权保持不变。仅切换 Header 的旧配置不能保证云端告别遵循语言；升级时须重跑语言配置，并为已启用房间执行下面的设备准备命令。页面不会创建或重新绑定设备；缺失或不匹配的绑定记录明确报错，不回退原中文设备。已有 `DUCKKING_FRENCH_ROOMS` / `DUCKKING_ENGLISH_ROOMS` 仍可作为分房偏好，但不能代替语言智能体配置。缺少目标语言配置时明确报错，不偷偷用中文回复。当前离线命令链仅支持中文；英语/法语直接使用灵矽云端。预录剧场音轨仍为中文，界面明确标注；不会将它们称为法语实连回复。
+
+为每个已启用房间准备两种语言（以下以房间 1 为例，最多按 `DUCKKING_MAX_ROOMS` 重复）：
+
+```bash
+uv run duckking-setup --room 1 --language-device --lang-code fr
+uv run duckking-setup --room 1 --language-device --lang-code en
+```
 
 已用系统合成的法语/英语口令验证真实灵矽 STT → 点头工具完成 → 对应语言语音回复及自动告别，见 [验证记录](docs/VALIDATION.md)。这不等于 iPhone 真机、真人口音或噪声环境已验收。
 

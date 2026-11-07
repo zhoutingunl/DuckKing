@@ -110,9 +110,37 @@ test('switching language cancels capture and old voice frames; reconnect uses th
  expect(commands.filter(x=>x.type==='connect')).toEqual([
   {type:'connect',mode:'cloud',language:'zh'},{type:'connect',mode:'cloud',language:'fr'},
  ]);
+ // A cloud idle close must not reset the next connection to Chinese.
+ channels[1].close();
+ await expect(page.locator('#connect-voice')).toHaveAttribute('data-state','disconnected');
+ await page.locator('#connect-voice').click();
+ await expect(page.locator('#talk-button')).toBeEnabled();
+ expect(commands.filter(x=>x.type==='connect').at(-1)).toEqual({type:'connect',mode:'cloud',language:'fr'});
  await choose(page,'en');
  await expect(page.locator('#talk-button')).toBeDisabled();
  await expect(page.locator('#activity-log')).toContainText('你好，我是灵矽。');
+});
+
+for(const state of ['connecting','ready','speaking'])test(`language change disconnects ${state} without auto-reconnecting`,async({page,context})=>{
+ await context.grantPermissions(['microphone']);await localModes(page);
+ const commands=[];let channel;
+ await page.routeWebSocket('**/voice',socket=>{channel=socket;socket.onMessage(raw=>{
+  if(typeof raw!=='string')return;const data=JSON.parse(raw);commands.push(data);
+  if(data.type==='connect')socket.send(JSON.stringify({type:'voice_status',state,language:'zh'}));
+ })});
+ await page.goto('/?room=1&lang=zh');await expect(page.locator('#voice-mode')).toBeEnabled();
+ await page.selectOption('#voice-mode','cloud');await page.locator('#connect-voice').click();
+ await expect.poll(()=>commands.filter(x=>x.type==='connect').length).toBe(1);
+ await expect(page.locator('#connect-voice')).toHaveAttribute('data-state',state);
+ await choose(page,'fr');
+ await expect(page.locator('#connect-voice')).toHaveAttribute('data-state','disconnected');
+ await expect(page.locator('#talk-button')).toBeDisabled();
+ await expect.poll(()=>commands.filter(x=>x.type==='disconnect').length).toBe(1);
+ channel.send(JSON.stringify({type:'voice_status',state:'ready',language:'zh'}));
+ channel.send(JSON.stringify({type:'transcript',role:'assistant',text:'obsolete-language-reply'}));
+ await expect(page.locator('#activity-log')).not.toContainText('obsolete-language-reply');
+ await expect(page.locator('#connect-voice')).toHaveAttribute('data-state','disconnected');
+ expect(commands.filter(x=>x.type==='connect')).toHaveLength(1);
 });
 
 test('connection waiting shows real stage and elapsed time, cancels cleanly and resets on retry',async({page})=>{

@@ -49,8 +49,17 @@ def test_missing_build_explains_setup_and_built_assets_are_served(tmp_path, monk
     static = tmp_path / "frontend" / "dist"
     static.mkdir(parents=True)
     (static / "index.html").write_text("<h1>DuckKing</h1>")
+    (static / "scenarios.html").write_text("<h1>Scenes</h1>")
+    (static / "versioned.js").write_text("// fingerprinted bundle")
     with TestClient(create_app()) as client:
         assert "DuckKing" in client.get("/").text
+        for path in ('/', '/index.html', '/scenarios.html'):
+            response = client.get(path)
+            assert response.headers['cache-control'] == 'no-cache'
+            cached = client.get(path, headers={'If-None-Match': response.headers['etag']})
+            assert cached.status_code == 304
+            assert cached.headers['cache-control'] == 'no-cache'
+        assert 'cache-control' not in client.get('/versioned.js').headers
 
 
 def test_cli_binds_loopback(monkeypatch):

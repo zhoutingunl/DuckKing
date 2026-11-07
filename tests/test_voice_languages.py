@@ -49,13 +49,67 @@ async def test_language_selects_private_handshake_without_rebinding(tmp_path, la
             assert voice.state == 'ready'
             assert headers == [f'private-{language}']
             assert voice.status()['language'] == language
+            assert voice.diagnostic_status()['language'] == language
+            attempts = [e for e in voice.diagnostics.events if e['event'] == 'cloud_connect']
+            assert [(e['language'], e['agent_profile']) for e in attempts] == [
+                (language, f'language_{language}'),
+            ]
             assert 'private-' not in json.dumps(messages)
+            assert 'private-' not in json.dumps(voice.diagnostics.snapshot())
             with pytest.raises(ValueError, match='先断开'):
                 voice.set_language('zh')
         finally:
             release.set()
             await voice.disconnect()
     assert public_profiles(settings)['personas'] == []
+
+
+async def test_language_survives_cloud_close_and_reconnect_in_same_room(tmp_path):
+    settings = configured(tmp_path)
+    attempts, messages = [], []
+    closed = asyncio.Event()
+    terminal = asyncio.Event()
+
+    async def cloud(ws):
+        attempts.append(ws.request.headers.get('X-Agent-ID'))
+        await ws.recv()
+        await ws.send(json.dumps({'type': 'hello', 'transport': 'websocket',
+                                 'session_id': 'fixture', 'audio_params': {'format': 'pcm'}}))
+        if len(attempts) == 2:
+            await closed.wait()
+            await ws.close()
+        else:
+            await ws.wait_closed()
+
+    async def send(message):
+        messages.append(message)
+        if message.get('state') in {'error', 'disconnected'}:
+            terminal.set()
+
+    async with serve(cloud, '127.0.0.1', 0) as server:
+        settings.ws_url = f'ws://127.0.0.1:{server.sockets[0].getsockname()[1]}'
+        settings.ws_token = 'fixture-token'
+        voice = VoiceSession(send, MotionController(PreviewBackend()), settings)
+        try:
+            voice.set_language('zh')
+            await voice.open()
+            await voice.disconnect()
+            voice.set_language('fr')
+            await voice.open()
+            closed.set()
+            await asyncio.wait_for(terminal.wait(), 5)
+            await voice.open()
+            assert voice.state == 'ready'
+            assert voice.language == 'fr'
+            assert attempts == ['private-zh', 'private-fr', 'private-fr']
+            log = [e for e in voice.diagnostics.events if e['event'] == 'cloud_connect']
+            assert [e['language'] for e in log] == ['zh', 'fr', 'fr']
+            assert [e['agent_profile'] for e in log] == [
+                'language_zh', 'language_fr', 'language_fr',
+            ]
+        finally:
+            closed.set()
+            await voice.disconnect()
 
 
 @pytest.mark.parametrize('language', ['fr', 'en', 'de', ['fr']])
