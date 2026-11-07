@@ -1,6 +1,11 @@
 import {test,expect} from '@playwright/test';
 import {DEMOS} from '../src/demo-catalog.js';
 
+// Software-GPU DOM snapshots can delay a successful audio-stop probe beyond
+// its timeout (CI trace: oscillator count was already zero). Keep API/network
+// traces and failure screenshots without snapshotting the 3D page each call.
+test.use({trace:{mode:'retain-on-failure',snapshots:false,screenshots:false}});
+
 // Short, explicitly synthetic fixture speech keeps CI focused on real physics
 // and orchestration. A separate manual/public acceptance uses the shipped audio.
 function silentFixture(){

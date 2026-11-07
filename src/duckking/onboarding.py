@@ -237,8 +237,16 @@ def main():
     )
     parser.add_argument("--language-profile", action="store_true",
                         help="配置每个房间均可选择的语言智能体，不修改设备绑定")
+    parser.add_argument("--language-device", action="store_true",
+                        help="为本房间准备独立语言设备，保留原房间设备绑定")
     args = parser.parse_args()
     try:
+        if args.language_device:
+            from .language_device import setup_language_device
+            result = asyncio.run(setup_language_device(
+                Settings.load().for_room(args.room), args.key_file, args.lang_code))
+            print(json.dumps(result, ensure_ascii=False))
+            return
         if args.language_profile:
             from .language_setup import setup_language_profile
             result = asyncio.run(

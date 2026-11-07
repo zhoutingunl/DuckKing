@@ -62,7 +62,9 @@ class VoiceSession:
         if self.state not in {"disconnected", "error", "awaiting_binding"}:
             raise ValueError("请先断开语音，再切换对话语言")
         if language is not None:
-            language_agent(self.settings, language)
+            from .language_device import voice_settings
+            agent_id = language_agent(self.settings, language)
+            voice_settings(self.settings, language, agent_id)
         if language != self.language:
             self.voice_style = None
             if language in {"en", "fr"}:
@@ -136,6 +138,7 @@ class VoiceSession:
             downlink_frames=self.downlink_frames,
             elapsed_ms=int(max(0, time.monotonic() - self.started) * 1000) if self.turn else 0,
             backend=self.motion.backend.kind,
+            language=self.language or "unspecified",
             **fields,
         )
 
@@ -145,6 +148,7 @@ class VoiceSession:
             "state_elapsed_seconds": round(time.monotonic() - self.state_since, 1),
             "uplink_frames": self.uplink_frames, "downlink_frames": self.downlink_frames,
             "response_timeout_seconds": RESPONSE_TIMEOUT,
+            "language": self.language,
         }
 
     def status(self):
@@ -186,10 +190,27 @@ class VoiceSession:
             await self.publish_status()
 
     async def _open_transport(self, *, publish_ready=True):
+        from .language_device import voice_settings
+
+        config_profiles = profiles(self.settings)
+        agent_key = self.persona
+        if (agent_key == "default" and self.motion.studio and self.motion.studio.active
+                and "studio" in config_profiles["agents"]):
+            agent_key = "studio"
+        self.agent_id = (config_profiles["agents"].get(agent_key, {}).get("id")
+                         if agent_key != "default" else None)
+        if self.language and (self.language != "zh" or agent_key == "default"):
+            self.agent_id = language_agent(self.settings, self.language)
+            agent_key = f"language_{self.language}" if self.agent_id else "default"
+        if self.persona != "default" and not self.agent_id:
+            raise ValueError("所选角色尚未配置")
+        selected = voice_settings(self.settings, self.language, self.agent_id)
         async with httpx.AsyncClient(timeout=15) as http:
-            config = await provision(self.settings, http)
+            config = await provision(selected, http)
         activation = config.get("activation", {}).get("code")
         if activation:
+            if selected is not self.settings:
+                raise ValueError("当前语言的语音设备尚未准备，请联系管理员。")
             self.activation_code = str(activation)
             self.state = "awaiting_binding"
             await self.publish_status()
@@ -200,22 +221,15 @@ class VoiceSession:
         address = secure_device_endpoint(address)
         identity = config["identity"]
         self.sensitive_values = {token, identity["device_id"], identity["client_id"]}
-        config_profiles = profiles(self.settings)
-        agent_key = self.persona
-        if (agent_key == "default" and self.motion.studio and self.motion.studio.active
-                and "studio" in config_profiles["agents"]):
-            agent_key = "studio"
-        self.agent_id = (config_profiles["agents"].get(agent_key, {}).get("id")
-                         if agent_key != "default" else None)
-        if self.language and (self.language != "zh" or agent_key == "default"):
-            self.agent_id = language_agent(self.settings, self.language)
-        if self.persona != "default" and not self.agent_id:
-            raise ValueError("所选角色尚未配置")
         if self.agent_id:
             self.sensitive_values.add(self.agent_id)
         if self.voice_style:
             self.sensitive_values.add(self.voice_style["id"])
         self.encoder = OpusCodec(16000)
+        # Record the requested language/profile, never private cloud IDs. This
+        # proves selection at the boundary, not the language the cloud recognizes.
+        self.record("cloud_connect", agent_profile=agent_key,
+                    device_route="room" if selected is self.settings else "language_device")
         self.cloud = await connect(
             address,
             additional_headers={

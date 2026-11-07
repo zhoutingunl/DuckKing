@@ -225,6 +225,10 @@ def create_app(
             ):
                 return JSONResponse({"detail": "仅允许同源本地操作"}, status_code=403)
             response = await call_next(request)
+            # Entry documents point at versioned JS/CSS. Revalidate them on each
+            # visit so a browser cannot keep old connection behavior after deploy.
+            if path == "/" or path.endswith(".html"):
+                response.headers["Cache-Control"] = "no-cache"
             if cookie:
                 response.set_cookie(
                     COOKIE_NAME, cookie, httponly=True, samesite="lax", path="/",

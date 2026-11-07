@@ -91,7 +91,10 @@ async def setup_language_profile(settings, key_file: Path, language, *, http=Non
                     or after.get("systemPrompt") != prompt
                     or not after.get("extra", {}).get("asr", {}).get("enable_auto_lang")):
                 raise ValueError("云端语言配置校验失败，未启用此语言")
-        config["agents"][profile_key] = {"id": agent_id, "label": language}
+        config["agents"][profile_key] = {
+            "id": agent_id, "label": language,
+            **({"transport": "bound_device"} if language in {"en", "fr"} else {}),
+        }
         store_profiles(profile_root(settings) / "voice-profiles.json", config)
         return {"status": "language_profile_configured", "language": language,
                 "voice_verified": False, "device_binding_changed": False}

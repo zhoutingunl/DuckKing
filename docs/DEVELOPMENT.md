@@ -136,6 +136,7 @@ tail -n 50 ~/.local/share/duckking/voice.jsonl
 
 | 事件 / 字段 | 排查含义 |
 |---|---|
+| `cloud_connect` / `language` / `agent_profile` / `device_route` | 实际请求的 zh/en/fr、白名单配置名及原房间/语言专用设备路径；未指定语言记为 unspecified。不记录云端 ID，也不代表云端识别已正确 |
 | `listen_start` → `uplink_first_frame` → `listen_stop` | 是否实际收到麦克风数据；结束时 `uplink_frames=0` 表示没有完整音频帧 |
 | `stt` / `text` / `text_chars` | 脱敏识别文本与原文本长度，便于核对“听错”还是“选错工具” |
 | `tool_start` / `tool_end` | 白名单工具名、协议方法和结果类别，不保存参数或调用 ID |

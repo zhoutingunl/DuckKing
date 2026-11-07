@@ -3,6 +3,19 @@ import json
 from duckking.diagnostics import VoiceDiagnostics
 
 
+def test_language_selection_is_allowlisted_and_restored_without_private_ids(tmp_path):
+    path = tmp_path / 'voice.jsonl'
+    journal = VoiceDiagnostics(path)
+    journal.record('cloud_connect', language='fr', agent_profile='language_fr',
+                   agent_id='private-agent', device_id='private-device')
+    journal.record('cloud_connect', language='private-language', agent_profile='private-agent')
+    restored = VoiceDiagnostics(path).snapshot()['events']
+    assert restored[0]['language'] == 'fr'
+    assert restored[0]['agent_profile'] == 'language_fr'
+    assert 'language' not in restored[1] and 'agent_profile' not in restored[1]
+    assert 'private-' not in path.read_text() + json.dumps(restored)
+
+
 def test_training_tool_names_remain_visible_without_exposing_arguments():
     journal = VoiceDiagnostics()
     for tool in ("duck_balance", "duck_seesaw", "duck_table_show"):
