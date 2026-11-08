@@ -73,7 +73,7 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci && npm run build && npm run test:unit
         working-directory: frontend
-      - name: Verify both browser groups cover every test exactly once
+      - name: Verify browser shards cover every test exactly once
         run: node scripts/verify-ci-groups.mjs
         working-directory: frontend
 
@@ -86,7 +86,12 @@ jobs:
       matrix:
         mode: [production, development]
         group: [journey, checks, stage]
-        shard: [1, 2]
+        shard: [1, 2, 3]
+        exclude:
+          - group: journey
+            shard: 3
+          - group: stage
+            shard: 3
     env:
       DUCKKING_TEST_DEV: ${{ matrix.mode == 'development' && '1' || '0' }}
     steps:
@@ -132,7 +137,7 @@ jobs:
           elif [ "$TEST_GROUP" = stage ]; then
             npx playwright test --grep @stage --shard="$TEST_SHARD/2"
           else
-            npx playwright test --grep-invert "@journey|@stage" --shard="$TEST_SHARD/2"
+            npx playwright test --grep-invert "@journey|@stage" --shard="$TEST_SHARD/3"
           fi
         working-directory: frontend
       - uses: actions/upload-artifact@v4

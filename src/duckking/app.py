@@ -402,6 +402,7 @@ def create_app(
             not in {
                 "scene_ball",
                 "scene_duo",
+                "scene_choir",
                 "scene_carry",
                 "scene_table",
                 "scene_seated",

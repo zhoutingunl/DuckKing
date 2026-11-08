@@ -23,7 +23,7 @@ export const DEMOS=[
   steps:[line('lonely-intro','同伴就在附近，但背对着对方，可不算看见。','旁白'),{kind:'action',name:'turn_left',target:'both',duration:3},{kind:'action',name:'turn_left',target:'both',duration:1.5},{kind:'action',name:'find_companion',expectFailure:true},line('lonely-turn','没有发现，就调整方向。不能把希望当作检测结果。'),{kind:'action',name:'turn_right',target:'both',duration:3},command('lonely-find','请发现同伴。',['find_companion']),{kind:'inspect',label:'视野与距离验证'},line('lonely-end','原来同伴一直在附近。这一次，我们是真的看见了。')]},
  {id:'debut',title:'社恐鸭组团出道',hook:'先见面，再合唱，组合名叫“鸭力山大”。',scene:'duo',source:'故事方案 · 5',duration:'约 35 秒',
   steps:[line('debut-intro','一个鸭是打工，两个鸭就是创业团队。请两位成员见面。','旁白'),command('debut-meet','请发现同伴，然后相向碰面。',['find_companion','collide']),{kind:'inspect',label:'本轮接触验收'},command('debut-chorus','你们的团名叫鸭力山大。请来一段同步合唱。',['chorus']),line('debut-end','我们的第一张专辑，叫明天一定交付。')]},
- {id:'chorale',title:'四声部谢幕',hook:'从两条旋律，到四层和声。听见成员的加入。',scene:'duo',source:'方案 1 · 幕三',duration:'约 35 秒',
+ {id:'chorale',title:'四声部谢幕',hook:'四只鸭，四个固定声部。听见成员依次加入。',scene:'choir',source:'方案 1 · 幕三',duration:'约 35 秒',
   steps:[line('chorale-intro','这次不是两只鸭唱同一个音。低音和高音先开场，中音和次中音依次加入。','旁白'),{kind:'music'},line('chorale-end','有人加入，其他成员不换声部。有人离开，留住他的席位。这就是合唱团的默契。')]},
  {id:'tabletop',title:'桌上不掉拍',hook:'四只鸭一张桌。掉下去，也要把歌唱完。',scene:'table',source:'新增桌上四鸭合唱',duration:'约 45 秒',
   steps:[line('table-intro','四位歌手，一张桌子。请把掌声留到最后，桌子的面积有限。','旁白'),{kind:'table_music',id:'table-start',text:'请开始桌上四鸭合唱表演。',actions:['table_show']},command('table-result','请读取当前状态，告诉我桌上表演的真实结果。',[]),line('table-end','我没掉队，只是把低音部，搬到了楼下。')]},

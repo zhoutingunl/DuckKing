@@ -41,7 +41,9 @@ export function physicsView(container,{label=null,onCameraChange}={}) {
     invalidate();
   }
   const instanceMatrix=new THREE.Matrix4();
-  function paintLabel(canvas,id){const context=canvas.getContext('2d');context.clearRect(0,0,192,72);context.fillStyle=({a:'#526d32',b:'#3f6580',c:'#987033',d:'#865872'}[id]??'#526d32');context.fillRect(0,0,192,72);context.font='40px sans-serif';context.textAlign='center';context.fillStyle='#fff';context.fillText(translate(label??`鸭 ${id.toUpperCase()}`),96,51,180)}
+  let parts={};
+  function setParts(value){parts=value;container.dataset.choraleParts=JSON.stringify(parts);for(const [id,sprite] of labels){paintLabel(sprite.material.map.image,id);sprite.material.map.needsUpdate=true}invalidate()}
+  function paintLabel(canvas,id){const context=canvas.getContext('2d');context.clearRect(0,0,192,72);context.fillStyle=({a:'#526d32',b:'#3f6580',c:'#987033',d:'#865872'}[id]??'#526d32');context.fillRect(0,0,192,72);context.font=parts[id]?'28px sans-serif':'40px sans-serif';context.textAlign='center';context.fillStyle=parts[id]?.active===false?'#d4d9ce':'#fff';context.fillText(translate(label??`鸭 ${id.toUpperCase()}`),96,parts[id]?29:51,180);if(parts[id])context.fillText(translate(parts[id].part),96,61,180)}
   function setLabel(text){
     if(disposed||text===label)return;label=text;container.dataset.duckLabel=text??'';
     for(const [id,sprite] of labels){paintLabel(sprite.material.map.image,id);sprite.material.map.needsUpdate=true}invalidate();
@@ -119,7 +121,7 @@ export function physicsView(container,{label=null,onCameraChange}={}) {
     for(const {object} of renderBatches)object.dispose();
     world.clear();geometries.forEach(g=>g.dispose());materials.forEach(m=>m.dispose());textures.forEach(t=>t.dispose());
     geometries=[];materials=[];textures=[];renderBatches=[];readyToRender=false;revision=null;latest=null;selection=null;headingGuide=null;headingTexture=null;centerGuide=null;
-    objects.clear();labels.clear();renderer.renderLists.dispose();appearance.setDucks([]);delete container.dataset.renderedScene;
+    objects.clear();labels.clear();parts={};delete container.dataset.choraleParts;renderer.renderLists.dispose();appearance.setDucks([]);delete container.dataset.renderedScene;
     delete container.dataset.headingTarget;
     delete container.dataset.headingSurface;
     delete container.dataset.centerTarget;
@@ -248,7 +250,7 @@ export function physicsView(container,{label=null,onCameraChange}={}) {
     return moving;
   }
   scheduler=renderScheduler(draw,{interval:()=>reduced?100:seatedView?66:33});setVisibility();resize();
-  return {load,update,clear,screenOrder,setLabel,
+  return {load,update,clear,screenOrder,setLabel,setParts,
     syncCamera(state){
       if(disposed)return;syncingCamera=true;manualView=true;controls.enableDamping=false;controls.update();
       camera.position.fromArray(state.position);controls.target.fromArray(state.target);camera.zoom=state.zoom;camera.updateProjectionMatrix();controls.update();controls.enableDamping=true;syncingCamera=false;invalidate();
@@ -256,7 +258,7 @@ export function physicsView(container,{label=null,onCameraChange}={}) {
     selection(value){selection=value;invalidate()},
     interaction(callback,mode="select"){interaction=callback;interactionMode=mode;if(!callback){stick.visible=false;for(const ring of rings.values())ring.visible=false}invalidate()},
     renderNow(){scheduler.flush()},
-    frameScene(scene){if(disposed)return;manualView=false;floorFramed=false;seatedView=scene==='seated';resize();controls.enableDamping=false;controls.update();const close=scene==='carry',seated=scene==='seated',table=scene==='table';camera.position.set(...(scene==='stage'?[2.7,2.1,0]:seated?[1.05,.90,-1.05]:table?[1.35,.98,-1.35]:close?[.6,.4,.65]:scene==='seesaw'?[.72,.85,-1.15]:scene==='balance'?[1.25,.82,1.35]:[.85,.62,.95]));controls.target.set(close ? .12 : table ? .20 : 0,scene==='seesaw' ? .22 : scene==='balance' ? .13 : seated ? .52 : table ? .25 : .13,table ? -.10 : 0);controls.update();controls.saveState();controls.enableDamping=true;invalidate()},
+    frameScene(scene){if(disposed)return;manualView=false;floorFramed=false;seatedView=scene==='seated';resize();controls.enableDamping=false;controls.update();const close=scene==='carry',seated=scene==='seated',table=scene==='table';camera.position.set(...(scene==='stage'?[2.7,2.1,0]:scene==='choir'?[1.15,.70,.15]:seated?[1.05,.90,-1.05]:table?[1.35,.98,-1.35]:close?[.6,.4,.65]:scene==='seesaw'?[.72,.85,-1.15]:scene==='balance'?[1.25,.82,1.35]:[.85,.62,.95]));controls.target.set(close ? .12 : table ? .20 : 0,scene==='seesaw' ? .22 : scene==='balance' ? .13 : seated ? .52 : table ? .25 : .13,table ? -.10 : 0);controls.update();controls.saveState();controls.enableDamping=true;invalidate()},
     reset(){if(disposed)return;manualView=false;floorFramed=false;controls.enableDamping=false;controls.update();controls.reset();controls.enableDamping=true;invalidate()},
     dispose(){
       if(disposed)return;disposed=true;scheduler.dispose();events.abort();observer.disconnect();visibility.disconnect();document.removeEventListener('visibilitychange',setVisibility);

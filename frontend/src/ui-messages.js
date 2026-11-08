@@ -1,5 +1,11 @@
 // UI translations only; never rewrite transcripts or user-authored content.
 export const messages = [
+  ["选择上方场景，准备后即可开始。", "Choose a scene above to get started.", "Choisis une scène ci-dessus pour commencer."],
+  ["演示完成 · 结束画面", "Show complete · final frame", "Spectacle terminé · dernière image"],
+  ["四只鸭，四个固定声部。听见成员依次加入。", "Four ducks, four fixed parts. Hear each singer join.", "Quatre canards, quatre voix fixes. Écoute les chanteurs se joindre au chœur."],
+  ["四声部合唱舞台", "Four-part choir stage", "Scène du chœur à quatre voix"],
+  ["官方乐谱节选已演奏。四个声部先后进入，中音离开后留席；四只物理鸭各有固定声部，并随有界头部动作表演。", "Official score excerpt complete. Four physical ducks have fixed parts and bounded head movements; the alto keeps its seat after going silent.", "Extrait officiel terminé. Quatre canards physiques ont chacun une voix fixe et des mouvements de tête bornés ; l’alto conserve sa place après son silence."],
+
   ["当前语言的语音设备尚未准备，请联系管理员。", "Voice is not configured for this language in this room. Please contact the administrator.", "La voix n’est pas configurée pour cette langue dans ce salon. Contacte l’administrateur."],
   ["开始动作", "Starting action", "Début du mouvement"],
   ["对话语言已切换，请重新连接语音。", "Conversation language changed. Reconnect voice to use it.", "Langue de conversation modifiée. Reconnecte la voix pour l’utiliser."],
@@ -233,7 +239,7 @@ export const messages = [
   ["官方 MicroDuck 模型与策略，在同一个 MuJoCo 世界里活动。语音支持本地优先；按钮操作无需启用语音。", "Official MicroDuck models and policies share one MuJoCo world. Chinese voice supports local-first recognition; buttons work without voice.", "Les modèles et politiques officiels MicroDuck partagent un monde MuJoCo. La voix chinoise permet la reconnaissance locale prioritaire ; les boutons fonctionnent sans voix."],
   ["官方 robotd", "Official robotd", "robotd officiel"],
   ["官方 robotd 仿真", "Official robotd simulation", "Simulation robotd officielle"],
-  ["官方乐谱 · 本地合成音色。鸭 A / B 有物理实例；C / D 为附加虚拟声部。此处展示分声部与留席规则，不模拟 BLE 无线时钟。", "Official score · locally synthesized sound. Ducks A/B have physics bodies; C/D are extra virtual voices. This demonstrates part allocation and empty-seat rules, not BLE clock synchronization.", "Partition officielle · son synthétisé localement. Les canards A/B ont un corps physique ; C/D sont des voix virtuelles supplémentaires. Cela illustre la répartition des voix et les places libres, sans simuler une horloge BLE."],
+  ["官方乐谱 · 本地合成音色。四只物理鸭各有固定声部；等待入唱或留席时，鸭子仍在场。此处不模拟 BLE 无线时钟。", "Official score · locally synthesized sound. Four physical ducks each have a fixed part; waiting or muted singers stay on stage. BLE clock synchronization is not simulated.", "Partition officielle · son synthétisé localement. Quatre canards physiques ont chacun une voix fixe ; ceux qui attendent ou se taisent restent sur scène. La synchronisation BLE n’est pas simulée."],
   ["官方乐谱及编队规则", "Official score and formation rules", "Partition officielle et règles de formation"],
   ["官方模型 · MuJoCo 仿真；语音来源单独标识。音乐为本地合成。", "Official model · MuJoCo simulation; voice sources are identified separately. Music is synthesized locally.", "Modèle officiel · simulation MuJoCo ; les sources vocales sont indiquées séparément. La musique est synthétisée localement."],
   ["官方模型 · MuJoCo 实时仿真", "Official model · live MuJoCo simulation", "Modèle officiel · simulation MuJoCo en direct"],

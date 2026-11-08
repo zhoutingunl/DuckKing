@@ -10,8 +10,8 @@
    <section class="theatre-stage" aria-label="演出舞台">
     <div data-mobile-stage><div class="show-heading"><div><span id="show-number">开场前</span><h2 id="show-title">选一个节目，认识这只鸭。</h2></div><button id="reset-camera" class="subtle-button">复位视角</button></div>
     <div class="source-strip"><span>官方模型 · MuJoCo 实时仿真</span><span id="voice-source">预录台词 · 本地编排</span></div>
-    <div class="stage-worlds"><div id="demo-viewport" class="demo-viewport"><div id="stage-placeholder">点选节目，舞台会自动准备。</div></div><div id="demo-second" class="demo-viewport" hidden></div></div></div>
-    <div id="chorale-panel" hidden><div class="chorale-heading"><strong>《wistful》开头 16 拍</strong><span id="chorale-beat">准备入场</span></div><div id="chorale-seats"></div><p>官方乐谱 · 本地合成音色。鸭 A / B 有物理实例；C / D 为附加虚拟声部。此处展示分声部与留席规则，不模拟 BLE 无线时钟。</p></div>
+    <div class="stage-worlds"><div id="demo-viewport" class="demo-viewport"><div id="stage-placeholder">点选节目，舞台会自动准备。</div></div><div id="demo-second" class="demo-viewport" hidden><span id="second-result" class="scene-result-label" hidden>演示完成 · 结束画面</span></div></div></div>
+    <div id="chorale-panel" hidden><div class="chorale-heading"><strong>《wistful》开头 16 拍</strong><span id="chorale-beat">准备入场</span></div><div id="chorale-seats"></div><p>官方乐谱 · 本地合成音色。四只物理鸭各有固定声部；等待入唱或留席时，鸭子仍在场。此处不模拟 BLE 无线时钟。</p></div>
     <div id="table-panel" hidden><div class="chorale-heading"><strong id="table-song-title">桌上合唱 · 等待开演</strong><span id="table-beat">四位歌手就位</span></div><div id="table-seats"></div><p id="table-cue">四只真实仿真鸭，共用一张有边缘的桌子。</p></div>
     <section id="stage-panel" hidden aria-label="四鸭发布会交互">
      <p><strong>四鸭发布会</strong> · <span id="stage-state">准备集结</span></p>

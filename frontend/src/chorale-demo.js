@@ -3,6 +3,7 @@
 import { appURL } from './urls.js';
 import { pause } from './demo-runtime.js';
 const PARTS=['bass','tenor','alto','soprano'];
+export const CHORALE_DUCKS=[{id:7,duck:'a',pitch:165,label:'鸭 A',part:'bass'},{id:42,duck:'b',pitch:330,label:'鸭 B',part:'soprano'},{id:64,duck:'c',pitch:260,label:'鸭 C',part:'alto'},{id:100,duck:'d',pitch:220,label:'鸭 D',part:'tenor'}];
 export const PART_NAMES={bass:'低音',tenor:'次中音',alto:'中音',soprano:'高音'};
 const ensemble=n=>n===1?['soprano']:n===2?['bass','soprano']:n===3?['bass','alto','soprano']:PARTS;
 export class ChoraleRoster {
@@ -36,7 +37,7 @@ export async function playChorale(output,signal,onFrame){
   const response=await fetch(appURL('scores/wistful.duckscore'),{signal});if(!response.ok)throw new Error('官方乐谱读取失败');
   const score=openingScore(await response.text());
   const ctx=output.context();if(ctx.state!=='running')throw new Error('声音尚未启用，请重新点击开始');
-  const roster=new ChoraleRoster([{id:7,pitch:165,label:'鸭 A'},{id:42,pitch:330,label:'鸭 B'}]);
+  const roster=new ChoraleRoster(CHORALE_DUCKS.slice(0,2));
   const start=ctx.currentTime+.15,seconds=60/score.bpm,nodes=new Set(),scheduled=new Set();let joined3=false,joined4=false,left=false;
   function tone(note,seat,beat){
     const at=start+Math.max(beat,note.beat)*seconds,duration=(note.beat+note.duration-Math.max(beat,note.beat))*seconds;
@@ -52,8 +53,8 @@ export async function playChorale(output,signal,onFrame){
   try{
     while(ctx.currentTime<start+score.beats*seconds){
       signal.throwIfAborted();if(ctx.state!=='running'||performance.now()>deadline)throw new Error('合奏音频时钟已暂停或超时，请重新点击节目');const beat=Math.max(0,(ctx.currentTime-start)/seconds);
-      if(beat>=3&&!joined3){roster.join({id:64,pitch:260,label:'虚拟鸭 C'});joined3=true}
-      if(beat>=7&&!joined4){roster.join({id:100,pitch:220,label:'虚拟鸭 D'});joined4=true}
+      if(beat>=3&&!joined3){roster.join(CHORALE_DUCKS[2]);joined3=true}
+      if(beat>=7&&!joined4){roster.join(CHORALE_DUCKS[3]);joined4=true}
       if(beat>=12&&!left){roster.leave(64);left=true;for(const node of nodes)if(node.part==='alto'){node.gain.gain.cancelScheduledValues(ctx.currentTime);node.gain.gain.setTargetAtTime(0,ctx.currentTime,.04)}}
       for(const seat of roster.seats.filter(s=>s.active))for(const [index,note] of score.notes.entries()){
         const key=seat.id+':'+index;if(note.part!==seat.part||scheduled.has(key)||note.beat+note.duration<=beat||note.beat>beat+.12)continue;

@@ -11,7 +11,7 @@ import { VoiceAudio } from './audio-output.js';
 import { physicsView } from './physics-view.js';
 import { createPhysicsModelLoader } from './model-loader.js';
 import { createChorus } from './chorus.js';
-import { playChorale, PART_NAMES } from './chorale-demo.js';
+import { playChorale, PART_NAMES, CHORALE_DUCKS } from './chorale-demo.js';
 import { playTableChoir, decodeTracks, checkOffset, loadBuiltinSong, TABLE_PARTS, TABLE_SECONDS } from './table-choir.js';
 import {playSeatedChoir,SEATED_SECONDS} from './seated-choir.js';
 import { TABLE_SCORES } from './table-scores.js';
@@ -23,6 +23,8 @@ import { setupVoice } from './voice.js';
 await setupRoom();
 const $=id=>document.getElementById(id),output=new VoiceAudio(),clips=new Map(),loadPhysicsModel=createPhysicsModelLoader(),stages=new Map();
 const loadFeedback=createLoadingState($('stage-placeholder'));
+let retainedSecond=null;
+function clearSecond(){retainedSecond?.viewer.dispose();retainedSecond=null;$('demo-second').hidden=true;delete $('demo-second').dataset.frozen;$('second-result').hidden=true}
 const chorus=createChorus(()=>{},{getContext:()=>output.context()});let current=null,selected=-1,serial=Promise.resolve();
 const pendingStageMembers=new Map();let selectionState=null;
 let stageInteractive=false,selectionQueue=Promise.resolve(),selectionVersion=-1,selectionInstance=null;
@@ -253,10 +255,13 @@ async function runStep(run,step){
   }
   if(step.kind==='music'){
     $('chorale-panel').hidden=false;message('官方乐谱 · 本地合成','先听低音与高音。第 4 拍加入中音，第 8 拍补齐四声部，第 13 拍中音离席。');
-    let musicDone=false;
+    let musicDone=false,lastCue='';
     const singing=playChorale(output,run.signal,frame=>{
       if(!frame)return;$('chorale-beat').textContent=`第 ${Math.floor(frame.beat)+1} / 16 拍 · ${frame.active} 声部 · 指挥 A`;
-      $('chorale-seats').replaceChildren(...frame.seats.map(seat=>{const d=document.createElement('div');d.className='chorale-seat';d.dataset.active=seat.active;const name=document.createElement('strong');name.textContent=PART_NAMES[seat.part];const label=document.createElement('span');label.textContent=seat.label+(seat.active?'':' · 留席');d.append(name,label);return d}));
+      const seats=CHORALE_DUCKS.map(duck=>({...duck,...frame.seats.find(s=>s.id===duck.id),active:!!frame.seats.find(s=>s.id===duck.id)?.active,joined:frame.seats.some(s=>s.id===duck.id)}));
+      const cue=seats.map(s=>`${s.joined}:${s.active}`).join(',');if(cue===lastCue)return;lastCue=cue;
+      stages.get(currentRoom)?.viewer.setParts(Object.fromEntries(seats.map(s=>[s.duck,{part:PART_NAMES[s.part],active:s.active}])));
+      $('chorale-seats').replaceChildren(...seats.map(seat=>{const d=document.createElement('div');d.className='chorale-seat';d.dataset.duck=seat.duck;d.dataset.active=seat.active;const name=document.createElement('strong');name.textContent=PART_NAMES[seat.part];const label=document.createElement('span');label.textContent=seat.label+(seat.active?'':seat.joined?' · 留席':' · 等待入唱');d.append(name,label);return d}));
     }).finally(()=>{musicDone=true});
     const following=(async()=>{for(let i=0;i<16&&!musicDone;i++){
       const result=await action(currentRoom,'nod',run.signal,{target:'both'});
@@ -264,7 +269,7 @@ async function runStep(run,step){
       run.results.push({...result,room:currentRoom});
     }})();
     const [result]=await Promise.all([singing,following]);
-    $('result-summary').textContent='官方乐谱节选已演奏。四个声部先后进入，中音离开后留席；两只物理鸭随有界头部动作表演。';
+    $('result-summary').textContent='官方乐谱节选已演奏。四个声部先后进入，中音离开后留席；四只物理鸭各有固定声部，并随有界头部动作表演。';
     run.results.push({name:'chorale',status:'completed',outcome:result});entry('四声部节选完成：加入不重排，中音离开后保留席位；未模拟 BLE 时钟');
   }
   if(step.kind==='seated_music'){
@@ -306,7 +311,7 @@ async function runStep(run,step){
     entry('真实跌落验收通过：桌面支撑 → 离桌 → 地面接触；其余三只留在桌上');
   }
 }
-function cleanup(run){
+function cleanup(run,{retainSecond=false}={}){
   return run.cleanupPromise??=(async()=>{
   run.abort();output.clear();chorus.stop();if(stageVoiceBusy())stageVoice.disconnect();
   await Promise.allSettled([...run.rooms].map(room=>api('api/scenes/actions',room,{body:{name:'stop',request_id:requestId()}})));
@@ -317,7 +322,11 @@ function cleanup(run){
       await pause(100);
     }
   }
-  for(const [room,stage] of stages)if(room!==currentRoom){stages.delete(room);stage.socket.close();stage.viewer.dispose();}
+  for(const [room,stage] of stages)if(room!==currentRoom){
+    stages.delete(room);stage.socket.close();
+    if(retainSecond&&current===run&&run.completed){retainedSecond=stage;$('demo-second').dataset.frozen='true';$('second-result').hidden=false;stage.viewer.renderNow()}
+    else{stage.viewer.dispose();$('demo-second').hidden=true;}
+  }
   // A borrowed second world should not keep simulating through the remaining
   // program. Let its viewer disconnect settle; preserve it if someone joined.
   for(const room of run.rooms)if(room!==currentRoom){
@@ -336,7 +345,7 @@ function start(index){
   if(stageVoiceBusy()){error('请先断开真人语音再切换或重演节目。');return}
   // Unlock in the original click, before any fetch or room allocation.
   const enabled=output.resume({gesture:true});void chorus.enable().catch(()=>{});
-  preview?.abort();output.clear();controlsBusy(true);
+  preview?.abort();output.clear();clearSecond();for(const stage of stages.values())stage.viewer.setParts({});controlsBusy(true);
   if(current)void stop('正在切换节目…');
   rememberChoice('demo',DEMOS[index].id);const run=new DemoRun();run.live=$('demo-mode').value==='live';current=run;selected=index;
   status('正在准备节目…');$('theatre-result')?.remove();$('demo-notice').hidden=true;$('stop-demo').disabled=false;$('next-demo').disabled=index>=DEMOS.length-1;$('demo-mode').disabled=true;
@@ -367,16 +376,16 @@ function start(index){
         for(const b of document.querySelectorAll('.stage-tools button'))b.disabled=false;
         controlsBusy(false);$('demo-mode').disabled=false;
       }else{
-        await cleanup(run);
+        await cleanup(run,{retainSecond:demo.id==='duel'&&run.completed});
         if(current===run){current=null;$('stop-demo').disabled=true;$('demo-mode').disabled=false;$('stage-play').disabled=false;controlsBusy(false);}
       }
     }
   })();
 }
 $('stop-demo').addEventListener('click',()=>void stop());$('next-demo').addEventListener('click',()=>start(Math.min(selected+1,DEMOS.length-1)));
-$('reset-camera').addEventListener('click',()=>{for(const stage of stages.values())stage.viewer.reset()});
+$('reset-camera').addEventListener('click',()=>{for(const stage of stages.values())stage.viewer.reset();retainedSecond?.viewer.reset()});
 window.addEventListener('keydown',e=>{if(e.key==='Escape')void stop()});
-window.addEventListener('pagehide',()=>{const run=current;run?.abort();preview?.abort();output.close();chorus.dispose();for(const stage of stages.values()){stage.socket.close();stage.viewer.dispose()}
+window.addEventListener('pagehide',()=>{const run=current;run?.abort();preview?.abort();output.close();chorus.dispose();clearSecond();for(const stage of stages.values()){stage.socket.close();stage.viewer.dispose()}
   for(const room of run?.rooms??[]){const url=appURL('api/scenes/actions');url.searchParams.set('room',room);void fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:'stop',request_id:requestId()}),keepalive:true}).catch(()=>{})}
 });
 window.addEventListener('duckking-room-lost',()=>void stop('房间已失效，演示已停止'))
