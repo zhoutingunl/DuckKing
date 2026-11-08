@@ -8,6 +8,7 @@ export function createLoadingState(node){
   let current;
   return {
     get active(){return !!current?.active},
+    reset(text){current?.stop();current=null;node.classList.remove('loading-feedback');node.setAttribute('role','status');node.replaceChildren(document.createTextNode(text));node.hidden=false},
     begin({phase='backend',cancel,retry,retryLabel='重新加载模型'}={}){
       current?.stop();const began=performance.now(),label=document.createElement('span'),detail=document.createElement('small'),bar=document.createElement('progress'),actions=document.createElement('span');
       node.classList.add('loading-feedback');node.hidden=false;node.setAttribute('role','status');node.replaceChildren(label,detail,bar,actions);

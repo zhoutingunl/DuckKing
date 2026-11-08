@@ -187,3 +187,26 @@ test('official skills, natural idle, wheel skating and cancellation work from th
   expect(errors).toEqual([]);
   await page.screenshot({path:'test-results/new-skills-mobile.png'});
 });
+
+for(const duringLoad of [false,true])test(`releasing a scene ${duringLoad?'during model loading':'after drawing'} returns to idle and allows another selection`,async({page,request})=>{
+ test.setTimeout(90000);await request.post('/api/scenes/close?room=1');
+ let release;const gate=new Promise(resolve=>release=resolve);let held=false;
+ if(duringLoad)await page.route('**/api/scenes/model.dkm.gz?*',async route=>{if(!held){held=true;await gate}await route.continue().catch(()=>{})});
+ const errors=[];page.on('pageerror',e=>errors.push(e.message));
+ try{
+  await page.goto('/scenarios.html?room=1');await page.locator('[data-scene=ball]').click();
+  if(duringLoad)await expect.poll(()=>held,{timeout:45000}).toBe(true);
+  else await expect(page.locator('#physics-viewport')).toHaveAttribute('data-rendered-scene','ball',{timeout:45000});
+  await expect(page.locator('#release-scene')).toBeEnabled();await page.locator('#release-scene').click();release();
+  await expect(page.locator('#scene-placeholder')).toHaveText('选择上方场景，准备后即可开始。');
+  await expect(page.locator('#scene-placeholder progress')).toHaveCount(0);
+  await expect(page.locator('#scene-placeholder button')).toHaveCount(0);
+  await expect(page.locator('#physics-viewport')).not.toHaveAttribute('data-rendered-scene',/.+/);
+  await expect(page.locator('#stop-scene')).toBeDisabled();
+  await expect.poll(async()=>((await(await request.get('/api/rooms')).json()).rooms.find(r=>r.id==='1')?.physics??false)).toBe(false);
+  await page.locator('[data-scene=duo]').click();
+  await expect(page.locator('#physics-viewport')).toHaveAttribute('data-rendered-scene','duo',{timeout:45000});
+  await expect(page.locator('#scene-placeholder')).toBeHidden();
+  await expect(page.locator('[data-sim-action=nod]')).toBeEnabled();expect(errors).toEqual([]);
+ }finally{release();await page.close();await request.post('/api/scenes/close?room=1')}
+});

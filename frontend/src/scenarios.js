@@ -18,7 +18,7 @@ await setupRoom();
 const $=id=>document.getElementById(id);
 const graspPhases={ready:'待夹取',closing:'正在合嘴',lifting:'正在抬起',holding:'夹持中',carrying:'正在搬运',carried:'已到接物台',lowering:'正在低头',opening:'正在张嘴',retreating:'正在退开',released:'已放稳',interrupted:'已停止',dropped:'夹持丢失',failed:'未通过验证'};
 const loadPhysicsModel=createPhysicsModelLoader(),feedback=createLoadingState($('scene-placeholder'));
-let loadSession,loadAbort;
+let loadSession,loadAbort,sceneAbsent=false;
 let failedRevision=null,sceneRequestedAt=null,sceneExperience=null,sceneRequestPending=false,sceneRequestId=null,sceneTarget=null;
 let viewer,scene=null,revision=null,loadingModel=false,changing=false,seen=0,latest=null,online=false;
 try{viewer=physicsView($('physics-viewport'));}catch{$('canvas-fallback').hidden=false;}
@@ -53,6 +53,7 @@ function action(name){
   requests=requests.then(()=>post('/api/scenes/actions',{name,target,request_id:requestId()})).catch(e=>notify(e.message));return requests;
 }
 for(const button of document.querySelectorAll('[data-scene]'))button.addEventListener('click',async()=>{
+  sceneAbsent=false;
   sceneExperience?.finish('cancelled');sceneExperience=measurement('load');
   rememberChoice('scene',button.dataset.scene);loadAbort?.abort();loadAbort=new AbortController();
   loadSession=feedback.begin({phase:'backend',cancel:()=>{loadAbort.abort();loadSession.cancelled();changing=false;buttons()},retry:()=>button.click()});
@@ -66,7 +67,7 @@ $('enable-chorus').addEventListener('click',()=>chorus.enable().catch(e=>notify(
 $('release-scene').addEventListener('click',async()=>{
   try{const response=await fetch(appURL('api/scenes/close'),{method:'POST',signal:AbortSignal.timeout(15000)});
     if(!response.ok){const data=await response.json();throw new Error(data.detail||'场景释放失败');}
-    chorus.stop();appendLog('物理场景已释放，其他房间可以使用空出的名额。','场景');
+    notStarted();appendLog('物理场景已释放，其他房间可以使用空出的名额。','场景');
   }catch(e){notify(e.message);}
 });
 $('reset-scene').addEventListener('click',()=>action('reset'));$('stop-scene').addEventListener('click',()=>action('stop'));$('reset-camera').addEventListener('click',()=>viewer?.reset());$('clear-log').addEventListener('click',()=>$('activity-log').replaceChildren());
@@ -100,7 +101,7 @@ async function loadModel(state,currentAction){
     if(latest?.revision!==model.revision)throw new Error('场景已切换，请重新加载当前模型。');
     revision=model.revision;session.ready();failedRevision=null;result='ready';
     appendLog(`场景外观已显示 · ${((performance.now()-started)/1000).toFixed(2)} 秒 · ${metrics.cache==='memory'?'复用模型':metrics.cache==='persistent'?'读取缓存':'压缩下载'}`,'加载');
-  }catch(e){failedRevision=state.revision;if(controller.signal.aborted){result='cancelled';session.cancelled()}else{session.fail(e);notify(loadingError(e),'model')}}
+  }catch(e){if(controller.signal.aborted){result='cancelled';session.cancelled()}else if(latest?.revision===state.revision){failedRevision=state.revision;session.fail(e);notify(loadingError(e),'model')}}
   finally{
     loadingModel=false;
     const timing={...metrics,result,elapsed_ms:performance.now()-started,navigation_ms:performance.now()};
@@ -112,6 +113,7 @@ async function loadModel(state,currentAction){
   }
 }
 function update(data){
+  sceneAbsent=false;
   const state=data.backend;latest=state;online=true;scene=state.scene;buttons();
   const coach={balance:'语音平衡教练',seesaw:'跷跷板教练'}[scene];
   if(coach){
@@ -122,7 +124,7 @@ function update(data){
   }
   if(data.events.length&&data.events.at(-1).id<seen)seen=0;
   $('sim-status').textContent=state.error?'物理场景异常':'MuJoCo 物理运行中';
-  $('scene-title').textContent=scene==='skills'?'单鸭 · 动作与表情':scene==='rollers'?'单鸭 · 官方轮滑模型':scene==='seated'?'四鸭坐姿合唱 · 轮流独唱':scene==='table'?'四鸭桌上合唱':scene==='carry'?'单鸭 + 轻质小棒 · 接触夹持':scene==='ball'?'单鸭 + 球':'鸭 A + 鸭 B · 共享物理世界';
+  $('scene-title').textContent=scene==='choir'?'四声部合唱舞台':scene==='skills'?'单鸭 · 动作与表情':scene==='rollers'?'单鸭 · 官方轮滑模型':scene==='seated'?'四鸭坐姿合唱 · 轮流独唱':scene==='table'?'四鸭桌上合唱':scene==='carry'?'单鸭 + 轻质小棒 · 接触夹持':scene==='ball'?'单鸭 + 球':'鸭 A + 鸭 B · 共享物理世界';
   $('actions-heading').textContent=scene==='skills'?'练一项新本领':scene==='rollers'?'让小鸭滑起来':scene==='carry'?'用嘴完成一次搬运':scene==='ball'?'练习一次定点踢球':'一起活动';
   $('ball-controls').hidden=scene!=='ball';$('duo-controls').hidden=scene!=='duo';$('carry-controls').hidden=$('grasp-readouts').hidden=scene!=='carry';
   $('posture-controls').hidden=!['ball','duo','skills'].includes(scene);
@@ -148,10 +150,15 @@ function update(data){
 let socket,connectionNotice=null,retryDelay=1000;
 function notStarted(preparation){
   if(sceneRequestPending||preparation)return;
-  if(loadingModel){loadAbort?.abort();loadSession?.cancelled();}
+  if(sceneAbsent){buttons();return}
+  sceneAbsent=true;
+  const failed=!scene&&loadSession?.outcome==='failed';
+  loadAbort?.abort();loadAbort=null;if(!failed)loadSession=null;failedRevision=null;
+  sceneExperience?.finish('cancelled');sceneExperience=null;sceneRequestedAt=null;sceneTarget=null;
+  if(!failed)feedback.reset('选择上方场景，准备后即可开始。');
   syncSceneError(null);
   scene=revision=latest=null;seen=0;viewer?.clear();chorus.stop();buttons();
-  $('scene-placeholder').hidden=false;$('sim-status').textContent=loadSession?.outcome==='failed'?'物理场景启动失败':'选择场景开始';$('scene-title').textContent='等待启动';$('actions-heading').textContent='选择场景后开始';
+  $('scene-placeholder').hidden=false;$('sim-status').textContent=failed?'物理场景启动失败':'选择场景开始';$('scene-title').textContent='等待启动';$('actions-heading').textContent='选择场景后开始';$('action-result').textContent='';
   for(const id of ['posture-controls','skills-controls','rollers-controls','skill-readouts','basic-controls'])$(id).hidden=true;
   $('ball-controls').hidden=$('duo-controls').hidden=$('carry-controls').hidden=$('grasp-readouts').hidden=true;
   for(const id of ['ball-distance','ball-motion','ball-contact','duck-contact','sim-speed'])$(id).textContent='—';
@@ -167,6 +174,7 @@ function connect(){
   };
   channel.onclose=event=>{
     if(socket!==channel)return;
+    sceneAbsent=false;
     online=false;buttons();chorus.stop();
     $('sim-status').textContent=received?'场景连接中断 · 正在重连':'场景连接未建立 · 正在重试';
     connectionNotice=received

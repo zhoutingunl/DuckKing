@@ -327,3 +327,34 @@ def test_scene_http_websocket_origin_model_and_missing_dependencies(monkeypatch)
         assert response.status_code == 503
         assert "private-path" not in response.text
         assert "物理场景准备失败" in response.text
+
+
+async def test_four_part_choir_has_four_real_roots_and_cancels_all_targets(backend):
+    motion = MotionController(backend)
+    try:
+        setup = Action(name="scene_choir")
+        await motion.submit(setup)
+        assert (await motion.wait(setup.request_id))["status"] == "completed"
+        state = await backend.snapshot()
+        assert state["scene"] == "choir"
+        assert [d["id"] for d in state["ducks"]] == list("abcd")
+        assert len({driver.root for driver in backend.drivers}) == 4
+        positions = np.array([d["position"] for d in state["ducks"]])
+        assert np.all(np.diff(positions[:, 1]) > .15)
+        nod = Action(name="nod", target="both")
+        await motion.submit(nod)
+        assert (await motion.wait(nod.request_id))["status"] == "completed"
+        nod = Action(name="nod", target="both")
+        await motion.submit(nod)
+        await motion.submit(Action(name="stop"))
+        assert (await motion.wait(nod.request_id))["status"] == "cancelled"
+        assert all(np.all(driver.command == 0) for driver in backend.drivers)
+        assert not any(d["fallen"] for d in (await backend.snapshot())["ducks"])
+        # The shared geometry must not leave the stage controller enabled here.
+        assert backend.stage is None
+        next_scene = Action(name="scene_duo")
+        await motion.submit(next_scene)
+        assert (await motion.wait(next_scene.request_id))["status"] == "completed"
+        assert len((await backend.snapshot())["ducks"]) == 2
+    finally:
+        await motion.close()

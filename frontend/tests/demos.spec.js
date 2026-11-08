@@ -11,7 +11,7 @@ test.use({trace:{mode:'retain-on-failure',snapshots:false,screenshots:false}});
 function silentFixture(){
  const b=Buffer.alloc(44+3200);b.write('RIFF');b.writeUInt32LE(b.length-8,4);b.write('WAVE',8);b.write('fmt ',12);b.writeUInt32LE(16,16);b.writeUInt16LE(1,20);b.writeUInt16LE(1,22);b.writeUInt32LE(16000,24);b.writeUInt32LE(32000,28);b.writeUInt16LE(2,32);b.writeUInt16LE(16,34);b.write('data',36);b.writeUInt32LE(3200,40);return b;
 }
-for(const demo of DEMOS)test(`automated ${demo.id} validates actual MuJoCo outcomes`,{tag:'@journey'},async({page})=>{
+for(const demo of DEMOS)test(`automated ${demo.id} validates actual MuJoCo outcomes`,{tag:'@journey'},async({page},testInfo)=>{
  test.setTimeout(120000);
  await page.route('**/demo-audio/*.wav*',route=>route.fulfill({contentType:'audio/wav',body:silentFixture()}));
  const errors=[];page.on('pageerror',e=>errors.push(e.message));await page.goto('/demos.html?room=1');
@@ -31,8 +31,31 @@ for(const demo of DEMOS)test(`automated ${demo.id} validates actual MuJoCo outco
   if(demo.id==='tabletop')await expect(page.locator('#table-beat')).toHaveText('36 / 36 秒');await expect(page.locator('#demo-notice')).toBeHidden();
   await expect(page.locator('#demo-mode')).toBeEnabled({timeout:10000});
   if(demo.steps.some(step=>step.kind==='duel')){
+   await expect(page.locator('#stage-play')).toBeEnabled({timeout:10000});
+   await expect(page.locator('#demo-second')).toHaveAttribute('data-frozen','true');
+   for(const id of ['demo-viewport','demo-second']){
+    await expect(page.locator(`#${id} canvas`)).toBeVisible();
+    await expect(page.locator(`#${id}`)).toHaveAttribute('data-rendered-scene','ball');
+   }
+   await expect(page.locator('#second-result')).toBeVisible();
+   await page.locator('.theatre-stage').screenshot({path:testInfo.outputPath('duel-completed.png')});
    const rooms=await (await page.request.get('/api/rooms')).json();
    expect(rooms.rooms.filter(room=>room.physics).map(room=>room.id)).toEqual(['1']);
+   await page.locator('[data-demo=identity]').click();
+   await expect(page.locator('#demo-second canvas')).toHaveCount(0);
+   await expect(page.locator('#demo-second')).toBeHidden();
+   await page.locator('#stop-demo').click();
+   await expect(page.locator('#stage-play')).toBeEnabled({timeout:10000});
+  }
+  if(demo.id==='chorale'){
+   const state=await(await page.request.get('/api/scenes/state?room=1')).json();
+   expect(state.backend.scene).toBe('choir');expect(state.backend.ducks.map(d=>d.id)).toEqual(['a','b','c','d']);
+   expect(state.backend.ducks.every(d=>!d.fallen)).toBe(true);
+   await page.locator('.theatre-stage').screenshot({path:testInfo.outputPath('chorale-four-ducks.png')});
+   await expect(page.locator('#chorale-seats .chorale-seat')).toHaveCount(4);
+   await expect(page.locator('#chorale-panel')).not.toContainText('虚拟');
+   await expect(page.locator('#chorale-panel')).toContainText('四只物理鸭');
+   expect(JSON.parse(await page.locator('#demo-viewport').getAttribute('data-chorale-parts'))).toEqual({a:{part:'低音',active:true},b:{part:'高音',active:true},c:{part:'中音',active:false},d:{part:'次中音',active:true}});
   }
  expect(errors).toEqual([]);
 });

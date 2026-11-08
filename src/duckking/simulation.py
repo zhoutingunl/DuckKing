@@ -157,7 +157,7 @@ class MuJoCoBackend:
     def _build(self, scene):
         if scene in {"skills", "rollers"}:
             return build_skills_model(self.robot_dir, rollers=scene == "rollers")
-        if scene == "stage":
+        if scene in {"stage", "choir"}:
             return build_stage_model(self.robot_dir)
         if scene == "table":
             return build_table_model(self.robot_dir)
@@ -186,7 +186,7 @@ class MuJoCoBackend:
         return model
 
     def load(self, scene):
-        if scene in {"skills", "rollers", "stage"} and scene not in self.models:
+        if scene in {"skills", "rollers", "stage", "choir"} and scene not in self.models:
             self.models[scene] = self._build(scene)
             self.revisions[scene] = uuid.uuid4().hex
         if scene in {"table", "seated"} and scene not in self.models:
@@ -201,7 +201,7 @@ class MuJoCoBackend:
         self.revision = self.revisions[scene]
         prefixes = (
             [c + "_" for c in "abcd"]
-            if scene in {"table", "seated", "stage"}
+            if scene in {"table", "seated", "stage", "choir"}
             else ["a_", "b_"]
             if scene == "duo"
             else [""]
@@ -232,6 +232,10 @@ class MuJoCoBackend:
                     0,
                     0,
                     0,
+                ]
+            if scene == "choir":
+                self.data.qpos[driver.root : driver.root + 7] = [
+                    0, (i - 1.5) * 0.24, 0.125, 1, 0, 0, 0,
                 ]
             if scene == "stage":
                 x, y, yaw = stage_spawns[i]
@@ -355,6 +359,7 @@ class MuJoCoBackend:
             "reset",
             "scene_ball",
             "scene_duo",
+            "scene_choir",
             "scene_carry",
             "scene_table",
             "scene_seated",
@@ -364,7 +369,7 @@ class MuJoCoBackend:
             "stop",
         }:
             raise ValueError(self.error)
-        if action.target != "a" and self.scene not in {"duo", "table", "seated", "stage"}:
+        if action.target != "a" and self.scene not in {"duo", "table", "seated", "stage", "choir"}:
             raise ValueError("当前场景只有鸭 A")
         if self.stage and not (
             action.name.startswith("stage_")
@@ -380,6 +385,7 @@ class MuJoCoBackend:
             "reset",
             "scene_ball",
             "scene_duo",
+            "scene_choir",
             "scene_carry",
             "scene_table",
             "scene_seated",
@@ -394,6 +400,7 @@ class MuJoCoBackend:
             "reset",
             "scene_ball",
             "scene_duo",
+            "scene_choir",
             "scene_carry",
             "scene_table",
             "scene_seated",
@@ -409,6 +416,7 @@ class MuJoCoBackend:
             "reset",
             "scene_ball",
             "scene_duo",
+            "scene_choir",
             "scene_carry",
             "scene_table",
             "scene_seated",
@@ -632,7 +640,7 @@ class MuJoCoBackend:
                     raise
                 self.table_build_task = None
                 self.revisions["table"] = uuid.uuid4().hex
-            if action.name == "scene_stage" and "stage" not in self.models:
+            if action.name in {"scene_stage", "scene_choir"} and "stage" not in self.models:
                 if self.stage_build_task is None:
                     self.stage_build_task = asyncio.create_task(
                         asyncio.to_thread(self._build, "stage"))
@@ -647,6 +655,9 @@ class MuJoCoBackend:
                     raise
                 self.stage_build_task = None
                 self.revisions["stage"] = uuid.uuid4().hex
+            if action.name == "scene_choir":
+                self.models["choir"] = self.models["stage"]
+                self.revisions.setdefault("choir", uuid.uuid4().hex)
             self.load(action.name.removeprefix("scene_"))
             self.start()
             return {"scene": self.scene, "verified": True}

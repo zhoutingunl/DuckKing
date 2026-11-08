@@ -228,7 +228,9 @@ HTTP API 用 `room=<房间编号>` 查询参数选择房间（省略时兼容房
 
 ## CI 并行分组
 
-本地完整回归命令保持不变。浏览器按 `@journey`（十三幕逐幕验收）、`@stage`（第13幕多选与连续操作）和其余 checks 三类拆分，每类两片，在生产和开发两种构建模式下分别运行。示例：`npx playwright test --grep @journey --shard=1/2`；其他检查用 `--grep-invert '@journey|@stage'`。每台 runner 仍只有一个 browser worker，物理世界不共享。`node scripts/verify-ci-groups.mjs` 枚举全部分组与分片，确认不遗漏、不重复。十三幕从一个长测试改为十三个独立测试，仍逐一验证真实动作与结果。
+本地完整回归命令保持不变。浏览器按 `@journey`（十三幕逐幕验收）、`@stage`（第13幕多选与连续操作）和其余 checks 三类拆分；journey 和 stage 各两片，数量最多的 checks 三片，在生产和开发两种构建模式下分别运行。示例：`npx playwright test --grep @journey --shard=1/2`；其他检查用 `--grep-invert '@journey|@stage' --shard=1/3`。每台 runner 仍只有一个 browser worker，物理世界不共享。`node scripts/verify-ci-groups.mjs` 枚举全部分组与分片，确认不遗漏、不重复。十三幕从一个长测试改为十三个独立测试，仍逐一验证真实动作与结果。
+
+2026-11-07 的 CI `42330185738` 中 checks 分片已接近 20 分钟上限；增加释放场景回归后，将 checks 改为三片，保持单任务时限和所有断言不变。
 
 新增四鸭场景复用模块内已编译模型和固定 ONNX 会话，每个后端测试仍重新创建 MjData 和任务状态。Playwright trace 保留DOM、网络与操作记录，关闭连续截图，失败仍另存截图，避免软件GPU的 ReadPixels 截图阻塞。软件渲染从较低画布像素预算起步，保持官方几何和实际物理状态。第13幕高内容卡片取消 sticky，避免短屏上按钮随滚动逃出可点击区域。
 

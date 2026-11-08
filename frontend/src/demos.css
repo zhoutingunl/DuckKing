@@ -21,3 +21,5 @@
 
 /* Keep stage controls visible on short screens instead of a tall sticky card. */
 .theatre-stage:has(#stage-panel:not([hidden])){position:static}
+
+#demo-second{position:relative}.scene-result-label{position:absolute;top:12px;left:12px;z-index:2;padding:6px 10px;border-radius:8px;background:#f8faefe8;color:#526440;font-size:12px;pointer-events:none}
