@@ -30,7 +30,7 @@ export function physicsView(container,{label=null,onCameraChange}={}) {
   const floor=new THREE.Mesh(new THREE.PlaneGeometry(20,20),new THREE.MeshStandardMaterial({color:'#edf0e5',roughness:1}));floor.rotation.x=-Math.PI/2;floor.receiveShadow=true;scene.add(floor);
   const grid=new THREE.GridHelper(8,80,0xcbd6bd,0xe0e6d7);grid.position.y=.0001;scene.add(grid);
   const world=new THREE.Group();world.rotation.x=-Math.PI/2;scene.add(world);
-  let objects=new Map(),labels=new Map(),textures=[],geometries=[],materials=[],revision=null;
+  let objects=new Map(),labels=new Map(),annotations=new Map(),textures=[],geometries=[],materials=[],revision=null;
   let renderBatches=[],readyToRender=false,headingGuide=null,headingTexture=null,centerGuide=null;
   const appearance=appearanceControls(container,repaint);
   function repaint(){
@@ -53,8 +53,10 @@ export function physicsView(container,{label=null,onCameraChange}={}) {
     const context=canvas.getContext('2d');context.fillStyle='#155d85';context.fillRect(0,0,384,96);
     context.font='bold 48px sans-serif';context.textAlign='center';context.fillStyle='#fff';context.fillText(translate('目标朝向'),192,65,360);
   }
+  function paintAnnotation(sprite){const canvas=sprite.material.map.image,ctx=canvas.getContext('2d');ctx.clearRect(0,0,256,64);ctx.fillStyle='#fffef1';ctx.fillRect(0,0,256,64);ctx.fillStyle='#435d37';ctx.textAlign='center';ctx.font='32px sans-serif';ctx.fillText(translate(sprite.userData.text),128,44,240);sprite.material.map.needsUpdate=true}
   function refreshLanguage(){
     for(const [id,sprite] of labels){paintLabel(sprite.material.map.image,id);sprite.material.map.needsUpdate=true}
+    for(const sprite of annotations.values())paintAnnotation(sprite);
     if(headingTexture){paintHeading(headingTexture.image);headingTexture.needsUpdate=true}
     invalidate();
   }
@@ -121,7 +123,7 @@ export function physicsView(container,{label=null,onCameraChange}={}) {
     for(const {object} of renderBatches)object.dispose();
     world.clear();geometries.forEach(g=>g.dispose());materials.forEach(m=>m.dispose());textures.forEach(t=>t.dispose());
     geometries=[];materials=[];textures=[];renderBatches=[];readyToRender=false;revision=null;latest=null;selection=null;headingGuide=null;headingTexture=null;centerGuide=null;
-    objects.clear();labels.clear();parts={};delete container.dataset.choraleParts;renderer.renderLists.dispose();appearance.setDucks([]);delete container.dataset.renderedScene;
+    objects.clear();labels.clear();annotations.clear();parts={};delete container.dataset.choraleParts;renderer.renderLists.dispose();appearance.setDucks([]);delete container.dataset.renderedScene;
     delete container.dataset.headingTarget;
     delete container.dataset.headingSurface;
     delete container.dataset.centerTarget;
@@ -142,12 +144,13 @@ export function physicsView(container,{label=null,onCameraChange}={}) {
     for(const geom of model.geoms){
       let geometry=geom.type===7?meshes.get(geom.mesh):null;
       const primitiveKey=JSON.stringify([geom.type,geom.size]);
-      if(geom.type===6||geom.type===2||geom.type===5){
+      if([2,3,4,5,6].includes(geom.type)){
         geometry=primitives.get(primitiveKey);
         if(!geometry){
-          geometry=geom.type===6?new THREE.BoxGeometry(...geom.size.map(v=>v*2)):geom.type===5?new THREE.CylinderGeometry(geom.size[0],geom.size[0],geom.size[1]*2,64):new THREE.SphereGeometry(geom.size[0],32,20);
+          geometry=geom.type===3?new THREE.CapsuleGeometry(geom.size[0],geom.size[1]*2,6,12):geom.type===4?new THREE.SphereGeometry(1,24,16):geom.type===6?new THREE.BoxGeometry(...geom.size.map(v=>v*2)):geom.type===5?new THREE.CylinderGeometry(geom.size[0],geom.size[0],geom.size[1]*2,64):new THREE.SphereGeometry(geom.size[0],32,20);
           // MuJoCo cylinders use local Z, Three.js cylinders use local Y.
-          if(geom.type===5)geometry.rotateX(Math.PI/2);
+          if(geom.type===5||geom.type===3)geometry.rotateX(Math.PI/2);
+          if(geom.type===4)geometry.scale(...geom.size);
           primitives.set(primitiveKey,geometry);geometries.push(geometry)
         }
       }
@@ -180,6 +183,12 @@ export function physicsView(container,{label=null,onCameraChange}={}) {
         const texture=new THREE.CanvasTexture(canvas);textures.push(texture);const material=new THREE.SpriteMaterial({map:texture,depthTest:false});materials.push(material);const sprite=new THREE.Sprite(material);sprite.scale.set(.105,.04,1);world.add(sprite);labels.set(duck.id,sprite);invalidate();
       }
       const [x,y,z]=duck.position;labels.get(duck.id).position.set(x,y,z+.20);
+    }
+    for(const point of state.annotations??[]){
+      let sprite=annotations.get(point.id);
+      if(!sprite){const canvas=document.createElement('canvas');canvas.width=256;canvas.height=64;const texture=new THREE.CanvasTexture(canvas);textures.push(texture);const material=new THREE.SpriteMaterial({map:texture,depthTest:false});materials.push(material);sprite=new THREE.Sprite(material);sprite.scale.set(.18,.045,1);world.add(sprite);annotations.set(point.id,sprite)}
+      if(sprite.userData.text!==point.text){sprite.userData.text=point.text;paintAnnotation(sprite);invalidate()}
+      sprite.position.set(...point.position);
     }
     const changed=new Set();
     for(const geom of state.geoms){const entry=objects.get(geom.id);if(!entry)continue;
@@ -258,7 +267,7 @@ export function physicsView(container,{label=null,onCameraChange}={}) {
     selection(value){selection=value;invalidate()},
     interaction(callback,mode="select"){interaction=callback;interactionMode=mode;if(!callback){stick.visible=false;for(const ring of rings.values())ring.visible=false}invalidate()},
     renderNow(){scheduler.flush()},
-    frameScene(scene){if(disposed)return;manualView=false;floorFramed=false;seatedView=scene==='seated';resize();controls.enableDamping=false;controls.update();const close=scene==='carry',seated=scene==='seated',table=scene==='table';camera.position.set(...(scene==='stage'?[2.7,2.1,0]:scene==='choir'?[1.15,.70,.15]:seated?[1.05,.90,-1.05]:table?[1.35,.98,-1.35]:close?[.6,.4,.65]:scene==='seesaw'?[.72,.85,-1.15]:scene==='balance'?[1.25,.82,1.35]:[.85,.62,.95]));controls.target.set(close ? .12 : table ? .20 : 0,scene==='seesaw' ? .22 : scene==='balance' ? .13 : seated ? .52 : table ? .25 : .13,table ? -.10 : 0);controls.update();controls.saveState();controls.enableDamping=true;invalidate()},
+    frameScene(scene){if(disposed)return;manualView=false;floorFramed=false;seatedView=scene==='seated';resize();controls.enableDamping=false;controls.update();const close=scene==='carry',seated=scene==='seated',table=scene==='table';camera.position.set(...(scene==='swing'?[1.25,.85,1.3]:scene==='circus'?[1.15,.75,1.15]:scene==='navigation'?[1.5,1.3,1.6]:scene==='stage'?[2.7,2.1,0]:scene==='choir'?[1.15,.70,.15]:seated?[1.05,.90,-1.05]:table?[1.35,.98,-1.35]:close?[.6,.4,.65]:scene==='seesaw'?[.72,.85,-1.15]:scene==='balance'?[1.25,.82,1.35]:[.85,.62,.95]));controls.target.set(close ? .12 : table ? .20 : 0,scene==='swing' ? .42 : scene==='circus' ? .22 : scene==='seesaw' ? .22 : scene==='balance' ? .13 : seated ? .52 : table ? .25 : .13,table ? -.10 : 0);controls.update();controls.saveState();controls.enableDamping=true;invalidate()},
     reset(){if(disposed)return;manualView=false;floorFramed=false;controls.enableDamping=false;controls.update();controls.reset();controls.enableDamping=true;invalidate()},
     dispose(){
       if(disposed)return;disposed=true;scheduler.dispose();events.abort();observer.disconnect();visibility.disconnect();document.removeEventListener('visibilitychange',setVisibility);

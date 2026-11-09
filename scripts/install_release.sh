@@ -110,6 +110,10 @@ PY
 export UV_CACHE_DIR=$base/cache UV_CONCURRENT_DOWNLOADS=2 UV_CONCURRENT_INSTALLS=2
 export DUCKKING_SIM_DIR=$release/external OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1
 "$uv_binary" sync --project "$release" --frozen --no-dev --extra simulation --extra local-asr --python "$python" --no-managed-python
+if [[ -f $release/external/features/sources.json ]]; then
+  "$uv_binary" pip install --python "$release/.venv/bin/python" --no-deps \
+    -r "$release/scripts/feature_runtime_requirements.txt"
+fi
 "$python" - "$release" <<'PY'
 import hashlib,json,runpy,sys
 from pathlib import Path
@@ -121,6 +125,9 @@ for name,expected in upstream['CHECKSUMS'].items():
     assert hashlib.sha256((release/'external/policies'/name).read_bytes()).hexdigest()==expected
 asr=runpy.run_path(str(release/'scripts/fetch_asr_assets.py'))
 assert asr['valid'](release/'external/asr')
+if (release/'external/features/sources.json').is_file():
+    features=runpy.run_path(str(release/'scripts/fetch_feature_assets.py'))
+    features['verify_package'](release/'external/features')
 PY
 nice -n 10 "$release/.venv/bin/python" "$release/scripts/verify_local_asr.py" > "/var/lib/duckking/verification/asr-$version.json"
 nice -n 10 "$release/.venv/bin/python" "$release/scripts/verify_scenarios.py" --output "/var/lib/duckking/verification/physics-$version.json"

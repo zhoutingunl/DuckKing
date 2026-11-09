@@ -331,6 +331,9 @@ class DeviceMCP:
                          "只让左鸭站住请用duck_hold_position。"}
                         if t["name"] == "duck_stop" else t for t in tools
                     ] + SEESAW_TOOLS
+                if self.motion.backend.scene == "functional":
+                    tools = [t for t in TOOLS if t["name"] in {"duck_stop", "duck_get_status"}]
+                    tools += self.motion.backend.tools()
             if self.motion.studio:
                 if self.motion.studio.active not in {None, "voice", "persona"}:
                     tools = [t for t in tools if t["name"] in {"duck_stop", "duck_get_status"}]
@@ -346,6 +349,15 @@ class DeviceMCP:
                 raise ValueError("工具名称必须是字符串")
             if not isinstance(arguments, dict):
                 raise ValueError("工具参数必须为对象")
+            if (self.motion.backend.kind == "mujoco"
+                    and self.motion.backend.scene == "functional"):
+                if name == "duck_feature":
+                    result = await self.motion.backend.invoke(arguments, wait=True)
+                    return response | {"result": {"content": [{"type": "text", "text":
+                        json.dumps(result, ensure_ascii=False)}],
+                        "isError": result.get("operation_failed", False)}}
+                if name not in {"duck_stop", "duck_get_status"}:
+                    raise ValueError("请使用当前功能场景提供的工具")
             if name == "duck_table_show" and (
                 self.motion.backend.kind != "mujoco" or self.motion.backend.scene != "table"
             ):
@@ -467,7 +479,8 @@ class DeviceMCP:
             if name == "duck_get_status":
                 state = await self.motion.snapshot()
                 result = {
-                    "backend": {k: v for k, v in state["backend"].items() if k != "geoms"},
+                    "backend": {k: v for k, v in state["backend"].items()
+                                if k not in {"geoms", "sensors", "feature_path"}},
                     "action": state["action"],
                     **({"studio": state["studio"]} if "studio" in state else {}),
                 }

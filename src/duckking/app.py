@@ -133,6 +133,9 @@ def create_app(
     from .seesaw_api import install_seesaw_api
 
     install_seesaw_api(app, get_room, ROOT)
+    from .feature_api import install_feature_api
+
+    install_feature_api(app, get_room, ROOT)
 
     async def socket_room(ws):
         # Selection is a protocol frame so existing HTTPS bridges need no changes.
@@ -317,6 +320,7 @@ def create_app(
                 "stage",
                 "balance",
                 "seesaw",
+                "functional",
                 "unknown",
             },
         }
@@ -811,8 +815,9 @@ def create_app(
                         if mode != "cloud" and getattr(voice_motion.backend, "scene", None) in {
                             "balance",
                             "seesaw",
+                            "functional",
                         }:
-                            raise ValueError("平衡与跷跷板教练使用灵矽理解，请选择灵矽模式")
+                            raise ValueError("此场景使用灵矽理解，请选择灵矽模式")
                         if (
                             mode == "local_first"
                             and voice_motion.studio

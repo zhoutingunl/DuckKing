@@ -3,8 +3,12 @@ import {test,expect} from '@playwright/test';
 test('all pages keep the same navigation, room, source link and language menu',async({page})=>{
  test.setTimeout(60000);
  const errors=[];page.on('pageerror',error=>errors.push(error.message));
- const labels=['首页','动作训练场','演示场景','现场互动','训练新动作','交互统计','使用体验','部署记录','源代码 ↗'];
- for(const name of ['index','training','seesaw','balance','scenarios','demos','studio','experience','statistics','deploys']){
+ // Navigation checks do not need to create three unrelated physics worlds.
+ // Their real preparation paths are covered by their scene-specific tests.
+ await page.request.post('/api/scenes/close?room=1');
+ await page.route(/\/api\/(balance|seesaw|features)\/prepare(?:\?|$)/,route=>route.fulfill({status:503,json:{detail:'Navigation-only test'}}));
+ const labels=['首页','功能场景','动作训练场','演示场景','现场互动','训练新动作','交互统计','使用体验','部署记录','源代码 ↗'];
+ for(const name of ['index','training','seesaw','balance','scenarios','demos','studio','experience','statistics','deploys','features']){
   await page.goto(`/${name==='index'?'':name+'.html'}?room=1`);
   await expect(page.locator('.site-topbar nav a')).toHaveText(labels);
   await expect(page.locator('.site-topbar .brand')).toHaveAttribute('aria-label','DuckKing 首页');

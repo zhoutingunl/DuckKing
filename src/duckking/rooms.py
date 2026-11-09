@@ -58,13 +58,17 @@ class RoomRegistry:
 
     @staticmethod
     def busy(room):
+        feature_busy = (room.scene_motion is not None
+                        and getattr(room.scene_motion.backend, "scene", None) == "functional"
+                        and (room.scene_motion.backend.state or {}).get("feature", {})
+                        .get("status") == "running")
         # RL scenes own bounded tasks directly on their physics backends.
         physics_task = (getattr(room.scene_motion.backend, "task", None)
                         if (room.scene_motion
                             and getattr(room.scene_motion.backend, "scene", None)
                             in {"balance", "seesaw"})
                         else None)
-        return (getattr(room, "preparing", None) is not None or room.viewers
+        return (feature_busy or getattr(room, "preparing", None) is not None or room.viewers
                 or room.voice is not None or room.motion.current is not None
                 or (physics_task is not None and not physics_task.done())
                 or (room.scene_motion is not None and (room.scene_motion.current is not None

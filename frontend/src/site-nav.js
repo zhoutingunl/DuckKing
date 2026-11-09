@@ -8,6 +8,7 @@ await initUILanguage();
 // Every page shares the same destinations, order and room-preservation rules.
 const destinations=[
  ['index.html','首页'],
+ ['features.html','功能场景'],
  ['scenarios.html','动作训练场'],['demos.html','演示场景'],
  ['studio.html','现场互动'],['training.html','训练新动作'],
  ['statistics.html','交互统计',true],['experience.html','使用体验',true],

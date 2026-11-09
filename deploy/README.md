@@ -142,3 +142,9 @@ worker 健康检查通过后才重启 DuckKing 主服务。部署失败恢复旧
 语言配置与私有设备数据保存在发布目录外。更新 `--language-profile --lang-code en|fr` 后，针对每个已启用房间执行 `--room N --language-device --lang-code en|fr`；它在该房间的 `languages/<language>/` 下创建独立身份、绑定已有语言智能体并校验归属，不迁移原设备。将这些目录按 0700、文件按 0600 保存，禁止放入公开发布包或 CDN。页面只读取已验证的绑定，不持有管理 Key，也不自动开户。新配置 `transport: bound_device` 缺失对应数据时拒绝连接，因此部署前要准备全部可分配房间。保留原 `voice-profiles.json` 备份；回滚旧版本及配置不会解绑新身份。
 
 验收须包含同一房间中文 → 法语、等待云端原生闲置告别、法语重连和切回中文。仅看到法语普通回复或 `voice_status.language=fr`，不能证明云端 ASR 与告别都采用了法语。新增日志 `cloud_connect.language/agent_profile/device_route` 记录本地选择，仍需与实际转写和听到的回复核对。
+
+## 功能场景资源
+
+发布打包器默认包含 `external/features` 的固定版本资源与校验清单，排除本机 wheels 和 Git 缓存。安装器从 `scripts/feature_runtime_requirements.txt` 安装目标平台的 CPU 依赖并核对全部资源哈希；不会覆盖原来的基础仿真资源。Linux 第一视角需要 Mesa 离屏库（Debian/Ubuntu：`libosmesa6`），工作进程默认 `MUJOCO_GL=osmesa`。发布前应在目标主机准备该库并验证第一视角，不能仅因首页可用就算全部功能通过。
+
+`build_release.py --without-features` 仅适用于明确不需要新增功能的基础包；该包中的功能页面将明确报告缺资源。各实验当前边界见 [功能场景](../docs/FUNCTIONAL_SCENES.md)，尤其秋千和跳绳的可见动作不等于通过完整物理验收。
