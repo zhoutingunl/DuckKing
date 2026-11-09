@@ -6,6 +6,16 @@
 
 建议首波采用“**已有能力参数实验室＋官方情绪短剧＋四鸭互动导演**”作为稳定主线，以“**回窝歇会儿：MicroDock 仿真对接**”作为重点新增；25 mm 门槛和三色物体搜索进入紧随其后的候选池。所有新技能先经过独立重放、契约适配、取消与失败验收，再开放实时语音入口。
 
+**同日增补修订：**对照[补充调研报告](https://aiops.qbox.net/files/691082629293bdf4/microduck-mujoco-survey-2026-11-10.md)，本版补入 happy-hop、flamingo-cycle、footsteps、官方 Arena 及多鸭接触任务，细化 MicroDock 条件；保留原有 **22 项路线与首批六项范围**，新增项另列补充短名单。最值得马上做合同验证的是 happy-hop 与 flamingo-cycle；footsteps 则应作为独立落足规划系统评估，不能按普通步态替换。下面记录采纳与纠错，具体原始来源见相应章节。
+
+| 对照结论 | 本版处理 |
+|---|---|
+| 采纳有工件的增量 | 新增单鸭动作、Circus 跳绳、Piano 键盘接触、严格视觉足球、Arena 与 TorchRL；逐项保留许可、模型与失败边界 |
+| 细化已有结果 | MicroDock 加 v1 对照及 v2 的 6 N／8 N 条件、分轴误差；apartment／vslam 已在本地旧 pin，vslam 为六地标柱 |
+| 保留原报告的正确口径 | 10 个部署 ONNX、13 家族／33 ID／15 Backlash；官方已有 alpha_stand；v9 是 velstand 回退，本站仍固定 v8 |
+| 纠正增补中的归类和数量 | Arena 是六事件、同世界最多八鸭；TorchRL 当前为九技能实验 prior，非 Pollen 随包技能；Grabette 的 red-cube-blue-box 不列 MicroDuck VLA |
+| 不采纳缺证据的推广 | 不把 61→14 当即插即用，不把 moonwalk／electric-slide 当完成动作，不采用“43 条全验证”“HF 长尾无增量”或真实充电已闭环等说法 |
+
 本报告的“已实现／已发布”表示查到对应源码、配置或工件，**不表示本次运行成功**。本轮读取公开代码、文档、模型清单和 DuckKing 固定版本，未新跑仿真、推理、训练、云端会话或硬件测试。文中的社区成绩均为**作者报告、未在本轮复现**；DuckKing 的训练成绩是**仓库保存的历史固定评估记录**。投入与排序是工程估计，不是实测工期、训练成本或用户偏好调查。
 
 | 决策 | 建议 | 理由 |
@@ -35,6 +45,8 @@
 ## 2. 官方已发布 10 个运动策略，情绪、感知和音乐拓宽了展示范围
 
 ### 2.1 十个 ONNX 中，DuckKing 已用了八个
+
+runtime 的 **七个槽位**是 `walk／stand／sitstand／ground_pick／kick_left／kick_right／roulade` 控制角色；**十个 ONNX**是此处固定 HF manifest 的部署文件数，另含旧双策略和足轮文件。两者统计单位不同，不能用七槽位否定十文件，也不能把后文独立 Arena 模型库直接累加为同一随包集合。([runtime 槽位说明](https://github.com/pollen-robotics/microduck/blob/da34a2212ae12eddfd73d0dfbf924f291aaf1dc9/docs/robot/cheatsheet.md#the-slots-and-four-things-worth-knowing)、[部署 manifest](https://huggingface.co/pollen-robotics/microduck-policies/blob/283771bcb3690a0a94a288c108365d9b630d21e4/manifest.json))
 
 官方发布集合遵循 **61 维观测、14 维关节输出、50 Hz** 的主要部署契约；嘴部由额外控制处理。维度相同不意味着命令语义相同：行走使用速度，坐站借用命令槽作为二值标志，啄地和蹲滑使用相位。下面十个文件均属 A 级工件证据，具体场景组合仍待运行验收。([策略 manifest](https://huggingface.co/pollen-robotics/microduck-policies/blob/283771bcb3690a0a94a288c108365d9b630d21e4/manifest.json)、[runtime 策略契约](https://github.com/pollen-robotics/microduck/blob/da34a2212ae12eddfd73d0dfbf924f291aaf1dc9/docs/policy-manifest.md))
 
@@ -77,6 +89,8 @@ DuckKing 状态依据[资产清单](https://github.com/zhoutingunl/DuckKing/blob
 
 Swizzle、Slope、RollerStandUp、Spin 属于优先核查 checkpoint 的 B 级候选，不能仅因任务可 `train/play` 就加入“现成可玩”菜单。RollerStandUp 文档还记录过早期训练依赖不现实摩擦的问题。当前注册表和十个部署文件未找到官方 jump；更新架构文档中的 `model-jump` 是设计例子，不能作为跳跃已发布的证据。([轮滑起身设计与问题](https://github.com/pollen-robotics/microduck_rl/blob/bae39f5900b318f7e87fc485c30a31213cfa14eb/docs/roller_standup_policy_summary.md)、[Spin 配置](https://github.com/pollen-robotics/microduck_rl/blob/bae39f5900b318f7e87fc485c30a31213cfa14eb/src/mjlab_microduck/tasks/microduck_spin_env_cfg.py)、[更新系统设计例子](https://github.com/pollen-robotics/microduck/blob/da34a2212ae12eddfd73d0dfbf924f291aaf1dc9/docs/design/updater-design.md))
 
+“官方发布集合未含 jump”不排除社区跳跃策略。happy-hop 等新增发布物见 §4.2；它们需要各自的入口姿态、延迟与收尾合同，不归入上述官方十文件计数。
+
 ### 2.3 场景已经包括公寓与视觉房间，碰撞模型必须随技能选用
 
 | 模型／场景 | 已有内容 | 集成时的关键区别 |
@@ -90,6 +104,8 @@ Swizzle、Slope、RollerStandUp、Spin 属于优先核查 checkpoint 的 B 级�
 | `scene_apartment.xml`＋`apartment.xml` | 房间、门、家具、地标与充电桩外形，可提供 RGB／ToF | 桩关闭碰撞，没有自主回充控制器；见[公寓 XML](https://github.com/pollen-robotics/microduck_rl/blob/bae39f5900b318f7e87fc485c30a31213cfa14eb/src/mjlab_microduck/robot/microduck/apartment.xml) |
 | `scene_vslam.xml`＋`vslam_room.xml` | 供视觉定位研究的纹理与物体 | 有房间不等于 SLAM／导航闭环已完成；见[视觉场景](https://github.com/pollen-robotics/microduck_rl/blob/bae39f5900b318f7e87fc485c30a31213cfa14eb/src/mjlab_microduck/robot/microduck/scene_vslam.xml) |
 | `xl330_test_bench/scene.xml` | 执行器模型标定台 | 工程工具，不计娱乐技能；见[试验台](https://github.com/pollen-robotics/microduck_rl/blob/bae39f5900b318f7e87fc485c30a31213cfa14eb/src/mjlab_microduck/robot/xl330_test_bench/scene.xml) |
+
+增补只读检查确认，**apartment／vslam 两个 scene 及其几何文件已存在于 DuckKing 本地旧 pin `b02fdea`**，均引用 `robot_allcollisions.xml`，但应用构建器尚无对应入口。vslam 是约 11 m 房间、**六个彩色地标柱**，不是五柱；地板边长与墙内净宽也不是同一尺度。公寓中的家具、楼梯与桩只提供环境资产；加载文件不能证明自主漫游、避障、SLAM 或爬楼梯，本轮也未编译或渲染它们。([旧 pin 公寓 scene](https://github.com/pollen-robotics/microduck_rl/blob/b02fdea4902c2b93b7d34a83a6f05da4ececb7d3/src/mjlab_microduck/robot/microduck/scene_apartment.xml)、[旧 pin vslam 几何](https://github.com/pollen-robotics/microduck_rl/blob/b02fdea4902c2b93b7d34a83a6f05da4ececb7d3/src/mjlab_microduck/robot/microduck/vslam_room.xml)、[本站场景构建器](https://github.com/zhoutingunl/DuckKing/blob/5d9b92cb8c096814fae311d6700ac829792df687/src/duckking/simulation.py#L157))
 
 官方训练入口为 `train <TASK>`、`play <TASK>` 和 `list-envs`，另有最近运行选择、ONNX 导出与发布工具。**CPU 原生 MuJoCo＋ONNX replay** 已有 `infer_policy.py`；**真实 robotd 接模拟身体** 已有 `duck-body`／`body_server.py`，通过协议 1 的逐行 JSON TCP 接口工作。训练使用 mjlab／MuJoCo Warp 的 CUDA 路径；不能把训练需要 GPU 推断成每次网页体验也需要 GPU。ONNX 不含继续训练所需的 critic、optimizer 等完整状态；官方 training bundle 机制存在，但本次未确认所有动作都有公开可读的完整训练包。([入口定义](https://github.com/pollen-robotics/microduck_rl/blob/bae39f5900b318f7e87fc485c30a31213cfa14eb/pyproject.toml)、[CPU 推理脚本](https://github.com/pollen-robotics/microduck_rl/blob/bae39f5900b318f7e87fc485c30a31213cfa14eb/scripts/infer_policy.py)、[body server](https://github.com/pollen-robotics/microduck_rl/blob/bae39f5900b318f7e87fc485c30a31213cfa14eb/src/mjlab_microduck/sim/body_server.py)、[训练包说明](https://github.com/pollen-robotics/microduck_rl/blob/bae39f5900b318f7e87fc485c30a31213cfa14eb/docs/training_checkpoints.md))
 
@@ -110,6 +126,12 @@ Swizzle、Slope、RollerStandUp、Spin 属于优先核查 checkpoint 的 B 级�
 | 脸部 LED／照明 | beta 板 LED 与 flashlight 控制 | 硬件输出；网页表情需明确额外映射；见[LED 实现](https://github.com/pollen-robotics/microduck/blob/da34a2212ae12eddfd73d0dfbf924f291aaf1dc9/robotd/src/leds.rs) |
 | 官方浏览器 sandbox | MuJoCo WASM＋onnxruntime-web、腿／轮双模型、动作与彩色皮肤、P2P ghost | 物理在各自 tab，ghost 是姿态广播，不是共享碰撞世界；也不是 robotd／Linx 连接；见[Space README](https://huggingface.co/spaces/pollen-robotics/microduck-simulator/blob/main/README.md) |
 
+### 2.5 官方 Arena 增加的是六类赛事与同世界演出格式
+
+Pollen 官方 `microduck-challenges@5cee942` 与前述浏览器 sandbox、StephenForte 的同名社区工作坊分别统计。固定 README 列出 **sprint、roller-sprint、hill-climb、got-a-talent、tug-of-war、sock-heist 六事件**。其中 got-a-talent 是最多 20 秒的 timeline 表演与投票，可在同一物理世界安排最多八鸭，各自固定策略、编排、voice 与 song；这比跨 tab 的 ghost 广播多了共享物理条件。对 DuckKing 最直接的增量是借鉴节目合同和多鸭声部格式，先复用已有四鸭；八鸭容量与六事件在线可玩状态均未在本轮实测。([官方挑战规则](https://github.com/pollen-robotics/microduck-challenges/blob/5cee942d8b434aafd395070facb659034aac3b5e/README.md)、[Arena Space 固定说明](https://huggingface.co/spaces/pollen-robotics/microduck-arena/blob/9305b754862c56b2b2ce512c063c34600efbf932/README.md))
+
+官方还独立发布了 `got-a-talent-reference@0454fe8` 的 ONNX／PT／timeline，仍是 sitstand 与头部命令编排，不是新学会的一整套才艺；`sock-heist-6m-reference@ee81c13` 则发布 ONNX、checkpoint 与 schema-2 manifest，61→14、50 Hz。后者在巨鸭看向跑道时由外层规则清零命令，策略不看相机，也不负责用嘴拿袜；作者报告选定 checkpoint 在 Space x86 的五个种子全部完成，应称有界“红绿灯”规则任务。两份 reference 属独立模型库，不改写十文件计数；本轮未确认它们及 challenge 仓库的独立许可证，接入分发前须补清。([才艺参考](https://huggingface.co/pollen-robotics/microduck-got-a-talent-reference/blob/0454fe8a848526338ba6edf72b8358fbf51d6b21/README.md)、[偷袜参考及选择条件](https://huggingface.co/pollen-robotics/microduck-sock-heist-6m-reference/blob/ee81c1368572753528c01ee493c938c6aaac3ed0/README.md)、[命令合同](https://huggingface.co/pollen-robotics/microduck-sock-heist-6m-reference/blob/ee81c1368572753528c01ee493c938c6aaac3ed0/manifest.json))
+
 ## 3. 坐姿回桩已有社区工件，真正的自动充电仍有分层边界
 
 ### 3.1 官方坐姿与公寓桩，只构成回充的前置资产
@@ -119,6 +141,8 @@ Swizzle、Slope、RollerStandUp、Spin 属于优先核查 checkpoint 的 B 级�
 硬件讨论中，官方参与者曾说最终量产单元会有 onboard charging；后续关于电流、外部充电冲突、断电后供电自启的追问，在本轮读取页面中没有完整可引用答案。因此“机载充电电路”“有可视桩”“会自己回桩”应分开叙述。非 Pollen 域名的 dock 商品／Isaac 文案不作为官方证据。([官方问题 #174](https://github.com/pollen-robotics/microduck/issues/174)、[充电问题 #470](https://github.com/pollen-robotics/microduck/issues/470)、[Pollen 产品页](https://pollen-robotics.com/microduck/))
 
 ### 3.2 MicroDock v2 最适合做本站首个“回窝”物理节目
+
+**v1 提供了不新增低层训练的对照：**同一固定仓库的 MicroDock v1 使用未修改官方 velstand，按标签接近、转 180°、以 `vx=-0.4` 倒退，满足几何连接后停止。作者在 BAM、4 N 磁力、真值标签加噪声条件下记录 **30/30 入坞、无电源按钮接触**；正式批次用了 `--stop_gap 0`，不能以脚本默认 14 替代。它适合对比站姿与坐姿机械入坞，不代表已具备 v2 的离坞／休眠流程，更不是实机充电。([v1 条件与复现入口](https://github.com/Vottivott/microduck-playground/blob/052a2494dd6372289221c7a4f24a245b443dd75f/hardware/microdock/README.md)、[30 次作者记录](https://github.com/Vottivott/microduck-playground/blob/052a2494dd6372289221c7a4f24a245b443dd75f/hardware/microdock/results/backin30.json))
 
 **Vottivott/microduck-playground 的 MicroDock v2 是独立社区扩展，固定版本 `052a249`，2026-11-05 合入。** 它发布了 `scoot_dock.onnx`、`scoot_undock.onnx`、训练 patch／环境、CAD 生成器、STL／3mf、装配图、评估 JSON 和重放脚本。低层策略训练的是坐姿速度跟踪；入坞与离坞依赖外层控制器和机械场景，不能把策略文件名解读为端到端视觉回充。其 61→14、50 Hz 接口与官方形式相近，但模型采用对应版本的 BAM XL330，仍需独立契约适配。([v2 说明](https://github.com/Vottivott/microduck-playground/blob/052a2494dd6372289221c7a4f24a245b443dd75f/hardware/microdock-v2/README.md)、[策略目录](https://github.com/Vottivott/microduck-playground/tree/052a2494dd6372289221c7a4f24a245b443dd75f/hardware/microdock-v2/policy)、[训练契约](https://github.com/Vottivott/microduck-playground/blob/052a2494dd6372289221c7a4f24a245b443dd75f/hardware/microdock-v2/training/README.md))
 
@@ -132,7 +156,17 @@ Swizzle、Slope、RollerStandUp、Spin 属于优先核查 checkpoint 的 B 级�
 
 表中边界可核查于[入坞脚本](https://github.com/Vottivott/microduck-playground/blob/052a2494dd6372289221c7a4f24a245b443dd75f/hardware/microdock-v2/sim/docking_seated.py)、[离坞脚本](https://github.com/Vottivott/microduck-playground/blob/052a2494dd6372289221c7a4f24a245b443dd75f/hardware/microdock-v2/sim/undocking_seated.py)及[接触／磁力模型](https://github.com/Vottivott/microduck-playground/blob/052a2494dd6372289221c7a4f24a245b443dd75f/hardware/microdock/source/dock.py)。磁力通过 `mj_applyFT` 对接头与罩施加相反力；它是公开声明的环境模型，不应隐藏成“策略自己产生的吸附”。
 
-**作者报告、未在本轮复现：**4 N 磁力条件下，入坞和离坞各 30/30；8 N 时离坞为 2/10，最终站起走开为 1/10；移除匹配训练的延迟时离坞仅 1/10。这些结果说明它已有值得复用的研究资产，也说明成功对模型条件敏感。坞座固定和滑轨罩的条件必须保留，不能外推到未固定塑料座或真实 USB-C 插拔。([作者结果 JSON](https://github.com/Vottivott/microduck-playground/blob/052a2494dd6372289221c7a4f24a245b443dd75f/hardware/microdock-v2/results/undock_magnet.json)、[完整限制](https://github.com/Vottivott/microduck-playground/blob/052a2494dd6372289221c7a4f24a245b443dd75f/hardware/microdock-v2/README.md))
+**作者记录、未在本轮复现的 v2 结果如下。**不同磁力下分开记录入坞、脱离、站起和走开，不能用“8 N 出不来”代替其实际失败分布。
+
+| 磁力条件 | 入坞 | 脱离 | 站起／走开 | 脱离时间 |
+|---|---:|---:|---|---|
+| 4 N | 30/30 | 30/30 | 均 30/30 | 中位 1.06 s，最大 1.34 s |
+| 6 N | 10/10 | 10/10 | 均 10/10 | 中位 1.49 s，最大 5.26 s |
+| 8 N | 10/10 | 2/10 | 各 1/10 | 不作为稳定工作条件 |
+
+表中数值来自作者[4 N 批次](https://github.com/Vottivott/microduck-playground/blob/052a2494dd6372289221c7a4f24a245b443dd75f/hardware/microdock-v2/results/undock30.json)与[6／8 N 批次](https://github.com/Vottivott/microduck-playground/blob/052a2494dd6372289221c7a4f24a245b443dd75f/hardware/microdock-v2/results/undock_magnet.json)。4／6 N 共 40 次中两次起身擦罩，最大 5.6 N；8 N 批次最大起身罩接触力为 92.6 N。对作者 `seated30.json` 静态取最大绝对值，轴向／横向／竖向误差分别为 **0.11／0.64／0.46 mm**；这是坐姿机械对接记录中的分轴误差，不能写成三维 0.1 mm、相机定位或实机精度。坞座固定和滑轨罩条件必须保留，不能外推真实 USB-C 插拔；坐姿本身也不证明零发热、无磨损或不会倒。([坐姿记录](https://github.com/Vottivott/microduck-playground/blob/052a2494dd6372289221c7a4f24a245b443dd75f/hardware/microdock-v2/results/seated30.json)、[完整限制](https://github.com/Vottivott/microduck-playground/blob/052a2494dd6372289221c7a4f24a245b443dd75f/hardware/microdock-v2/README.md))
+
+**延迟是合同的一部分。**作者 README 报告移除匹配训练的延迟后离坞仅 1/10，本轮未找到独立延迟消融 JSON，不能把该数写成本次重算结果。源码为 scoot 注入 15–30 ms 动作延迟，并让关节速度／IMU 观测滞后一控制步 20 ms；真实硬件延迟未测。DuckKing 当前驱动把目标直接写入 XML position actuators，读取当前观测，尚不等同于上述 BAM＋延迟管线。正式目录发布两个 scoot ONNX 及一个实验 ONNX，没有 `.pt` 完整训练 checkpoint，因此“训练配方齐备”不等于“完整续训状态齐备”。([延迟源码](https://github.com/Vottivott/microduck-playground/blob/052a2494dd6372289221c7a4f24a245b443dd75f/hardware/microdock-v2/sim/latency.py)、[训练说明](https://github.com/Vottivott/microduck-playground/blob/052a2494dd6372289221c7a4f24a245b443dd75f/hardware/microdock-v2/training/README.md)、[本站驱动](https://github.com/zhoutingunl/DuckKing/blob/5d9b92cb8c096814fae311d6700ac829792df687/src/duckking/simulation.py#L77))
 
 ### 3.3 duckmind 更适合借鉴状态机，不应与 MicroDock 合并为同一能力
 
@@ -150,7 +184,7 @@ Swizzle、Slope、RollerStandUp、Spin 属于优先核查 checkpoint 的 B 级�
 
 ## 4. 社区提供了导航、门槛和新接触技能，成熟度差异决定交付顺序
 
-以下矩阵中的“有 ONNX／checkpoint”指本轮读到发布文件或作者工件页，**未执行、未复刻成绩，也未下载全部大权重或 LFS 文件**。CPU 适配性根据现有推理入口和依赖作判断，未给出本机帧率或并发保证。许可为仓库声明和资产边界摘要，不作法律结论；外取 Pollen 网格不因包装仓库采用 Apache 或 MIT 就改变其来源条款。
+以下矩阵中的“有 ONNX／checkpoint”指本轮读到发布文件或作者工件页，**未执行、未复刻成绩，也未下载全部大权重或 LFS 文件**。增补核查下载了指定单鸭动作的 14 个 ONNX 文件并静态解析接口，包含两份相同 FootstepNet；这不等于运行 checker、数值推理或闭环验证。CPU 适配性根据现有推理入口和依赖作判断，未给出本机帧率或并发保证。许可为仓库声明和资产边界摘要，不作法律结论；外取 Pollen 网格不因包装仓库采用 Apache 或 MIT 就改变其来源条款。
 
 ### 4.1 导航和感知已有复现起点，必须说明它们看到了什么
 
@@ -185,24 +219,64 @@ Playground 下列子项目共同固定在 `052a249`，其软件／策略多采�
 
 **作者报告、未在本轮复现的局部结果**包括：门槛网格试验 13/14 稳定；秋千严格全程门槛 71/100；两块积木严格成功 25/30；witcheer stairs 的指定强扰动试验 3/15 存活、基线 5/15。它们应连同初态、接触、辅助、策略切换和终止标准阅读，不能转为本站成功率，也不能从一个成功镜头推断连续任务可靠。([门槛记录](https://github.com/bihaokun/microduck-step-up-policy/blob/ec769571438c2558a2d847a164a91022971fceb0/README.md)、[秋千记录](https://github.com/Vottivott/microduck-playground/blob/052a2494dd6372289221c7a4f24a245b443dd75f/experiments/swing/README.md)、[积木记录](https://github.com/speccy88/microduck-jenga-sim/blob/0f977eaf989fff819bdcb75d303c6805505ebe69/README.md)、[stairs 模型卡](https://huggingface.co/witcheer/microduck-walk-stairs))
 
+**新增单鸭候选中，happy-hop、flamingo-cycle 与 footsteps 的增量最清楚。**下表独立于前面的身体技能目录；成绩仍全为作者报告。前三项模型卡声明 Apache-2.0，但其可接入性需要整份控制合同，而非只有 61→14 的形状。
+
+| 新增候选／固定来源 | 可复用能力与制品 | 接入门槛与成熟度 |
+|---|---|---|
+| [happy-hop `c0447da`](https://huggingface.co/joanfox/microduck-happy-hop/blob/c0447da668255436eea070e862ad8eb89bad2ba1/README.md) | 单次跳跃 ONNX／manifest；作者报告 Pollen 于 2026-09-01 实机演示成功 | 优先合同验证；站稳入口、50 Hz、20 ms 动作延迟、零命令、无动作低通，Backlash／BAM XL330 须匹配。3 秒由外层结束，本站未复现 |
+| [flamingo-cycle `a69e4f6`](https://huggingface.co/RemiFabre/microduck-flamingo-cycle/blob/a69e4f6103a70e355983eb5d4e919da76778a40f/README.md) | 可命令左／右单足抬起、保持、放下；ONNX／控制脚本，CPU MuJoCo 路线 | 与 collision-flamingo-ii 不同；twist 改作 flag／side，需专用角色。仅仿真；作者 24 次压力试验有 2 次跌倒，后向推扰是弱项 |
+| [footsteps `19c38fa`](https://huggingface.co/apirrone/microduck-footsteps/blob/19c38fae6afabddf9c0821009028d0a37963f05f/README.md) | 落足追踪 ONNX＋FootstepNet；作者称追踪器测过机器人、仿真误差约 5–7 mm | 独立系统集成；twist 是支撑足坐标中的落足目标，需 footsteps runtime 分支、支撑足里程计、左右镜像及坐标裁剪；硬件说法未独立核验 |
+| [groove `b94e53d`](https://huggingface.co/kramp/microduck-groove/blob/b94e53dfad4c277c48447d44c6b8c014820fcc89/README.md) | 10 秒舞蹈 ONNX／manifest／视频；作者 CPU 记录约 126 BPM 膝部起伏 | 到时 daemon 中途切 stand，不是网络主动收稳；训练 fork 未公开、未实机、未找到明确模型许可，先留研究候选 |
+| [playdead `7b49a6a`](https://huggingface.co/drfonz-indigo/microduck-playdead/blob/7b49a6a70e781096c6a39fc3ce5cea25307e8565/README.md)／[polite-bow `9a9d21a`](https://huggingface.co/fffiloni/microduck-polite-bow-b1d864/blob/9a9d21a85cf7b5cbd1854c03ad58bd949502a5ea/compiled_motion.json) | 前者 5 秒坐下仰躺，另接 velstand 恢复；后者有 ONNX、checkpoint、生成源码与 CPU 指标 | 均未找到明确模型许可。装死嘴部另编排，非单网络完成起身；轻鞠躬依赖头俯仰 15°／身体下降 4 mm 的外部命令，body pitch 目标为零，不证明明显躯干鞠躬 |
+| [beak-throw `410ed22`](https://github.com/llama/microduck-beak-throw/blob/410ed2249d62cd7aa4c642cd2c4e9b56f9a0cbfd/README.md) | 24 mm 球抛掷 ONNX／checkpoint、训练 overlay、runtime 补丁，Apache-2.0 | 嘴垫／唇边／挡块与定时开嘴、stand 接管均需适配。作者 50/50 仿真通过依赖强制限幅，原始网络输出门全部失败；无实机验证，高投入实验 |
+| [max-height-jump `7e5dc60`](https://github.com/ThomasBurgess2000/microduck-max-height-jump/blob/7e5dc6028900f13d145e6710847378b007a675e9/README.md)／[chenp9527 jump `ace589e`](https://github.com/chenp9527/microduck-jump/blob/ace589eadd1be6aed4e39a27d8bd8e275b2b9cfe/README.md) | 均有 ONNX／checkpoint／任务源码，Apache-2.0；前者单种子 CPU 高度 31.67 mm，后者 128 次随机仿真中 50.8% 达 3–6 cm、未跌倒 | 前者单策略未持续站稳，需双策略混合收尾；后者落地峰值 128.3 N 超过作者 40 N 目标，且命令须全零。都不是稳定跳跃或实机承诺 |
+| [318_lab `512d4be`](https://github.com/Liyucheng1997/318_lab-microduck-simulator/blob/512d4bec6fc3ba321d29c93312be72856ad21268/app/src/game/game.js#L660) | 原待核线索现已确认 jump.onnx、训练任务及浏览器 ONNX→关节目标→MuJoCo 步进链 | 触发清动作历史，2 秒后直立交回 walk，3 秒超时，失败可 reset；未建立 BAM／Backlash 一致性，未本地运行，根许可未确认 |
+
+happy-hop 的实机说法还存在**同版本元数据不一致**：README 报告实机演示，manifest 却仍标 `sim-only-hardware-candidate`，且未完整写入新增的一步动作延迟。因此可称“作者报告实机演示”，不能给它统一的“本站实机验证／自动安装完成”标签。flamingo-cycle 的测试脚本暂占 walk、禁用 stand 与其他技能并修改 fall 门限，永久接入应新增专用角色。FootstepNet 自身是 8→3 规划器，不能与 61→14 追踪策略混为一个网络；同维度策略中速度、落足目标、flag／side 与跳跃触发也不能共用命令解释。([happy-hop manifest](https://huggingface.co/joanfox/microduck-happy-hop/blob/c0447da668255436eea070e862ad8eb89bad2ba1/manifest.json)、[flamingo 控制器](https://huggingface.co/RemiFabre/microduck-flamingo-cycle/blob/a69e4f6103a70e355983eb5d4e919da76778a40f/control.py)、[FootstepNet 合同](https://huggingface.co/apirrone/microduck-footstepnet/blob/1132e672d261cb8520c296acaa06fac955424b14/README.md))
+
+**多鸭新接触任务和视觉足球应独立验收。**新增价值是绳、琴键和 RGB 控制链，不是增加鸭子数量；下表均未在本站运行。
+
+| 项目／固定来源 | 实际新增与作者结果 | DuckKing 接入判断 |
+|---|---|---|
+| [Circus `1034ed0`](https://github.com/ros-claw/microduck/blob/1034ed000c352476cf213ebe1544eb8c7db8b0e7/docs/COOPERATIVE_ROPE_SKIPPING.md) | 三鸭同一 MuJoCo 跳绳；跳鸭 61 维、摇绳鸭 73 维，各有 PPO ONNX、50 Hz、CPU 推理入口；作者 442/516 clean cycles、5/8 runs 通过 | 高投入接触实验。嘴柄与绳端 equality 约束、相位真值协调；排除绳–摇绳鸭及绳自碰撞，不是端到端多智能体 RL。后续四鸭审计有 23–37 mm 穿入、移动接力未过；训练 patch 存在，完整 PT／日志未齐 |
+| [Piano `1692d44`](https://github.com/KhushiJ2911/microduck-piano-learning/blob/1692d4432c9a3833288b2aa763380d9cdeffdd62/README.md) | 两个自由根鸭踩 16 个被动弹簧键；VelStand 微调 ONNX／审计工件；作者 64 世界仅 1 个严格通过，选中世界完成 6 键按下释放 | 研究储备。方向由 evaluator 预排，不会按谱自主选键；控制与保存状态的渲染回放分开。ONNX 用 CPU 不证明 mjlab／Warp 全链可在本机 CPU 复现，完整训练包未见 |
+| [Vision Soccer `23cdfbc`](https://github.com/toyhank/microduck-vision-soccer/blob/23cdfbce04083ff1883a2d6ceb7bb3b6b49e15c0/README.md) | 从待核线索提升为感知接线候选；strict 用头部 RGB＋仿真 IMU／编码器，视觉校准／状态机调用既有 walk／stand／kick；非新足球 RL | 中高投入，先核严格模式。早期 strict 7/10 踢球接触、0/10 进球；当前新增校准及盲区里程计，当前成功率未核。98/100 属真值基线，不能作为视觉成绩 |
+
+Circus 的碰撞简化可查[物理审计](https://github.com/ros-claw/microduck/blob/1034ed000c352476cf213ebe1544eb8c7db8b0e7/docs/PHYSICAL_FIDELITY_AUDIT.md)。Soccer 的 `demo` 路径在踢球触发时直接重定位球，需与 `strict` 分开；`--headless` 仍需 RGB 渲染，双相机 CPU 吞吐未测，onboard 接线也不证明整场实机足球。三项目声明代码 Apache-2.0，机器人资产各自独立。建议次序为严格视觉链、跳绳独立实验、键盘研究储备。([足球入口与模式](https://github.com/toyhank/microduck-vision-soccer/blob/23cdfbce04083ff1883a2d6ceb7bb3b6b49e15c0/sim_duck_soccer.py)、[早期严格结果](https://github.com/toyhank/microduck-vision-soccer/blob/23cdfbce04083ff1883a2d6ceb7bb3b6b49e15c0/VALIDATION.md))
+
 ### 4.3 训练基础设施、相邻机器人和未核实线索不计作成熟 MicroDuck 技能
 
 `dreamerarun/isaaclab_microduck@deb10a3` 提供 IsaacLab／PhysX 的 37 个环境注册、BAM、转换和 train／play／export，但作者预览只是两次 PPO 更新的 smoke 模型；它是训练基础设施，不是 37 个成熟动作，也不是 DuckKing 原生 MuJoCo 可直接播放的包。`lgtkgtv/microduck_sim@b7a50ac` 的 rough／stairs／push recovery、WASM 和视觉导航仍标为 Planned，教育模型还是 60／15 契约；不能把摘要中的规划事项列作交付能力，其 README 的 MIT 声明也不能代替本轮未确认的根 LICENSE。([IsaacLab 仓库](https://github.com/dreamerarun/isaaclab_microduck/blob/deb10a39e59504a8093a30bf8376b853020fa0ee/README.md)、[教育模拟器路线图](https://github.com/lgtkgtv/microduck_sim/blob/b7a50acee420029af3d0dbc01b01fd2fb982f0de/README.md))
 
-`quackd@4ba2d0d` 的 MicroDuck adapter 和 `knowlin@f8b0920` 的多机器人入口可供编排架构参考；microduck-challenges 是训练评测工作坊，duck-dreams 是梦境文本／漫画，microduck-aiprobe 是参数评测框架。它们不自动增加新的身体技能。**Open Duck Mini／v2、Reachy Mini、G1、MARS、MOSS、Asimov 以及四足 SkateNav 都属于相邻机器人**，即使出现在同仓库、采用相似训练栈，也不计入本报告的 MicroDuck 支持清单。([quackd adapter](https://github.com/rokbenko/quackd/blob/4ba2d0dc6cf9c591a7c7897bc9d80301d5a187b3/adapters/microduck/README.md)、[knowlin 来源表](https://github.com/knowlin-ai/knowlin/blob/f8b092081f26e3e8ce864caade505751f1868966/README.md)、[challenges](https://github.com/StephenForte/microduck-challenges/blob/6155860d63491ff30fa8be73d165b2deac12dd47/README.md)、[dreams](https://github.com/StephenForte/duck-dreams/blob/58da60270b617699d2c914d894d25ce7deb84b9d/README.md)、[aiprobe](https://github.com/rahilmehta-dev/microduck-aiprobe/blob/076ba37a9715fe18db24154a391695dade505f73/README.md))
+`quackd@4ba2d0d` 的 MicroDuck adapter 和 `knowlin@f8b0920` 的多机器人入口可供编排架构参考；StephenForte/microduck-challenges 是社区训练评测工作坊，另见 §2.5 的 Pollen 官方同名仓库；duck-dreams 是梦境文本／漫画，microduck-aiprobe 是参数评测框架。它们不自动增加新的身体技能。**Open Duck Mini／v2、Reachy Mini、G1、MARS、MOSS、Asimov 以及四足 SkateNav 都属于相邻机器人**，即使出现在同仓库、采用相似训练栈，也不计入本报告的 MicroDuck 支持清单。([quackd adapter](https://github.com/rokbenko/quackd/blob/4ba2d0dc6cf9c591a7c7897bc9d80301d5a187b3/adapters/microduck/README.md)、[knowlin 来源表](https://github.com/knowlin-ai/knowlin/blob/f8b092081f26e3e8ce864caade505751f1868966/README.md)、[社区 challenges](https://github.com/StephenForte/microduck-challenges/blob/6155860d63491ff30fa8be73d165b2deac12dd47/README.md)、[dreams](https://github.com/StephenForte/duck-dreams/blob/58da60270b617699d2c914d894d25ce7deb84b9d/README.md)、[aiprobe](https://github.com/rahilmehta-dev/microduck-aiprobe/blob/076ba37a9715fe18db24154a391695dade505f73/README.md))
+
+**TorchRL 应列为框架项目的九技能实验 prior。**`torchrl/microduck-skills@d676623` 当前包含站、前后左右、前跳、左右转、原地跳，发布 GRU128 recurrent PPO 的 `prior/checkpoint.ckpt`；不是 Pollen 官方“七技能”随包 ONNX。作者报告 Apple-silicon CPU MuJoCo 训练、每技能 32×500 步全存活，但仅一个训练种子／平地 reset、仅仿真。PyTorch 的 `MicroDuckSkills.from_pretrained` 默认仍指历史六技能 revision，接入需同时 pin 对应源码、任务顺序、GRU 状态与 action scale。football 为实验 selector、tag 为未解决 pilot，权重独立授权未确认；适合 CPU 研究线，不应直接进入节目菜单。([当前卡与工件](https://huggingface.co/torchrl/microduck-skills/blob/d6766234b24bf9cff6a6a8c55011a4584a8995d5/README.md)、[prior 条件](https://huggingface.co/torchrl/microduck-skills/blob/d6766234b24bf9cff6a6a8c55011a4584a8995d5/prior/README.md)、[PyTorch API](https://docs.pytorch.org/rl/main/reference/generated/torchrl.modules.tensordict_module.zoo.MicroDuckSkills.html))
+
+| 新增平台／固定来源 | 可借鉴内容与边界 |
+|---|---|
+| [microdux `c486b89`](https://github.com/noahfarr/microdux/blob/c486b8967f8e35eed7dcec85ac3343a269cd4bc2/README.md) | JAX／MJX／Playground 的 14 行任务含 flat／rough 拆分，不与官方 13 家族相加；仅 flat velocity 作者称达上游水平，其他训练有缺口。A100 benchmark 非 CPU 成绩，未见完整已训策略集，根许可未确认 |
+| [duckbench `a75d4dc`](https://github.com/craigm26/duckbench/blob/a75d4dc9b8a08c8072c15af0ab50dfb516ab144c/sim/PLANT.md) | CPU MuJoCo WASM＋onnxruntime-node、HTTP／MCP，可借鉴评测接口；作者明确 sim／site 两条 plant 的长轨迹不能互换，世界还有历史 step bank 条件。代码 Apache-2.0，不为接 MCP 更换本站物理引擎 |
+| [microduck-twin `351e81d`](https://github.com/digows/microduck-twin/blob/351e81dded599c466a14380b374b10b23b989f2b/twin-body/twin_body/power.py) | 包装官方 CPU body／daemon，补声音传播、SOC／热与 HUD；电池／热模型明确未以实测拟合。可作回桩外围虚拟状态参考，不能证明真实续航或电气充电；代码 Apache-2.0、网格独立 |
+| [Wicroduck `b0035c1`](https://github.com/ngxson/wicroduck/blob/b0035c15c532bbb69b22a7edc1bb79b7b7430cd0/docs/training-plan.md) | 浏览器 MuJoCo 200 Hz／ONNX 50 Hz；已有 CPU PPO／checkpoint、motion editor 与检查，不能再写“训练纯目标”。导入权重微调、从零训练／ONNX export 里程碑尚未完成；运动学预览与物理运行须分标，根许可未确认 |
+
+这些平台改善开发与教学条件，不自动增加已学会的身体技能。另须排除同组织误归类：Pollen `red-cube-blue-box` π0.5 配置所指数据明确为 **Grabette**，图像＋2 维状态→11 维动作；相关 diffusion 也是类似契约，均非 MicroDuck 61→14 部署包，未见鸭体转换验证，不能列为可接入的 MicroDuck VLA。数据集许可也不自动覆盖权重。([π0.5 配置](https://huggingface.co/pollen-robotics/red-cube-blue-box_pi05_best/blob/eb2127a8d110d987c45c18e25d58404561ceaf55/train_config.json)、[Grabette 数据元信息](https://huggingface.co/datasets/simheo/red-cube-blue-box_graspproj_v2/blob/854830ce317c20a7f438029894bbfc77e6afd5f2/meta/info.json)、[diffusion 契约](https://huggingface.co/pollen-robotics/red-cube-blue-box-30fps_diffusion/blob/b12622b97ec7234b0460f93d2039ecdc536a44b9/config.json))
+
+**动作名也不能代替语义验收。**moonwalk 的导出权重虽存在，指标明确 `motion_quality_passed=false`、`semantic_quality_unverified=true`，只能支持后退步态预演，不能称已学会月步。electric-slide 最新说明已撤回完成舞蹈的结论，CPU BAM 诊断跌倒，未完成 25 鸭终演或实机部署；早期脚本编舞视频不改变该状态。QingMuLYL 社区 standup 另有 6 秒 ONNX，但入口为 sitting、训练来自 dirty checkout，不能据此宣称任意推倒恢复；官方 alpha_stand 早已发布。([moonwalk 指标](https://huggingface.co/fffiloni/microduck-moonwalk-backward-55e6af/blob/951073cb7791a898e3e5ecb242c5bcccf40aa72f/preview_metrics.json)、[electric-slide 当前说明](https://huggingface.co/Histochemichael/microduck-electric-slide-policy/blob/67eb1f1eaf5e3a91f027fe45b8b9bb4efaa6be04/README.md)、[社区 standup manifest](https://huggingface.co/QingMuLYL/microduck-standup/blob/7f8d01e9aae4ab005b8685677f16df1710d81bd8/manifest.json))
 
 为保留搜索线索而不夸大推荐，以下只列待核查方向。它们目前不应进入“点击即玩”的正式能力目录。发现入口为固定的[awesome-microduck 索引](https://github.com/joeynyc/awesome-microduck/blob/b99984a56182525598c4187cc0138c89bc1c7c79/readme.md)，索引描述不作为本地复现证据。
 
 | 线索组 | 未解决的关键问题 |
 |---|---|
-| [microduck-courier](https://github.com/selinayfilizp/microduck-courier)、[318_lab simulator](https://github.com/Liyucheng1997/318_lab-microduck-simulator) | 分别待核嘴部辅助约束／完整搬运终止，以及垂直跳跃训练、导出与自由动力学 |
+| [microduck-courier](https://github.com/selinayfilizp/microduck-courier) | 待核嘴部辅助约束／完整搬运终止；318_lab 跳跃已移至 §4.2 的有工件候选 |
 | [sidekick-dance](https://github.com/pezzonovante7/microduck-sidekick-dance)、[MotrixLab](https://github.com/jjshdbndg/MotrixLab-MicroDuck)、[action-pack](https://github.com/wat-bill/microduck-action-pack) | 前者 task only；MotrixLab 兼容性未核；节奏动作包属于编排，需与现有舞蹈去重 |
-| [PPO navigation](https://github.com/zakiyamaaaaa/microduck-ppo-navigation)、[vision soccer](https://github.com/toyhank/microduck-vision-soccer)、[roller racer](https://huggingface.co/spaces/Nirav-Madhani/microduck-racer) | checkpoint、真值与相机边界、避障／比赛重置尚未核实，不能把真值导航成绩当相机成绩 |
+| [PPO navigation](https://github.com/zakiyamaaaaa/microduck-ppo-navigation)、[roller racer](https://huggingface.co/spaces/Nirav-Madhani/microduck-racer) | checkpoint、避障／比赛重置尚未核实；Vision Soccer 已移至 §4.2，严格视觉与真值成绩分开 |
 | [rough-walk-e](https://huggingface.co/RemiFabre/microduck-rough-walk-e)、[rough-walk-g](https://huggingface.co/RemiFabre/microduck-rough-walk-g)、[stairs challenge](https://huggingface.co/datasets/craigm26/microduck-stairs-challenge) | 地形策略卡／下降限制需复核；challenge 是数据集，不是可运行 harness，作者目标尚未达到 |
 | [Sourccey dome](https://huggingface.co/cetiennec/microduck-on-sourccey-dome)、[flywire-microduck](https://huggingface.co/spaces/AlexWortega/flywire-microduck)、[micro-garden](https://github.com/ChristianNHill/micro-garden) | 联合机器人场景或连接组／花园展示；页面、模型与刺激读出未充分核查 |
 | [microduck-mjbatch](https://github.com/tailong-wu/microduck-mjbatch)、[Microduck-Workshop](https://github.com/NV-DLI/Microduck-Workshop) | CPU 训练、Newton／Isaac 课程是基础设施线索，尚不能当新增 MuJoCo 技能包 |
 
 ### 4.4 本次广覆盖调查有明确上限
+
+同日增补对指定线索做了定点核查，没有变成全网穷尽审计。固定社区 `policies.json` 可数得 **43 条 entries**，但其中有 source-only／probe-provider，且 TorchRL、Wicroduck 的目录描述已滞后；条目数不是全部工件、许可和运行结果的验证数。补充报告的“HF 1,137 项／38 页／长尾无增量”缺少可复查的分页与分类记录，本版不采用该排他结论。([固定目录数据](https://github.com/joeynyc/awesome-microduck/blob/b99984a56182525598c4187cc0138c89bc1c7c79/policies.json)、[目录自述](https://github.com/joeynyc/awesome-microduck/blob/b99984a56182525598c4187cc0138c89bc1c7c79/readme.md)、[补充报告](https://aiops.qbox.net/files/691082629293bdf4/microduck-mujoco-survey-2026-11-10.md))
 
 检索覆盖 `microduck`、`microduck in:name fork:true`、`microdock`、`microduck_rl in:name fork:true` 等 GitHub 查询、公开社区目录及作者 HF 工件页。GitHub 查询各取第一页，后续遇到 API 限流；HF API／raw 连接也多次重置，改用公开工件页读取。没有逐库比较所有 fork，没有遍历全部分支／PR／release，也未覆盖私人模型、Discord、所有社交视频和已删除工件。镜像、未核实 fork 与官方 ONNX 再包装不重复算能力；Bravo 与 david2526IA 的镜像关系按一个项目计。([可复查搜索入口](https://api.github.com/search/repositories?q=microduck&per_page=100&sort=updated)、[社区索引](https://github.com/joeynyc/awesome-microduck/blob/b99984a56182525598c4187cc0138c89bc1c7c79/readme.md)、[Bravo 来源说明](https://github.com/Bravo-Robots/microduck-indoor-object-search-rl/blob/5f087e452b970c6405a3d61f7badb0ac450f2d1a/README.md))
 
@@ -247,7 +321,7 @@ local-first 路由、预录剧本、本地音乐和本地确认音都应保留�
 
 ## 6. 先交付六条清楚的体验，再扩展需要新观测和动力学的节目
 
-### 6.1 候选全表按可交付性排序，精彩程度服从验收门槛
+### 6.1 原有 22 项路线保持排序，新增候选先过合同验收
 
 排序先看资产完整性、相对现有代码的增量、CPU 路线与取消／恢复，再看新鲜感、趣味和观众能否看懂结果。**部署工件缺失、许可来源不明、执行契约不匹配，或无法可靠终止任一项，都足以否决进入正式现场入口。** 这不会否决研究价值，可以先留来源卡、历史回放或实验页。以下所有新概念均为建议；“低／中／高投入”是相对估计，不代表工时承诺。
 
@@ -269,7 +343,7 @@ local-first 路由、预录剧本、本地音乐和本地确认音都应保留�
 | 14／后续 | 受控积木：“只碰上面那块，底下别动。” | 上块移动、下块保持，接触与位移可复查 | jenga CEM 轨迹＋冻结步态；固定初态／资产恢复，中高；不是新 PPO／搭塔 |
 | 15／后续 | 看懂房间：“走到白桌旁边。” | 第一视角、语言 waypoint、接近目标 | LightNav VLN＋MPC；GPU 服务、模型／场景与失败链，高 |
 | 16／实验 | 高跷巡游／计时快跑：“慢慢转一圈／跑到线前停。” | 形态或步态变化，起停／跌倒结果可见 | Playground 分高度模型／running；独立场景、控制包络，中高 |
-| 17／实验 | 单足／轮滑花式：“单脚站稳／做一圈轮上旋转。” | 新支撑或轮上姿态 | flamingo 差异先查清；官方 Spin／Swizzle／Slope／RollerStandUp 先补权重，未齐前不能交付 |
+| 17／实验 | 单足／轮滑花式：“单脚站稳／做一圈轮上旋转。” | 新支撑或轮上姿态 | collision-flamingo-ii 差异先查清；官方 Spin／Swizzle／Slope／RollerStandUp 先补权重，未齐前不能交付 |
 | 18／实验 | 爬梯、夹缝、高台特技：“爬上去，再打招呼。” | 多阶段身体接触与明确失败终态 | Playground 发布包；阶段切换、辅助披露和恢复，高；不承诺平地无辅助空翻 |
 | 19／研究 | 连续带球／守门：“把球送进蓝门，别踢太远。” | 连续触球或拦截全过程 | 当前单次 kick 作基线；新连续控制、感知与训练评价，高；不自动摆球掩盖失败 |
 | 20／研究 | 推箱入库／真实地面拾物：“送进左边格子。” | 物体在接触下移动、离地或落稳 | 当前步态／架上夹棒作基线；新物体任务与控制／训练，高 |
@@ -277,6 +351,16 @@ local-first 路由、预录剧本、本地音乐和本地确认音都应保留�
 | 22／独立硬件线 | 真实回充／相机手指琴／实体迁移 | 真实电源遥测、真实手部感知或实机动作 | 需要额外硬件与实测闭环；不列本次仿真交付承诺 |
 
 前六项构成首波清单，其中 **1—3 是可交付性最高的产品增量，4 是新鲜感与生活化叙事最强的新增，5 是最清楚的新身体技能，6 是第一项可辨认的视觉任务**。若时间收紧，先交付 1—4 的完整成功／改口／失败链；5—6 各自在隔离重放通过后再进入站点，而不是同时铺开所有实验。依据分别来自[当前动作与工坊](https://github.com/zhoutingunl/DuckKing/blob/5d9b92cb8c096814fae311d6700ac829792df687/src/duckking/studio.py)、[官方情绪](https://github.com/pollen-robotics/microduck/tree/da34a2212ae12eddfd73d0dfbf924f291aaf1dc9/robotd/emotions)、[MicroDock](https://github.com/Vottivott/microduck-playground/blob/052a2494dd6372289221c7a4f24a245b443dd75f/hardware/microdock-v2/README.md)、[门槛](https://github.com/bihaokun/microduck-step-up-policy/blob/ec769571438c2558a2d847a164a91022971fceb0/README.md)和[三色找物](https://github.com/Bravo-Robots/microduck-indoor-object-search-rl/blob/5f087e452b970c6405a3d61f7badb0ac450f2d1a/outputs/release/MODEL_CARD.md)。
+
+增补候选不改动上面 22 项编号，也不把首波六项扩成新的承诺范围。下表是下一轮隔离验证的补充短名单，优先级属工程判断，来源和失败条件见 §2.5、§4.2—4.3。
+
+| 补充候选 | 可展示的语音体验 | 进入站点前必须补齐 |
+|---|---|---|
+| happy-hop／flamingo-cycle：优先验证 | “跳一下，站稳再告诉我”／“抬左脚，放下后换右脚” | 前者延迟／滤波／落地恢复；后者专用角色／有限保持／落足与取消，不能沿用无限持续命令 |
+| footsteps：系统能力 | “踩到标记上，走三步停下” | planner＋追踪器＋支撑足坐标／里程计全链；验实际落足误差，不把目标值当结果 |
+| Arena timeline：优先借鉴格式 | 在已有四鸭导演中增加有时限的节目与声部安排 | 先验四鸭调度／取消和音源标记；八鸭容量与新赛事分别评测，参考权重授权另核 |
+| strict Soccer／Circus／Twin：独立实验 | “找到球再踢”／“配合跳绳”／“回窝显示虚拟电量” | 分别验 RGB 输入、绳接触与协调、虚拟电量边界；不共用一个“已验证”标记 |
+| Piano／TorchRL／其他单鸭实验：研究储备 | 键盘接触、技能切换及动作失败对照 | 先补成功率、许可、运行合同与恢复；groove 等许可未清模型不进入分发包 |
 
 ### 6.2 首波验收必须让动作结果决定台词
 
@@ -338,6 +422,8 @@ DuckKing 已有共享 `physicsView`、`createPhysicsModelLoader` 与 `renderSche
 | 检测器／场景／音乐依赖 | 仓库外壳许可不能代表 Ultralytics、预训练权重、ProcTHOR、连接组数据或所有曲目 | 分开核对依赖和数据；排除明确 test-only 音乐；许可未清晰的候选先保留研究链接 |
 
 这些是来源管理要求，不是法律结论。对外网页、视频和下载包都应能追到具体资产版本；特别是机器人网格、派生场景与曲目，不能只展示项目根目录的一张 LICENSE。
+
+增补项也执行同一门槛：happy-hop、flamingo-cycle、footsteps 模型卡有 Apache-2.0；groove、playdead、polite-bow、moonwalk、社区 standup、TorchRL 权重及 Arena reference 未在所查固定树中找到明确独立授权。318_lab、Wicroduck、microdux 的根许可也未确认，electric-slide 标为 `other`。这是本轮授权证据缺口，不是断言作者禁止使用；各固定来源见 §2.5、§4.2—4.3，未补清前保留研究链接，不随本站重新分发。
 
 ## 8. 让每个体验都能回答“它为什么成功或失败”
 
