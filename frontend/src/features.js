@@ -119,7 +119,7 @@ function update(packet){
 }
 async function command(action){
  if(unavailable())return;try{
-  await Promise.all([choir.enable(),sound.enable()]);
+  await enableSceneSound();
   if(selected.id==='emotions')await sound.load(action);
   const body={operation:'start',action,request_id:requestId()};
   if(selected.id==='movement'){body.duration=Number($('feature-duration').value);body.speed=Number($('feature-speed').value)}
@@ -133,7 +133,11 @@ $('prepare-feature').addEventListener('click',()=>select(selected,true));$('rese
 $('release-feature').addEventListener('click',async()=>{if(busy)return;busy=true;controls();try{await disconnect();await api('api/scenes/close',{});epoch++;modelAbort?.abort();latest=null;revision=expectedRevision=null;choir.stop();sound.stop();viewer?.clear();feedback.reset('场景已释放，点击重新准备即可继续。')}catch(error){notify(error.message)}finally{busy=false;controls()}});
 window.addEventListener('keydown',event=>{if(event.key==='Escape'&&latest)void control('stop')});
 const feed=sceneStateFeed({readState:signal=>api('api/scenes/state',null,signal),onState:update,onStatus:({mode})=>{online=mode==='websocket'||mode==='http';controls()}});
-for(const id of ['connect-voice','enable-sound'])$(id).addEventListener('click',()=>{void Promise.all([choir.enable(),sound.enable()]).then(()=>selected?.id==='emotions'?Promise.all(selected.commands.map(name=>sound.load(name))):null).catch(error=>notify(error.message))});
+async function enableSceneSound(){
+ if(selected?.id==='director')await choir.enable();
+ if(['emotions','theremin'].includes(selected?.id))await sound.enable();
+}
+for(const id of ['connect-voice','enable-sound'])$(id).addEventListener('click',()=>{void enableSceneSound().then(()=>selected?.id==='emotions'?Promise.all(selected.commands.map(name=>sound.load(name))):null).catch(error=>notify(error.message))});
 voice=setupVoice({appendLog,notify,endpoint:'/scene-voice',cloudOnly:true,listenUnavailable:unavailable});
 try{
  catalog=(await api('api/features/catalog')).capabilities;

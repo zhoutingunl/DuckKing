@@ -30,7 +30,10 @@ def install_feature_api(app, get_room, root):
     async def emotion_audio(name: str):
         if name not in CATALOG["emotions"]["commands"]:
             raise HTTPException(404, "没有这个情绪声音")
-        file = assets / "features/emotions/sounds" / f"{name}.wav"
+        # Two official emotions provide named variants rather than no.wav /
+        # angry.wav. Serve one deterministic official variant for browser cache.
+        sound = {"no": "no_a", "angry": "angry_a"}.get(name, name)
+        file = assets / "features/emotions/sounds" / f"{sound}.wav"
         if not await asyncio.to_thread(file.is_file):
             raise HTTPException(503, "情绪声音资源尚未安装")
         return FileResponse(

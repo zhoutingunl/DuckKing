@@ -183,6 +183,15 @@ def voice_tools(capability):
     schema["properties"]["operation"]["enum"] = ["start", "stop", "reset", "status"]
     schema["properties"]["action"] = {"type": "string", "enum": entry["commands"]}
     schema["properties"].pop("request_id")
+    if capability != "movement":
+        for field in ("duration", "speed"):
+            schema["properties"].pop(field)
+    if capability == "director":
+        schema["properties"]["order"]["items"] = {
+            "type": "string", "enum": ["a", "b", "c", "d"]
+        }
+    else:
+        schema["properties"].pop("order")
     return [
         {
             "name": "duck_feature",
@@ -193,7 +202,8 @@ def voice_tools(capability):
                 "必须按 verified 和失败原因"
                 "回答。pending=true 表示还在执行，不得说已成功。不能声称临时训练出新技能。"
                 "回窝只有仿真接通与虚拟电量，不是真实电气充电。"
-                "合唱 order 选择成员次序；duration 为有界仿真秒数，speed 为米/秒。"
+                "只有四鸭导演的 order 选择成员次序，成员用小写 a/b/c/d；"
+                "只有认识小鸭提供 duration（仿真秒数）和 speed（米/秒），其他技能时长固定。"
                 "音乐为本地播放，语音理解与对话才来自灵矽。"
             ),
             "inputSchema": schema,

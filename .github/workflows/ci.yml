@@ -40,23 +40,84 @@ jobs:
         with:
           path: external/asr
           key: ${{ runner.os }}-asr-${{ hashFiles('scripts/fetch_asr_assets.py') }}
-      - uses: actions/cache@v4
-        with:
-          path: external/features
-          key: ${{ runner.os }}-features-${{ hashFiles('scripts/fetch_feature_assets.py', 'scripts/feature_runtime_requirements.txt') }}
       - run: uv sync --frozen --extra simulation --extra local-asr
       # Fetchers validate pinned revisions / hashes even when restored from cache.
       - run: uv run --frozen --no-sync python scripts/fetch_scene_assets.py
       - run: uv run --frozen --no-sync python scripts/fetch_asr_assets.py
-      - run: uv run --frozen --no-sync python scripts/fetch_feature_assets.py --runtime
       - run: sudo apt-get update && sudo apt-get install -y libopus0 libosmesa6
       - run: uv run ruff check src tests training scripts/build_release.py scripts/release_smoke.py scripts/fetch_asr_assets.py scripts/fetch_feature_assets.py scripts/export_coverage.py
       - run: bash -n scripts/install_release.sh
-      - run: uv run pytest --cov --cov-report=term-missing --cov-report=json --cov-report=html --cov-report=xml
-      - run: uv run python scripts/check_coverage.py
+      - run: uv run pytest --ignore=tests/test_feature_physics.py --cov --cov-report=term
+        env:
+          COVERAGE_FILE: .coverage.backend
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-data-backend
+          path: .coverage.backend
+          include-hidden-files: true
+
+  feature-physics:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      MUJOCO_GL: osmesa
+      COVERAGE_FILE: .coverage.features
+      OMP_NUM_THREADS: '1'
+      OPENBLAS_NUM_THREADS: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: '3.12'
+      - uses: actions/cache@v4
+        with:
+          path: |
+            external/microduck_rl
+            external/policies
+            external/sources.json
+          key: ${{ runner.os }}-scene-${{ hashFiles('scripts/fetch_scene_assets.py') }}
+      - uses: actions/cache@v4
+        with:
+          path: external/features
+          key: ${{ runner.os }}-features-${{ hashFiles('scripts/fetch_feature_assets.py', 'scripts/feature_runtime_requirements.txt') }}
+      - run: uv sync --frozen --extra simulation
+      - run: uv run --frozen --no-sync python scripts/fetch_scene_assets.py
+      - run: uv run --frozen --no-sync python scripts/fetch_feature_assets.py --runtime
+      - run: sudo apt-get update && sudo apt-get install -y libosmesa6
+      - run: uv run --frozen --no-sync pytest tests/test_feature_physics.py --cov --cov-report=term
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-data-features
+          path: .coverage.features
+          include-hidden-files: true
+
+  coverage:
+    needs: [backend, feature-physics]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: '3.12'
+      - run: uv sync --frozen
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: coverage-data-*
+          merge-multiple: true
+      # Both jobs use this checkout path. Merge execution evidence; never omit
+      # new policy modules or lower the existing line/branch thresholds.
+      - run: |
+          uv run --frozen --no-sync coverage combine
+          uv run --frozen --no-sync coverage json
+          uv run --frozen --no-sync coverage html
+          uv run --frozen --no-sync coverage xml
+          uv run --frozen --no-sync python scripts/check_coverage.py
       - name: Export commit-bound backend coverage
         run: >-
-          uv run python scripts/export_coverage.py
+          uv run --frozen --no-sync python scripts/export_coverage.py
           --commit "${{ github.event.pull_request.head.sha || github.sha }}"
           --run-url "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
       - uses: actions/upload-artifact@v4
@@ -159,16 +220,20 @@ jobs:
   # Preserve the existing required check name and fail on any incomplete group.
   quality:
     if: always()
-    needs: [backend, frontend, browser]
+    needs: [backend, feature-physics, coverage, frontend, browser]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - name: Require every check to pass
         env:
           BACKEND_RESULT: ${{ needs.backend.result }}
+          FEATURES_RESULT: ${{ needs.feature-physics.result }}
+          COVERAGE_RESULT: ${{ needs.coverage.result }}
           FRONTEND_RESULT: ${{ needs.frontend.result }}
           BROWSER_RESULT: ${{ needs.browser.result }}
         run: |
           test "$BACKEND_RESULT" = success
+          test "$FEATURES_RESULT" = success
+          test "$COVERAGE_RESULT" = success
           test "$FRONTEND_RESULT" = success
           test "$BROWSER_RESULT" = success

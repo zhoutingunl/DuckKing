@@ -334,3 +334,33 @@ async def test_dock_charge_survives_per_task_metrics_reset(monkeypatch):
     await world.ticks(100, "charging")
     assert world.metrics["virtual_battery_percent"] == pytest.approx(22)
     assert world.metrics["charging_proxy"] is False
+
+
+def test_voice_schema_only_advertises_parameters_used_by_the_current_skill():
+    from duckking.feature_catalog import voice_tools
+
+    def properties(capability):
+        return voice_tools(capability)[0]["inputSchema"]["properties"]
+
+    assert {"duration", "speed"} <= properties("movement").keys()
+    assert "order" not in properties("movement")
+    assert properties("director")["order"]["items"]["enum"] == list("abcd")
+    for capability in CATALOG:
+        if capability != "movement":
+            assert not {"duration", "speed"} & properties(capability).keys()
+        if capability != "director":
+            assert "order" not in properties(capability)
+
+
+@pytest.mark.parametrize(("emotion", "file"), [("no", "no_a"), ("angry", "angry_a")])
+def test_official_emotion_audio_variant_routes(monkeypatch, tmp_path, emotion, file):
+    folder = tmp_path / "features/emotions/sounds"
+    folder.mkdir(parents=True)
+    content = b"RIFF-test-audio-route"
+    (folder / f"{file}.wav").write_bytes(content)
+    monkeypatch.setenv("DUCKKING_SIM_DIR", str(tmp_path))
+    with TestClient(create_app()) as client:
+        response = client.get(f"/api/features/emotion-audio/{emotion}.wav")
+        assert response.status_code == 200 and response.content == content
+        assert response.headers["content-type"].startswith("audio/wav")
+        assert client.get("/api/features/emotion-audio/unknown.wav").status_code == 404

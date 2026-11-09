@@ -105,3 +105,5 @@ npx playwright test tests/features.spec.js
 自动物理测试保留每个 MuJoCo 步及接触采样，仅去掉等待墙钟的展示节拍；子进程烟测另按产品节拍执行。跳绳取消检查包括终止物理线程和重置后不自动开始。声音测试检查阶段确认、采样中断后的自动静音、取消和场景切换的音频节点回收。
 
 本次没有把 Linux Mesa 的目标机显示、真实灵矽全程对话或实体 MicroDuck 验证计为已完成；语音工具约束和结果协议有自动测试，公网升级仍须进行实连验收。
+
+CI 将可选 CPU 物理验收放在独立 `feature-physics` 任务，与基础后端并行。`coverage` 任务合并两者的执行记录，继续执行 90% 行覆盖率、85% 分支覆盖率门槛，部署统计仍读取合并后的 `backend-coverage`；没有排除新模块或降低阈值。Linux 必须在首次导入 MuJoCo **之前**设置 `MUJOCO_GL=osmesa`，在测试 fixture 内设置已太晚。

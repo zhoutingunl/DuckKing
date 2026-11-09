@@ -4,6 +4,8 @@ CI installs the optional assets. A minimal checkout may skip this module, but
 cannot use that skip as evidence that a policy passes physical acceptance.
 """
 import asyncio
+import gc
+import os
 import sys
 from pathlib import Path
 
@@ -18,6 +20,10 @@ pytestmark = pytest.mark.skipif(
 
 @pytest.fixture
 def runtime(monkeypatch):
+    environment = {
+        key: os.environ.get(key)
+        for key in ("MICRODUCK_RL_DIR", "MICRODUCK_POLICY_DIR", "MICRODUCK_ROOT")
+    }
     monkeypatch.syspath_prepend(str(ASSETS / "features/python"))
     monkeypatch.syspath_prepend(str(ASSETS / "features/bam"))
     if sys.platform.startswith("linux"):
@@ -30,7 +36,17 @@ def runtime(monkeypatch):
         await original_sleep(0)
 
     monkeypatch.setattr(asyncio, "sleep", fast_sleep)
-    return original_sleep
+    try:
+        yield original_sleep
+    finally:
+        for key, value in environment.items():
+            if value is None:
+                os.environ.pop(key, None)
+            else:
+                os.environ[key] = value
+        # Native mesh/renderer allocations are much larger than the Python
+        # objects that own them, so Python's allocation counter is a poor trigger.
+        gc.collect()
 
 
 @pytest.mark.parametrize(

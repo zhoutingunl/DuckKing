@@ -144,12 +144,14 @@ async def test_target_selection_reset_and_wrong_scene_fail_explicitly(backend):
     await motion.close()
 
 
-async def test_physics_failure_is_visible_and_reset_recovers(backend, monkeypatch):
+async def test_physics_failure_is_visible_and_reset_recovers(backend, monkeypatch, caplog):
     original = backend.tick
     monkeypatch.setattr(backend, "tick", lambda: (_ for _ in ()).throw(ValueError("solver")))
     backend.start()
     await asyncio.sleep(0.03)
     assert (await backend.snapshot())["connected"] is False
+    assert "mujoco_tick_failed scene=" in caplog.text
+    assert any(record.exc_info and str(record.exc_info[1]) == "solver" for record in caplog.records)
     with pytest.raises(ValueError, match="推进失败"):
         await backend.prepare(Action(name="walk"))
     with pytest.raises(ValueError, match="推进失败"):
