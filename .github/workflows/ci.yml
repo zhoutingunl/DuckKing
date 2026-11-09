@@ -182,7 +182,7 @@ jobs:
           key: ${{ runner.os }}-scene-${{ hashFiles('scripts/fetch_scene_assets.py') }}
       - run: uv sync --frozen --extra simulation
       - run: uv run --frozen --no-sync python scripts/fetch_scene_assets.py
-      - run: sudo apt-get update && sudo apt-get install -y libopus0
+      - run: sudo apt-get update && sudo apt-get install -y libopus0 libosmesa6
       - run: npm ci && npm run build
         working-directory: frontend
       - name: Prepare browser

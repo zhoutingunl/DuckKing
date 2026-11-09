@@ -14,10 +14,12 @@ import {StudioChoir} from './studio-choir.js';
 import {afterFrame,measurement,loadMetrics} from './experience.js';
 import {translate} from './ui-language.js';
 import {FeatureAudio} from './feature-audio.js';
+import {createFeatureIntent} from './feature-intent.js';
 
 await setupRoom();
 const $=id=>document.getElementById(id),loader=createPhysicsModelLoader();
 const feedback=createLoadingState($('scene-placeholder')),choir=new StudioChoir(),sound=new FeatureAudio();
+const intent=createFeatureIntent();
 const labels={walk:'向前走',backward:'向后退',turn_left:'向左转',turn_right:'向右转',sit:'坐下',stand:'站起来',nod:'点点头',curious:'好奇',sad:'难过',devastated:'委屈坐下',mmh:'嗯？',yes:'点头答应',yes_fast:'连连点头',no:'摇头拒绝',defiant:'不服气',angry:'生气',mock:'调皮',excited:'兴奋',impatient:'等不及了',laugh:'笑起来',conduct:'按顺序轮唱',dock:'回窝坐好',undock:'离窝站起来',hop:'跳一下',lift_left:'抬左脚',lift_right:'抬右脚',lower:'放下脚',observe:'看看前方',look_left:'向左看',look_right:'向右看',look_forward:'看前方',play:'演奏距离琴',near:'物体靠近',far:'物体远离',cross:'跨过门槛',find_red:'找红色',find_blue:'找蓝色',find_green:'找绿色',kick_left:'找到球用左脚踢',kick_right:'找到球用右脚踢',go_door:'去门口',go_home:'回窝旁',go_table:'去桌旁',steps:'踩着标记走',swing:'荡起来',jump_rope:'一起跳绳'};
 const sources={
  movement:'官方步态与有界动作控制。',
@@ -72,7 +74,7 @@ async function disconnect(){
  throw Error('语音尚未释放，请稍后重试');
 }
 async function select(entry,replace=true){
- if(busy)return;busy=true;const mine=++epoch;expectedRevision=null;selected=entry;describe(entry);controls();choir.stop();sound.stop();$('notice').hidden=true;
+ if(busy)return;intent.cancel();busy=true;const mine=++epoch;expectedRevision=null;selected=entry;describe(entry);controls();choir.stop();sound.stop();$('notice').hidden=true;
  modelAbort?.abort();modelAbort=new AbortController();const signal=modelAbort.signal;
  session=feedback.begin({phase:'backend',cancel:()=>{modelAbort.abort();session.cancelled()},retry:()=>select(entry,true)});
  const experience=measurement('load'),started=performance.now();
@@ -119,18 +121,23 @@ function update(packet){
 }
 async function command(action){
  if(unavailable())return;try{
-  await enableSceneSound();
-  if(selected.id==='emotions')await sound.load(action);
+  const entry=selected;
   const body={operation:'start',action,request_id:requestId()};
-  if(selected.id==='movement'){body.duration=Number($('feature-duration').value);body.speed=Number($('feature-speed').value)}
-  if(selected.id==='director')body.order=$('feature-order').value.toLowerCase().split(/[\s,，]+/).filter(Boolean);
-  await api('api/features/command',body);appendLog(translate(labels[action]),'本地演示');await feed.refresh();
+  if(entry.id==='movement'){body.duration=Number($('feature-duration').value);body.speed=Number($('feature-speed').value)}
+  if(entry.id==='director')body.order=$('feature-order').value.toLowerCase().split(/[\s,，]+/).filter(Boolean);
+  await intent.run(async()=>{
+   await enableSceneSound();
+   if(entry.id==='emotions')await sound.load(action);
+  },async()=>{
+   if(unavailable())return;
+   await api('api/features/command',body);appendLog(translate(labels[action]),'本地演示');await feed.refresh();
+  });
  }catch(error){notify(error.message)}
 }
-async function control(operation){try{choir.stop();sound.stop();await api('api/features/command',{operation,request_id:requestId()});await feed.refresh()}catch(error){notify(error.message)}}
+async function control(operation){intent.cancel();try{choir.stop();sound.stop();await api('api/features/command',{operation,request_id:requestId()});await feed.refresh()}catch(error){notify(error.message)}}
 $('stop-feature').addEventListener('click',()=>control('stop'));$('reset-feature').addEventListener('click',()=>control('reset'));
 $('prepare-feature').addEventListener('click',()=>select(selected,true));$('reset-camera').addEventListener('click',()=>viewer?.reset());$('clear-log').addEventListener('click',()=>$('activity-log').replaceChildren());
-$('release-feature').addEventListener('click',async()=>{if(busy)return;busy=true;controls();try{await disconnect();await api('api/scenes/close',{});epoch++;modelAbort?.abort();latest=null;revision=expectedRevision=null;choir.stop();sound.stop();viewer?.clear();feedback.reset('场景已释放，点击重新准备即可继续。')}catch(error){notify(error.message)}finally{busy=false;controls()}});
+$('release-feature').addEventListener('click',async()=>{if(busy)return;intent.cancel();busy=true;controls();try{await disconnect();await api('api/scenes/close',{});epoch++;modelAbort?.abort();latest=null;revision=expectedRevision=null;choir.stop();sound.stop();viewer?.clear();feedback.reset('场景已释放，点击重新准备即可继续。')}catch(error){notify(error.message)}finally{busy=false;controls()}});
 window.addEventListener('keydown',event=>{if(event.key==='Escape'&&latest)void control('stop')});
 const feed=sceneStateFeed({readState:signal=>api('api/scenes/state',null,signal),onState:update,onStatus:({mode})=>{online=mode==='websocket'||mode==='http';controls()}});
 async function enableSceneSound(){
@@ -145,7 +152,7 @@ try{
  for(const entry of catalog){const b=document.createElement('button');b.dataset.capability=entry.id;b.dataset.category=entry.category;const title=document.createElement('strong'),detail=document.createElement('span');title.textContent=entry.title;detail.textContent=entry.description;b.append(title,detail);b.onclick=()=>select(entry);$('feature-catalog').append(b)}
  const choice=new URL(location.href).searchParams.get('feature')??savedChoice('feature');selected=catalog.find(c=>c.id===choice)??catalog[0];await select(selected,false);
 }catch(error){notify(error.message)}
-window.addEventListener('pagehide',()=>{epoch++;modelAbort?.abort();feed.close();choir.stop();sound.stop();viewer?.dispose();void sound.close();void choir.ctx?.close()});
+window.addEventListener('pagehide',()=>{intent.cancel();epoch++;modelAbort?.abort();feed.close();choir.stop();sound.stop();viewer?.dispose();void sound.close();void choir.ctx?.close()});
 
 function drawDistance(distance){
  const canvas=$('distance-map'),ctx=canvas.getContext('2d');ctx.clearRect(0,0,320,320);ctx.fillStyle='#edf3e4';ctx.fillRect(0,0,320,320);ctx.strokeStyle='#81995d';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(160,285);ctx.lineTo(160,30);ctx.stroke();ctx.fillStyle='#405b2c';ctx.beginPath();ctx.arc(160,285,10,0,Math.PI*2);ctx.fill();

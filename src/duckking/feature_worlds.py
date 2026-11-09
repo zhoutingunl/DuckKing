@@ -7,10 +7,20 @@ from .motion import Action, MotionController
 from .simulation import MuJoCoBackend
 
 
+class TaskMuJoCoBackend(MuJoCoBackend):
+    """Functional scenes advance only during a task, never on a status read."""
+
+    task_active = False
+
+    def start(self):
+        if self.task_active:
+            super().start()
+
+
 class ExistingWorld:
     def __init__(self, assets, capability):
         self.capability = capability
-        self.backend = MuJoCoBackend(assets)
+        self.backend = TaskMuJoCoBackend(assets)
         self.backend.load("seated" if capability == "director" else "skills")
         self.motion = MotionController(self.backend)
         self.metrics = {}
@@ -22,6 +32,7 @@ class ExistingWorld:
         return await self.backend.snapshot()
 
     async def action(self, name, **kwargs):
+        self.backend.task_active = True
         action = Action(name=name, **kwargs)
         await self.motion.submit(action)
         result = await self.motion.wait(action.request_id)
@@ -61,6 +72,7 @@ class ExistingWorld:
         }
 
     async def stop(self):
+        self.backend.task_active = False
         action = Action(name="stop")
         await self.motion.submit(action)
         await self.motion.wait(action.request_id)

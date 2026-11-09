@@ -103,6 +103,18 @@ async def test_cancel_before_task_first_turn_still_produces_terminal_result():
     assert worker.results[0]["status"] == "cancelled"
 
 
+async def test_acceptance_is_published_before_reply_and_before_policy_first_turn():
+    world, output = World(), io.StringIO()
+    worker = Worker(world, "hop", "rev", output)
+    await worker.handle(command())
+    assert not world.started.is_set()
+    messages = [json.loads(line) for line in output.getvalue().splitlines()]
+    assert [message["type"] for message in messages] == ["state", "reply"]
+    assert messages[0]["state"]["feature"]["status"] == "running"
+    assert messages[0]["state"]["feature"]["id"] == messages[1]["result"]["id"]
+    await worker.cancel()
+
+
 async def test_reset_waits_for_old_task_and_does_not_automatically_restart():
     world = World()
     worker = Worker(world, "hop", "rev", io.StringIO())

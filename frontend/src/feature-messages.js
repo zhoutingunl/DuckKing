@@ -1,5 +1,13 @@
 // Functional-scene copy shares the site's language switch and live DOM translator.
 export const featureMessages = [
+ ["本房间已有场景，请切换或新建房间。","A scene is active in this room. Switch scenes or create a room.","Une scène est active dans ce salon. Change de scène ou crée un salon."],
+ ["请先断开当前语音，再切换功能场景","Disconnect voice before switching capabilities","Déconnecte la voix avant de changer de fonctionnalité"],
+ ["请先准备功能场景","Prepare a capability first","Prépare une fonctionnalité d’abord"],
+ ["场景准备超时，物理进程已释放，请重新准备","Preparation timed out; physics released. Prepare the scene again.","Préparation hors délai ; physique libérée. Prépare à nouveau la scène."],
+ ["物理进程已退出，请重置或重新准备场景","Physics process exited. Reset or prepare the scene again.","Le processus physique s’est arrêté. Réinitialise ou prépare à nouveau la scène."],
+ ["物理进程通信异常","Physics process communication failed","Échec de communication avec le processus physique"],
+ ["物理进程未响应，请重新准备场景","Physics process did not respond. Prepare the scene again.","Le processus physique ne répond pas. Prépare à nouveau la scène."],
+ ["场景已释放，请重新准备","Scene released. Prepare it again.","Scène libérée. Prépare-la à nouveau."],
  ["仿真时间","Simulation time","Temps de simulation"],
  ["看前方","Look forward","Regarder devant"],
  ["已离窝并站稳", "Undocked and standing steadily", "Station quittée ; équilibre rétabli"],

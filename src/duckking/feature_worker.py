@@ -113,6 +113,12 @@ class Worker:
                         "started_at": time.time(),
                         "phase": "running",
                     }
+                if command.operation != "status":
+                    # Publish the accepted state before starting policy work.
+                    # A first inference may be slow; readers must not see the
+                    # old idle snapshot after receiving a successful RPC reply.
+                    self.emit({"type": "state", "state": await self.snapshot()})
+                if command.operation == "start":
                     self.task = asyncio.create_task(self.run(command))
                 result = dict(self.current)
             self.emit({"type": "reply", "id": key, "result": result})

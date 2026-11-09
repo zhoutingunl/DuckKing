@@ -126,16 +126,25 @@ async def test_circus_cancel_releases_thread_and_reset_does_not_start(runtime):
         await world.close()
 
 
-async def test_real_worker_cancel_reset_and_release_are_acknowledged():
+@pytest.mark.parametrize(("capability", "action"), [("hop", "hop"), ("movement", "walk")])
+async def test_real_worker_cancel_reset_and_release_are_acknowledged(capability, action):
     from duckking.feature_backend import FeatureBackend
 
-    backend = await FeatureBackend.create(ASSETS, "hop")
+    backend = await FeatureBackend.create(ASSETS, capability)
     try:
         assert backend.geometry()["physics"]
         assert (await backend.snapshot())["feature"]["status"] == "idle"
-        first = await backend.invoke({"action": "hop", "request_id": "physical-hop"})
+        initial_time = (await backend.snapshot())["sim_time"]
+        await asyncio.sleep(.6)
+        assert (await backend.snapshot())["sim_time"] == initial_time
+        first = await backend.invoke({"action": action, "request_id": "physical-action"})
         assert first["status"] == "running"
+        assert (await backend.snapshot())["feature"]["status"] == "running"
+        await asyncio.sleep(.2)
         await backend.stop()
+        stopped_time = (await backend.snapshot())["sim_time"]
+        await asyncio.sleep(.6)
+        assert (await backend.snapshot())["sim_time"] == stopped_time
         await backend.reset()
         for _ in range(100):
             if (await backend.snapshot())["feature"]["status"] == "idle":
@@ -148,4 +157,4 @@ async def test_real_worker_cancel_reset_and_release_are_acknowledged():
         await backend.close()
     assert backend.process.returncode is not None
     with pytest.raises(ValueError, match="释放"):
-        await backend.invoke({"action": "hop"})
+        await backend.invoke({"action": action})
