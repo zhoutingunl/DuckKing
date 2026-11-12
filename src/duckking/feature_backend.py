@@ -19,6 +19,7 @@ class FeatureBackend:
 
     def __init__(self, capability):
         self.capability = capability
+        self.variant = None
         self.process = self.reader = None
         self.pending = {}
         self.state = None
@@ -32,8 +33,9 @@ class FeatureBackend:
         self.ready = asyncio.get_running_loop().create_future()
 
     @classmethod
-    async def create(cls, assets, capability):
+    async def create(cls, assets, capability, *, variant=None):
         backend = cls(capability)
+        backend.variant = variant
         env = os.environ.copy()
         env.update(OMP_NUM_THREADS="1", OPENBLAS_NUM_THREADS="1", VECLIB_MAXIMUM_THREADS="1")
         if sys.platform.startswith("linux"):
@@ -60,6 +62,7 @@ class FeatureBackend:
                 str(assets),
                 capability,
                 backend.revision,
+                *([str(variant)] if variant is not None else []),
                 env=env,
                 stdin=asyncio.subprocess.PIPE,
                 stdout=asyncio.subprocess.PIPE,

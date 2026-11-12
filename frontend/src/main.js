@@ -58,6 +58,8 @@ function action(name){
 }
 document.querySelectorAll('[data-action]').forEach(button=>button.addEventListener('click',()=>action(button.dataset.action)));
 $('reset-camera').addEventListener('click',()=>scene?.resetCamera());
+$('scene-settings-toggle').addEventListener('click',()=>{const shown=$('scene-settings').hidden;$('scene-settings').hidden=!shown;$('scene-settings-toggle').setAttribute('aria-expanded',String(shown))});
+$('ground-style').addEventListener('change',()=>scene?.setGround($('ground-style').value));
 $('clear-log').addEventListener('click',()=>{$('activity-log').replaceChildren();});
 window.addEventListener('keydown',e=>{if(e.key==='Escape')action('stop');});
 function connect(){

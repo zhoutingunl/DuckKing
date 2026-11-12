@@ -5,7 +5,7 @@ for(const language of ['zh','en','fr'])test(`${language}: mobile controls fit wi
   test.setTimeout(60000);
   await page.route('**/api/voice/modes*',route=>route.fulfill({json:{local_first:true,available:true}}));
   await page.setViewportSize({width:390,height:844});
-  await page.goto(`/?room=1&lang=${language}`);
+  await page.goto(`/index.html?room=1&lang=${language}`);
   await expect(page.locator('#viewport')).toHaveAttribute('data-model','official',{timeout:30000});
   await expect(page.locator('#voice-mode')).toBeEnabled();
   const scale=await page.evaluate(()=>visualViewport.scale);
@@ -56,7 +56,7 @@ test('one voice control exposes status, cancel, retry and disconnect on mobile',
     if(typeof raw!=='string')return;const data=JSON.parse(raw);commands.push(data.type);
     if(data.type==='disconnect')ws.send(JSON.stringify({type:'voice_status',state:'disconnected'}));
   })});
-  await page.goto('/?room=1');
+  await page.goto('/index.html?room=1');
   const button=page.locator('#connect-voice');
   await expect(button).toHaveAccessibleName('启用语音');
   await expect(button.locator('#voice-badge')).toHaveText('语音未启用');

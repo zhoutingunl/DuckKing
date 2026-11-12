@@ -74,7 +74,7 @@ def test_feature_commands_reject_unbounded_unknown_and_wrong_scene(arguments):
 
 def test_catalogue_covers_ten_groups_without_claiming_hardware_charging():
     assert {x["group"] for x in CATALOG.values()} == set(range(1, 11))
-    assert len(CATALOG) == 18
+    assert len(CATALOG) == 41
     assert CATALOG["dock"]["observation"] == "simulated_tag_and_proprioception"
     assert CATALOG["soccer"]["observation"] == "rgb"
 
@@ -226,7 +226,7 @@ def test_feature_api_missing_assets_fails_clearly_and_releases_preparation(monke
     )
     app = create_app()
     with TestClient(app) as client:
-        assert len(client.get("/api/features/catalog").json()["capabilities"]) == 18
+        assert len(client.get("/api/features/catalog").json()["capabilities"]) == 41
         response = client.post("/api/features/prepare", json={"capability": "hop"})
         assert response.status_code == 503
         assert app.state.rooms["1"].scene_motion is None
@@ -376,3 +376,35 @@ def test_official_emotion_audio_variant_routes(monkeypatch, tmp_path, emotion, f
         assert response.status_code == 200 and response.content == content
         assert response.headers["content-type"].startswith("audio/wav")
         assert client.get("/api/features/emotion-audio/unknown.wav").status_code == 404
+
+
+def test_bad_height_is_rejected_before_replacing_a_room_world(monkeypatch):
+    create = AsyncMock(side_effect=ValueError("not reached"))
+    monkeypatch.setattr(FeatureBackend, "create", create)
+    with TestClient(create_app()) as client:
+        for payload in [dict(capability="stilts", variant=11), dict(capability="hop", variant=10)]:
+            assert client.post("/api/features/prepare", json=payload).status_code == 422
+        assert not create.called
+        assert client.get("/api/features/catalog?sort=invalid").status_code == 422
+        assert client.get("/api/features/catalog?metric=invalid").status_code == 422
+
+
+def test_explicit_reprepare_releases_matching_old_world_and_never_falls_back(monkeypatch):
+    create = AsyncMock(side_effect=ValueError("new world unavailable"))
+    monkeypatch.setattr(FeatureBackend, "create", create)
+    app = create_app()
+    with TestClient(app) as client:
+        old = SimpleNamespace(
+            backend=SimpleNamespace(
+                scene="functional", capability="hop", variant=None, error=None, closed=False
+            ),
+            snapshot=AsyncMock(return_value={"backend": {"scene": "functional"}}),
+            close=AsyncMock(),
+        )
+        app.state.rooms["1"].scene_motion = old
+        assert client.post("/api/features/prepare", json={"capability": "hop"}).status_code == 200
+        assert not create.called and not old.close.called
+        response = client.post("/api/features/prepare", json={"capability": "hop", "replace": True})
+        assert response.status_code == 503
+        assert old.close.await_count == 1 and create.await_count == 1
+        assert app.state.rooms["1"].scene_motion is None

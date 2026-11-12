@@ -237,6 +237,31 @@ class SensesWorld(PolicyWorld):
             "distance_m": distance,
             "sim_time": float(self.data.time),
         }
+        if self.capability == "tof":
+            depth = []
+            # A virtual 45 x 45 degree scan, not a calibrated hardware emulator.
+            tangent = math.tan(math.radians(22.5))
+            for row in range(8):
+                values = []
+                for col in range(8):
+                    ray = orientation @ np.array(
+                        [(col / 7 * 2 - 1) * tangent, (1 - row / 7 * 2) * tangent, -1.0]
+                    )
+                    ray /= np.linalg.norm(ray)
+                    length = mujoco.mj_ray(
+                        self.model,
+                        self.data,
+                        origin,
+                        ray,
+                        raygroup,
+                        True,
+                        int(self.model.cam_bodyid[camera]),
+                        hit,
+                    )
+                    values.append(float(length) if 0 <= length <= 4 else None)
+                depth.append(values)
+            self.sensors["depth_grid_m"] = depth
+            self.sensors["scan_fov_deg"] = 45
         self.metrics["ray_distance_m"] = distance
         self.image_tick = self.data.time
         return pixels
@@ -248,8 +273,13 @@ class SensesWorld(PolicyWorld):
         if self.capability == "navigation":
             state["view_scene"] = "navigation"
             state["annotations"] = [
-                {"id": name, "text": title,
-                 "position": (self.data.geom_xpos[self.model.geom(name).id]+[0, 0, .07]).tolist()}
+                {
+                    "id": name,
+                    "text": title,
+                    "position": (
+                        self.data.geom_xpos[self.model.geom(name).id] + [0, 0, 0.07]
+                    ).tolist(),
+                }
                 for name, title in (("door", "门口"), ("home", "窝旁"), ("table", "桌旁"))
             ]
         return {**state, "sensors": self.sensors, "feature_path": getattr(self, "route", [])}

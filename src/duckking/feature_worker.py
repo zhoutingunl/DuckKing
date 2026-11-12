@@ -141,14 +141,15 @@ class Worker:
 
 
 async def main(output):
-    assets, capability, revision = sys.argv[1:]
+    assets, capability, revision = sys.argv[1:4]
+    variant = int(sys.argv[4]) if len(sys.argv) == 5 else None
     if capability not in CATALOG:
         raise ValueError("未知功能场景")
     assets = await asyncio.to_thread(Path(assets).resolve)
     sys.path.insert(0, str(assets / "features/bam"))
     from .feature_worlds import make_world
 
-    world = make_world(assets, capability)
+    world = make_world(assets, capability, **({"variant": variant} if variant is not None else {}))
     worker = Worker(world, capability, revision, output)
     visual = world.geometry()
     visual.update(revision=revision, source="official_microduck_physics", physics=True)

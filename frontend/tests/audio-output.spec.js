@@ -47,7 +47,7 @@ test('two turns reuse a muted standby microphone and disconnect releases it',asy
       const stream=await get(constraints);window.audioAudit.tracks.push(...stream.getTracks());return stream;
     };
   });
-  await page.goto('/?room=1');
+  await page.goto('/index.html?room=1');
   await page.locator('#enable-sound').click();
   await expect(page.locator('#activity-log')).toContainText('本地测试提示音');
   expect(commands).toEqual([]);expect(frames).toEqual([]);
@@ -108,7 +108,7 @@ test('a permanently suspended output never blocks connect or disconnect and show
     }
     if(type==='disconnect')socket.send(JSON.stringify({type:'voice_status',state:'disconnected'}));
   }));
-  await page.goto('/?room=1');
+  await page.goto('/index.html?room=1');
   await page.locator('#connect-voice').click();
   await expect(page.locator('#voice-badge')).toHaveText('灵矽已连接');
   await expect(page.locator('#audio-status')).toContainText('已收到回复音频，播放尚未就绪');
@@ -129,7 +129,7 @@ test('late mic permission from an old connection cannot attach to the new connec
       return new Promise(resolve=>window.pendingMics.push(()=>resolve(stream)));
     };
   });
-  await page.goto('/?room=1');await page.locator('#connect-voice').click();
+  await page.goto('/index.html?room=1');await page.locator('#connect-voice').click();
   await expect(page.locator('#voice-badge')).toHaveText('灵矽已连接');
   const talk=page.locator('#talk-button');
   await expect.poll(()=>page.evaluate(()=>pendingMics.length)).toBe(1);
@@ -174,7 +174,7 @@ test('short press retains the very first PCM frame before async preparation comp
       const stream=await get(options);window.captureStream=stream;return stream;
     };
   });
-  await page.goto('/?room=1');await page.locator('#connect-voice').click();
+  await page.goto('/index.html?room=1');await page.locator('#connect-voice').click();
   await expect(page.locator('#voice-badge')).toHaveText('灵矽已连接');
   await expect.poll(()=>page.evaluate(()=>typeof window.allowCapture)).toBe('function');
   await expect(page.locator('#talk-button')).toBeDisabled();

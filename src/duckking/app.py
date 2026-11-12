@@ -900,6 +900,19 @@ def create_app(
                         await ws.close(code=1000)
 
     static = ROOT / "frontend" / "dist"
+    if (static / "features.html").is_file():
+        from fastapi.responses import RedirectResponse
+
+        @app.get("/", include_in_schema=False)
+        async def scene_home(request: Request):
+            query = dict(request.query_params)
+            query["sort"] = "top"
+            from urllib.parse import urlencode
+
+            # Relative Location preserves a path-stripping proxy's public
+            # prefix even when this process also serves the direct root domain.
+            return RedirectResponse("features.html?" + urlencode(query), status_code=307)
+
     if static.is_dir():
         app.mount("/", StaticFiles(directory=static, html=True), name="frontend")
     else:

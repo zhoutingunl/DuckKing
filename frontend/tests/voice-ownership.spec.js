@@ -8,7 +8,7 @@ test('retry clears only the voice notice left by the previous occupied session',
       socket.send(JSON.stringify({type:'voice_status',state:'busy',error:'协议测试：另一个页面正在使用语音'}));socket.close();
     }else socket.send(JSON.stringify({type:'voice_status',state:'ready'}));
   }));
-  await page.goto('/?room=1');await page.locator('#connect-voice').click();
+  await page.goto('/index.html?room=1');await page.locator('#connect-voice').click();
   await expect(page.locator('#voice-badge')).toHaveText('本房间语音正在使用');
   await expect(page.locator('#notice')).toContainText('另一个页面');
   await page.locator('#connect-voice').click();
@@ -18,7 +18,7 @@ test('retry clears only the voice notice left by the previous occupied session',
 
 test('a mobile tab retries after the same visitor releases the real voice owner',async({page,browser,baseURL})=>{
   // Hold only the local device channel; this test never connects to Linx.
-  await page.goto('/?room=1');
+  await page.goto('/index.html?room=1');
   await page.evaluate(async()=>{
     const url=new URL('/voice?room=1',location.href);url.protocol=url.protocol==='https:'?'wss:':'ws:';
     window.testOwner=new WebSocket(url);
@@ -27,7 +27,7 @@ test('a mobile tab retries after the same visitor releases the real voice owner'
   const mobile=await browser.newContext({baseURL,storageState:await page.context().storageState(),viewport:{width:390,height:844},isMobile:true,hasTouch:true});
   const phone=await mobile.newPage();
   try{
-    await phone.goto('/?room=1');await phone.locator('#connect-voice').click();
+    await phone.goto('/index.html?room=1');await phone.locator('#connect-voice').click();
     await expect(phone.locator('#voice-badge')).toHaveText('本房间语音正在使用');
     await expect(phone.locator('#voice-caption')).toContainText('另一个房间');
     await expect(phone.locator('#talk-button')).toBeDisabled();
@@ -64,7 +64,7 @@ test('voice heartbeats stop on disconnect and a cloud error remains visible afte
       }
     });
   });
-  await page.goto('/?room=1');await page.locator('#connect-voice').click();
+  await page.goto('/index.html?room=1');await page.locator('#connect-voice').click();
   await expect(page.locator('#voice-badge')).toHaveText('灵矽已连接');
   await page.clock.fastForward(11000);await expect.poll(()=>commands.filter(c=>c==='ping').length).toBe(1);
   await page.locator('#connect-voice').click();await expect(page.locator('#voice-badge')).toHaveText('未连接灵矽');

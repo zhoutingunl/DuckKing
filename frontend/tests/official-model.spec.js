@@ -3,7 +3,7 @@ import { test, expect } from '@playwright/test';
 test('missing secure-context UUID API does not block the official model or action submission',async({page})=>{
  const errors=[];page.on('pageerror',e=>errors.push(e.message));
  await page.addInitScript(()=>Object.defineProperty(crypto,'randomUUID',{configurable:true,value:undefined}));
- await page.goto('/?room=1');
+ await page.goto('/index.html?room=1');
  await expect(page.locator('#viewport')).toHaveAttribute('data-model','official',{timeout:45000});
  const submission=page.waitForRequest(r=>new URL(r.url()).pathname==='/api/actions'&&r.method()==='POST');
  await page.locator('[data-action="nod"]').click();
@@ -14,7 +14,7 @@ test('missing secure-context UUID API does not block the official model or actio
 test('homepage loads the official rig and still labels scripted motion as preview',async({page},testInfo)=>{
   test.setTimeout(60000);
   const errors=[];page.on('pageerror',e=>errors.push(e.message));
-  await page.goto('/?room=1');
+  await page.goto('/index.html?room=1');
   await expect(page.locator('#viewport')).toHaveAttribute('data-model','official',{timeout:45000});
   await expect(page.locator('#scope-note')).toContainText('官方 MicroDuck 外观');
   await expect(page.locator('#scope-note')).toContainText('不进行物理计算');
@@ -26,7 +26,7 @@ test('homepage loads the official rig and still labels scripted motion as previe
 
 test('missing official visuals report failure and can be retried explicitly',async({page})=>{
   await page.route('**/api/models/microduck/manifest',route=>route.fulfill({status:503,json:{detail:'模型未安装'}}));
-  await page.goto('/?room=1');
+  await page.goto('/index.html?room=1');
   await expect(page.locator('#viewport')).toHaveAttribute('data-model','failed');
   await expect(page.locator('.model-status')).toContainText('官方模型加载失败');
   await page.unroute('**/api/models/microduck/manifest');
@@ -37,11 +37,11 @@ test('missing official visuals report failure and can be retried explicitly',asy
 test('official model cache is shared by rooms and load timings reach the server',async({page})=>{
   test.setTimeout(60000);
   const timings=[];page.on('response',r=>{if(new URL(r.url()).pathname==='/api/models/load-metrics')timings.push(r.status())});
-  await page.goto('/?room=1');await expect(page.locator('#viewport')).toHaveAttribute('data-model','official');
+  await page.goto('/index.html?room=1');await expect(page.locator('#viewport')).toHaveAttribute('data-model','official');
   const first=await page.locator('#viewport').evaluate(el=>JSON.parse(el.dataset.modelTiming));
   expect(first.result).toBe('ready');expect(first.encoded_bytes).toBeLessThan(4000000);
   await expect(page.locator('#activity-log')).toContainText('官方外观已显示');
-  await page.goto('/?room=2');await expect(page.locator('#viewport')).toHaveAttribute('data-model','official');
+  await page.goto('/index.html?room=2');await expect(page.locator('#viewport')).toHaveAttribute('data-model','official');
   const second=await page.locator('#viewport').evaluate(el=>JSON.parse(el.dataset.modelTiming));
   expect(second.cache).toBe('persistent');expect(second.transfer_bytes).toBe(0);
   await expect.poll(()=>timings).toEqual([204,204]);
@@ -51,7 +51,7 @@ test('official model cache is shared by rooms and load timings reach the server'
 
 test('corrupt cached geometry fails explicitly, is evicted, and retries the real model',async({page})=>{
   test.setTimeout(60000);
-  await page.goto('/?room=1');await expect(page.locator('#viewport')).toHaveAttribute('data-model','official');
+  await page.goto('/index.html?room=1');await expect(page.locator('#viewport')).toHaveAttribute('data-model','official');
   await page.evaluate(async()=>{const cache=await caches.open('duckking-official-model-v1');for(const key of await cache.keys())await cache.put(key,new Response('invalid cached asset'))});
   await page.reload();await expect(page.locator('#viewport')).toHaveAttribute('data-model','failed');
   await expect(page.locator('#activity-log')).toContainText('官方外观加载失败');
@@ -62,7 +62,7 @@ test('corrupt cached geometry fails explicitly, is evicted, and retries the real
 
 test('unavailable persistent storage still loads the actual official asset',async({page})=>{
   await page.addInitScript(()=>{Object.defineProperty(window,'caches',{value:{open:()=>Promise.reject(new Error('Protocol fixture: storage denied'))}})});
-  await page.goto('/?room=1');await expect(page.locator('#viewport')).toHaveAttribute('data-model','official');
+  await page.goto('/index.html?room=1');await expect(page.locator('#viewport')).toHaveAttribute('data-model','official');
   expect(await page.locator('#viewport').evaluate(el=>JSON.parse(el.dataset.modelTiming).result)).toBe('ready');
 });
 

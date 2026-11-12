@@ -55,7 +55,7 @@ flowchart TB
     M10 -.->|"构建、检查、发布"| M03
 ```
 
-robotd 路径的物理计算在官方 MuJoCo body 中完成，官方 robotd 运行已有策略。首页网格来自官方模型，但姿态动画仍是运动学示意；真实实时接触画面在独立物理实验室中呈现。
+robotd 路径的物理计算在官方 MuJoCo body 中完成，官方 robotd 运行已有策略。语音工作台网格来自官方模型，但姿态动画仍是运动学示意；真实实时接触画面在独立物理实验室中呈现。
 
 ## 模块规格
 
@@ -93,7 +93,7 @@ robotd 路径的物理计算在官方 MuJoCo body 中完成，官方 robotd 运�
 | 编号 / 模块规格 | 输入 → 输出契约 | 状态与失败处理 | 验收负责人 |
 |---|---|---|---|
 | M01 浏览器音频与传输 | 按住说话 → 16 kHz PCM16 / 60 ms 帧；下行 PCM → 播放队列 | 静音预备麦克风；最多 15 秒；打断清旧音频；公网 HTTPS 通道不重放录音 | [分工表](TEAM.md) |
-| M02 页面、外观与物理渲染 | 官方清单 / 几何 / 状态 → 首页、练习场、剧场、工坊 | 首页脚本预览与实际物理明确区分；revision 防错配；加载失败可重试 | [分工表](TEAM.md) |
+| M02 页面、外观与物理渲染 | 官方清单 / 几何 / 状态 → 语音工作台、练习场、剧场、工坊 | 语音工作台脚本预览与实际物理明确区分；revision 防错配；加载失败可重试 | [分工表](TEAM.md) |
 | M03 应用与房间 | 同源 HTTP / WS、房间号 → 本房间控制器与会话 | 15 秒预留；语音独占；房间 / 物理容量有上限；空闲回收保留私有身份 | [分工表](TEAM.md) |
 | M04 本地优先识别 | 有界 PCM → 离线转写 → 完整动作计划或原录音转交 | 六步 / 20 秒；否定或未知片段整句转交；本地动作开始后不云端重做 | [分工表](TEAM.md) |
 | M05 灵矽与设备协议 | OTA / WSS / Opus / MCP → STT、工具结果、TTS | 身份与凭证只在服务端；请求关联与去重；超时恢复一次；云端失败不冒充本地成功 | [分工表](TEAM.md) |
@@ -108,10 +108,11 @@ robotd 路径的物理计算在官方 MuJoCo body 中完成，官方 robotd 运�
 ```mermaid
 flowchart TB
     Browser["浏览器<br/>Three.js / Web Audio / 模型缓存"]
-    Edge["既有 HTTPS 前置 Nginx<br/>ztmonitor.qbox.net · 仓库外配置"]
+    Edge["HTTPS 前置 OpenResty<br/>duck.qbox.net · 直连 8765"]
+    Legacy["既有 HTTPS 前置 Nginx<br/>ztmonitor.qbox.net · 兼容入口"]
     subgraph Host["YZH737"]
         Gateway["既有 ai_gateway :18345<br/>固定 /duckking/ 路由与 HTTPS 通道"]
-        App["duckking.service · 127.0.0.1:8765<br/>FastAPI / 房间 / 语音 / MuJoCo + ONNX"]
+        App["duckking.service · 0.0.0.0:8765<br/>FastAPI / 房间 / 语音 / MuJoCo + ONNX"]
         ASR["duckking-asr.service · 127.0.0.1:8768<br/>SenseVoiceSmall INT8 · CPU"]
         Releases["不可变 releases / current<br/>源码、前端构建、固定模型与策略"]
         Private["/var/lib/duckking<br/>体验 SQLite、私有身份、诊断、配方<br/>部署流水与覆盖率历史"]
@@ -123,11 +124,13 @@ flowchart TB
     end
     Linx["外部灵矽服务<br/>设备激活 / 对话 / 工具调用 / TTS"]
     Browser <-->|"HTTPS"| Edge
-    Edge <--> Gateway
+    Edge <--> App
+    Browser <--> Legacy
+    Legacy <--> Gateway
     App <-->|"HTTPS OTA / WSS"| Linx
 ```
 
-前置 Nginx 的完整配置不在仓库中；当前验证过的公网入口由 ai_gateway 承接，不在图中假设可直接改动 Nginx。浏览器依据网关能力声明使用 HTTPS 长轮询，网关保持到 DuckKing 的真实 WebSocket；本地可直连 8765，开发 Vite 为 5173。DuckKing 与 ASR 独立升级，保持端口和协议即可，无需重启 ai_gateway。
+当前 duck.qbox.net 的 OpenResty 直接转发页面、API 与原生 WebSocket 至 YZH737:8765，不经过 ai_gateway。旧 ztmonitor 入口仍可使用网关能力声明的 HTTPS 长轮询，网关保持到 DuckKing 的真实 WebSocket；本地可直连 8765，开发 Vite 为 5173。DuckKing 与 ASR 独立升级，保持端口和协议即可，无需重启 ai_gateway。
 
 房间的控制器、实时物理状态、语音连接和最近 500 轮统计在内存中，重启后重建；所有房间共享有界 ASR worker 和体验库，但不共享动作任务。官方只读几何与 ONNX 会话可复用，每个物理世界的动态状态独立。设备身份、确认后的工坊配方、体验库、部署流水和覆盖率保存在版本目录外。公开 API 只暴露必要状态及过滤后的数据，技术体验库不存识别正文；语音诊断可能含规则脱敏后的文本，不能当成完全匿名的使用记录。
 
@@ -194,7 +197,7 @@ sequenceDiagram
 | `GET /api/deployments`、`GET /deploys.html` | 发布版本、最多 100 条流水、提交变更、覆盖率 |
 | `GET /api/health` | 版本、后端类型与服务可达性 |
 | `GET /api/models/microduck` | 缓存的官方视觉网格、局部关节轴和默认姿态；不启动物理循环或 ONNX 推理 |
-| `GET /api/models/microduck/manifest`、`GET /api/models/microduck/assets/{version}.dkm.gz` | 首页当前使用的内容版本清单与无损压缩模型；旧 JSON 接口保留兼容 |
+| `GET /api/models/microduck/manifest`、`GET /api/models/microduck/assets/{version}.dkm.gz` | 语音工作台当前使用的内容版本清单与无损压缩模型；旧 JSON 接口保留兼容 |
 | `POST /api/models/load-metrics` | 浏览器模型加载分阶段日志，区别于服务端准备计时 |
 | `GET /api/state` | 当前动作、后端状态、近期事件 |
 | `GET /api/voice/diagnostics` | 语音阶段、停留时间、音频帧数和脱敏诊断事件 |
@@ -283,7 +286,7 @@ ai_gateway 可独立添加固定 loopback 路由；现有前置代理不透传 U
 安装器在部署锁内，将各发布目录中的 `release-coverage.json` 与 `/var/lib/duckking/release-coverage.json` 合并，校验后原子写入独立存储（0600 权限）。任何输入损坏或写入失败都会中止安装，不覆盖已有报告。清理旧发布目录不再删除覆盖率历史。接口每次刷新读取独立存储，并用当前包的同 SHA 报告优先覆盖；因此补入经过核验的历史报告无需再次重启服务。只恢复存在的 CI 证据，不把当前数值套用到其他提交。
 
 
-`simulation.py` 在 Python 进程中运行 MuJoCo CPU 与官方 ONNX 推理，`kind=mujoco`、`physics=true`、`runtime=mujoco_cpu_onnx`；它不是 robotd 适配器，也不复用首页预览的姿态动画。原工作台控制器与场景控制器相互独立。
+`simulation.py` 在 Python 进程中运行 MuJoCo CPU 与官方 ONNX 推理，`kind=mujoco`、`physics=true`、`runtime=mujoco_cpu_onnx`；它不是 robotd 适配器，也不复用语音工作台预览的姿态动画。原工作台控制器与场景控制器相互独立。
 
 `POST /api/scenes/start` 显式惰性加载模型；模型文件和策略位于 `external/`，不进入 Python 包，本地开发显式下载，Linux 发布包携带固定版本及来源信息。球场使用官方 `scene_ball.xml`，双鸭场景用 `MjSpec.attach` 将两个官方 `robot_allcollisions.xml` 放到同一个模型中。控制频率 50 Hz，每次推进 4 个 5 ms 物理步，双鸭共用一次 `mj_step`。策略采用官方 61 维观测、14 维关节输出、默认姿态与 0.5 秒踢球时长；沿用 MJCF 的位置执行器参数，没有接入训练时的动态 BAM 电机模型。
 
@@ -295,7 +298,7 @@ ai_gateway 可独立添加固定 loopback 路由；现有前置代理不透传 U
 
 Three.js 渲染官方几何，不会用预设踢球动画替换实际关节结果。每次绘制后留出至少 33 ms 空闲时间；检测到 SwiftShader / llvmpipe 等软件渲染器或连续慢帧时关闭阴影，软件渲染器初始画布宽度预算为 320 像素，持续慢帧时降到最低 160 像素；按绘制与 GPU 等待耗时的两倍留出 100–2,000 ms 空闲间隔。软件显卡上降低画面分辨率与刷新频率，仍显示完整官方几何。这样可以为输入、语音和状态处理留出时间，不改变物理步进和接触判定。
 
-赛后外观更新（2026-11-01）：几何导出新增 `duck`（机器人子树身份，场景物体为空）和 `part`（去除多鸭前缀的网格名）元数据。`frontend/src/duck-appearance.js` 将官方四种配色映射到不同部件，默认 A/B/C/D 为 Cream/Graphite/Lavender/Sky；首页与物理渲染共用此映射。偏好仅存当前浏览器，换色不发送动作或重建模型。物理画面通过 `InstancedMesh` 的实例颜色保留多鸭网格与绘制批次共享，球、桌面和搬运物品不参与换色。分部件粗糙度／金属度与一次性生成的 64 像素环境反射改善高光；软件渲染器或连续慢帧时关闭环境反射，保留部件颜色与直接灯光高光。无额外 HDR 下载，释放视图时回收反射贴图。
+赛后外观更新（2026-11-01）：几何导出新增 `duck`（机器人子树身份，场景物体为空）和 `part`（去除多鸭前缀的网格名）元数据。`frontend/src/duck-appearance.js` 将官方四种配色映射到不同部件，默认 A/B/C/D 为 Cream/Graphite/Lavender/Sky；语音工作台与物理渲染共用此映射。偏好仅存当前浏览器，换色不发送动作或重建模型。物理画面通过 `InstancedMesh` 的实例颜色保留多鸭网格与绘制批次共享，球、桌面和搬运物品不参与换色。分部件粗糙度／金属度与一次性生成的 64 像素环境反射改善高光；软件渲染器或连续慢帧时关闭环境反射，保留部件颜色与直接灯光高光。无额外 HDR 下载，释放视图时回收反射贴图。
 
 `/scene-voice` 根据模式选择 `VoiceSession` 或 `HybridVoiceSession`，连接场景控制器，按同源规则保护。同一房间内和 `/voice` 共用一个语音名额；各房间使用独立设备身份与控制器，物理世界按需初始化并另设并发上限。物理专属 MCP 工具仅对 MuJoCo 控制器公布：`duck_set_scene`、`duck_kick`（必填 left/right）、`duck_find_companion`、`duck_duo_walk`、`duck_collide`、`duck_chorus`、`duck_pick_up`、`duck_carry`、`duck_put_down`、`duck_sit`、`duck_stand`、`duck_roulade`、`duck_ground_pick`、`duck_yawn`、`duck_idle_on`、`duck_idle_off`、`duck_skate`、`duck_roller_crouch`。桌上与坐姿四鸭演出由应用编排，不增加云端工具。状态工具剔除渲染网格，避免将大量图形数据送入模型上下文。统计按 `mujoco` 单独筛选。
 
@@ -319,11 +322,11 @@ Three.js 渲染官方几何，不会用预设踢球动画替换实际关节结�
 
 动态房间分配、接口选择和打断录音缓冲的规则见 [开发指南](DEVELOPMENT.md#打断回复并说新命令)。设备接入与 abort 格式依据 [灵矽官方 WebSocket 协议](https://linx.qiniu.com/docs/xrobot/platform/websocket)；没有假定同一设备支持多连接。
 
-## 嘴部夹取与首页官方外观
+## 嘴部夹取与语音工作台官方外观
 
-`model_assets.py` 从固定官方 MJCF 导出 70 个视觉 geom、复用的 STL 网格和 14 个关节的局部轴 / 枢轴 / 默认角度。`GET /api/models/microduck` 只编译模型，不做物理推进；浏览器用 Three.js 关节树播放既有预览状态。没有翅膀或手部关节。API 与首页均标识 `physics=false`；依赖缺失返回 503，页面可显式重试。该外观接口不依赖房间物理场景，首次加载不会启动场景或云端语音。
+`model_assets.py` 从固定官方 MJCF 导出 70 个视觉 geom、复用的 STL 网格和 14 个关节的局部轴 / 枢轴 / 默认角度。`GET /api/models/microduck` 只编译模型，不做物理推进；浏览器用 Three.js 关节树播放既有预览状态。没有翅膀或手部关节。API 与语音工作台均标识 `physics=false`；依赖缺失返回 503，页面可显式重试。该外观接口不依赖房间物理场景，首次加载不会启动场景或云端语音。
 
-首页现通过 `/api/models/microduck/manifest` 查询内容版本，再获取 `assets/<sha256>.dkm.gz`，旧 JSON 接口保留兼容。DKM1 为 4 字节魔数、uint32 小端 JSON 头长度、4 字节对齐的 JSON 头及网格缓冲；坐标保留 float32，索引仅在所有值均可表示时无损改存 uint16。没有减面或改变模型。显式 `.gz` 地址始终返回 gzip 表示及 `Content-Encoding: gzip`，浏览器自动解压；现有 ai_gateway 虽向上游发送 `Accept-Encoding: identity`，仍会原样转发这些压缩字节和响应头，无需修改或重启网关。
+语音工作台现通过 `/api/models/microduck/manifest` 查询内容版本，再获取 `assets/<sha256>.dkm.gz`，旧 JSON 接口保留兼容。DKM1 为 4 字节魔数、uint32 小端 JSON 头长度、4 字节对齐的 JSON 头及网格缓冲；坐标保留 float32，索引仅在所有值均可表示时无损改存 uint16。没有减面或改变模型。显式 `.gz` 地址始终返回 gzip 表示及 `Content-Encoding: gzip`，浏览器自动解压；现有 ai_gateway 虽向上游发送 `Accept-Encoding: identity`，仍会原样转发这些压缩字节和响应头，无需修改或重启网关。
 
 服务端在工作线程中构建并缓存压缩包，同一进程用锁避免多个房间同时重复构建。内容哈希决定资源 URL，资源使用 immutable 缓存，清单每次重新验证。浏览器 CacheStorage `duckking-official-model-v1` 只保存一份经过验证的公开模型，URL 不含房间参数；缓存失效或模型版本变化时获取新包，存储不可用时仍请求真实模型。损坏缓存被删除并明确提示重试。模型加载不会启用物理或语音。
 
@@ -335,7 +338,7 @@ Three.js 渲染官方几何，不会用预设踢球动画替换实际关节结�
 
 排练模式通过既有场景 API 执行动作，台词明确标记为预录；实连模式由 `DemoVoice` 将预录 PCM 按同一协议送入 `scene-voice`，保持 heartbeat、generation 过滤、打断与房间选择。云端结果只从本轮动作事件中取证，不从历史成功记录借用，也不在缺少动作时以本地编排补齐。两个模式的旁白仍为预录。四声部试听在共享 AudioContext 上播放官方乐谱节选，并不经过灵矽生成音乐。
 
-`/api/scenes/model.dkm.gz` 将实际物理模型导出为 DKM1，带 `official_microduck_physics` / `physics=true` 和原 revision；解析与首页的非物理外观资源分开验证。服务器按编译模型 revision 缓存，浏览器在页内内存与 CacheStorage 中按房间 URL、revision 缓存最多六份模型。模型重置保持 revision，场景变化时重新核对版本；DKM1 允许多个网格描述符引用相同偏移的数组，服务端按数据类型与字节内容去重，浏览器复用几何与法线。模型坐标和拓扑没有减面或改写。详细节目来源、评估和限制见 [演示剧场](DEMO_THEATRE.md)。
+`/api/scenes/model.dkm.gz` 将实际物理模型导出为 DKM1，带 `official_microduck_physics` / `physics=true` 和原 revision；解析与语音工作台的非物理外观资源分开验证。服务器按编译模型 revision 缓存，浏览器在页内内存与 CacheStorage 中按房间 URL、revision 缓存最多六份模型。模型重置保持 revision，场景变化时重新核对版本；DKM1 允许多个网格描述符引用相同偏移的数组，服务端按数据类型与字节内容去重，浏览器复用几何与法线。模型坐标和拓扑没有减面或改写。详细节目来源、评估和限制见 [演示剧场](DEMO_THEATRE.md)。
 
 `grasp_model.py` 构造 `carry` 场景：原 14 个 ONNX 策略执行器按名称选择，观测仍为 61 维，输出仍为 14 维；新增第 15 个 mouth 执行器独立控制。嘴部角度范围 −5° 至 30°，力矩限制 ±0.025 N·m；上下接触垫的尺寸不同，以允许张嘴时物品脱离下垫。质量 / 惯量拆分和接触垫是实验性近似。小棒为 20×130×8 mm、4 g 的自由刚体；只在场景加载/重置时采用初始状态，动作过程中不写它的位姿，不加焊接、吸附或外力搬运。物品碰撞使用显式嘴垫、地面和支架，不能据此证明完整头部 CAD 的所有接触都准确。
 
@@ -451,4 +454,13 @@ Three.js 渲染官方几何，不会用预设踢球动画替换实际关节结�
 
 `features.html` 经房间 API 或灵矽 `duck_feature` 工具调用 `FeatureBackend`；后者用私有 JSON 行协议管理一个 CPU 子进程。控制器和 ONNX 推理不会占住 ASGI 主事件循环，仍共享物理房间并发额度、原有模型下载/状态 WebSocket 和语言会话。结束后冻结实际物理姿态；取消与异常不回退预览。新任务先停止旧任务；场景切换时断开语音并过滤旧版本状态。
 
-十八项能力、输入来源、验收条件、生命周期、进程边界和第三方策略版本见 [功能场景规格](FUNCTIONAL_SCENES.md)，其中还包含 Playground 十项实验的完整接入状态对照。篮球的 LSTM 记忆仅属于当前工作进程，重置时清零；快跑与跳台分别按实测速度和真实落台接触验收。此模块不包含在线 PPO 训练，不能与现有「训练新动作」页面混称。
+四十一项能力、输入来源、验收条件、生命周期、进程边界和第三方策略版本见 [功能场景规格](FUNCTIONAL_SCENES.md)，其中还包含 Playground 十项实验的完整接入状态对照。篮球的 LSTM 记忆仅属于当前工作进程，重置时清零；快跑与跳台分别按实测速度和真实落台接触验收。此模块不包含在线 PPO 训练，不能与现有「训练新动作」页面混称。
+
+
+## 场景发现与网站首页（2026-11-13）
+
+网站根地址及导航首页现在进入 `features.html?sort=top`，语音工作台独立保留在 `index.html`。目录页浏览不创建渲染器、不占物理名额；用户选择场景或打开带 `feature` 参数的链接才准备，准备后等待指令。
+
+`scene_discovery.py` 在配置的数据目录保存 SQLite 聚合、首次加入时间与北京时间每日快照；HTTP目录读取在工作线程执行。`scene-visit.js` 只计可见、就绪且最近有交互的体验时间，并以房间租约哈希、序号和服务器墙钟上限约束计时。默认TOP按累计有效时长（点击数×平均时长），可切点击；最新按首次加入时间。不将刷新自动准备当点击，不保存语音/IP/设备身份。统计不参与动作验收；失败场景也可被浏览和反馈。
+
+`feature_games.py` 是基于已安装通用步态的本站独立规则，未移植Arena运行器或reference权重，不是官方榜单评分环境。`feature_acrobatics.py` 则复用固定Apache源的真实CPU分段验收器和专用策略，两者在界面和来源中区分。

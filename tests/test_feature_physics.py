@@ -166,6 +166,8 @@ async def test_circus_cancel_releases_thread_and_reset_does_not_start(runtime):
         ("hop", "hop"),
         ("movement", "walk"),
         ("basketball", "balance_ball"),
+        ("acrobatics", "routine"),
+        ("red_light", "play_game"),
     ],
 )
 async def test_real_worker_cancel_reset_and_release_are_acknowledged(capability, action):
@@ -288,3 +290,222 @@ async def test_playground_rejects_invalid_network_output_before_physics(runtime,
             assert world.data.time == 0
         finally:
             await world.close()
+
+
+@pytest.mark.parametrize("height", [10, 15, 20, 25, 50, 100, 140, 200])
+async def test_stilt_heights_use_matched_morphology_and_bounded_trial(runtime, height):
+    import json
+
+    from duckking.feature_catalog import FeatureCommand
+    from duckking.feature_worlds import make_world
+
+    world = make_world(ASSETS, "stilts", variant=height)
+    try:
+        initial = await world.snapshot()
+        assert initial["stilt_height_m"] == pytest.approx(height / 100)
+        assert world.data.qpos[2] == pytest.approx(0.125 + height / 100)
+        assert len(world.geometry()["geoms"]) > 10
+        outcome = await world.perform(FeatureCommand(action="stilt_walk"))
+        assert outcome["verified"] is True
+        assert outcome["distance_m"] > 0.3 and world.upright() > 0.65
+        json.dumps(outcome)  # No NumPy bool/scalar may break the worker framing.
+        with pytest.raises(ValueError, match="重置"):
+            await world.perform(FeatureCommand(action="stilt_walk"))
+        await world.reset()
+        assert world.data.time == 0
+    finally:
+        await world.stop()
+
+
+@pytest.mark.parametrize(
+    ("capability", "action"),
+    [
+        ("standup", "recover_back"),
+        ("standup", "recover_front"),
+        ("terrain_slip", "try_course"),
+        ("terrain_rough", "try_course"),
+        ("terrain_slope", "try_course"),
+        ("terrain_step", "try_course"),
+        ("terrain_stairs", "try_course"),
+        ("terrain_gale", "try_course"),
+        ("giant_ball", "try_course"),
+        ("runup_roll", "try_trick"),
+        ("roller_slalom", "try_trick"),
+        ("chimney", "try_climb"),
+    ],
+)
+async def test_expansion_real_physical_completion_and_explicit_reset(runtime, capability, action):
+    import json
+
+    import numpy as np
+
+    from duckking.feature_catalog import FeatureCommand
+    from duckking.feature_worlds import make_world
+
+    world = make_world(ASSETS, capability)
+    try:
+        result = await world.perform(FeatureCommand(action=action))
+        assert result["verified"] is True
+        assert np.isfinite(world.data.qpos).all()
+        json.dumps(result)
+        if capability == "roller_slalom":
+            assert result["gates_passed"] == 8 and result["cones_hit"] == 0
+        if capability == "giant_ball":
+            assert result["foot_ball_contacts"] > 0 and result["ball_travel_m"] > 0.1
+        if capability == "chimney":
+            assert result["phase"] == 3 and result["stable_seconds"] >= 2
+            assert result["climb_height_m"] > 3
+        with pytest.raises(ValueError, match="重置"):
+            await world.perform(FeatureCommand(action=action))
+        t = world.data.time
+        await world.snapshot()
+        assert world.data.time == t
+        await world.reset()
+        assert not world.metrics
+    finally:
+        await world.stop()
+
+
+@pytest.mark.parametrize(
+    ("capability", "action"),
+    [
+        ("climb", "try_climb"),
+        ("backflip", "flip"),
+        ("roller_glide", "try_trick"),
+    ],
+)
+async def test_unfinished_expansion_experiments_never_claim_success(runtime, capability, action):
+    import json
+
+    from duckking.feature_catalog import FeatureCommand
+    from duckking.feature_worlds import make_world
+
+    world = make_world(ASSETS, capability)
+    result = await world.perform(FeatureCommand(action=action))
+    assert result["verified"] is False and result["message"]
+    json.dumps(result)
+    await world.stop()
+    t = world.data.time
+    await world.snapshot()
+    assert world.data.time == t
+    await world.reset()
+    assert world.data.time == pytest.approx(1.2 if capability == "roller_glide" else 0)
+
+
+async def test_gust_cancel_clears_force_and_freezes_physics(runtime):
+    import io
+
+    import numpy as np
+
+    from duckking.feature_worker import Worker
+    from duckking.feature_worlds import make_world
+
+    world = make_world(ASSETS, "terrain_gale")
+    worker = Worker(world, "terrain_gale", "test", io.StringIO())
+    await worker.handle({"id": "start", "command": {"action": "try_course"}})
+    for _ in range(10):
+        await runtime(0)
+    await worker.cancel()
+    assert not np.any(world.data.xfrc_applied)
+    assert not np.any(world.command)
+    t = world.data.time
+    await runtime(0.02)
+    assert world.data.time == t
+
+
+async def test_tof_grid_has_real_occlusion_ranges_and_does_not_advance_on_read(runtime):
+    import numpy as np
+
+    from duckking.feature_worlds import make_world
+
+    world = make_world(ASSETS, "tof")
+    try:
+        frame = await world.snapshot()
+        grid = frame["sensors"]["depth_grid_m"]
+        assert len(grid) == 8 and all(len(row) == 8 for row in grid)
+        values = [x for row in grid for x in row if x is not None]
+        assert values and all(np.isfinite(v) and 0 <= v <= 4 for v in values)
+        assert frame["sensors"]["scan_fov_deg"] == 45
+        now = world.data.time
+        assert (await world.snapshot())["sensors"]["depth_grid_m"] == grid
+        assert world.data.time == now
+    finally:
+        await world.close()
+
+
+@pytest.mark.parametrize(
+    "capability", ["sprint_race", "roller_race", "hill_race", "red_light", "tug"]
+)
+async def test_bounded_games_use_actual_finish_or_rope_and_freeze(runtime, capability):
+    import json
+
+    from duckking.feature_catalog import FeatureCommand
+    from duckking.feature_worlds import make_world
+
+    world = make_world(ASSETS, capability)
+    result = await world.perform(FeatureCommand(action="play_game"))
+    assert result["verified"] is True
+    if capability == "tug":
+        assert result["winner"] in {"a", "b", "draw"}
+        assert result["rope_gap_m"] < 0.05
+        assert result["elapsed_seconds"] <= 45.01
+    else:
+        assert result["distance_m"] >= world.length
+        if capability == "red_light":
+            assert result["red_lights"] >= 1
+    json.dumps(await world.snapshot())
+    await world.stop()
+    t = world.data.time
+    await world.snapshot()
+    assert world.data.time == t
+    with pytest.raises(ValueError, match="重置"):
+        await world.perform(FeatureCommand(action="play_game"))
+    await world.reset()
+    assert world.trial_started is False and not world.metrics
+
+
+async def test_tug_rejects_detached_rope_before_awarding_winner(runtime):
+    from duckking.feature_catalog import FeatureCommand
+    from duckking.feature_worlds import make_world
+
+    world = make_world(ASSETS, "tug")
+    world.data.eq_active[world.model.equality("rope_connection").id] = False
+    result = await world.perform(FeatureCommand(action="play_game"))
+    assert result["verified"] is False
+    assert "连接异常" in result["message"]
+    await world.stop()
+
+
+@pytest.mark.parametrize("action", ["routine", "backroll", "headstand", "spin_left", "spin_right"])
+async def test_acrobatics_judges_every_transition_and_resets_delay_history(runtime, action):
+    import json
+
+    from duckking.feature_catalog import FeatureCommand
+    from duckking.feature_worlds import make_world
+
+    world = make_world(ASSETS, "acrobatics")
+    result = await world.perform(FeatureCommand(action=action))
+    assert result["verified"] is True and result["stages_completed"] >= 3
+    assert world.sim.state()["upright"] >= 0.9
+    json.dumps(await world.snapshot())
+    await world.stop()
+    t = world.data.time
+    await world.snapshot()
+    assert world.data.time == t
+    await world.reset()
+    assert world.data.time == 0 and world.sim._pending == []
+
+
+async def test_acrobatics_invalid_output_rejected_before_any_physics_step(runtime):
+    import numpy as np
+
+    from duckking.feature_catalog import FeatureCommand
+    from duckking.feature_worlds import make_world
+
+    world = make_world(ASSETS, "acrobatics")
+    world.policies["walk"].policy = lambda obs: np.full(14, np.nan, dtype=np.float32)
+    before = world.data.time
+    with pytest.raises(ValueError, match="策略输出无效"):
+        await world.perform(FeatureCommand(action="routine"))
+    assert world.data.time == before
+    await world.close()

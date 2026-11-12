@@ -11,7 +11,7 @@ test('two unassigned pages choose distinct rooms and actions and stats stay scop
     ws.on('framereceived',event=>{if(typeof event.payload==='string')frames[i].push(JSON.parse(event.payload))});
   });
   try{
-    await Promise.all([page.goto('/'),other.goto('/')]);
+    await Promise.all([page.goto('/index.html'),other.goto('/index.html')]);
     await expect(page.locator('#connection-label')).toContainText('已连接');
     await expect(other.locator('#connection-label')).toContainText('已连接');
     const first=new URL(page.url()).searchParams.get('room'),second=new URL(other.url()).searchParams.get('room');
@@ -72,7 +72,7 @@ test('interrupt mutes queued speech, ignores stale generations, and captures new
       return source;
     };
   });
-  await page.goto('/?room=2');await page.locator('#connect-voice').click();
+  await page.goto('/index.html?room=2');await page.locator('#connect-voice').click();
   await expect(page.locator('#voice-badge')).toHaveText('灵矽已连接');
   server.send(JSON.stringify({type:'voice_status',state:'speaking',generation:0}));
   server.send(JSON.stringify({type:'audio',generation:0,sample_rate:16000,pcm:Buffer.alloc(160000).toString('base64')}));
@@ -92,7 +92,7 @@ test('interrupt mutes queued speech, ignores stale generations, and captures new
 });
 
 test('a new room keeps existing room actions isolated and navigation carries its id',async({page,request})=>{
-  await page.goto('/?room=1');await expect(page.locator('#connection-label')).toContainText('已连接');
+  await page.goto('/index.html?room=1');await expect(page.locator('#connection-label')).toContainText('已连接');
   const before=await (await request.post('/api/actions?room=1',{data:{name:'walk',duration:3}})).json();
   const existing=(await (await request.get('/api/rooms')).json()).rooms.map(r=>r.id);
   await page.locator('#create-room').click();

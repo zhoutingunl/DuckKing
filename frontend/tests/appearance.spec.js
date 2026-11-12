@@ -4,7 +4,7 @@ test('official colours repaint the home canvas without reloading geometry, persi
   test.setTimeout(90000);
   const errors=[];page.on('pageerror',e=>errors.push(e.message));
   let assets=0;page.on('request',r=>{if(r.url().includes('.dkm.gz'))assets++});
-  await page.goto('/?room=1');
+  await page.goto('/index.html?room=1');
   await expect(page.locator('.balance-entry')).toHaveAttribute('href',/training\.html\?room=1$/);
   await expect(page.locator('.balance-entry')).toHaveAttribute('target','_blank');
   const view=page.locator('#viewport');
@@ -18,9 +18,14 @@ test('official colours repaint the home canvas without reloading geometry, persi
   await page.reload();await expect(view).toHaveAttribute('data-model','official',{timeout:20000});
   await expect(view.getByRole('button',{name:'薰衣草紫 · Lavender',exact:true})).toHaveAttribute('aria-pressed','true');
   await page.setViewportSize({width:390,height:844});
-  await view.getByRole('button',{name:'天空蓝 · Sky',exact:true}).click();
-  await expect(view.getByRole('button',{name:'天空蓝 · Sky',exact:true})).toHaveAttribute('aria-pressed','true');
+  await page.getByRole('button',{name:'天空蓝 · Sky',exact:true}).click();
+  await expect(page.getByRole('button',{name:'天空蓝 · Sky',exact:true})).toHaveAttribute('aria-pressed','true');
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+  const badge=await page.locator('#backend-badge').boundingBox(),settings=await page.locator('#scene-settings-toggle').boundingBox();
+  expect(Math.abs(badge.y+badge.height/2-settings.y-settings.height/2)).toBeLessThan(8);
+  await page.locator('#scene-settings-toggle').click();await page.locator('#ground-style').selectOption('checker');
+  await page.locator('#scene-settings-toggle').click();
+  await expect(page.locator('.stage-caption .duck-appearance')).toBeVisible();
   await view.screenshot({path:testInfo.outputPath('sky-home-mobile.png')});
   expect(errors).toEqual([]);
 });

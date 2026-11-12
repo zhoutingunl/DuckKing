@@ -4,18 +4,20 @@ test('functional catalogue prepares without starting, cancels, releases and reop
  test.setTimeout(90000);
  const errors=[];page.on('pageerror',error=>errors.push(error.message));
  await page.request.post('/api/scenes/close?room=1');
- await page.goto('/features.html?room=1&lang=en');
- await expect(page.locator('[data-capability]')).toHaveCount(18);
+ await page.goto('/features.html?room=1&lang=en&feature=movement');
+ await expect(page.locator('[data-capability]')).toHaveCount(41);
  await page.locator('.feature-coverage summary').click();
  await expect(page.locator('.feature-coverage li')).toHaveCount(10);
- await expect(page.locator('.feature-coverage li strong', {hasText:'Not integrated yet'})).toHaveCount(5);
+ await expect(page.locator('.feature-coverage li strong', {hasText:'Not integrated yet'})).toHaveCount(0);
  await expect(page.locator('[data-capability=basketball]')).toContainText('Blind basketball balance');
  await page.locator('.feature-coverage summary').click();
  await expect(page.locator('#scene-placeholder')).toBeHidden({timeout:45000});
  await expect(page.locator('[data-feature-action=walk]')).toBeEnabled();
  const state=await (await page.request.get('/api/scenes/state?room=1')).json();
  expect(state.backend.scene).toBe('functional');expect(state.backend.feature.status).toBe('idle');
- await page.locator('#feature-duration').fill('10');
+ // Keep the action alive while software WebGL scrolls the stop button into view.
+ // Cancellation is confirmed through the real control and paused state.
+ await page.locator('#feature-duration').fill('36');
  await page.locator('[data-feature-action=walk]').click();
  await expect(page.locator('#task-status')).toHaveText(/Executing|Running|In progress|正在执行/,{timeout:5000});
  await page.locator('#stop-feature').click();
@@ -36,7 +38,7 @@ test('functional catalogue prepares without starting, cancels, releases and reop
 
 test('missing functional policy has a recovery action and no preview fallback',async({page})=>{
  await page.route('**/api/features/prepare?*',route=>route.fulfill({status:503,json:{detail:'Missing functional policy'}}));
- await page.goto('/features.html?room=1&lang=en');
+ await page.goto('/features.html?room=1&lang=en&feature=movement');
  await expect(page.locator('#notice')).toHaveText('Missing functional policy');
  await expect(page.locator('[data-feature-action=walk]')).toBeDisabled();
  await expect(page.locator('#prepare-feature')).toBeEnabled();

@@ -69,3 +69,8 @@
 - `beak-holding.png`、`beak-released.png`：嘴部搬运接入时的真实 Chrome 截图；嘴部为 DuckKing 在官方网格上增加的实验性铰链和接触垫，图片中的模型及改编遵循 CC BY-NC-SA 4.0。
 - `beak-physics.json`：当时在本机运行 `scripts/verify_scenarios.py` 的 11 个实际动作记录；脚本后续已扩展，包括三步接触搬运，不是实体硬件结果。
 - `beak-voice-verification.json`：系统合成中文单句命令经真实灵矽 STT / MCP / TTS，依次完成夹起、搬运、放下。仅验证后端和云端链路；不是人声录音或手机扬声器实听。此轮回复出现内部字段名，随后提示词增加了禁止口述内部字段的要求；本文件保留本轮原始事实。
+
+
+## 场景首页候选（2026-11-13）
+
+`current-scene-home.png` 与 `current-scene-home-mobile.png` 来自本地 `http://127.0.0.1:8925/` 功能分支候选，分别为1440×1024和390×844视口；全页截图。截图时只浏览TOP目录，没有启动物理或云端语音，也不代表公网已部署。41项功能和实验状态见 [功能场景](../FUNCTIONAL_SCENES.md)。

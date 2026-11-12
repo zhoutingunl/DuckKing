@@ -20,8 +20,8 @@ from .model_assets import geometry
 
 
 class DockWorld(PolicyWorld):
-    def __init__(self, assets):
-        self.assets, self.capability = assets, "dock"
+    def __init__(self, assets, capability="dock"):
+        self.assets, self.capability = assets, capability
         root = assets / "features"
         os.environ["MICRODUCK_RL_DIR"] = str(root / "upstream")
         os.environ["MICRODUCK_POLICY_DIR"] = str(assets / "policies")
@@ -31,7 +31,7 @@ class DockWorld(PolicyWorld):
         self.latency = module(folder / "latency.py", "dock_latency")
         self.dg, self.dk = self.ds.dg, self.ds.dk
         self.ip = self.dg._infer_policy()
-        self.params = self.ds.seated.Params()
+        self.params = self.dk.Params() if capability == "dock_standing" else self.ds.seated.Params()
         self.dk.MAG_F = 4.0
         self.temporary = tempfile.TemporaryDirectory(prefix="duckking-dock-")
         robot = root / "upstream/src/mjlab_microduck/robot/microduck"
@@ -50,7 +50,8 @@ class DockWorld(PolicyWorld):
         )
         motor = self.ip.load_bam_model(self.ip.BAM_KP_FW, 7.6, 1.75)
         self.model, self.data, self.bam, _ = compile_bam(spec, motor)
-        self.ds.seat_friction(self.model)
+        if capability == "dock":
+            self.ds.seat_friction(self.model)
         self.pol = self.ip.PolicyInference(
             self.model,
             self.data,
@@ -62,7 +63,8 @@ class DockWorld(PolicyWorld):
         )
         self.pol.dock_session = session(folder.parent / "policy/scoot_dock.onnx")
         self.pol.undock_session = session(folder.parent / "policy/scoot_undock.onnx")
-        self.latency.enable(self.pol, self.bam, seed=41, official=False, scoot=True)
+        if capability == "dock":
+            self.latency.enable(self.pol, self.bam, seed=41, official=False, scoot=True)
         self.body = self.model.body("trunk_base").id
         self.geom_ids = [
             i
@@ -135,6 +137,8 @@ class DockWorld(PolicyWorld):
         )
 
     async def perform(self, command):
+        if self.capability == "dock_standing":
+            return await self.standing_trial(command)
         # Per-command telemetry is cleared by Worker; simulated charge belongs
         # to the world and must survive subsequent dock/undock commands.
         self.metrics["virtual_battery_percent"] = self.virtual_battery_percent
@@ -225,3 +229,59 @@ class DockWorld(PolicyWorld):
     async def close(self):
         await self.stop()
         self.temporary.cleanup()
+
+    async def standing_trial(self, command):
+        if command.action == "undock":
+            if not self.dk.connected(self.dk.tip_error(self.model, self.data)):
+                raise ValueError("当前没有对接，请先完成回窝")
+            start = float(self.data.qpos[0])
+            released = await self.ticks(
+                500, "undock", (0.3, 0, 0), lambda: self.data.qpos[0] > start + 0.08
+            )
+            await self.ticks(75, "stand")
+            return {
+                "verified": bool(released and self.upright() > 0.8),
+                "message": "按实际脱离接触与站稳状态验收",
+                **self.metrics,
+            }
+        if self.dk.connected(self.dk.tip_error(self.model, self.data)):
+            raise ValueError("当前已经对接，请先离窝或重置")
+        await self.ticks(40, "look")
+
+        def approach():
+            angle = math.degrees(math.atan2(-(self.data.qpos[1] * 1000 + 12), -150))
+            return 0.3, 0, self.heading(angle, 0.035, 0.5)
+
+        reached = await self.ticks(1500, "approach", approach, lambda: self.data.qpos[0] <= 0.2405)
+        if not reached:
+            raise ValueError("未能走到转身位置，已暂停")
+        await self.ticks(20, "halt")
+        await self.ticks(
+            600,
+            "turn",
+            lambda: (0, 0, np.sign(self.heading())),
+            lambda: abs(self.dg.wrap(self.dg.yaw_deg(self.data))) < 10,
+        )
+        await self.ticks(
+            250,
+            "align",
+            lambda: (
+                0,
+                0,
+                np.sign(self.heading()) * (0.6 if abs(self.dg.yaw_deg(self.data)) > 4 else 0.45),
+            ),
+            lambda: abs(self.dg.wrap(self.dg.yaw_deg(self.data))) < 1,
+        )
+        await self.ticks(25, "settle")
+        await self.ticks(
+            700,
+            "backin",
+            lambda: (-0.4, 0, self.heading(0, 0.04, 0.4)),
+            lambda: self.dk.connected(self.dk.tip_error(self.model, self.data)),
+        )
+        await self.ticks(100, "charging")
+        return {
+            "verified": bool(self.dk.connected(self.dk.tip_error(self.model, self.data))),
+            "message": "按站姿触点实际对接状态验收，电量为虚拟值",
+            **self.metrics,
+        }

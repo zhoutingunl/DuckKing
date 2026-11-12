@@ -8,7 +8,7 @@ test('homepage opens real statistics API in a separate tab without disconnecting
       if(typeof message==='string'&&JSON.parse(message).type==='connect')socket.send(JSON.stringify({type:'voice_status',state:'ready'}));
     });
   });
-  await page.goto('/?room=1');
+  await page.goto('/index.html?room=1');
   await page.locator('#connect-voice').click();
   await expect(page.locator('#voice-badge')).toHaveText('灵矽已连接');
   const opened = context.waitForEvent('page');

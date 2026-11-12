@@ -11,6 +11,14 @@ export default defineConfig({
   base: './',
   plugins: [{
     name: 'secure-public-entry',
+    configureServer(server) {
+      server.middlewares.use((req,res,next)=>{
+        const url=new URL(req.url,'http://localhost');
+        if(url.pathname!=='/')return next();
+        url.searchParams.set('sort','top');
+        res.writeHead(307,{Location:'/features.html?'+url.searchParams});res.end();
+      });
+    },
     // Runs before application modules, in both development HTML and every built page.
     transformIndexHtml() {
       return [{tag:'script',attrs:{src:'./secure-entry.js'},injectTo:'head-prepend'}];

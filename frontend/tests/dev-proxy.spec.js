@@ -22,7 +22,7 @@ test('development proxy rejects foreign origins on both WebSockets', async ({ re
 });
 
 test('voice proxy reaches the local protocol without connecting to the cloud', async ({ page }) => {
-  await page.goto('/?room=1');
+  await page.goto('/index.html?room=1');
   const events = await page.evaluate(() => new Promise((resolve, reject) => {
     const events = [];
     const ws = new WebSocket(`ws://${location.host}/voice?room=1`);

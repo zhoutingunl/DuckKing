@@ -4,27 +4,43 @@ import asyncio
 import os
 from contextlib import suppress
 from pathlib import Path
+from typing import Literal
 
-from fastapi import HTTPException
+from fastapi import HTTPException, Query
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, ConfigDict
 
 from .feature_catalog import CATALOG, FeatureCommand
 from .motion import MotionController
+from .scene_discovery import SceneDiscovery, VisitEvent
 
 
 class Selection(BaseModel):
     model_config = ConfigDict(extra="forbid")
     capability: str
     replace: bool = False
+    variant: Literal[10, 15, 20, 25, 50, 100, 140, 200] | None = None
 
 
 def install_feature_api(app, get_room, root):
     assets = Path(os.environ.get("DUCKKING_SIM_DIR", root / "external"))
+    app.state.discovery = SceneDiscovery(app.state.settings.data_dir / "scene-discovery.sqlite3")
 
     @app.get("/api/features/catalog")
-    async def catalog():
-        return {"capabilities": [{"id": key, **entry} for key, entry in CATALOG.items()]}
+    async def catalog(
+        sort: str = Query("top", pattern="^(top|latest)$"),
+        metric: str = Query("engagement", pattern="^(engagement|clicks)$"),
+    ):
+        return await asyncio.to_thread(app.state.discovery.catalog, CATALOG, sort, metric)
+
+    @app.post("/api/features/visits", status_code=202)
+    async def visit(body: VisitEvent, room: str = "1"):
+        selected = get_room(room)
+        try:
+            await asyncio.to_thread(app.state.discovery.event, body, selected.lease, CATALOG)
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from exc
+        return {"accepted": True}
 
     @app.get("/api/features/emotion-audio/{name}.wav")
     async def emotion_audio(name: str):
@@ -44,13 +60,17 @@ def install_feature_api(app, get_room, root):
     async def prepare(body: Selection, room: str = "1"):
         if body.capability not in CATALOG:
             raise HTTPException(422, "未知功能场景")
+        if body.variant is not None and body.capability != "stilts":
+            raise HTTPException(422, "当前场景没有高跷高度设置")
         selected = get_room(room)
         async with selected.scene_lock:
             current = selected.scene_motion
             if (
                 current
+                and not body.replace
                 and getattr(current.backend, "scene", None) == "functional"
                 and current.backend.capability == body.capability
+                and getattr(current.backend, "variant", None) == body.variant
                 and not current.backend.error
                 and not current.backend.closed
             ):
@@ -76,7 +96,11 @@ def install_feature_api(app, get_room, root):
 
                     backend = None
                     try:
-                        backend = await FeatureBackend.create(assets, body.capability)
+                        backend = await FeatureBackend.create(
+                            assets,
+                            body.capability,
+                            **({"variant": body.variant} if body.variant is not None else {}),
+                        )
                         selected.scene_motion = MotionController(backend)
                     except BaseException:
                         if backend:

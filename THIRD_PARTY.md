@@ -90,3 +90,30 @@
 | [Pollen policies](https://huggingface.co/pollen-robotics/microduck-policies) | `283771bcb3690a0a94a288c108365d9b630d21e4` | 跳绳世界用的 alpha_stand / alpha_walking；Apache-2.0 |
 
 DuckKing 编写场景目录、房间进程隔离、语音工具、取消/验收、RGB 颜色伺服、地图路径、浏览器图像/声音和展示逻辑；`feature_bam.py` 参考并适配 Pollen Apache-2.0 推理代码。MuJoCo 3.3.7 的几何尺寸兼容不改写源仓库；相机轴修正、颜色场地和软件感知也不构成实机标定。SciPy 1.18.1（BSD-3-Clause）用于跳绳网格凸包，Colorama 0.4.6（BSD）仅供上游终端输出辅助。安装/打包保留资源的原始许可证。
+
+## 场景首页扩展策略（2026-11-13）
+
+固定下载清单和 SHA-256 由 `scripts/fetch_feature_assets.py` 与发布资源清单维护，不跟踪模型二进制。下表模型卡标注 Apache-2.0；机器人网格仍受各模型原始许可约束，特别是现有 CC BY-NC-SA 4.0。
+
+| 安装名 | 固定模型来源 | 修订 |
+|---|---|---|
+| `stilts` | [HannesVonEssen/microduck-stilts](https://huggingface.co/HannesVonEssen/microduck-stilts/tree/371b7e0a8843d215afa768439b9e6ceab6248979) | `371b7e0a8843d215afa768439b9e6ceab6248979` |
+| `backflip` | [HannesVonEssen/microduck-backflip](https://huggingface.co/HannesVonEssen/microduck-backflip/tree/0aff1c74c8ad3953f331193a5a671257ef5aab37) | `0aff1c74c8ad3953f331193a5a671257ef5aab37` |
+| `climb` | [HannesVonEssen/microduck-climb](https://huggingface.co/HannesVonEssen/microduck-climb/tree/15723878fa5cc31e326ce522ab16e25d5142632e) | `15723878fa5cc31e326ce522ab16e25d5142632e` |
+| `chimney` | [HannesVonEssen/microduck-chimney-climb](https://huggingface.co/HannesVonEssen/microduck-chimney-climb/tree/1dea21224039f74fb2557456b9bcdec870d96fd7) | `1dea21224039f74fb2557456b9bcdec870d96fd7` |
+| `tricks` | [langli11/microduck-tricks](https://huggingface.co/langli11/microduck-tricks/tree/ae7284e0dc54e6ae10e5f099f4a4d3b93aed7158) | `ae7284e0dc54e6ae10e5f099f4a4d3b93aed7158` |
+| `terrain_slip` | [witcheer/microduck-walk-slip](https://huggingface.co/witcheer/microduck-walk-slip/tree/263a906299ff4f317d47dc9c3a3391aadb1ab06d) | `263a906299ff4f317d47dc9c3a3391aadb1ab06d` |
+| `terrain_rough` | [witcheer/microduck-walk-rough](https://huggingface.co/witcheer/microduck-walk-rough/tree/b0e4f890eb1f95c2fe210c92de1c95b1eb245cc0) | `b0e4f890eb1f95c2fe210c92de1c95b1eb245cc0` |
+| `terrain_gale` | [witcheer/microduck-walk-gale](https://huggingface.co/witcheer/microduck-walk-gale/tree/6eeb0a9f0dd6c941dde19420ee0adab9416f4d47) | `6eeb0a9f0dd6c941dde19420ee0adab9416f4d47` |
+| `terrain_slope` | [witcheer/microduck-walk-slope](https://huggingface.co/witcheer/microduck-walk-slope/tree/c767098b1af6612c3c9537e0b0ec540866cff8fd) | `c767098b1af6612c3c9537e0b0ec540866cff8fd` |
+| `terrain_step` | [witcheer/microduck-walk-step](https://huggingface.co/witcheer/microduck-walk-step/tree/1ba80ff58c5c9db60e2000f90fdd98e791d42a49) | `1ba80ff58c5c9db60e2000f90fdd98e791d42a49` |
+| `terrain_stairs` | [witcheer/microduck-walk-stairs](https://huggingface.co/witcheer/microduck-walk-stairs/tree/a5de4de53ae90763ef94452f7d52d53a28c13fb9) | `a5de4de53ae90763ef94452f7d52d53a28c13fb9` |
+| `giant_ball` | [witcheer/microduck-kick-right-giant-ball](https://huggingface.co/witcheer/microduck-kick-right-giant-ball/tree/0a354578e94bf82f08dee674a679862b2dc8caca) | `0a354578e94bf82f08dee674a679862b2dc8caca` |
+
+- 高跷几何/质量、长跳完整碰撞和攀爬阶段约定来自固定 Playground `052a2494dd6372289221c7a4f24a245b443dd75f`（Apache-2.0）。爬梯使用其嵌入源快照的 `floor_desk_assets/geometry.json`（74cm版本）与双策略恢复增益/滤波契约；不播放选中录像的位姿轨迹。窄缝采用原正y出口，未套用录像的负y镜像适配。官方恢复 `alpha_stand.onnx` 沿用既有 `circus-base` 固定资源，不是新训练权重。
+- 助跑滚翻、轮滑绕锥和短单脚滑的 PD 模型、电流限幅、轮轴摩擦、命令槽与测量语义参考 [easyrider11/microduck_rl](https://github.com/easyrider11/microduck_rl/tree/146777b989f47160d26590e29a9d13957b2c6a3c) `146777b989f47160d26590e29a9d13957b2c6a3c`，Apache-2.0。DuckKing 实现有界CPU控制、真实路锥碰撞、接触力统计、失败和取消协议；不声称是视觉绕障或稳定长期单脚滑。
+- 地形参数与专用权重选择参考 witcheer 对应固定模型卡。固定高度场、台阶与施加躯干力属于本站验收场，不是作者随机环境批次复测，也不复用作者成功率。
+- 每日排行榜、匿名有效体验计时、五种 Canvas 地面外观和高度场导出是 DuckKing 新增实现；地面外观不是官方木纹/轮滑馆资产的原样导入。
+
+- 连续技使用 [reble2421/microduck-acrobatics](https://github.com/reble2421/microduck-acrobatics/tree/76cdd4d5b4ce76630a34cc06a3a4b6fc179c438d) 固定 `76cdd4d5b4ce76630a34cc06a3a4b6fc179c438d`，Apache-2.0。保留原始许可、CPU benchmark、策略与分段验收；本项目添加异步节拍、错误检查、取消/重置和渲染接口，适配 MuJoCo 阻尼 API；没有复用作者批量成功率。
+- 本站两米竞速、轮滑竞速、8°上坡、红灯停和双鸭拔河借鉴 [Microduck Arena 公开活动](https://huggingface.co/spaces/pollen-robotics/microduck-arena/tree/9305b754862c56b2b2ce512c063c34600efbf932/arena/events) 的游戏概念与规则参数，控制器和比赛状态机由本站独立实现。只使用已安装的通用步态，不分发Arena运行器或其独立reference权重，不声称等价于官方评分环境。拔河为颈部连接16段实际胶囊绳，比赛失败会暂停；它不是嘴夹绳。

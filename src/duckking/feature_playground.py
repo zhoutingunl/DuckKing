@@ -19,18 +19,28 @@ from .model_assets import geometry
 
 
 class PlaygroundWorld(PolicyWorld):
-    def __init__(self, assets, capability):
+    def __init__(self, assets, capability, *, variant=None):
         self.assets, self.capability = assets, capability
+        self.height = variant or 10
         self.root = assets / "features"
         source = self.root / "playground/src/mjlab_microduck/robot"
         self.ip = module(self.root / "upstream/scripts/infer_policy.py", "feature_infer_policy")
         robot = source / "microduck"
         spec = mujoco.MjSpec.from_file(
             str(
-                robot / ("robot_walk.xml" if capability == "running" else "robot_allcollisions.xml")
+                robot
+                / (
+                    "robot_walk.xml"
+                    if capability in {"running", "stilts"}
+                    else "robot_allcollisions.xml"
+                )
             )
         )
-        if capability == "long_jump":
+        if capability == "stilts":
+            from .feature_playground_more import stilt_spec
+
+            spec = stilt_spec(spec, source, self.height)
+        if capability in {"long_jump", "backflip", "climb", "chimney"}:
             helpers = source_symbols(
                 source / "long_jump_robot.py",
                 {
@@ -46,6 +56,7 @@ class PlaygroundWorld(PolicyWorld):
             )
             helpers["add_full_collision_geoms"](spec)
             helpers["add_leg_fold_pairs"](spec)
+        if capability == "long_jump":
             for name, center, color in (
                 ("platform_a", [-0.3, 0, -0.05], [0.62, 0.52, 0.40, 1]),
                 ("platform_b", [0.6, 0, -0.3], [0.45, 0.55, 0.62, 1]),
@@ -62,6 +73,10 @@ class PlaygroundWorld(PolicyWorld):
                     solref=[0.01, 1],
                     solimp=[0.95, 0.99, 0.001, 0.5, 2],
                 )
+        if capability == "backflip":
+            from .feature_playground_more import flip_stage
+
+            flip_stage(spec)
         if capability == "basketball":
             ball = spec.worldbody.add_body(name="ball", pos=[0, 0, 0.12])
             ball.add_freejoint(name="ball_root")
@@ -96,6 +111,8 @@ class PlaygroundWorld(PolicyWorld):
                         rgba=[0.14, 0.10, 0.08, 1],
                         group=2,
                     )
+        if capability in {"climb", "chimney"}:
+            self.configure_experiment(spec)
         spec.worldbody.add_geom(
             name="floor",
             type=mujoco.mjtGeom.mjGEOM_PLANE,
@@ -106,6 +123,14 @@ class PlaygroundWorld(PolicyWorld):
         self.model, self.data, self.bam, _ = compile_bam(spec, motor)
         self.bam.vin_drop_gain = 0.1
         policy_path = self.root / "policies" / capability / "policy.onnx"
+        if capability == "stilts":
+            policy_path = self.root / "policies/stilts" / f"{self.height}cm/policy.onnx"
+        if capability == "standup":
+            policy_path = self.root / "policies/circus-base/alpha_stand.onnx"
+        if capability == "climb":
+            policy_path = self.root / "policies/climb/models/climber.onnx"
+        if capability == "chimney":
+            policy_path = self.root / "policies/chimney/enter/policy.onnx"
         self.policy = session(policy_path)
         self.pol = self.ip.PolicyInference(
             self.model,
@@ -116,7 +141,7 @@ class PlaygroundWorld(PolicyWorld):
             use_projected_gravity=True,
         )
         self.bounds = None
-        if capability == "long_jump":
+        if capability in {"long_jump", "backflip"}:
             config = json.loads(policy_path.with_name("config.json").read_text())
             names = [self.model.joint(i).name for i in self.bam.joint_indexes]
             if config["joint_names"] != names or config["action_scale"] != 1:
@@ -141,6 +166,10 @@ class PlaygroundWorld(PolicyWorld):
             )
             for body in self.feet
         ]
+        if capability == "stilts":
+            self.foot_geoms = [
+                {self.model.geom(f"{side}_foot_collision").id} for side in ("left", "right")
+            ]
         self.head_geoms = set(
             np.flatnonzero(self.model.geom_bodyid == self.model.body("jaw_soft").id)
         )
@@ -149,7 +178,8 @@ class PlaygroundWorld(PolicyWorld):
             i
             for i in range(self.model.ngeom)
             if self.model.geom_group[i] == 2
-            or self.model.geom(i).name in {"platform_a", "platform_b"}
+            or self.model.geom(i).name in {"platform_a", "platform_b", "platform", "mat"}
+            or self.model.geom(i).name.startswith("course_")
         ]
         self.visual = geometry(self.model, self.geom_ids)
         self.command = np.zeros(13, dtype=np.float32)
@@ -163,7 +193,17 @@ class PlaygroundWorld(PolicyWorld):
             if self.capability == "long_jump"
             else (0, 0.365 if self.capability == "basketball" else 0.125)
         )
+        if self.capability == "stilts":
+            z += self.height * 0.01
+        elif self.capability == "backflip":
+            x, z = -0.075, 1.36142
+        elif self.capability == "standup":
+            z = 0.055
         self.data.qpos[root : root + 7] = [x, 0, z, 1, 0, 0, 0]
+        if self.capability == "backflip":
+            self.data.qpos[root + 3 : root + 7] = [0, 0, 0, 1]
+        elif self.capability == "standup":
+            self.data.qpos[root + 3 : root + 7] = [0, 0, 1, 0]
         self.data.qpos[self.pol.joint_qpos_indices] = self.pol.default_pose
         self.bam.reset(self.data.qpos)
         self.pol.last_action[:] = 0
@@ -244,11 +284,71 @@ class PlaygroundWorld(PolicyWorld):
         # an explicit reset, so a failed landing cannot be teleported into success.
         if self.data.time > 0.001:
             raise ValueError("本轮已结束，请先重置场景再试")
+        if self.capability == "stilts":
+            return await self.stilt_trial()
+        if self.capability == "standup":
+            return await self.recovery_trial(command.action)
+        if self.capability == "backflip":
+            return await self.flip_trial()
         if self.capability == "running":
             return await self.run_trial()
         if self.capability == "basketball":
             return await self.ball_trial(command.action)
         return await self.jump_trial()
+
+    async def recovery_trial(self, action):
+        if action == "recover_front":
+            self.data.qpos[:7] = [0, 0, 0.075, 0.70710678, 0, 0.70710678, 0]
+            mujoco.mj_forward(self.model, self.data)
+        stable = 0
+        for _ in range(600):
+            await self.advance(0.02, allow_head_support=True)
+            stable = stable + 1 if self.upright() > 0.85 and all(self.support()) else 0
+            self.metrics.update(stable_seconds=stable * 0.02, upright=self.upright())
+            if stable >= 50:
+                return self.result(True, "已从卧姿恢复并双脚站稳一秒")
+        return self.result(False, "本轮未能从卧姿恢复站稳")
+
+    async def stilt_trial(self):
+        self.command[0] = 0.15
+        start = self.data.qpos[:2].copy()
+        for _ in range(500):
+            await self.advance(0.02, allow_head_support=True)
+            self.metrics.update(
+                height_cm=self.height,
+                distance_m=float(np.linalg.norm(self.data.qpos[:2] - start)),
+                upright=self.upright(),
+            )
+            if self.upright() < 0.65:
+                return self.result(False, "高跷失稳，已暂停")
+        return self.result(self.metrics["distance_m"] > 0.3, "高跷试跑结束，按实际位移和姿态验收")
+
+    async def flip_trial(self):
+        self.command[:] = 0
+        self.command[7:9] = [0.5, -1]
+        rotation, peak, stable, airborne, previous = 0.0, 0.0, 0, False, 0.0
+        for _ in range(600):
+            await self.advance(0.02, allow_head_support=True)
+            # Unwrap the body-forward vector in its actual launch sagittal plane.
+            forward = self.data.xmat[self.body].reshape(3, 3)[:, 0]
+            pitch = math.atan2(float(forward[2]), -float(forward[0]))
+            rotation += math.atan2(math.sin(pitch - previous), math.cos(pitch - previous))
+            previous = pitch
+            peak = max(peak, abs(rotation))
+            on_mat = self.feet_on("mat")
+            airborne |= self.data.time > 0.1 and not any(self.support())
+            stable = stable + 1 if all(on_mat) and self.upright() > 0.85 else 0
+            self.metrics.update(
+                rotation_deg=math.degrees(peak),
+                stable_seconds=stable * 0.02,
+                target_support_feet=sum(on_mat),
+                drop_m=0.8,
+            )
+            if self.invalid_contact:
+                return self.result(False, "已离开软垫并触地，未通过完整落地验收")
+        return self.result(
+            airborne and peak > 5.2 and stable >= 50, "按完整转动、双脚落垫和持续站稳验收本轮"
+        )
 
     async def run_trial(self):
         self.command[0] = 2.2
@@ -295,7 +395,7 @@ class PlaygroundWorld(PolicyWorld):
         # The worker cancels the previous task (and clears commands) before
         # every start. Restore the policy's scene command at this boundary.
         self.command[:] = 0
-        self.command[7:9] = [1, .25 / .3]
+        self.command[7:9] = [1, 0.25 / 0.3]
         launched, landed, stable, supported_a, air, longest_air = False, False, 0, False, 0, 0
         takeoff_velocity = 0.0
         for _ in range(600):
@@ -336,6 +436,8 @@ class PlaygroundWorld(PolicyWorld):
     async def snapshot(self):
         state = await super().snapshot()
         state["view_scene"] = self.capability
-        if self.capability == "running":
+        if self.capability in {"running", "stilts"}:
             state["camera_follow"] = state["ducks"][0]["position"]
+        if self.capability == "stilts":
+            state["stilt_height_m"] = self.height * 0.01
         return state

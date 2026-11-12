@@ -53,7 +53,7 @@ def source_symbols(path, names, namespace):
     """Extract named pure helpers/constants without importing training packages."""
     nodes = []
     for node in ast.parse(path.read_text()).body:
-        if isinstance(node, ast.FunctionDef) and node.name in names:
+        if isinstance(node, (ast.FunctionDef, ast.ClassDef)) and node.name in names:
             nodes.append(node)
         elif isinstance(node, ast.Assign) and any(
             isinstance(t, ast.Name) and t.id in names for t in node.targets

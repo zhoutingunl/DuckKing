@@ -24,9 +24,12 @@ class VisualAsset:
 
     def manifest(self):
         return {
-            "format": "dkm1", "version": self.version,
-            "encoded_bytes": len(self.compressed), "decoded_bytes": self.decoded_bytes,
-            "source": "official_microduck_visuals", "physics": False,
+            "format": "dkm1",
+            "version": self.version,
+            "encoded_bytes": len(self.compressed),
+            "decoded_bytes": self.decoded_bytes,
+            "source": "official_microduck_visuals",
+            "physics": False,
         }
 
 
@@ -48,15 +51,20 @@ def pack_visual_model(model):
             if array_key not in shared:
                 payload.extend(b"\0" * (-len(payload) % 4))
                 shared[array_key] = {
-                    "offset": len(payload), "count": values.size, "bytes": values.dtype.itemsize,
+                    "offset": len(payload),
+                    "count": values.size,
+                    "bytes": values.dtype.itemsize,
                 }
                 payload.extend(data)
             arrays[name] = shared[array_key]
         meshes[key] = arrays
     metadata = json.dumps({**model, "meshes": meshes}, separators=(",", ":")).encode()
     return (
-        b"DKM1" + struct.pack("<I", len(metadata)) + metadata
-        + b"\0" * (-len(metadata) % 4) + payload
+        b"DKM1"
+        + struct.pack("<I", len(metadata))
+        + metadata
+        + b"\0" * (-len(metadata) % 4)
+        + payload
     )
 
 
@@ -71,7 +79,9 @@ def _visual_asset(assets):
     asset = VisualAsset(hashlib.sha256(compressed).hexdigest(), compressed, len(raw))
     logging.getLogger("uvicorn.error").info(
         "official_model_asset_built prepare_ms=%.1f decoded_bytes=%d encoded_bytes=%d",
-        (time.perf_counter() - started) * 1000, len(raw), len(compressed),
+        (time.perf_counter() - started) * 1000,
+        len(raw),
+        len(compressed),
     )
     return asset
 
@@ -92,6 +102,38 @@ def geometry(model, ids):
         owners[body] = roots.get(model.body(body).name, owners.get(int(model.body_parentid[body])))
     for i in ids:
         mid = int(model.geom_dataid[i])
+        kind = int(model.geom_type[i])
+        if kind == 1:
+            # Export the actual compiled height samples, not a flat placeholder.
+            # Keep the geom transform in the usual snapshot stream.
+            field = mid
+            mid = model.nmesh + field
+            kind = 7
+            if mid not in meshes:
+                rows, columns = int(model.hfield_nrow[field]), int(model.hfield_ncol[field])
+                start = model.hfield_adr[field]
+                size = model.hfield_size[field]
+                x, y = np.meshgrid(
+                    np.linspace(-size[0], size[0], columns), np.linspace(-size[1], size[1], rows)
+                )
+                z = (
+                    model.hfield_data[start : start + rows * columns].reshape(rows, columns)
+                    * size[2]
+                )
+                vertices = np.stack([x, y, z], axis=-1).reshape(-1, 3).astype("<f4")
+                faces = []
+                for row in range(rows - 1):
+                    for column in range(columns - 1):
+                        a = row * columns + column
+                        faces.extend(
+                            ((a, a + 1, a + columns + 1), (a, a + columns + 1, a + columns))
+                        )
+                meshes[mid] = {
+                    "vertices": base64.b64encode(vertices.tobytes()).decode("ascii"),
+                    "faces": base64.b64encode(np.array(faces, dtype="<u4").tobytes()).decode(
+                        "ascii"
+                    ),
+                }
         if int(model.geom_type[i]) == 7 and mid not in meshes:
             va, vn = model.mesh_vertadr[mid], model.mesh_vertnum[mid]
             fa, fn = model.mesh_faceadr[mid], model.mesh_facenum[mid]
@@ -112,7 +154,7 @@ def geometry(model, ids):
         geoms.append(
             {
                 "id": i,
-                "type": int(model.geom_type[i]),
+                "type": kind,
                 "mesh": mid,
                 "size": model.geom_size[i].tolist(),
                 "rgba": rgba.tolist(),

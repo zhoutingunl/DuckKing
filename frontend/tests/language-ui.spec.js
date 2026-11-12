@@ -12,7 +12,7 @@ for(const language of ['fr','en'])test(`${language}: every page localizes visibl
   await page.route(`**/api/${endpoint}/prepare?*`,route=>route.fulfill({status:409,json:{detail:{code:'scene_conflict',message}}}));
  }
  for(const name of pages){
-  await page.goto(`/${name==='index'?'':name+'.html'}?room=1&lang=${language}`);
+  await page.goto(`/${name}.html?room=1&lang=${language}`);
   await expect(page.locator('html')).toHaveAttribute('lang',language);
   await expect(page.locator('#lang-switch-button')).toHaveText(language==='fr'?'Langue':'Language');
   await expect(page.locator('.home-nav a')).toHaveCount(10);
@@ -56,7 +56,7 @@ for(const language of ['fr','en'])test(`${language}: voice handshake and changin
    if(data.type==='connect')socket.send(JSON.stringify({type:'voice_status',state:'ready',mode:'cloud',language}));
   });
  });
- await page.goto(`/?room=1&lang=${language}`);
+ await page.goto(`/index.html?room=1&lang=${language}`);
  await page.locator('#connect-voice').click();
  await expect(page.locator('#talk-button')).toBeEnabled();
  expect(commands.find(x=>x.type==='connect')).toMatchObject({language,mode:'cloud'});
@@ -70,7 +70,7 @@ for(const language of ['fr','en'])test(`${language}: voice handshake and changin
 });
 
 test('missing language connection exits preparation and leaves a visible translated error',async({page})=>{
- await page.goto('/?room=1&lang=fr');
+ await page.goto('/index.html?room=1&lang=fr');
  await page.locator('#connect-voice').click();
  await expect(page.locator('#voice-badge')).toHaveText('Erreur de connexion');
  await expect(page.locator('#talk-button')).toBeDisabled();

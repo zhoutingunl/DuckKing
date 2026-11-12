@@ -1,3 +1,4 @@
+import {groundStyle} from './ground-style.js';
 import {translate} from './ui-language.js';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
@@ -32,6 +33,9 @@ export function physicsView(container,{label=null,onCameraChange}={}) {
   const world=new THREE.Group();world.rotation.x=-Math.PI/2;scene.add(world);
   let objects=new Map(),labels=new Map(),annotations=new Map(),textures=[],geometries=[],materials=[],revision=null;
   let renderBatches=[],readyToRender=false,headingGuide=null,headingTexture=null,centerGuide=null;
+  const caption=document.createElement('div');caption.className='physics-caption';caption.hidden=true;
+  const captionStatus=document.createElement('span');captionStatus.className='physics-status';captionStatus.textContent=translate('等待指令');caption.append(captionStatus);container.append(caption);
+  const ground=groundStyle(floor,grid,invalidate);
   const appearance=appearanceControls(container,repaint);
   function repaint(){
     for(const {object,geoms} of renderBatches){
@@ -124,7 +128,7 @@ export function physicsView(container,{label=null,onCameraChange}={}) {
     world.clear();geometries.forEach(g=>g.dispose());materials.forEach(m=>m.dispose());textures.forEach(t=>t.dispose());
     geometries=[];materials=[];textures=[];renderBatches=[];readyToRender=false;revision=null;latest=null;selection=null;headingGuide=null;headingTexture=null;centerGuide=null;
     floor.position.set(0,0,0);grid.position.set(0,.0001,0);
-    objects.clear();labels.clear();annotations.clear();parts={};delete container.dataset.choraleParts;renderer.renderLists.dispose();appearance.setDucks([]);delete container.dataset.renderedScene;
+    caption.hidden=true;objects.clear();labels.clear();annotations.clear();parts={};delete container.dataset.choraleParts;renderer.renderLists.dispose();appearance.setDucks([]);delete container.dataset.renderedScene;
     delete container.dataset.headingTarget;
     delete container.dataset.headingSurface;
     delete container.dataset.centerTarget;
@@ -176,6 +180,14 @@ export function physicsView(container,{label=null,onCameraChange}={}) {
     latest=state;
     if(state.stage&&(selection?.instance!==state.stage.instance||state.stage.selection_version>selection.selection_version)){selection=state.stage;invalidate()}
     if(state.revision!==revision)return;
+    if(caption.hidden)caption.hidden=false;
+    const functional=Boolean(state.feature);
+    if(captionStatus.hidden===functional)captionStatus.hidden=!functional;
+    if(functional){
+      const states={idle:'等待指令',running:'正在执行',completed:'任务完成',failed:'本轮未完成',cancelled:'任务已取消'};
+      const text=translate(states[state.feature.status]??'等待指令');
+      if(captionStatus.textContent!==text)captionStatus.textContent=text;
+    }
     updateHeadingGuide(state);
     updateCenterGuide(state);
     for(const duck of state.ducks){
@@ -203,10 +215,10 @@ export function physicsView(container,{label=null,onCameraChange}={}) {
     // Raycasting computes the bounds lazily; rendering has frustumCulled=false.
     for(const object of changed){object.instanceMatrix.needsUpdate=true;object.boundingSphere=null}
     if(changed.size){readyToRender=true;renderer.shadowMap.needsUpdate=true;invalidate()}
-    // Follow only the running trial and preserve the viewer's chosen orbit.
-    if(state.scene==='functional'&&state.feature?.capability==='running'&&Array.isArray(state.camera_follow)&&state.camera_follow.length===3&&state.camera_follow.every(Number.isFinite)&&!manualView){
-      const [x,y,z]=state.camera_follow,target=new THREE.Vector3(x,z+.08,-y),delta=target.clone().sub(controls.target);
-      camera.position.add(delta);controls.target.copy(target);floor.position.set(x,0,-y);grid.position.set(Math.round(x*10)/10,.0001,-Math.round(y*10)/10);controls.update();invalidate();
+    // Follow the prepared pose and trial, preserving the viewer’s chosen orbit.
+    if(state.scene==='functional'&&Array.isArray(state.camera_follow)&&state.camera_follow.length===3&&state.camera_follow.every(Number.isFinite)&&!manualView){
+      const [x,y,z]=state.camera_follow,target=new THREE.Vector3(x,state.feature.capability==='stilts'?(state.stilt_height_m??0)*.5+.13:z+.08,-y),delta=target.clone().sub(controls.target);
+      camera.position.add(delta);controls.target.copy(target);if(Number.isFinite(state.camera_radius_m)){const distance=Math.min(12,Math.max(1.5,state.camera_radius_m*4));camera.position.sub(target).normalize().multiplyScalar(distance).add(target);controls.maxDistance=Math.max(6,distance)}floor.position.set(x,0,-y);grid.position.set(Math.round(x*10)/10,.0001,-Math.round(y*10)/10);controls.update();invalidate();
     }
     // Reveal the real fall without cropping feet on a narrow screen. Enlarge
     // the view only as needed; a user's orbit/zoom always takes precedence.
@@ -265,7 +277,7 @@ export function physicsView(container,{label=null,onCameraChange}={}) {
     return moving;
   }
   scheduler=renderScheduler(draw,{interval:()=>reduced?100:seatedView?66:33});setVisibility();resize();
-  return {load,update,clear,screenOrder,setLabel,setParts,
+  return {load,update,clear,screenOrder,setLabel,setParts,setGround:ground.apply,
     syncCamera(state){
       if(disposed)return;syncingCamera=true;manualView=true;controls.enableDamping=false;controls.update();
       camera.position.fromArray(state.position);controls.target.fromArray(state.target);camera.zoom=state.zoom;camera.updateProjectionMatrix();controls.update();controls.enableDamping=true;syncingCamera=false;invalidate();
@@ -273,12 +285,13 @@ export function physicsView(container,{label=null,onCameraChange}={}) {
     selection(value){selection=value;invalidate()},
     interaction(callback,mode="select"){interaction=callback;interactionMode=mode;if(!callback){stick.visible=false;for(const ring of rings.values())ring.visible=false}invalidate()},
     renderNow(){scheduler.flush()},
-    frameScene(scene){if(disposed)return;manualView=false;floorFramed=false;seatedView=scene==='seated';resize();controls.enableDamping=false;controls.update();const close=scene==='carry',seated=scene==='seated',table=scene==='table';camera.position.set(...(scene==='long_jump'?[1.1,.85,1.3]:scene==='basketball'?[.95,.85,1.1]:scene==='swing'?[1.25,.85,1.3]:scene==='circus'?[1.15,.75,1.15]:scene==='navigation'?[1.5,1.3,1.6]:scene==='stage'?[2.7,2.1,0]:scene==='choir'?[1.15,.70,.15]:seated?[1.05,.90,-1.05]:table?[1.35,.98,-1.35]:close?[.6,.4,.65]:scene==='seesaw'?[.72,.85,-1.15]:scene==='balance'?[1.25,.82,1.35]:[.85,.62,.95]));controls.target.set(scene==='long_jump' ? .28 : close ? .12 : table ? .20 : 0,scene==='basketball' ? .3 : scene==='long_jump' ? .24 : scene==='swing' ? .42 : scene==='circus' ? .22 : scene==='seesaw' ? .22 : scene==='balance' ? .13 : seated ? .52 : table ? .25 : .13,table ? -.10 : 0);controls.update();controls.saveState();controls.enableDamping=true;invalidate()},
+    frameScene(scene,{height=0}={}){if(disposed)return;controls.maxDistance=6;manualView=false;floorFramed=false;seatedView=scene==='seated';resize();controls.enableDamping=false;controls.update();const close=scene==='carry',seated=scene==='seated',table=scene==='table';camera.position.set(...(scene==='stilts'?[height*2+.85,height*1.2+.62,height*2+.95]:scene==='backflip'?[2.8,2.2,2]:scene==='long_jump'?[1.1,.85,1.3]:scene==='basketball'?[.95,.85,1.1]:scene==='swing'?[1.25,.85,1.3]:scene==='circus'?[1.15,.75,1.15]:scene==='navigation'?[1.5,1.3,1.6]:scene==='stage'?[2.7,2.1,0]:scene==='choir'?[1.15,.70,.15]:seated?[1.05,.90,-1.05]:table?[1.35,.98,-1.35]:close?[.6,.4,.65]:scene==='seesaw'?[.72,.85,-1.15]:scene==='balance'?[1.25,.82,1.35]:[.85,.62,.95]));controls.target.set(scene==='backflip' ? .4 : scene==='long_jump' ? .28 : close ? .12 : table ? .20 : 0,scene==='stilts' ? height*.5+.13 : scene==='backflip' ? .75 : scene==='basketball' ? .3 : scene==='long_jump' ? .24 : scene==='swing' ? .42 : scene==='circus' ? .22 : scene==='seesaw' ? .22 : scene==='balance' ? .13 : seated ? .52 : table ? .25 : .13,table ? -.10 : 0);if(container.clientWidth<600&&["ball","standup","basketball","runup_roll","terrain","roller_glide"].includes(scene))camera.position.sub(controls.target).multiplyScalar(.7).add(controls.target);controls.update();controls.saveState();controls.enableDamping=true;invalidate()},
     reset(){if(disposed)return;manualView=false;floorFramed=false;controls.enableDamping=false;controls.update();controls.reset();controls.enableDamping=true;invalidate()},
     dispose(){
       if(disposed)return;disposed=true;scheduler.dispose();events.abort();observer.disconnect();visibility.disconnect();document.removeEventListener('visibilitychange',setVisibility);
       controls.removeEventListener('start',manual);controls.removeEventListener('change',cameraChanged);controls.dispose();
       clear();appearance.dispose();disposeEnvironment();sun.shadow.dispose();
+      ground.dispose();caption.remove();
       floor.geometry.dispose();floor.material.dispose();grid.geometry.dispose();grid.material.dispose();
       ringGeometry.dispose();ringMaterial.dispose();stick.geometry.dispose();stick.material.dispose();
       scene.clear();renderer.dispose();renderer.forceContextLoss();renderer.domElement.remove();

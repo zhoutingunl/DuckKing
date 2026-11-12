@@ -228,7 +228,7 @@ test('stopping the table song silences every music node and cancels the real cho
 
 test('source link stays at the desktop edge and scrolls with mobile navigation',async({page})=>{
  for(const language of ['zh','en','fr'])for(const width of [1440,820,390]){
-  await page.setViewportSize({width,height:900});await page.goto(`/?lang=${language}`);
+  await page.setViewportSize({width,height:900});await page.goto(`/index.html?lang=${language}`);
   await expect(page.locator('html')).toHaveAttribute('lang',language==='zh'?'zh-CN':language);
   const source=await page.locator('.home-nav .repo-link').boundingBox();
   const lang=await page.locator('.lang-switch').boundingBox();

@@ -13,7 +13,7 @@ test(`${locale.name} default claims its language and clearly warns on voice fall
     if(request.method()==='POST'&&new URL(request.url()).pathname==='/api/rooms/claim')
       claims.push(new URL(request.url()).searchParams.get('language'));
   });
-  await page.goto('/?measurement=verification');
+  await page.goto('/index.html?measurement=verification');
   await expect.poll(()=>claims.length).toBe(1);expect(claims[0]).toBe(locale.language);
   await expect(page.locator('html')).toHaveAttribute('lang',locale.language);
   await expect(page.locator('#lang-switch-button')).toHaveText(locale.label);
@@ -40,7 +40,7 @@ test(`explicit Chinese override does not claim the ${locale.name} voice room`,as
     if(request.method()==='POST'&&new URL(request.url()).pathname==='/api/rooms/claim')
       claims.push(new URL(request.url()).searchParams.get('language'));
   });
-  await page.goto('/?lang=zh&measurement=verification');
+  await page.goto('/index.html?lang=zh&measurement=verification');
   await expect.poll(()=>claims.length).toBe(1);expect(claims[0]).toBe('zh');
   await expect(page.locator('html')).toHaveAttribute('lang','zh-CN');
   await expect(page.locator('#lang-switch-button')).toHaveText('语言');
@@ -51,7 +51,7 @@ test(`explicit Chinese override does not claim the ${locale.name} voice room`,as
 }
 
 test('language menu saves each choice across reloads and preserves the selected room',async({page})=>{
-  await page.goto('/?room=1&lang=zh&measurement=verification');
+  await page.goto('/index.html?room=1&lang=zh&measurement=verification');
   await expect(page.locator('html')).toHaveAttribute('lang','zh-CN');
   for(const [language,name,htmlLang] of [['en','English','en'],['fr','Français','fr'],['zh','中文','zh-CN']]){
     await page.locator('#lang-switch-button').click();

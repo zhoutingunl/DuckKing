@@ -16,6 +16,23 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 REPOS = {
+    "acrobatics": (
+        "reble2421/microduck-acrobatics",
+        "76cdd4d5b4ce76630a34cc06a3a4b6fc179c438d",
+        ["/bench/duckbench/**", "/policies/*.onnx", "/LICENSE", "/README.md"],
+    ),
+    "tricks-source": (
+        "easyrider11/microduck_rl",
+        "146777b989f47160d26590e29a9d13957b2c6a3c",
+        [
+            "/scripts/infer_policy.py",
+            "/scripts/eval_roulade_entry.py",
+            "/scripts/eval_roller_slalom.py",
+            "/scripts/eval_single_blade.py",
+            "/src/mjlab_microduck/robot/**",
+            "/LICENSE*",
+        ],
+    ),
     "footstep-runtime": (
         "pollen-robotics/microduck_rl",
         "c992a8cdbf807f934775319e41a72fc310c4a8f3",
@@ -51,6 +68,11 @@ REPOS = {
             "/hardware/microdock*/sim/**",
             "/hardware/microdock-v2/policy/*.onnx",
             "/src/**",
+            "/experiments/desk-climb/source/src/mjlab_microduck/robot/**",
+            "/experiments/desk-climb/runtime/**",
+            "/experiments/desk-climb/RUNTIME.md",
+            "/experiments/desk-climb/evidence/package-smoke-state.json",
+            "/experiments/desk-climb/source/scripts/render_ladder_table.py",
             "/scripts/*.py",
             "/integrations/pollen-microduck/**",
             "/LICENSE*",
@@ -75,6 +97,11 @@ REPOS = {
         [
             "/scripts/**",
             "/src/**",
+            "/experiments/desk-climb/source/src/mjlab_microduck/robot/**",
+            "/experiments/desk-climb/runtime/**",
+            "/experiments/desk-climb/RUNTIME.md",
+            "/experiments/desk-climb/evidence/package-smoke-state.json",
+            "/experiments/desk-climb/source/scripts/render_ladder_table.py",
             "/policies/*.onnx",
             "/training/**/*.py",
             "/training/**/*.onnx",
@@ -86,6 +113,90 @@ REPOS = {
     ),
 }
 MODELS = {
+    "climb": (
+        "HannesVonEssen/microduck-climb",
+        "15723878fa5cc31e326ce522ab16e25d5142632e",
+        ["README.md", "manifest.json", "models/climber.onnx", "models/getup.onnx"],
+    ),
+    "chimney": (
+        "HannesVonEssen/microduck-chimney-climb",
+        "1dea21224039f74fb2557456b9bcdec870d96fd7",
+        [
+            "README.md",
+            "manifest.json",
+            "config.json",
+            "policy.onnx",
+            "enter/policy.onnx",
+            "exit/policy.onnx",
+        ],
+    ),
+    "tricks": (
+        "langli11/microduck-tricks",
+        "ae7284e0dc54e6ae10e5f099f4a4d3b93aed7158",
+        [
+            "README.md",
+            "docs/elan_roulade.md",
+            "docs/roller_slalom.md",
+            "docs/roller_glide.md",
+            "policies/roulade_elan_v2_ckpt3750.onnx",
+            "policies/roller_slalom_v2_ckpt2000.onnx",
+            "policies/roller_glide_short_v15_ckpt1750.onnx",
+        ],
+    ),
+    "terrain_slip": (
+        "witcheer/microduck-walk-slip",
+        "263a906299ff4f317d47dc9c3a3391aadb1ab06d",
+        ["policy.onnx", "manifest.json", "README.md"],
+    ),
+    "terrain_rough": (
+        "witcheer/microduck-walk-rough",
+        "b0e4f890eb1f95c2fe210c92de1c95b1eb245cc0",
+        ["policy.onnx", "manifest.json", "README.md"],
+    ),
+    "terrain_step": (
+        "witcheer/microduck-walk-step",
+        "1ba80ff58c5c9db60e2000f90fdd98e791d42a49",
+        ["policy.onnx", "manifest.json", "README.md"],
+    ),
+    "terrain_stairs": (
+        "witcheer/microduck-walk-stairs",
+        "a5de4de53ae90763ef94452f7d52d53a28c13fb9",
+        ["policy.onnx", "manifest.json", "README.md"],
+    ),
+    "terrain_gale": (
+        "witcheer/microduck-walk-gale",
+        "6eeb0a9f0dd6c941dde19420ee0adab9416f4d47",
+        ["policy.onnx", "manifest.json", "README.md"],
+    ),
+    "terrain_slope": (
+        "witcheer/microduck-walk-slope",
+        "c767098b1af6612c3c9537e0b0ec540866cff8fd",
+        ["policy.onnx", "manifest.json", "README.md"],
+    ),
+    "giant_ball": (
+        "witcheer/microduck-kick-right-giant-ball",
+        "0a354578e94bf82f08dee674a679862b2dc8caca",
+        ["policy.onnx", "manifest.json", "README.md"],
+    ),
+    "stilts": (
+        "HannesVonEssen/microduck-stilts",
+        "371b7e0a8843d215afa768439b9e6ceab6248979",
+        [
+            "config.json",
+            "manifest.json",
+            "README.md",
+            *[
+                f"{height}cm/{file}"
+                for height in (10, 15, 20, 25, 50, 100, 140, 200)
+                for file in ("policy.onnx", "manifest.json")
+            ],
+        ],
+    ),
+    "backflip": (
+        "HannesVonEssen/microduck-backflip",
+        "0aff1c74c8ad3953f331193a5a671257ef5aab37",
+        ["policy.onnx", "config.json", "manifest.json", "README.md"],
+    ),
     "running": (
         "HannesVonEssen/microduck-running",
         "9f45af1f4b04252f3aa1f4c056fa7fa0d4b35e4c",
@@ -165,6 +276,7 @@ def download(root, name):
     hashes = {}
     for file in files:
         path = target / file
+        path.parent.mkdir(parents=True, exist_ok=True)
         # Readiness is revision-bound, never just the presence of a same-named ONNX.
         marker = target / "source.json"
         previous = json.loads(marker.read_text()) if marker.exists() else {}
@@ -277,6 +389,7 @@ def package_assets(cache, destination):
                 and hashlib.sha256(data).hexdigest() != record["sha256"][name_]
             ):
                 raise ValueError(f"Changed model: {name}/{name_}")
+            (target / name_).parent.mkdir(parents=True, exist_ok=True)
             (target / name_).write_bytes(data)
         sources["policies/" + name] = {"repository": repo, "revision": revision}
     files = {

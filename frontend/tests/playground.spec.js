@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 
 test('preview actions reach the backend and stop cancels a running walk', async ({page})=>{
-  await page.goto('/?room=1');
+  await page.goto('/index.html?room=1');
   await expect(page.getByText('本地工作台已连接')).toBeVisible();
   await expect(page.locator('#backend-badge')).toHaveText('动画预览');
   const acceptedNod=page.waitForResponse(response=>new URL(response.url()).pathname.endsWith('/api/actions')&&response.request().postDataJSON().name==='nod');
@@ -27,7 +27,7 @@ test('preview actions reach the backend and stop cancels a running walk', async 
 
 test('mobile controls fit the viewport and are operable',async({page})=>{
   await page.setViewportSize({width:390,height:844});
-  await page.goto('/?room=1');
+  await page.goto('/index.html?room=1');
   await expect(page.getByText('本地工作台已连接')).toBeVisible();
   const accepted=page.waitForResponse(response=>new URL(response.url()).pathname.endsWith('/api/actions')&&response.request().postDataJSON().name==='nod');
   await page.locator('[data-action="nod"]').click();
@@ -37,7 +37,7 @@ test('mobile controls fit the viewport and are operable',async({page})=>{
 });
 
 test('action errors stay readable and a failed request does not block the next action',async({page})=>{
-  await page.goto('/?room=1');
+  await page.goto('/index.html?room=1');
   await page.route('**/api/actions?*',route=>route.fulfill({status:503,contentType:'text/plain',body:'Service unavailable'}));
   await page.locator('[data-action="nod"]').click();
   await expect(page.locator('#notice')).toContainText('HTTP 503');

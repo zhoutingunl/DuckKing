@@ -29,7 +29,10 @@ class ExistingWorld:
         return self.backend.geometry()
 
     async def snapshot(self):
-        return await self.backend.snapshot()
+        state = await self.backend.snapshot()
+        if self.capability == "movement" and state.get("ducks"):
+            state["camera_follow"] = state["ducks"][0]["position"]
+        return state
 
     async def action(self, name, **kwargs):
         self.backend.task_active = True
@@ -92,11 +95,31 @@ class ExistingWorld:
         await self.motion.close()
 
 
-def make_world(assets, capability):
-    if capability in {"running", "basketball", "long_jump"}:
+def make_world(assets, capability, *, variant=None):
+    if capability == "acrobatics":
+        from .feature_acrobatics import AcrobaticsWorld
+
+        return AcrobaticsWorld(assets)
+    if capability in {"sprint_race", "roller_race", "hill_race", "red_light", "tug"}:
+        from .feature_games import GameWorld
+
+        return GameWorld(assets, capability)
+    if capability in {"climb", "chimney"}:
+        from .feature_climbing import ClimbingWorld
+
+        return ClimbingWorld(assets, capability)
+    if capability in {"runup_roll", "roller_slalom", "roller_glide"}:
+        from .feature_tricks import TricksWorld
+
+        return TricksWorld(assets, capability)
+    if capability.startswith("terrain_") or capability == "giant_ball":
+        from .feature_terrain import TerrainWorld
+
+        return TerrainWorld(assets, capability)
+    if capability in {"running", "basketball", "long_jump", "stilts", "standup", "backflip"}:
         from .feature_playground import PlaygroundWorld
 
-        return PlaygroundWorld(assets, capability)
+        return PlaygroundWorld(assets, capability, variant=variant)
     if capability in {"movement", "director"}:
         return ExistingWorld(assets, capability)
     if capability in {"hop", "flamingo", "step"}:
@@ -111,11 +134,11 @@ def make_world(assets, capability):
         from .feature_swing import SwingWorld
 
         return SwingWorld(assets)
-    if capability == "dock":
+    if capability in {"dock", "dock_standing"}:
         from .feature_dock import DockWorld
 
-        return DockWorld(assets)
-    if capability in {"senses", "theremin", "search", "soccer", "navigation"}:
+        return DockWorld(assets, capability)
+    if capability in {"senses", "tof", "theremin", "search", "soccer", "navigation"}:
         from .feature_senses import SensesWorld
 
         return SensesWorld(assets, capability)

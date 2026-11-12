@@ -37,14 +37,17 @@ class PolicyWorld:
     def __init__(self, assets, capability):
         self.assets, self.capability = assets, capability
         self.root = assets / "features"
-        self.ip = module(self.root / "upstream/scripts/infer_policy.py", "feature_infer_policy")
+        self.ip = module(
+            self.root / "upstream/scripts/infer_policy.py",
+            "feature_infer_policy",
+        )
         robot = self.root / "upstream/src/mjlab_microduck/robot/microduck"
         scene = robot / (
             "scene_backlash.xml"
-            if capability in {"hop", "footsteps"}
+            if capability in {"hop", "footsteps", "giant_ball"} or capability.startswith("terrain_")
             else "scene_allcollisions.xml"
         )
-        if capability == "footsteps":
+        if capability == "footsteps" or capability.startswith("terrain_"):
             scene = robot / "scene_walk_backlash.xml"
         if capability == "step":
             scene = self.root / (
@@ -63,7 +66,7 @@ class PolicyWorld:
             use_projected_gravity=True,
         )
         self.backlash = []
-        if capability in {"hop", "footsteps"}:
+        if capability in {"hop", "footsteps", "giant_ball"} or capability.startswith("terrain_"):
             for joint in self.bam.joint_indexes:
                 name = self.model.joint(joint).name
                 passive = self.model.joint(f"passive_{name}_backlash").id
@@ -79,7 +82,8 @@ class PolicyWorld:
             file = self.root / "policies/footsteps/footsteps.onnx"
         self.policy = (
             session(file)
-            if capability in {"hop", "flamingo", "step", "footsteps", "swing"}
+            if capability in {"hop", "flamingo", "step", "footsteps", "swing", "giant_ball"}
+            or capability.startswith("terrain_")
             else self.walk
         )
         self.body = self.model.body("trunk_base").id
@@ -115,14 +119,26 @@ class PolicyWorld:
     def reset_state(self):
         mujoco.mj_resetData(self.model, self.data)
         root = self.pol._trunk_qpos_adr
-        self.data.qpos[root : root + 7] = [0, 0, 0.125, 1, 0, 0, 0]
+        self.data.qpos[root : root + 7] = [
+            0,
+            0,
+            0.125 + getattr(self, "spawn_height", 0),
+            1,
+            0,
+            0,
+            0,
+        ]
         self.data.qpos[self.pol.joint_qpos_indices] = self.pol.default_pose
         self.bam.reset(self.data.qpos)
         self.pol.set_position_targets(self.pol.default_pose)
         self.pol.last_action[:] = 0
         self.command[:] = 0
         self.delay_action[:] = 0
-        self.active_policy = self.policy if self.capability == "flamingo" else self.walk
+        self.active_policy = (
+            self.policy
+            if self.capability == "flamingo" or getattr(self, "reset_with_policy", False)
+            else self.walk
+        )
         mujoco.mj_forward(self.model, self.data)
         for _ in range(60):
             self.tick()
@@ -151,6 +167,8 @@ class PolicyWorld:
             self.bam.update()
             self.bam.q_target[:] = target_positions
             mujoco.mj_step(self.model, self.data)
+            if observer := getattr(self, "substep_observer", None):
+                observer()
             if self.data.time <= previous or not np.isfinite(self.data.qpos).all():
                 raise ValueError("物理数值异常，已暂停，请重置")
 

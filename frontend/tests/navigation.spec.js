@@ -7,9 +7,9 @@ test('all pages keep the same navigation, room, source link and language menu',a
  // Their real preparation paths are covered by their scene-specific tests.
  await page.request.post('/api/scenes/close?room=1');
  await page.route(/\/api\/(balance|seesaw|features)\/prepare(?:\?|$)/,route=>route.fulfill({status:503,json:{detail:'Navigation-only test'}}));
- const labels=['首页','功能场景','动作训练场','演示场景','现场互动','训练新动作','交互统计','使用体验','部署记录','源代码 ↗'];
+ const labels=['首页','语音工作台','动作训练场','演示场景','现场互动','训练新动作','交互统计','使用体验','部署记录','源代码 ↗'];
  for(const name of ['index','training','seesaw','balance','scenarios','demos','studio','experience','statistics','deploys','features']){
-  await page.goto(`/${name==='index'?'':name+'.html'}?room=1`);
+  await page.goto(`/${name+'.html'}?room=1`);
   await expect(page.locator('.site-topbar nav a')).toHaveText(labels);
   await expect(page.locator('.site-topbar .brand')).toHaveAttribute('aria-label','DuckKing 首页');
   for(const link of await page.locator('.site-topbar nav a').all()){
@@ -26,8 +26,8 @@ test('all pages keep the same navigation, room, source link and language menu',a
   const nav=await page.locator('.home-nav').boundingBox();
   expect(Math.abs(nav.x+nav.width-lang.x-lang.width)).toBeLessThan(2);
   await page.getByRole('link',{name:'首页',exact:true}).click();
-  await expect(page).toHaveURL(/\/index\.html\?room=1$/);
-  await expect(page.locator('.action-grid')).toBeVisible();
+  await expect(page).toHaveURL(/\/features\.html\?room=1&sort=top$/);
+  await expect(page.locator('#feature-catalog')).toBeVisible();
   await expect(page.getByRole('link',{name:'首页',exact:true})).toHaveAttribute('aria-current','page');
  }
  await page.setViewportSize({width:390,height:844});await page.goto('/seesaw.html?room=1');
