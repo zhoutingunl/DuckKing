@@ -86,6 +86,21 @@ REPOS = {
     ),
 }
 MODELS = {
+    "running": (
+        "HannesVonEssen/microduck-running",
+        "9f45af1f4b04252f3aa1f4c056fa7fa0d4b35e4c",
+        ["policy.onnx", "config.json", "manifest.json", "README.md"],
+    ),
+    "basketball": (
+        "HannesVonEssen/microduck-basketball",
+        "6e61a733aeff338bdd352148819bc99cf9a51491",
+        ["policy.onnx", "config.json", "manifest.json", "README.md"],
+    ),
+    "long_jump": (
+        "HannesVonEssen/microduck-long-jump",
+        "fdcdc787e72b8784bb842159ee70607859cd17ed",
+        ["policy.onnx", "config.json", "manifest.json", "README.md"],
+    ),
     "circus-base": (
         "pollen-robotics/microduck-policies",
         "283771bcb3690a0a94a288c108365d9b630d21e4",

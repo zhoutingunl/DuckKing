@@ -5,7 +5,12 @@ test('functional catalogue prepares without starting, cancels, releases and reop
  const errors=[];page.on('pageerror',error=>errors.push(error.message));
  await page.request.post('/api/scenes/close?room=1');
  await page.goto('/features.html?room=1&lang=en');
- await expect(page.locator('[data-capability]')).toHaveCount(15);
+ await expect(page.locator('[data-capability]')).toHaveCount(18);
+ await page.locator('.feature-coverage summary').click();
+ await expect(page.locator('.feature-coverage li')).toHaveCount(10);
+ await expect(page.locator('.feature-coverage li strong', {hasText:'Not integrated yet'})).toHaveCount(5);
+ await expect(page.locator('[data-capability=basketball]')).toContainText('Blind basketball balance');
+ await page.locator('.feature-coverage summary').click();
  await expect(page.locator('#scene-placeholder')).toBeHidden({timeout:45000});
  await expect(page.locator('[data-feature-action=walk]')).toBeEnabled();
  const state=await (await page.request.get('/api/scenes/state?room=1')).json();

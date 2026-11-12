@@ -151,6 +151,20 @@ CATALOG = {
         source="circus_policies_and_phase_controller",
         observation="proprioception_and_rope_phase",
     ),
+    "running": item(
+        10, "小鸭快跑", "跑五秒，看实际速度和侧向偏移。", "运动", ["run"],
+        source="playground_running_policy",
+    ),
+    "basketball": item(
+        10, "篮球上盲平衡", "不看球的位置，用身体感觉保持平衡。", "实验",
+        ["balance_ball", "roll_forward"], source="playground_blind_lstm_policy",
+        observation="proprioception_and_recurrent_memory",
+    ),
+    "long_jump": item(
+        10, "跳台长跳", "跨过三十厘米间隙，落到较低的平台。", "运动", ["jump_gap"],
+        source="playground_platform_jump_policy",
+        observation="proprioception_and_known_gap_drop",
+    ),
 }
 
 

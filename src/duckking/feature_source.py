@@ -47,3 +47,19 @@ def scene_builder(path, name, namespace):
     namespace = {**namespace, "_mj_size3": size3}
     exec(compile(tree, str(path), "exec"), namespace)
     return namespace[name]()
+
+
+def source_symbols(path, names, namespace):
+    """Extract named pure helpers/constants without importing training packages."""
+    nodes = []
+    for node in ast.parse(path.read_text()).body:
+        if isinstance(node, ast.FunctionDef) and node.name in names:
+            nodes.append(node)
+        elif isinstance(node, ast.Assign) and any(
+            isinstance(t, ast.Name) and t.id in names for t in node.targets
+        ):
+            nodes.append(node)
+    tree = ast.fix_missing_locations(Sizes().visit(ast.Module(body=nodes, type_ignores=[])))
+    namespace = {**namespace, "_mj_size3": size3}
+    exec(compile(tree, str(path), "exec"), namespace)
+    return namespace

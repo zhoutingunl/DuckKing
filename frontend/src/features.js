@@ -20,8 +20,12 @@ await setupRoom();
 const $=id=>document.getElementById(id),loader=createPhysicsModelLoader();
 const feedback=createLoadingState($('scene-placeholder')),choir=new StudioChoir(),sound=new FeatureAudio();
 const intent=createFeatureIntent();
-const labels={walk:'向前走',backward:'向后退',turn_left:'向左转',turn_right:'向右转',sit:'坐下',stand:'站起来',nod:'点点头',curious:'好奇',sad:'难过',devastated:'委屈坐下',mmh:'嗯？',yes:'点头答应',yes_fast:'连连点头',no:'摇头拒绝',defiant:'不服气',angry:'生气',mock:'调皮',excited:'兴奋',impatient:'等不及了',laugh:'笑起来',conduct:'按顺序轮唱',dock:'回窝坐好',undock:'离窝站起来',hop:'跳一下',lift_left:'抬左脚',lift_right:'抬右脚',lower:'放下脚',observe:'看看前方',look_left:'向左看',look_right:'向右看',look_forward:'看前方',play:'演奏距离琴',near:'物体靠近',far:'物体远离',cross:'跨过门槛',find_red:'找红色',find_blue:'找蓝色',find_green:'找绿色',kick_left:'找到球用左脚踢',kick_right:'找到球用右脚踢',go_door:'去门口',go_home:'回窝旁',go_table:'去桌旁',steps:'踩着标记走',swing:'荡起来',jump_rope:'一起跳绳'};
+const labels={run:'快跑五秒',balance_ball:'球上平衡十秒',roll_forward:'球上向前十秒',jump_gap:'跳到对面平台',walk:'向前走',backward:'向后退',turn_left:'向左转',turn_right:'向右转',sit:'坐下',stand:'站起来',nod:'点点头',curious:'好奇',sad:'难过',devastated:'委屈坐下',mmh:'嗯？',yes:'点头答应',yes_fast:'连连点头',no:'摇头拒绝',defiant:'不服气',angry:'生气',mock:'调皮',excited:'兴奋',impatient:'等不及了',laugh:'笑起来',conduct:'按顺序轮唱',dock:'回窝坐好',undock:'离窝站起来',hop:'跳一下',lift_left:'抬左脚',lift_right:'抬右脚',lower:'放下脚',observe:'看看前方',look_left:'向左看',look_right:'向右看',look_forward:'看前方',play:'演奏距离琴',near:'物体靠近',far:'物体远离',cross:'跨过门槛',find_red:'找红色',find_blue:'找蓝色',find_green:'找绿色',kick_left:'找到球用左脚踢',kick_right:'找到球用右脚踢',go_door:'去门口',go_home:'回窝旁',go_table:'去桌旁',steps:'踩着标记走',swing:'荡起来',jump_rope:'一起跳绳'};
 const sources={
+ running:'社区快跑策略：指令速度 2.2 m/s，实际速度与方向可能偏离；五秒后暂停，重试需重置。未做实体机验证。',
+ basketball:'盲 LSTM 策略：输入只有本体感觉与记忆，不读取球的位置。初始已站在球顶，不包含爬球或落地后重新上球。',
+ long_jump:'社区跳台策略：间隙 30 cm、落差 25 cm；已知几何参数，不使用视觉。双脚落台并稳定一秒才通过。',
+
  movement:'官方步态与有界动作控制。',
  emotions:'官方 13 种情绪时间线；声音在浏览器本地播放。',
  director:'四只物理鸭，坐姿与独唱状态确认后才播放本地合唱。',
@@ -60,7 +64,7 @@ function describe(entry){
  $('scene-title').textContent=entry.title;$('feature-description').textContent=entry.description;
  $('feature-voice-example').textContent=entry.commands.map(k=>translate(labels[k])).join(' / ');
  $('feature-source').textContent=sources[entry.id]??'社区 ONNX 策略，CPU 推理与 BAM 电机模型；未训练新策略。';
- $('feature-limits').textContent=entry.category==='实验'||entry.id==='dock'?sources[entry.id]:'';
+ $('feature-limits').textContent=entry.category==='实验'||['dock','running','long_jump'].includes(entry.id)?sources[entry.id]:'';
  $('feature-limits').hidden=!$('feature-limits').textContent;
  $('feature-parameters').hidden=entry.id!=='movement';$('feature-order-wrap').hidden=entry.id!=='director';
  $('feature-commands').replaceChildren();
@@ -110,7 +114,7 @@ function update(packet){
  const f=state.feature;$('task-status').textContent=statusLabels[f.status]??f.status;$('result-message').textContent=f.message??'';
  $('task-status').dataset.outcome=f.status;
  $('feature-metrics').replaceChildren();
- const values={distance_m:['实际位移',100,'cm'],sim_time:['仿真时间',1,'s'],max_clearance_m:['最高离地',100,'cm'],support_feet:['支撑脚',1,''],distance_m_to_target:['距目标',100,'cm'],frequency_hz:['音高',1,'Hz'],ray_distance_m:['前方距离',100,'cm'],virtual_battery_percent:['虚拟电量',1,'%'],steps_completed:['已落足',1,''],swing_span_deg:['摆幅',1,'°'],minimum_string_m:['最短绳长',100,'cm'],maximum_string_m:['最长绳长',100,'cm'],clean_skips:['有效跳绳',1,''],full_revolutions:['绳圈数',1,''],real_time_factor:['仿真 / 墙钟',1,'×'],foot_ball_contacts:['脚球接触采样',1,'']};
+ const values={actual_speed_m_s:['实际速度',1,'m/s'],mean_speed_m_s:['平均速度',1,'m/s'],lateral_drift_m:['侧向偏移',100,'cm'],ball_offset_m:['身体距球心',100,'cm'],ball_travel_m:['球的位移',100,'cm'],supported_seconds:['球上支撑时间',1,'s'],target_support_feet:['落台支撑脚',1,''],stable_seconds:['连续站稳',1,'s'],gap_m:['平台间隙',100,'cm'],drop_m:['平台落差',100,'cm'],distance_m:['实际位移',100,'cm'],sim_time:['仿真时间',1,'s'],max_clearance_m:['最高离地',100,'cm'],support_feet:['支撑脚',1,''],distance_m_to_target:['距目标',100,'cm'],frequency_hz:['音高',1,'Hz'],ray_distance_m:['前方距离',100,'cm'],virtual_battery_percent:['虚拟电量',1,'%'],steps_completed:['已落足',1,''],swing_span_deg:['摆幅',1,'°'],minimum_string_m:['最短绳长',100,'cm'],maximum_string_m:['最长绳长',100,'cm'],clean_skips:['有效跳绳',1,''],full_revolutions:['绳圈数',1,''],real_time_factor:['仿真 / 墙钟',1,'×'],foot_ball_contacts:['脚球接触采样',1,'']};
  for(const [key,[label,scale,unit]] of Object.entries(values)){const v=f.metrics?.[key];if(!Number.isFinite(v)||(key==='support_feet'&&selected?.id==='swing'))continue;const box=document.createElement('div'),dt=document.createElement('dt'),dd=document.createElement('dd');dt.textContent=label;dd.textContent=`${(v*scale).toFixed(1)} ${unit}`;box.append(dt,dd);$('feature-metrics').append(box)}
  for(const result of f.results??[]){if(seen.has(result.id))continue;seen.add(result.id);appendLog(`${translate(labels[result.action]??result.action)} · ${translate(statusLabels[result.status])} · ${translate(result.message??'')}`,'执行结果')}
  if(seen.size>120)seen.delete(seen.values().next().value);

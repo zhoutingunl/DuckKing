@@ -77,13 +77,16 @@
 | [Pollen microduck_rl](https://github.com/pollen-robotics/microduck_rl) | `c992a8cdbf807f934775319e41a72fc310c4a8f3` | FootstepFollower / FootstepNet 适配；保留同仓库许可 |
 | [Rhoban BAM](https://github.com/Rhoban/bam) | `62bd8ce12154340be97e06f7f41a0ca8f116d967` | 电机/摩擦模型；Apache-2.0 |
 | [Pollen microduck_emotions](https://github.com/pollen-robotics/microduck_emotions) | `431c73df8a9d3cb6b6067d09ced6c169fdfa59fd` | 13 种官方运行时情绪关键帧和声音；Apache-2.0 |
-| [Vottivott microduck-playground](https://github.com/Vottivott/microduck-playground) | `052a2494dd6372289221c7a4f24a245b443dd75f` | MicroDock v2、秋千场景/座椅及适配参考；Apache-2.0 代码，硬件/模型按原目录 LICENSE-HARDWARE 和上游许可 |
+| [Vottivott microduck-playground](https://github.com/Vottivott/microduck-playground) | `052a2494dd6372289221c7a4f24a245b443dd75f` | MicroDock v2、秋千、快跑/篮球模型、完整碰撞与跳台场景及适配参考；Apache-2.0 代码，硬件/模型按原目录 LICENSE-HARDWARE 和上游许可 |
 | [bihaokun step-up](https://github.com/bihaokun/microduck-step-up-policy) | `ec769571438c2558a2d847a164a91022971fceb0` | 25 mm 台阶、步态/恢复策略和训练模型快照；Apache-2.0，保留 NOTICE 与模型许可 |
 | [ros-claw MicroDuck](https://github.com/ros-claw/microduck) | `1034ed000c352476cf213ebe1544eb8c7db8b0e7` | 三鸭跳绳组合世界、策略和逐步接触评分；Apache-2.0，保留 THIRD_PARTY.md |
 | [Happy Hop](https://huggingface.co/joanfox/microduck-happy-hop) | `c0447da668255436eea070e862ad8eb89bad2ba1` | ONNX；Apache-2.0 |
 | [Flamingo Cycle](https://huggingface.co/RemiFabre/microduck-flamingo-cycle) | `a69e4f6103a70e355983eb5d4e919da76778a40f` | ONNX；Apache-2.0 |
 | [Footsteps](https://huggingface.co/apirrone/microduck-footsteps) | `19c38fae6afabddf9c0821009028d0a37963f05f` | Footsteps + FootstepNet ONNX；Apache-2.0 |
 | [Swing](https://huggingface.co/HannesVonEssen/microduck-swing) | `e7a603fa89a74b589608c5a026a7720339cb22e0` | 自驱秋千 ONNX；Apache-2.0；上游模型卡的成功率不作为 DuckKing 的测试结果 |
+| [Running](https://huggingface.co/HannesVonEssen/microduck-running) | `9f45af1f4b04252f3aa1f4c056fa7fa0d4b35e4c` | iteration 12195 快跑 ONNX；Apache-2.0 |
+| [Basketball](https://huggingface.co/HannesVonEssen/microduck-basketball) | `6e61a733aeff338bdd352148819bc99cf9a51491` | b11 LSTM256 盲平衡 ONNX（含记忆输入/输出）；Apache-2.0 |
+| [Long jump](https://huggingface.co/HannesVonEssen/microduck-long-jump) | `fdcdc787e72b8784bb842159ee70607859cd17ed` | 跳台长跳 ONNX；配置内含关节偏置、限位与已知间隙/落差；Apache-2.0 |
 | [Pollen policies](https://huggingface.co/pollen-robotics/microduck-policies) | `283771bcb3690a0a94a288c108365d9b630d21e4` | 跳绳世界用的 alpha_stand / alpha_walking；Apache-2.0 |
 
 DuckKing 编写场景目录、房间进程隔离、语音工具、取消/验收、RGB 颜色伺服、地图路径、浏览器图像/声音和展示逻辑；`feature_bam.py` 参考并适配 Pollen Apache-2.0 推理代码。MuJoCo 3.3.7 的几何尺寸兼容不改写源仓库；相机轴修正、颜色场地和软件感知也不构成实机标定。SciPy 1.18.1（BSD-3-Clause）用于跳绳网格凸包，Colorama 0.4.6（BSD）仅供上游终端输出辅助。安装/打包保留资源的原始许可证。

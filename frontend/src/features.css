@@ -32,3 +32,9 @@
 #task-status[data-outcome=failed] {color:#a64528}
 #task-status[data-outcome=completed] {color:#466b2d}
 .features-page .scene-actions>.text-button {display:inline-block;margin:10px 16px 0 0}
+
+.feature-coverage {margin:-8px 0 24px;padding:14px 18px;border:1px solid #dce2d0;border-radius:14px;background:#f8faf3;font-size:14px}
+.feature-coverage summary {cursor:pointer;color:#526b39}.feature-coverage p {line-height:1.6}
+.feature-coverage ul {padding:0;list-style:none;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr));gap:10px}
+.feature-coverage li {display:flex;flex-direction:column;gap:6px;padding:12px;background:white;border-radius:8px;overflow-wrap:anywhere}
+.feature-coverage a {color:#37677a}.feature-coverage strong {font-weight:500;color:#607543}.feature-coverage span {color:#737b6a;line-height:1.5}

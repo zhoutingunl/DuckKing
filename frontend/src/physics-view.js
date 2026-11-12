@@ -123,6 +123,7 @@ export function physicsView(container,{label=null,onCameraChange}={}) {
     for(const {object} of renderBatches)object.dispose();
     world.clear();geometries.forEach(g=>g.dispose());materials.forEach(m=>m.dispose());textures.forEach(t=>t.dispose());
     geometries=[];materials=[];textures=[];renderBatches=[];readyToRender=false;revision=null;latest=null;selection=null;headingGuide=null;headingTexture=null;centerGuide=null;
+    floor.position.set(0,0,0);grid.position.set(0,.0001,0);
     objects.clear();labels.clear();annotations.clear();parts={};delete container.dataset.choraleParts;renderer.renderLists.dispose();appearance.setDucks([]);delete container.dataset.renderedScene;
     delete container.dataset.headingTarget;
     delete container.dataset.headingSurface;
@@ -202,6 +203,11 @@ export function physicsView(container,{label=null,onCameraChange}={}) {
     // Raycasting computes the bounds lazily; rendering has frustumCulled=false.
     for(const object of changed){object.instanceMatrix.needsUpdate=true;object.boundingSphere=null}
     if(changed.size){readyToRender=true;renderer.shadowMap.needsUpdate=true;invalidate()}
+    // Follow only the running trial and preserve the viewer's chosen orbit.
+    if(state.scene==='functional'&&state.feature?.capability==='running'&&Array.isArray(state.camera_follow)&&state.camera_follow.length===3&&state.camera_follow.every(Number.isFinite)&&!manualView){
+      const [x,y,z]=state.camera_follow,target=new THREE.Vector3(x,z+.08,-y),delta=target.clone().sub(controls.target);
+      camera.position.add(delta);controls.target.copy(target);floor.position.set(x,0,-y);grid.position.set(Math.round(x*10)/10,.0001,-Math.round(y*10)/10);controls.update();invalidate();
+    }
     // Reveal the real fall without cropping feet on a narrow screen. Enlarge
     // the view only as needed; a user's orbit/zoom always takes precedence.
     if(state.scene==='table'&&state.tabletop?.dropped_at!=null&&!manualView){
@@ -267,7 +273,7 @@ export function physicsView(container,{label=null,onCameraChange}={}) {
     selection(value){selection=value;invalidate()},
     interaction(callback,mode="select"){interaction=callback;interactionMode=mode;if(!callback){stick.visible=false;for(const ring of rings.values())ring.visible=false}invalidate()},
     renderNow(){scheduler.flush()},
-    frameScene(scene){if(disposed)return;manualView=false;floorFramed=false;seatedView=scene==='seated';resize();controls.enableDamping=false;controls.update();const close=scene==='carry',seated=scene==='seated',table=scene==='table';camera.position.set(...(scene==='swing'?[1.25,.85,1.3]:scene==='circus'?[1.15,.75,1.15]:scene==='navigation'?[1.5,1.3,1.6]:scene==='stage'?[2.7,2.1,0]:scene==='choir'?[1.15,.70,.15]:seated?[1.05,.90,-1.05]:table?[1.35,.98,-1.35]:close?[.6,.4,.65]:scene==='seesaw'?[.72,.85,-1.15]:scene==='balance'?[1.25,.82,1.35]:[.85,.62,.95]));controls.target.set(close ? .12 : table ? .20 : 0,scene==='swing' ? .42 : scene==='circus' ? .22 : scene==='seesaw' ? .22 : scene==='balance' ? .13 : seated ? .52 : table ? .25 : .13,table ? -.10 : 0);controls.update();controls.saveState();controls.enableDamping=true;invalidate()},
+    frameScene(scene){if(disposed)return;manualView=false;floorFramed=false;seatedView=scene==='seated';resize();controls.enableDamping=false;controls.update();const close=scene==='carry',seated=scene==='seated',table=scene==='table';camera.position.set(...(scene==='long_jump'?[1.1,.85,1.3]:scene==='basketball'?[.95,.85,1.1]:scene==='swing'?[1.25,.85,1.3]:scene==='circus'?[1.15,.75,1.15]:scene==='navigation'?[1.5,1.3,1.6]:scene==='stage'?[2.7,2.1,0]:scene==='choir'?[1.15,.70,.15]:seated?[1.05,.90,-1.05]:table?[1.35,.98,-1.35]:close?[.6,.4,.65]:scene==='seesaw'?[.72,.85,-1.15]:scene==='balance'?[1.25,.82,1.35]:[.85,.62,.95]));controls.target.set(scene==='long_jump' ? .28 : close ? .12 : table ? .20 : 0,scene==='basketball' ? .3 : scene==='long_jump' ? .24 : scene==='swing' ? .42 : scene==='circus' ? .22 : scene==='seesaw' ? .22 : scene==='balance' ? .13 : seated ? .52 : table ? .25 : .13,table ? -.10 : 0);controls.update();controls.saveState();controls.enableDamping=true;invalidate()},
     reset(){if(disposed)return;manualView=false;floorFramed=false;controls.enableDamping=false;controls.update();controls.reset();controls.enableDamping=true;invalidate()},
     dispose(){
       if(disposed)return;disposed=true;scheduler.dispose();events.abort();observer.disconnect();visibility.disconnect();document.removeEventListener('visibilitychange',setVisibility);

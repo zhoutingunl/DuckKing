@@ -74,7 +74,7 @@ def test_feature_commands_reject_unbounded_unknown_and_wrong_scene(arguments):
 
 def test_catalogue_covers_ten_groups_without_claiming_hardware_charging():
     assert {x["group"] for x in CATALOG.values()} == set(range(1, 11))
-    assert len(CATALOG) == 15
+    assert len(CATALOG) == 18
     assert CATALOG["dock"]["observation"] == "simulated_tag_and_proprioception"
     assert CATALOG["soccer"]["observation"] == "rgb"
 
@@ -226,7 +226,7 @@ def test_feature_api_missing_assets_fails_clearly_and_releases_preparation(monke
     )
     app = create_app()
     with TestClient(app) as client:
-        assert len(client.get("/api/features/catalog").json()["capabilities"]) == 15
+        assert len(client.get("/api/features/catalog").json()["capabilities"]) == 18
         response = client.post("/api/features/prepare", json={"capability": "hop"})
         assert response.status_code == 503
         assert app.state.rooms["1"].scene_motion is None

@@ -93,6 +93,10 @@ class ExistingWorld:
 
 
 def make_world(assets, capability):
+    if capability in {"running", "basketball", "long_jump"}:
+        from .feature_playground import PlaygroundWorld
+
+        return PlaygroundWorld(assets, capability)
     if capability in {"movement", "director"}:
         return ExistingWorld(assets, capability)
     if capability in {"hop", "flamingo", "step"}:
