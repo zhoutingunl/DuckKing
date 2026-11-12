@@ -26,14 +26,14 @@ const sources={
  acrobatics:'社区杂技策略与独立 CPU 验收器；25 ms 名义电机延迟。逐段检查滚动、头顶接触、转速、停转与恢复，失败就暂停，不沿用作者批量成功率。',
  tof:'六十四束 MuJoCo 射线，45° × 45° 视野，最远四米；无回波为灰色。这是理想仿真测距，没有模拟真实 ToF 噪声。',
  climb:'实验：采用源项目 74 cm 桌面与交错窄梯。策略实时推理，未播放轨迹；当前 CPU 试跑爬高后落地，未完成落台恢复。',
- chimney:'实验：12.5 cm 窄缝和 3 m 平台；使用三套策略及官方恢复。宽度与相对位置来自仿真定位，不是视觉。当前 CPU 单轮通过，不沿用作者成功率。',
+ chimney:'实验：12.5 cm 窄缝和 3 m 平台；使用三套策略及官方恢复。宽度与相对位置来自仿真定位，不是视觉。Mac 单轮通过，Linux 试跑未完成；不沿用作者成功率。',
  runup_roll:'社区助跑滚翻策略，先走两秒、翻滚两秒，再恢复站立。采用源项目 PD 电机与电流限幅。',
  roller_slalom:'社区轮滑策略，已知路线的追踪控制器提供方向误差；八个实物标记均需正确绕过，碰撞或失稳不算成功。',
  roller_glide:'实验：滑行时命令单脚承重，按接触力计时。当前单轮最长 0.36 秒，未达到 0.4 秒门槛；不保证长时间单脚滑。',
  dock_standing:'MicroDock v1：仿真标签与触点代理。回桩已通过单轮检查；站姿离窝尚未通过当前试跑，可与坐姿版本对照。',
 
  standup:'官方 alpha_stand 策略；从明确设置的卧姿初态开始，双脚恢复站稳一秒才成功。',
- stilts:'八档高度分别使用对应的策略、质量和碰撞模型；只能在仿真中尝试。更换高度会重新准备场景。',
+ stilts:'八档高度分别使用对应的策略、质量和碰撞模型；只能在仿真中尝试。更换高度会重新准备场景。20 cm 在 Linux 试跑中失稳，其他平台也可能失败。',
  backflip:'实验：高台到软垫落差 0.8 m；软垫为数值接触模型。翻转完成后仍需落垫站稳，可能失败。',
 
  running:'社区快跑策略：指令速度 2.2 m/s，实际速度与方向可能偏离；五秒后暂停，重试需重置。未做实体机验证。',
@@ -85,7 +85,7 @@ function describe(entry){
  $('scene-title').textContent=entry.title;$('feature-description').textContent=entry.description;
  $('feature-voice-example').textContent=entry.commands.map(k=>translate(labels[k])).join(' / ');
  $('feature-source').textContent=sources[entry.id]??(entry.source==='duckking_rules_official_policy'?'本站游戏规则与已安装的官方基础步态；借鉴公开挑战的玩法，没有移植 Arena 运行器或独立 reference 权重，计时不能与官方榜单比较。':null)??(entry.id.startsWith('terrain_')||entry.id==='giant_ball'?'社区专用策略与齿隙电机模型；场地为本站固定试验，不沿用上游成功率。':null)??'社区 ONNX 策略，CPU 推理与 BAM 电机模型；未训练新策略。';
- $('feature-limits').textContent=entry.category==='实验'||['dock','running','long_jump'].includes(entry.id)?sources[entry.id]:'';
+ $('feature-limits').textContent=entry.category==='实验'||['dock','running','long_jump','stilts','terrain_step'].includes(entry.id)?(sources[entry.id]??'实验：Linux 试跑未通过，结果以本轮真实运动为准。'):'';
  $('feature-limits').hidden=!$('feature-limits').textContent;
  $('feature-parameters').hidden=entry.id!=='movement';$('feature-order-wrap').hidden=entry.id!=='director';
  $('feature-commands').replaceChildren();

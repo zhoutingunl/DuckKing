@@ -24,7 +24,7 @@ RECOMMENDED = (
     "acrobatics",
     "red_light",
     "tug",
-    "chimney",
+    "giant_ball",
     "director",
     "long_jump",
     "dock",

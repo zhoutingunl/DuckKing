@@ -51,7 +51,7 @@ test('unavailable API returns a proxy error and actionable feedback', async ({ r
     const response = await request.get(new URL('/api/health', server.resolvedUrls.local[0]).href);
     expect(response.status()).toBe(502);
     expect(await response.text()).not.toContain('"backend":"preview"');
-    await page.goto(server.resolvedUrls.local[0]+'?room=1');
+    await page.goto(server.resolvedUrls.local[0]+'index.html?room=1');
     await expect(page.locator('#room-label')).toHaveText('房间暂不可用');
     await expect(page.locator('#room-recovery')).toBeVisible();
     await expect(page.locator('#room-recovery')).toContainText('暂时无法连接服务，请稍后重试。');
