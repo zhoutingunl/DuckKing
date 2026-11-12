@@ -52,3 +52,4 @@
 }
 #show-all-scenes{display:block;margin:6px 0 22px;padding:10px 18px;border:1px solid #cbd8ad;border-radius:10px;background:#eef4dc;font-size:13px}
 #show-all-scenes:hover{background:#e2edbf}
+@media(max-width:480px){.features-page .stage-toolbar{column-gap:6px}.feature-stage-tools{gap:4px}.features-page .feature-stage-tools button{margin-left:0;font-size:11px}}

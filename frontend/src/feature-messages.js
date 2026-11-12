@@ -1,5 +1,8 @@
 // Functional-scene copy shares the site's language switch and live DOM translator.
 export const featureMessages = [
+ ["设置", "Settings", "Réglages"],
+ ["MuJoCo 仿真", "MuJoCo simulation", "Simulation MuJoCo"],
+ ["三阶段加官方恢复；Mac 通过，Linux 未通过。", "Three stages plus official recovery; Mac trial passed, Linux trial failed.", "Trois phases et rétablissement officiel ; essai Mac réussi, essai Linux échoué."],
  ["实验：Linux 试跑未通过，结果以本轮真实运动为准。", "Experimental: the Linux rollout failed; judge the actual current motion.", "Expérimental : l’essai Linux a échoué ; le mouvement réel décide du résultat."],
  ["倒立头旋连续技", "Headstand and headspin routine", "Enchaînement équilibre et rotation sur la tête"],
  ["后滚翻、倒立、左右头旋，再自己站起来。", "Back roll, headstand, spin both ways, then stand up again.", "Roulade arrière, équilibre et rotations sur la tête, puis se relever."],
