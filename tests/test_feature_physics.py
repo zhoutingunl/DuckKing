@@ -293,6 +293,27 @@ async def test_ball_worker_continues_then_recovers_only_after_leaving_ball(runti
         await world.close()
 
 
+async def test_real_worker_restarts_a_finite_trial_and_cancels_the_parent_preparation_timer():
+    from duckking.feature_backend import FeatureBackend
+
+    backend = await FeatureBackend.create(ASSETS, "running")
+    try:
+        first = await backend.invoke({"action": "run", "request_id": "first"}, wait=True)
+        assert first["status"] == "completed" and not first["restarted"]
+        arguments = {"action": "run", "request_id": "second"}
+        accepted = await backend.invoke(arguments)
+        assert accepted["phase"] == "preparing" and accepted["preparation"] == "restart"
+        # The same request waits for that action; it must not reset/start again.
+        second = await backend.invoke(arguments, wait=True)
+        assert second["status"] == "completed" and second["restarted"]
+        state = await backend.snapshot()
+        assert state["sim_time"] == pytest.approx(5)
+        assert [r["id"] for r in state["feature"]["results"]] == ["first", "second"]
+        assert backend.preparation is None and not backend.closed and backend.error is None
+    finally:
+        await backend.close()
+
+
 @pytest.mark.parametrize(
     ("capability", "action"),
     [

@@ -249,3 +249,48 @@ def test_dock_dependencies_survive_automatic_restart(connected, action, upright,
         model=None, data=SimpleNamespace(qpos=[0, 0, height]), upright=lambda: upright,
     )
     assert DockWorld.start_condition(world, action)["mode"] == mode
+
+
+async def test_parent_deadline_kills_a_preparation_even_if_the_worker_cannot_respond(monkeypatch):
+    monkeypatch.setattr("duckking.feature_backend.PREPARATION_TIMEOUT", 0.02)
+    backend = FeatureBackend("running")
+    process = SimpleNamespace(returncode=None, wait=AsyncMock(return_value=-15))
+    process.terminate = lambda: setattr(process, "returncode", -15)
+    backend.process = process
+    backend.state = {"feature": {"id": "stuck", "phase": "preparing"}}
+    pending = asyncio.get_running_loop().create_future()
+    backend.pending["pending"] = pending
+    backend.observe_preparation()
+    watchdog = backend.preparation
+    backend.observe_preparation()  # More identical heartbeats cannot extend the deadline.
+    assert backend.preparation is watchdog
+    await asyncio.wait_for(watchdog, 1)
+    with pytest.raises(ValueError, match="恢复未结束"):
+        await pending
+    assert backend.closed and process.returncode == -15
+
+
+async def test_preparation_deadline_is_cancelled_once_execution_starts(monkeypatch):
+    monkeypatch.setattr("duckking.feature_backend.PREPARATION_TIMEOUT", 0.01)
+    backend = FeatureBackend("running")
+    backend.state = {"feature": {"id": "ready", "phase": "preparing"}}
+    backend.observe_preparation()
+    watchdog = backend.preparation
+    backend.state["feature"]["phase"] = "running"
+    backend.observe_preparation()
+    await asyncio.gather(watchdog, return_exceptions=True)
+    await asyncio.sleep(0.02)
+    assert not backend.closed and backend.error is None and backend.preparation is None
+    await backend.close()
+
+
+async def test_expired_old_preparation_cannot_kill_a_new_command(monkeypatch):
+    monkeypatch.setattr("duckking.feature_backend.PREPARATION_TIMEOUT", 0.01)
+    backend = FeatureBackend("running")
+    backend.state = {"feature": {"id": "new", "phase": "running"}}
+    await backend.preparation_deadline("old")
+    assert not backend.closed and backend.error is None
+    await backend.close()
+    backend.state = {"feature": {"id": "late-frame", "phase": "preparing"}}
+    backend.observe_preparation()
+    assert backend.preparation is None
