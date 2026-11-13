@@ -120,7 +120,7 @@ class AcrobaticsWorld(PolicyWorld):
 
     async def perform(self, command):
         if self.trial_started:
-            raise ValueError("本轮已结束，请先重置场景再试")
+            raise ValueError("本轮已结束；再次点击动作会自动重置起点。")
         self.trial_started = True
         r = self.routine
         stages = r.build_routine(headstand_s=3, spins=((4, 4), (-4, 4)))
@@ -141,7 +141,7 @@ class AcrobaticsWorld(PolicyWorld):
                 before = self.data.time
                 self.sim.step(self.policies[stage.role], stage.cmd())
                 if self.data.time <= before or not np.isfinite(self.data.qpos).all():
-                    raise ValueError("物理数值异常，已暂停，请重置")
+                    raise ValueError("物理数值异常，已暂停；请重新准备场景。")
                 state = self.sim.state()
                 for key, value in state.items():
                     trace[key].append(value)

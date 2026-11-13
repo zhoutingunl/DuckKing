@@ -40,3 +40,12 @@ test('missing distance mutes a tone and scene changes release all audio nodes',t
  sound.update({id:'b',status:'running',capability:'hop'});
  assert.equal(nodes[0].stop.mock.callCount(),1);assert.equal(nodes[1].disconnect.mock.callCount(),1);
 });
+
+test('automatic scene preparation cannot play an old tone or emotion',t=>{
+ const {sound,nodes}=audioFixture(t);sound.buffers.set('curious',{duration:4});
+ sound.update({id:'old',status:'running',capability:'theremin',metrics:{frequency_hz:440}});
+ sound.update({id:'next',status:'running',phase:'preparing',capability:'emotions',action:'curious',metrics:{emotion_elapsed_s:1}});
+ assert.equal(nodes[0].stop.mock.callCount(),1);assert.equal(sound.source,null);assert.equal(sound.tone,null);
+ sound.update({id:'next',status:'running',phase:'running',capability:'emotions',action:'curious',metrics:{emotion_elapsed_s:0}});
+ assert.deepEqual(nodes.at(-1).start.mock.calls[0].arguments,[0,0]);sound.stop();
+});

@@ -125,7 +125,7 @@ class DockWorld(PolicyWorld):
                 self.virtual_battery_percent = min(100, self.virtual_battery_percent + 0.02)
             self.metrics["virtual_battery_percent"] = self.virtual_battery_percent
             if not np.isfinite(self.data.qpos).all():
-                raise ValueError("物理数值异常，请重置")
+                raise ValueError("物理数值异常，已暂停；请重新准备场景。")
             if until and until():
                 return True
             await asyncio.sleep(0.02)
@@ -135,6 +135,16 @@ class DockWorld(PolicyWorld):
         return float(
             np.clip(gain * self.dg.wrap(target - self.dg.yaw_deg(self.data)), -limit, limit)
         )
+
+    def start_condition(self, action):
+        connected = bool(self.dk.connected(self.dk.tip_error(self.model, self.data)))
+        if action == "undock" and not connected:
+            return {"mode": "blocked", "reason": "请先回窝，再离窝。"}
+        if action == "dock" and connected:
+            return {"mode": "blocked", "reason": "当前已经回窝，请先离窝。"}
+        if action == "dock" and (self.upright() < 0.6 or self.data.qpos[2] < 0.09):
+            return {"mode": "restart", "reason": "小鸭失稳，正在自动恢复起点。"}
+        return {"mode": "continue", "reason": ""}
 
     async def perform(self, command):
         if self.capability == "dock_standing":
@@ -169,7 +179,7 @@ class DockWorld(PolicyWorld):
                 **self.metrics,
             }
         if self.data.qpos[2] < 0.09 or self.dk.connected(self.dk.tip_error(self.model, self.data)):
-            raise ValueError("当前已经坐下或对接；可离窝，或显式重置后再回窝")
+            raise ValueError("当前已经坐下或对接，请先离窝。")
         await self.ticks(40, "look")
 
         def approach():
@@ -245,7 +255,7 @@ class DockWorld(PolicyWorld):
                 **self.metrics,
             }
         if self.dk.connected(self.dk.tip_error(self.model, self.data)):
-            raise ValueError("当前已经对接，请先离窝或重置")
+            raise ValueError("当前已经对接，请先离窝。")
         await self.ticks(40, "look")
 
         def approach():

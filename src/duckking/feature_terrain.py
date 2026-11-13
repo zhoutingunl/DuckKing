@@ -102,7 +102,7 @@ class TerrainWorld(PolicyWorld):
 
     async def perform(self, command):
         if getattr(self, "trial_started", False):
-            raise ValueError("本轮已结束，请先重置场景再试")
+            raise ValueError("本轮已结束；再次点击动作会自动重置起点。")
         self.trial_started = True
         self.metrics = {}
         self.active_policy = self.policy

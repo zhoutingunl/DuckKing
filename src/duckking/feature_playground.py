@@ -250,7 +250,7 @@ class PlaygroundWorld(PolicyWorld):
             previous = self.data.time
             mujoco.mj_step(self.model, self.data)
             if self.data.time <= previous or not np.isfinite(self.data.qpos).all():
-                raise ValueError("物理数值异常，已暂停，请重置")
+                raise ValueError("物理数值异常，已暂停；请重新准备场景。")
             for contact in self.data.contact:
                 if contact.dist > 0.001:
                     continue
@@ -279,11 +279,25 @@ class PlaygroundWorld(PolicyWorld):
             for ids in self.foot_geoms
         ]
 
+    def start_condition(self, action):
+        if self.capability != "basketball":
+            return None
+        if self.data.time <= 0.001:
+            return {"mode": "continue", "reason": ""}
+        ball = self.model.body("ball").id
+        offset = float(np.linalg.norm(self.data.xpos[self.body, :2] - self.data.xpos[ball, :2]))
+        supported = any(self.feet_on("ball_sphere"))
+        if (self.invalid_contact or not supported or offset > 0.16
+                or self.upright() < math.cos(math.radians(55))
+                or self.data.xpos[self.body, 2] < 0.17):
+            return {"mode": "restart", "reason": "小鸭已离开篮球，正在自动恢复起点。"}
+        return {"mode": "continue", "reason": ""}
+
     async def perform(self, command):
-        # A trial always begins at the visible prepared pose. Repeating requires
-        # an explicit reset, so a failed landing cannot be teleported into success.
-        if self.data.time > 0.001:
-            raise ValueError("本轮已结束，请先重置场景再试")
+        # Preserve the pose, velocity and recurrent memory for supported ball
+        # commands. Finite courses still require a fresh trial at the worker boundary.
+        if self.capability != "basketball" and self.data.time > 0.001:
+            raise ValueError("本轮已结束；再次点击动作会自动重置起点。")
         if self.capability == "stilts":
             return await self.stilt_trial()
         if self.capability == "standup":
@@ -370,6 +384,7 @@ class PlaygroundWorld(PolicyWorld):
     async def ball_trial(self, action):
         self.command[0] = 0.10 if action == "roll_forward" else 0
         ball = self.model.body("ball").id
+        ball_start = self.data.xpos[ball, :2].copy()
         supported = 0
         for _ in range(500):
             await self.advance(0.02, allow_head_support=True)
@@ -379,7 +394,7 @@ class PlaygroundWorld(PolicyWorld):
             self.metrics.update(
                 ball_offset_m=offset,
                 support_feet=contact,
-                ball_travel_m=float(np.linalg.norm(self.data.xpos[ball, :2])),
+                ball_travel_m=float(np.linalg.norm(self.data.xpos[ball, :2] - ball_start)),
                 supported_seconds=supported * 0.02,
             )
             if (

@@ -12,6 +12,7 @@ from pathlib import Path
 from .feature_catalog import FeatureCommand, voice_tools
 
 ROOT = Path(__file__).resolve().parents[2]
+PREPARATION_TIMEOUT = 15
 
 
 class FeatureBackend:
@@ -28,6 +29,8 @@ class FeatureBackend:
         self.error = None
         self.closed = False
         self.task = None
+        self.preparation = None
+        self.preparation_id = None
         self.commands = asyncio.Lock()
         self.records = OrderedDict()
         self.ready = asyncio.get_running_loop().create_future()
@@ -83,10 +86,14 @@ class FeatureBackend:
                 if message.get("type") == "ready":
                     self.visual = message["model"]
                     self.state = message["state"]
+                    self.observe_preparation()
                     if not self.ready.done():
                         self.ready.set_result(True)
                 elif message.get("type") == "state":
                     self.state = message["state"]
+                    self.observe_preparation()
+                    if self.state.get("feature", {}).get("stop_unconfirmed"):
+                        raise ValueError(self.state["feature"]["recovery_reason"])
                 elif message.get("type") == "reply":
                     future = self.pending.get(message.get("id"))
                     if future and not future.done():
@@ -97,7 +104,7 @@ class FeatureBackend:
                 elif message.get("type") == "error":
                     raise ValueError(message["message"])
             if not self.closed:
-                raise ValueError("物理进程已退出，请重置或重新准备场景")
+                raise ValueError("物理进程已退出，请重新准备场景。")
         except asyncio.CancelledError:
             raise
         except Exception as exc:
@@ -107,6 +114,31 @@ class FeatureBackend:
             for future in self.pending.values():
                 if not future.done():
                     future.set_exception(ValueError(self.error))
+            await self.close()
+
+    def observe_preparation(self):
+        if self.closed:
+            return
+        feature = (self.state or {}).get("feature", {})
+        key = feature.get("id") if feature.get("phase") == "preparing" else None
+        if key == self.preparation_id:
+            return
+        if self.preparation:
+            self.preparation.cancel()
+        self.preparation_id = key
+        self.preparation = asyncio.create_task(self.preparation_deadline(key)) if key else None
+
+    async def preparation_deadline(self, key):
+        # This runs outside the physics process: native model initialization
+        # cannot prevent its deadline from firing by blocking the worker loop.
+        await asyncio.sleep(PREPARATION_TIMEOUT)
+        feature = (self.state or {}).get("feature", {})
+        if not self.closed and feature.get("id") == key and feature.get("phase") == "preparing":
+            self.error = "场景恢复未结束，请重新准备场景。"
+            for future in self.pending.values():
+                if not future.done():
+                    future.set_exception(ValueError(self.error))
+            await self.close()
 
     async def rpc(self, command):
         if self.closed or self.error:
@@ -191,6 +223,12 @@ class FeatureBackend:
 
     async def close(self):
         self.closed = True
+        if self.preparation and self.preparation is not asyncio.current_task():
+            self.preparation.cancel()
+            with suppress(asyncio.CancelledError):
+                await self.preparation
+        self.preparation = None
+        self.preparation_id = None
         if self.process and self.process.returncode is None:
             with suppress(ProcessLookupError):
                 self.process.terminate()

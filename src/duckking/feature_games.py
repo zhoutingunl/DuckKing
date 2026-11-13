@@ -200,13 +200,13 @@ class GameWorld:
             before = self.data.time
             mujoco.mj_step(self.model, self.data)
             if self.data.time <= before:
-                raise ValueError("物理数值异常，已暂停，请重置")
+                raise ValueError("物理数值异常，已暂停；请重新准备场景。")
         if not np.isfinite(self.data.qpos).all():
-            raise ValueError("物理数值异常，已暂停，请重置")
+            raise ValueError("物理数值异常，已暂停；请重新准备场景。")
 
     async def perform(self, command):
         if self.trial_started:
-            raise ValueError("本轮已结束，请先重置场景再试")
+            raise ValueError("本轮已结束；再次点击动作会自动重置起点。")
         self.trial_started = True
         start = self.data.time
         deadline = time.monotonic()

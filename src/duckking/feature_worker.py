@@ -10,6 +10,10 @@ from contextlib import suppress
 from pathlib import Path
 
 from .feature_catalog import CATALOG, FeatureCommand
+from .feature_lifecycle import start_plan
+
+RESET_TIMEOUT = 10
+RESET_CANCEL_TIMEOUT = 3
 
 
 class Worker:
@@ -20,6 +24,13 @@ class Worker:
         self.results = deque(maxlen=60)
         self.current = {"status": "idle", "verified": None, "phase": "ready"}
         self.lock = asyncio.Lock()
+        self.recovery_error = None
+        self.stop_unconfirmed = False
+
+    def plan(self, state, action):
+        if self.recovery_error:
+            return {"mode": "blocked", "reason": self.recovery_error}
+        return start_plan(self.world, self.capability, self.current, state, action)
 
     def emit(self, message):
         self.output.write(json.dumps(message, ensure_ascii=False, allow_nan=False) + "\n")
@@ -27,6 +38,15 @@ class Worker:
 
     async def snapshot(self):
         state = await self.world.snapshot()
+        preparing = self.current.get("phase") == "preparing"
+        actions = {}
+        for action in CATALOG[self.capability]["commands"]:
+            plan = self.plan(state, action)
+            actions[action] = {
+                "enabled": plan["mode"] != "blocked" and not preparing,
+                "reason": "请等待场景准备完成。" if preparing else plan["reason"],
+                "preparation": plan["mode"],
+            }
         return {
             **state,
             "scene": "functional",
@@ -38,6 +58,10 @@ class Worker:
                 "observation": CATALOG[self.capability]["observation"],
                 "results": list(self.results),
                 "metrics": self.world.metrics,
+                "actions": actions,
+                "recovery_required": bool(self.recovery_error),
+                "recovery_reason": self.recovery_error,
+                "stop_unconfirmed": self.stop_unconfirmed,
             },
         }
 
@@ -56,12 +80,56 @@ class Worker:
                 )
                 self.results.append(dict(self.current))
         self.task = None
-        await self.world.stop()
+        try:
+            await self.world.stop()
+        except Exception:
+            self.recovery_error = "场景停止失败，请重新准备场景。"
+            self.stop_unconfirmed = True
+            self.emit({"type": "error", "message": self.recovery_error})
+            raise ValueError(self.recovery_error) from None
 
-    async def run(self, command):
+    async def reset_world(self):
+        # A thread-backed reset cannot be abandoned halfway through. Complete
+        # its bounded cleanup before acknowledging Stop or accepting a replacement.
+        task = asyncio.create_task(self.world.reset())
+        try:
+            await asyncio.wait_for(asyncio.shield(task), RESET_TIMEOUT)
+        except asyncio.CancelledError:
+            try:
+                await asyncio.wait_for(asyncio.shield(task), RESET_CANCEL_TIMEOUT)
+            except Exception:
+                self.stop_unconfirmed = True
+                self.recovery_error = "场景恢复未结束，请重新准备场景。"
+                task.cancel()
+            raise
+        except TimeoutError:
+            self.stop_unconfirmed = True
+            self.recovery_error = "场景恢复未结束，请重新准备场景。"
+            task.cancel()
+            raise ValueError(self.recovery_error) from None
+        except Exception:
+            self.recovery_error = "场景恢复失败，请重新准备场景。"
+            raise ValueError(self.recovery_error) from None
+
+    async def run(self, command, plan=None):
         result = self.current
         try:
             async with asyncio.timeout(600 if self.capability == "circus" else 180):
+                if plan and plan["mode"] == "restart":
+                    try:
+                        await self.reset_world()
+                    except asyncio.CancelledError:
+                        raise
+                    except Exception:
+                        if not self.recovery_error:
+                            self.recovery_error = "场景恢复失败，请重新准备场景。"
+                        raise ValueError(self.recovery_error) from None
+                    result.update(
+                        restarted=True, phase="running", message="准备完成，开始执行新指令。"
+                    )
+                    self.emit({"type": "state", "state": await self.snapshot()})
+                self.world.metrics = {}
+                await asyncio.sleep(0)  # Honour cancellation before any policy step.
                 outcome = await self.world.perform(command)
             verified = outcome.get("verified") is True
             result.update(
@@ -82,14 +150,22 @@ class Worker:
                 message=str(exc) if isinstance(exc, ValueError) else "任务执行异常",
             )
         finally:
-            try:
-                await self.world.stop()
-            except Exception:
-                result.update(status="failed", verified=False, message="停止未得到确认")
+            if not self.stop_unconfirmed:
+                try:
+                    await self.world.stop()
+                except Exception:
+                    self.recovery_error = "场景停止失败，请重新准备场景。"
+                    self.stop_unconfirmed = True
+            if self.stop_unconfirmed:
+                result.update(status="failed", verified=False, message=self.recovery_error)
             result["finished_at"] = time.time()
             result["phase"] = result["status"]
             self.results.append(dict(result))
-            self.emit({"type": "state", "state": await self.snapshot()})
+            if self.stop_unconfirmed:
+                # Parent terminates this process, including native worker threads.
+                self.emit({"type": "error", "message": self.recovery_error})
+            else:
+                self.emit({"type": "state", "state": await self.snapshot()})
 
     async def handle(self, message):
         if not isinstance(message, dict) or not isinstance(message.get("id"), str):
@@ -98,12 +174,21 @@ class Worker:
         try:
             command = FeatureCommand.model_validate(message.get("command")).check(self.capability)
             async with self.lock:
+                if command.operation == "start":
+                    plan = self.plan(await self.world.snapshot(), command.action)
+                    if plan["mode"] == "blocked":
+                        raise ValueError(plan["reason"])
                 if command.operation != "status":
                     await self.cancel()
                 if command.operation == "reset":
-                    await self.world.reset()
+                    await self.reset_world()
+                    self.recovery_error = None
+                    self.stop_unconfirmed = False
                     self.current = {"status": "idle", "verified": None, "phase": "ready"}
                 elif command.operation == "start":
+                    plan = self.plan(await self.world.snapshot(), command.action)
+                    if plan["mode"] == "blocked":
+                        raise ValueError(plan["reason"])
                     self.world.metrics = {}
                     self.current = {
                         "id": command.request_id,
@@ -111,7 +196,10 @@ class Worker:
                         "status": "running",
                         "verified": None,
                         "started_at": time.time(),
-                        "phase": "running",
+                        "phase": "preparing" if plan["mode"] == "restart" else "running",
+                        "preparation": plan["mode"],
+                        "restarted": False,
+                        "message": plan["reason"],
                     }
                 if command.operation != "status":
                     # Publish the accepted state before starting policy work.
@@ -119,7 +207,7 @@ class Worker:
                     # old idle snapshot after receiving a successful RPC reply.
                     self.emit({"type": "state", "state": await self.snapshot()})
                 if command.operation == "start":
-                    self.task = asyncio.create_task(self.run(command))
+                    self.task = asyncio.create_task(self.run(command, plan))
                 result = dict(self.current)
             self.emit({"type": "reply", "id": key, "result": result})
         except ValueError as exc:

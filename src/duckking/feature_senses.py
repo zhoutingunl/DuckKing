@@ -365,7 +365,10 @@ class SensesWorld(PolicyWorld):
             self.command[:3] = [0.3 if abs(angle) < 0.35 else 0, 0, np.clip(angle * 2, -0.8, 0.8)]
             self.metrics["distance_m_to_target"] = float(np.linalg.norm(position - goal))
             await self.advance(0.02)
-        return {"verified": False, "message": "规定时间内未到达，请重置后再试", **self.metrics}
+        return {
+            "verified": False, "message": "规定时间内未到达，已暂停；可再次发出指令。",
+            **self.metrics,
+        }
 
     async def perform(self, command):
         self.metrics = {}

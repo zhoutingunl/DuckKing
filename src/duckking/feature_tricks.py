@@ -117,7 +117,7 @@ class TricksWorld(PolicyWorld):
                         if g in self.cone_ids:
                             self.hit_cones.add(self.cone_ids[g])
         if not np.isfinite(self.data.qpos).all():
-            raise ValueError("物理数值异常，已暂停，请重置")
+            raise ValueError("物理数值异常，已暂停；请重新准备场景。")
 
     def configure_spec(self, spec):
         if self.capability == "roller_slalom":
@@ -149,7 +149,7 @@ class TricksWorld(PolicyWorld):
 
     async def perform(self, command):
         if self.trial_started:
-            raise ValueError("本轮已结束，请先重置场景再试")
+            raise ValueError("本轮已结束；再次点击动作会自动重置起点。")
         self.trial_started = True
         origin = self.data.qpos[:2].copy()
         start = self.data.time

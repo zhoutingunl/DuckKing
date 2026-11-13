@@ -170,7 +170,7 @@ class PolicyWorld:
             if observer := getattr(self, "substep_observer", None):
                 observer()
             if self.data.time <= previous or not np.isfinite(self.data.qpos).all():
-                raise ValueError("物理数值异常，已暂停，请重置")
+                raise ValueError("物理数值异常，已暂停；请重新准备场景。")
 
     def upright(self):
         return float(self.data.xmat[self.body].reshape(3, 3)[2, 2])
@@ -232,7 +232,7 @@ class PolicyWorld:
             self.tick()
             self.metrics.update(sim_time=float(self.data.time), support_feet=sum(self.support()))
             if not allow_head_support and self.upright() < 0.3:
-                raise ValueError("身体失稳，已暂停；可重置后再试")
+                raise ValueError("身体失稳，已暂停；再次点击动作会自动恢复起点。")
             if observer:
                 observer()
             deadline += 0.02
@@ -241,7 +241,7 @@ class PolicyWorld:
     async def perform(self, command):
         if self.capability == "hop":
             if self.upright() < 0.8 or not all(self.support()):
-                raise ValueError("请先重置，让双脚站稳后再起跳")
+                raise ValueError("双脚尚未站稳，已暂停；再次点击动作会自动恢复起点。")
             self.active_policy = self.walk
             self.command[:] = 0
             await self.advance(1)
@@ -314,10 +314,15 @@ class PolicyWorld:
             }
         raise ValueError("此策略的控制适配尚未完成")
 
+    def start_condition(self, action):
+        if self.capability == "hop" and (self.upright() < 0.8 or not all(self.support())):
+            return {"mode": "restart", "reason": "小鸭失稳，正在自动恢复起点。"}
+        return None
+
     async def stop(self):
         self.command[:] = 0
-        # A frozen experiment retains the actual pose; reset is explicit. Never
-        # switch a falling or seated body blindly to a walking policy.
+        # Keep the actual finish visible. The next command decides whether to
+        # continue here or prepare a new trial before executing.
 
     async def reset(self):
         self.reset_state()

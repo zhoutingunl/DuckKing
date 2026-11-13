@@ -37,8 +37,8 @@ const sources={
  stilts:'八档高度分别使用对应的策略、质量和碰撞模型；只能在仿真中尝试。更换高度会重新准备场景。20 cm 在 Linux 试跑中失稳，其他平台也可能失败。',
  backflip:'实验：高台到软垫落差 0.8 m；软垫为数值接触模型。翻转完成后仍需落垫站稳，可能失败。',
 
- running:'社区快跑策略：指令速度 2.2 m/s，实际速度与方向可能偏离；五秒后暂停，重试需重置。未做实体机验证。',
- basketball:'盲 LSTM 策略：输入只有本体感觉与记忆，不读取球的位置。初始已站在球顶，不包含爬球或落地后重新上球。',
+ running:'社区快跑策略：指令速度 2.2 m/s，实际速度与方向可能偏离；五秒后暂停，下次点击会自动准备起点。未做实体机验证。',
+ basketball:'盲 LSTM 策略：输入只有本体感觉与记忆，不读取球的位置。在球上时可连续发指令；跌落后新指令会恢复仿真起点，不是自主爬球。',
  long_jump:'社区跳台策略：间隙 30 cm、落差 25 cm；已知几何参数，不使用视觉。双脚落台并稳定一秒才通过。',
 
  movement:'官方步态与有界动作控制。',
@@ -68,11 +68,20 @@ function appendLog(text,label='任务'){
  const row=document.createElement('p'),tag=document.createElement('strong');tag.textContent=translate(label)+' ';row.append(tag,document.createTextNode(text));$('activity-log').append(row);
  while($('activity-log').children.length>60)$('activity-log').firstChild.remove();
 }
-function unavailable(){return busy||!online||!latest||latest.feature?.capability!==selected?.id||revision!==latest.revision?'请等小鸭显示后再开始。':''}
+function unavailable(action){
+ if(busy||!online||!latest||latest.feature?.capability!==selected?.id||revision!==latest.revision)return '请等小鸭显示后再开始。';
+ if(latest.feature.recovery_required)return latest.feature.recovery_reason;
+ if(latest.feature.phase==='preparing')return '请等待场景准备完成。';
+ const availability=latest.feature.actions?.[action];
+ return availability?.enabled===false?availability.reason:'';
+}
 function controls(){
- for(const b of document.querySelectorAll('[data-feature-action]'))b.disabled=!!unavailable();
- $('stop-feature').disabled=$('reset-feature').disabled=$('release-feature').disabled=!latest||busy;
+ for(const b of document.querySelectorAll('[data-feature-action]')){const reason=unavailable(b.dataset.featureAction);b.disabled=!!reason;b.title=reason?translate(reason):''}
+ const reasons=unavailable()?[unavailable()]:Object.values(latest?.feature?.actions??{}).filter(a=>!a.enabled).map(a=>a.reason);
+ $('feature-action-hint').textContent=[...new Set(reasons)].map(reason=>translate(reason)).join(' ');$('feature-action-hint').hidden=!reasons.length;
+ $('stop-feature').disabled=$('release-feature').disabled=!latest||busy;
  $('prepare-feature').disabled=busy;$('stilt-height').disabled=busy;
+ $('prepare-feature').hidden=busy||!!(latest&&!latest.error&&!latest.feature?.recovery_required&&online);
  for(const b of document.querySelectorAll('[data-capability]'))b.disabled=busy;
  window.dispatchEvent(new Event('duckking-voice-readiness'));
 }
@@ -135,7 +144,7 @@ function update(packet){
  }
  if(state.feature.capability!==selected?.id||state.revision!==expectedRevision)return;latest=state;online=!state.error;
  viewer?.update(state);choir.update(state.seated_choir);sound.update(state.feature);
- const f=state.feature;$('task-status').textContent=statusLabels[f.status]??f.status;$('result-message').textContent=f.message??'';
+ const f=state.feature;$('task-status').textContent=f.phase==='preparing'?'正在准备场景':statusLabels[f.status]??f.status;$('result-message').textContent=f.message??'';
  $('task-status').dataset.outcome=f.status;
  $('feature-winner').hidden=!f.outcome?.winner;$('feature-winner').textContent=({a:'鸭 A 获胜',b:'鸭 B 获胜',draw:'平局'})[f.outcome?.winner]??'';
  $('feature-metrics').replaceChildren();
@@ -149,7 +158,7 @@ function update(packet){
  if(state.error)notify(state.error);controls();
 }
 async function command(action){
- if(unavailable())return;void visits.ensure(selected.id);try{
+ const reason=unavailable(action);if(reason){notify(translate(reason));return}void visits.ensure(selected.id);try{
   const entry=selected;
   const body={operation:'start',action,request_id:requestId()};
   if(entry.id==='movement'){body.duration=Number($('feature-duration').value);body.speed=Number($('feature-speed').value)}
@@ -158,13 +167,13 @@ async function command(action){
    await enableSceneSound();
    if(entry.id==='emotions')await sound.load(action);
   },async()=>{
-   if(unavailable())return;
+   if(unavailable(action))return;
    await api('api/features/command',body);appendLog(translate(labels[action]),'本地演示');await feed.refresh();
   });
  }catch(error){notify(error.message)}
 }
 async function control(operation){intent.cancel();try{choir.stop();sound.stop();await api('api/features/command',{operation,request_id:requestId()});await feed.refresh()}catch(error){notify(error.message)}}
-$('stop-feature').addEventListener('click',()=>control('stop'));$('reset-feature').addEventListener('click',()=>control('reset'));
+$('stop-feature').addEventListener('click',()=>control('stop'));
 $('prepare-feature').addEventListener('click',()=>select(selected,true));$('reset-camera').addEventListener('click',()=>viewer?.reset());$('clear-log').addEventListener('click',()=>$('activity-log').replaceChildren());
 $('release-feature').addEventListener('click',async()=>{if(busy)return;intent.cancel();busy=true;controls();try{await disconnect();await api('api/scenes/close',{});epoch++;modelAbort?.abort();latest=null;revision=expectedRevision=null;choir.stop();sound.stop();viewer?.clear();feedback.reset('场景已释放，点击重新准备即可继续。')}catch(error){notify(error.message)}finally{busy=false;controls()}});
 window.addEventListener('keydown',event=>{if(event.key==='Escape'&&latest)void control('stop')});
