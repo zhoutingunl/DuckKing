@@ -19,7 +19,7 @@ test('language cycles preserve the document, canvas, room and canonical status l
  expect(prior.ok()).toBe(true);
  let modelRequests=0;
  page.on('request',request=>{if(/(?:model|manifest|\.dkm|\.glb)/.test(request.url()))modelRequests++});
- await page.goto('/?room=1&lang=zh&measurement=verification#duck');
+ await page.goto('/index.html?room=1&lang=zh&measurement=verification#duck');
  await expect(page.locator('#data-source')).toHaveText('本地预览');
  await expect(page.locator('#voice-mode')).toBeEnabled();
  await page.evaluate(()=>{window.originalCanvas=document.querySelector('#viewport canvas');window.originalDocument=document;});
@@ -48,7 +48,7 @@ test('language cycles preserve the document, canvas, room and canonical status l
 
 test('temporary language and scene restrictions never overwrite the preferred voice mode',async({page})=>{
  await localModes(page);
- await page.goto('/?room=1&lang=zh');
+ await page.goto('/index.html?room=1&lang=zh');
  await expect(page.locator('#voice-mode')).toBeEnabled();
  await page.selectOption('#voice-mode','local_first');
  for(const lang of ['fr','en']){
@@ -65,7 +65,7 @@ test('temporary language and scene restrictions never overwrite the preferred vo
  await expect(page.locator('#voice-mode')).toBeEnabled();
  await expect(page.locator('#voice-mode')).toHaveValue('cloud');
  expect(await page.evaluate(()=>sessionStorage.getItem('duckking.voice-mode'))).toBe('local_first');
- await page.goto('/?room=1');
+ await page.goto('/index.html?room=1');
  await expect(page.locator('#voice-mode')).toHaveValue('local_first');
  await page.selectOption('#voice-mode','cloud');
  await choose(page,'fr');await choose(page,'zh');
@@ -83,7 +83,7 @@ test('switching language cancels capture and old voice frames; reconnect uses th
    if(data.type==='connect')socket.send(JSON.stringify({type:'voice_status',state:'ready',mode:data.mode}));
   });
  });
- await page.goto('/?room=1&lang=zh');
+ await page.goto('/index.html?room=1&lang=zh');
  await expect(page.locator('#voice-mode')).toBeEnabled();
  await page.selectOption('#voice-mode','cloud');
  await page.locator('#connect-voice').click();
@@ -128,7 +128,7 @@ for(const state of ['connecting','ready','speaking'])test(`language change disco
   if(typeof raw!=='string')return;const data=JSON.parse(raw);commands.push(data);
   if(data.type==='connect')socket.send(JSON.stringify({type:'voice_status',state,language:'zh'}));
  })});
- await page.goto('/?room=1&lang=zh');await expect(page.locator('#voice-mode')).toBeEnabled();
+ await page.goto('/index.html?room=1&lang=zh');await expect(page.locator('#voice-mode')).toBeEnabled();
  await page.selectOption('#voice-mode','cloud');await page.locator('#connect-voice').click();
  await expect.poll(()=>commands.filter(x=>x.type==='connect').length).toBe(1);
  await expect(page.locator('#connect-voice')).toHaveAttribute('data-state',state);
@@ -146,7 +146,7 @@ for(const state of ['connecting','ready','speaking'])test(`language change disco
 test('connection waiting shows real stage and elapsed time, cancels cleanly and resets on retry',async({page})=>{
  const commands=[];let channel;
  await page.routeWebSocket('**/voice',socket=>{channel=socket;socket.onMessage(raw=>{if(typeof raw==='string')commands.push(JSON.parse(raw))})});
- await page.goto('/?room=1&lang=en');
+ await page.goto('/index.html?room=1&lang=en');
  await page.locator('#connect-voice').click();
  const progress=page.locator('#voice-connection-progress');
  await expect(progress).toContainText('Waiting for the voice service');

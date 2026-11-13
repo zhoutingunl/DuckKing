@@ -67,7 +67,7 @@ test('cancelled scene download stays blocked and retries without restarting the 
 
 test('Space preserves native controls and records only from the page or talk button',async({page,context})=>{
   await context.grantPermissions(['microphone']);const voice=await voiceFixture(page);
-  await page.goto('/?room=1');await expect(page.locator('#connection-label')).toContainText('已连接');
+  await page.goto('/index.html?room=1');await expect(page.locator('#connection-label')).toContainText('已连接');
   for(const selector of ['#enable-sound','[data-action="nod"]']){
     await page.locator(selector).evaluate(el=>{window.auditClicks=0;el.addEventListener('click',()=>window.auditClicks++)});
     await page.locator(selector).focus();await page.keyboard.press('Space');await expect.poll(()=>page.evaluate(()=>window.auditClicks)).toBe(1);
@@ -89,7 +89,7 @@ test('Space preserves native controls and records only from the page or talk but
 
 test('routing follows fallback, new local turn, stale generation and disconnect',async({page,context})=>{
   await context.grantPermissions(['microphone']);await page.route('**/api/voice/modes*',r=>r.fulfill({json:{local_first:true,available:true}}));
-  const voice=await voiceFixture(page,'voice','local_first');await page.goto('/?room=1');await page.locator('#connect-voice').click();await expect(page.locator('#talk-button')).toBeEnabled();
+  const voice=await voiceFixture(page,'voice','local_first');await page.goto('/index.html?room=1');await page.locator('#connect-voice').click();await expect(page.locator('#talk-button')).toBeEnabled();
   voice.setGeneration(1);voice.send({type:'voice_status',state:'thinking',route:'local_recognizing'});voice.send({type:'voice_route',route:'cloud_fallback',reason:'unmatched'});voice.send({type:'voice_status',state:'connecting',route:'cloud_fallback'});
   await expect(page.locator('#voice-route')).toContainText('正在连接灵矽');
   voice.send({type:'voice_status',state:'speaking',route:'cloud_fallback'});await expect(page.locator('#voice-route')).toContainText('正在回复');
@@ -106,7 +106,7 @@ test.describe('touch viewport',()=>{
 test.use({isMobile:true,hasTouch:true});
 for(const viewport of [{width:390,height:844},{width:430,height:932}])test(`mobile ${viewport.width} keeps the duck beside speech and retains one action stop`,async({page,context},info)=>{
   await page.setViewportSize(viewport);await context.grantPermissions(['microphone']);const voice=await voiceFixture(page);
-  await page.goto('/?room=1');await expect(page.locator('#viewport')).toHaveAttribute('data-model','official',{timeout:45000});
+  await page.goto('/index.html?room=1');await expect(page.locator('#viewport')).toHaveAttribute('data-model','official',{timeout:45000});
   await expect(page.locator('#connect-voice')).toBeInViewport();await expect(page.locator('.room-options')).toBeHidden();
   await page.screenshot({path:info.outputPath('mobile-first.png')});
   await page.locator('.room-toggle').click();await expect(page.locator('#create-room')).toBeVisible();await page.locator('.room-toggle').click();
@@ -126,7 +126,7 @@ for(const viewport of [{width:390,height:844},{width:430,height:932}])test(`mobi
 });
 
 test('home and studio action results use Chinese while raw identifiers stay in details',async({page,request})=>{
-  await page.goto('/?room=1');await page.locator('[data-action="nod"]').click();
+  await page.goto('/index.html?room=1');await page.locator('[data-action="nod"]').click();
   await expect.poll(()=>page.locator('#activity-log').innerText()).toContain('点头 · 已完成');
   expect(await page.locator('#activity-log').innerText()).not.toContain('completed');
   await page.locator('#activity-log .action-diagnostics').last().locator('summary').click();await expect(page.locator('#activity-log')).toContainText('nod · completed');

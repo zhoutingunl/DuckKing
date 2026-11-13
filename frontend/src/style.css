@@ -76,3 +76,14 @@
 
 .voice-toggle svg{flex:none}
 .voice-toggle-copy{display:flex;flex-direction:column;gap:2px;min-width:0}
+
+.workbench-stage-tools{display:flex;align-items:center;gap:12px}.workbench-stage-tools button{white-space:nowrap}.workbench-scene-settings{padding:12px 20px;background:#f7f9f1;font-size:13px;color:#63714f}.workbench-scene-settings select{margin-left:12px;font:inherit;color:inherit;background:white;border:1px solid #d7dfbd;border-radius:8px;padding:8px}.workbench-scene-settings p{margin:8px 0 0;font-size:12px}
+@media(max-width:760px){.workbench-stage-tools{gap:8px}.workbench-stage-tools .subtle-button{font-size:11px}.workbench-scene-settings{padding:8px 12px}.workbench-scene-settings select{font-size:16px}}
+@media(max-width:480px){
+ .home-page .workbench-stage-tools{gap:4px}
+ .home-page .workbench-stage-tools #reset-camera,.features-page .feature-stage-tools #reset-camera{font-size:0;min-width:32px;min-height:32px;padding:4px;margin-left:0}
+ .home-page .workbench-stage-tools #reset-camera::before,.features-page .feature-stage-tools #reset-camera::before{content:'↺';font-size:20px}
+}
+
+.scene-settings-short{display:none}
+@media(max-width:480px){.scene-settings-long{display:none}.scene-settings-short{display:inline}}

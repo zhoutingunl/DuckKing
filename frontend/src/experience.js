@@ -4,7 +4,7 @@ import {appURL,currentRoom} from './urls.js';
 
 export function context({traffic}={}){
   const file=location.pathname.split('/').at(-1),page=({
-    'scenarios.html':'scenarios','demos.html':'demos','studio.html':'studio','balance.html':'balance','seesaw.html':'seesaw',
+    'scenarios.html':'scenarios','demos.html':'demos','studio.html':'studio','balance.html':'balance','seesaw.html':'seesaw','features.html':'features',
   })[file]??'home';
   return {id:requestId(),page,
     traffic:navigator.webdriver||new URL(location.href).searchParams.get('measurement')==='verification'
@@ -41,7 +41,7 @@ if(typeof window!=='undefined')window.addEventListener('pagehide',()=>void flush
 
 export function measurement(kind,{room=currentRoom??'1',traffic,backend,started=performance.now()}={}){
   const event={...context({traffic}),kind,sequence:0,status:'started',route:'pending',cache:'unknown',
-    backend:backend??(['scenarios.html','studio.html','demos.html','balance.html','seesaw.html'].some(page=>location.pathname.endsWith(page))?'mujoco':'unknown'),metrics:{},hidden:document.hidden};
+    backend:backend??(['scenarios.html','studio.html','demos.html','balance.html','seesaw.html','features.html'].some(page=>location.pathname.endsWith(page))?'mujoco':'unknown'),metrics:{},hidden:document.hidden};
   let done=false;
   const emit=()=>{event.sequence++;event.hidden||=document.hidden;report(event,room)};
   const visibility=()=>{event.hidden||=document.hidden};

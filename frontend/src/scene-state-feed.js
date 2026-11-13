@@ -24,7 +24,8 @@ export function sceneStateFeed({readState,onState,onStatus,
   const data=packet(value);
   lastState=now();
   active=(data.backend?.balance?.comparison?.execution??data.backend?.balance?.execution)==='running'
-    ||data.backend?.seesaw?.execution==='running'||data.backend?.seesaw?.comparison?.execution==='running';
+    ||data.backend?.seesaw?.execution==='running'||data.backend?.seesaw?.comparison?.execution==='running'
+    ||data.backend?.feature?.status==='running';
   status(channel);onState(data);
  }
  function cancelRead(){

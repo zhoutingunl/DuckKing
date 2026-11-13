@@ -83,10 +83,13 @@ export function appearanceControls(container,onChange) {
     container.dataset.colourways=JSON.stringify(colours);
   }
   target.addEventListener('change',refresh);container.append(panel);
+  const compact=matchMedia('(max-width:760px)');
+  function place(){const footer=container.querySelector('.physics-caption')??container.closest('.stage-card')?.querySelector('.stage-caption');if(compact.matches&&footer)footer.prepend(panel);else container.append(panel)}
+  place();compact.addEventListener('change',place);
   return {colours,setDucks(ids){
     const previous=target.value;target.replaceChildren();
     for(const id of [...new Set(ids)].filter(id=>Object.hasOwn(DEFAULTS,id))){const option=document.createElement('option');option.value=id;option.textContent=`鸭 ${id.toUpperCase()}`;target.append(option);}
     if([...target.options].some(option=>option.value===previous))target.value=previous;
     target.hidden=target.options.length<2;panel.hidden=!target.options.length;refresh();
-  },dispose(){panel.remove();delete container.dataset.colourways;}};
+  },dispose(){compact.removeEventListener('change',place);panel.remove();delete container.dataset.colourways;}};
 }

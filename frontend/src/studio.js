@@ -1,4 +1,4 @@
-import {setLogText,currentLanguage} from './ui-language.js';
+import {setLogText,currentVoiceLanguage} from './ui-language.js';
 import {createLoadingState} from './loading-state.js';
 import {requestId} from './ids.js';
 import {actionEventText,appendActionDetails} from './action-labels.js';
@@ -111,14 +111,14 @@ const voice=setupVoice({appendLog,notify,endpoint:'scene-voice',cloudOnly:true})
 
 let profileRequest=0;
 async function loadVoiceProfiles(){
- const request=++profileRequest,language=currentLanguage();
+ const request=++profileRequest,language=currentVoiceLanguage();
  const previousValues=new Map(['voice-profile','voice-persona'].map(id=>[id,$(id).value]));
  $('apply-voice').disabled=$('apply-persona').disabled=true;
  for(const id of previousValues.keys()){$(id).replaceChildren();$(id).disabled=true}
  let data;
  try{data=await api(`api/voice/profiles?language=${language}`,currentRoom)}
- catch(error){if(request===profileRequest&&language===currentLanguage())throw error;return}
- if(request!==profileRequest||language!==currentLanguage())return;
+ catch(error){if(request===profileRequest&&language===currentVoiceLanguage())throw error;return}
+ if(request!==profileRequest||language!==currentVoiceLanguage())return;
  for(const [id,entries] of [['voice-profile',data.voices],['voice-persona',[{key:'default',label:'默认鸭王'},...data.personas]]]){
   const select=$(id),previous=previousValues.get(id);select.replaceChildren();select.disabled=!entries.length;
   for(const entry of entries){const option=document.createElement('option');option.value=entry.key;option.textContent=entry.label;select.append(option)}

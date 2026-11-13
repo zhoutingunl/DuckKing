@@ -31,7 +31,7 @@ def commit_history(commit: str):
     return rows
 
 
-def build(ref: str, version: str, output: Path, coverage_summaries=()):
+def build(ref: str, version: str, output: Path, coverage_summaries=(), *, with_features=True):
     if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{0,79}", version):
         raise ValueError("Invalid release version")
     commit = subprocess.check_output(
@@ -96,6 +96,13 @@ def build(ref: str, version: str, output: Path, coverage_summaries=()):
             )
             + "\n"
         )
+        feature_fetcher = tree / "scripts/fetch_feature_assets.py"
+        if with_features and feature_fetcher.exists():
+            subprocess.run([sys.executable, str(feature_fetcher)], check=True,
+                           env=os.environ | {"DUCKKING_SIM_DIR": str(cache)})
+            features = runpy.run_path(str(feature_fetcher))
+            features["package_assets"](cache / "features", assets / "features")
+            features["verify_package"](assets / "features")
         asr_fetcher = tree / "scripts/fetch_asr_assets.py"
         subprocess.run(
             [sys.executable, str(asr_fetcher)], check=True,
@@ -139,5 +146,8 @@ if __name__ == "__main__":
     parser.add_argument("--version", required=True)
     parser.add_argument("--output", type=Path, default=ROOT / ".duckking/releases")
     parser.add_argument("--coverage-summary", type=Path, action="append", default=[])
+    parser.add_argument("--without-features", action="store_true",
+                        help="Omit optional capability assets (those scenes will be unavailable)")
     args = parser.parse_args()
-    build(args.ref, args.version, args.output, args.coverage_summary)
+    build(args.ref, args.version, args.output, args.coverage_summary,
+          with_features=not args.without_features)

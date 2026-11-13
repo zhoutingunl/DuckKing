@@ -17,12 +17,12 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from .statistics import distribution
 
-Page = Literal["home", "scenarios", "demos", "studio", "balance", "seesaw", "unknown"]
+Page = Literal["home", "scenarios", "demos", "studio", "balance", "seesaw", "features", "unknown"]
 Traffic = Literal["interactive", "demo", "verification", "unattributed"]
 Device = Literal["mobile", "desktop", "unknown"]
 Scene = Literal[
     "ball", "duo", "carry", "skills", "rollers", "table", "seated", "stage", "balance", "seesaw",
-    "unknown"
+    "functional", "unknown"
 ]
 METRICS = {
     "model_ms", "scene_ms", "navigation_ms", "manifest_ms", "asset_ms", "parse_ms",

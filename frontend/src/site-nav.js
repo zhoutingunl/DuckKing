@@ -1,19 +1,20 @@
 import './style.css';
 import './site-nav.css';
 import './mobile-stage.js';
-import {currentLanguage, setLanguage, initUILanguage} from './ui-language.js';
+import {currentLanguage, currentVoiceLanguage, setVoiceLanguage, setLanguage, initUILanguage} from './ui-language.js';
 
 await initUILanguage();
 
 // Every page shares the same destinations, order and room-preservation rules.
 const destinations=[
- ['index.html','首页'],
+ ['features.html','首页'],
+ ['index.html','语音工作台'],
  ['scenarios.html','动作训练场'],['demos.html','演示场景'],
  ['studio.html','现场互动'],['training.html','训练新动作'],
  ['statistics.html','交互统计',true],['experience.html','使用体验',true],
  ['deploys.html','部署记录',true],
 ];
-const languages=[['zh','中文'],['en','English'],['fr','Français']];
+const languages=[['zh','中文'],['en','English'],['fr','Français'],['ja','日本語（音声）']];
 const nav=document.querySelector('.site-topbar nav');
 if(nav){
  const page=location.pathname.split('/').at(-1)||'index.html';
@@ -25,7 +26,7 @@ if(nav){
  for(const [path,label,newTab] of destinations){
   const link=document.createElement('a'),url=new URL('./'+path,location.href);
   if(room&&/^\d+$/.test(room)&&path!=='deploys.html')url.searchParams.set('room',room);
-  link.href=url;link.textContent=label;
+  if(path==='features.html')url.searchParams.set('sort','top');link.href=url;link.textContent=label;
   if(newTab){link.target='_blank';link.rel='noopener';link.title='新标签页打开，保留当前语音与场景'}
   if(page===path)link.setAttribute('aria-current','page');
   else if(path==='training.html'&&['balance.html','seesaw.html'].includes(page))link.setAttribute('aria-current','location');
@@ -47,10 +48,10 @@ if(nav){
  for(const [code,name] of languages){
   const option=document.createElement('button');
   option.type='button';option.setAttribute('role','menuitem');option.textContent=name;option.dataset.lang=code;
-  option.addEventListener('click',()=>{menu.hidden=true;button.setAttribute('aria-expanded','false');setLanguage(code)});
+  option.addEventListener('click',()=>{menu.hidden=true;button.setAttribute('aria-expanded','false');code==='ja'?setVoiceLanguage(code):setLanguage(code)});
   menu.append(option);
  }
- const markCurrent=()=>{for(const option of menu.children)option.setAttribute('aria-current',option.dataset.lang===currentLanguage()?'true':'false')};
+ const markCurrent=()=>{for(const option of menu.children)option.setAttribute('aria-current',option.dataset.lang===(currentVoiceLanguage()==='ja'?'ja':currentLanguage())?'true':'false')};
  markCurrent();
  button.addEventListener('click',()=>{menu.hidden=!menu.hidden;button.setAttribute('aria-expanded',String(!menu.hidden))});
  document.addEventListener('click',event=>{if(!wrap.contains(event.target)){menu.hidden=true;button.setAttribute('aria-expanded','false')}});

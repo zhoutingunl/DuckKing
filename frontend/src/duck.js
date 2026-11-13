@@ -1,3 +1,4 @@
+import {groundStyle} from './ground-style.js';
 import {createLoadingState} from './loading-state.js';
 import {measurement,loadMetrics} from './experience.js';
 import * as THREE from 'three';
@@ -28,6 +29,7 @@ export function createDuckScene(container,{onLoad=()=>{}}={}) {
   const disposeEnvironment=studioEnvironment(renderer,scene,{reduced});
   const floor=new THREE.Mesh(new THREE.PlaneGeometry(100,100),new THREE.MeshStandardMaterial({color:'#edf0e5'}));floor.rotation.x=-Math.PI/2;floor.receiveShadow=true;scene.add(floor);
   const grid=new THREE.GridHelper(12,48,0xd9dfce,0xe0e5d7);grid.position.y=.001;scene.add(grid);
+  const ground=groundStyle(floor,grid,()=>{needsRender=true});
   const duck=new THREE.Group();duck.scale.setScalar(5);scene.add(duck);
   const basis=new THREE.Group();basis.rotation.x=-Math.PI/2;duck.add(basis);
   const joints=new Map(), geometries=[], materials=[];
@@ -116,5 +118,5 @@ export function createDuckScene(container,{onLoad=()=>{}}={}) {
     if(!reduced&&slowFrames>=3){reduced=true;scene.environment=null;renderer.shadowMap.enabled=false;materials.forEach(m=>m.needsUpdate=true);resize();}
     timer=setTimeout(()=>{frame=requestAnimationFrame(animate);},reduced?100:33);
   }animate();
-  return {update(next){state=next;const key=JSON.stringify([next.pose,next.velocity]);if(key!==poseKey){poseKey=key;needsRender=true}},resetCamera(){controls.reset()},dispose(){loadExperience?.finish('cancelled');disposed=true;abort.abort();clearTimeout(timer);cancelAnimationFrame(frame);observer.disconnect();appearance.dispose();disposeEnvironment();geometries.forEach(g=>g.dispose());materials.forEach(m=>m.dispose());renderer.dispose();controls.dispose();status.remove();}};
+  return {setGround:ground.apply,update(next){state=next;const key=JSON.stringify([next.pose,next.velocity]);if(key!==poseKey){poseKey=key;needsRender=true}},resetCamera(){controls.reset()},dispose(){loadExperience?.finish('cancelled');disposed=true;abort.abort();clearTimeout(timer);cancelAnimationFrame(frame);observer.disconnect();appearance.dispose();disposeEnvironment();ground.dispose();geometries.forEach(g=>g.dispose());materials.forEach(m=>m.dispose());renderer.dispose();controls.dispose();status.remove();}};
 }

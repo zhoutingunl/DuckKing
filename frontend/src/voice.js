@@ -1,4 +1,4 @@
-import {currentLanguage,translate} from './ui-language.js';
+import {currentVoiceLanguage,translate} from './ui-language.js';
 import {VoiceExperience} from './experience.js';
 import { PCMFramer } from './audio-codec.js';
 import { appURL } from './urls.js';
@@ -16,7 +16,7 @@ export function setupVoice({appendLog,notify,endpoint='/voice',cloudOnly=false,b
   const micRetry=document.createElement('button');micRetry.id='prepare-microphone';micRetry.type='button';
   micRetry.className='connect-button mic-retry';micRetry.hidden=true;$('voice-caption').after(micRetry);
   let mode='cloud',route='cloud',modesReady=false,localAvailable=true,localSupported=false;
-  const cloudRequired=()=>cloudOnly||currentLanguage()!=='zh';
+  const cloudRequired=()=>cloudOnly||currentVoiceLanguage()!=='zh';
   let routeReason='',routeAsrMs,localFeedback='',spaceHeld=false;
   function clearRoute(){route=mode==='cloud'?'cloud':'local_ready';routeReason='';routeAsrMs=undefined;localFeedback='';}
   const experience=new VoiceExperience();
@@ -48,7 +48,7 @@ export function setupVoice({appendLog,notify,endpoint='/voice',cloudOnly=false,b
       modeSelect.value=mode;
       modeSelect.querySelector('[value=local_first]').disabled=cloudRequired()||!localSupported;
     }
-    languageHint.hidden=currentLanguage()==='zh';
+    languageHint.hidden=currentVoiceLanguage()==='zh';
     clearRoute();update();
   }
   const reasons={unmatched:'整句未完整匹配动作',unsupported_context:'当前场景不支持整句动作',plan_limit:'指令超出本地动作范围',empty_or_long:'识别内容不足或过长',asr_timeout:'本地识别超时',asr_unavailable:'本地识别暂不可用'};
@@ -67,7 +67,10 @@ export function setupVoice({appendLog,notify,endpoint='/voice',cloudOnly=false,b
   const labels={disconnected:'未连接灵矽',disconnecting:'正在断开连接',connecting:'正在连接',recovering:'正在恢复连接',interrupting:'正在切换新指令',awaiting_binding:'等待设备绑定',ready:'灵矽已连接',listening:'正在聆听',thinking:'正在思考',speaking:'正在回答',error:'连接异常',busy:'本房间语音正在使用'};
   function update(){
     syncConnectionProgress();
-    languageHint.hidden=currentLanguage()==='zh';
+    languageHint.hidden=currentVoiceLanguage()==='zh';
+    languageHint.textContent=currentVoiceLanguage()==='ja'
+      ?'日语识别与回复由灵矽提供；界面语言保持不变。'
+      :'仅中文支持本地识别；当前语言使用灵矽云端。';
     const unavailable=listenUnavailable();
     if($('voice-route'))$('voice-route').textContent=voiceRouteText({mode,state,route,reason:routeReason,asrMs:routeAsrMs,localFeedback});
     if(mode==='local_first'&&!localAvailable&&state==='disconnected')$('voice-route').textContent='本地识别暂未就绪；本地优先模式会明确转交灵矽。';
@@ -236,13 +239,13 @@ export function setupVoice({appendLog,notify,endpoint='/voice',cloudOnly=false,b
     voiceNotice=null;
     generation=minGeneration=0;clearRoute();
     state='connecting';update();
-    if(ws?.readyState===WebSocket.OPEN){send({type:'connect',mode,language:currentLanguage()});void prepareMicrophone();return}
+    if(ws?.readyState===WebSocket.OPEN){send({type:'connect',mode,language:currentVoiceLanguage()});void prepareMicrophone();return}
     let receivedStatus=false;
     let owner=true;
     const channel=createSocket(endpoint);ws=channel;
     channel.onopen=()=>{
       if(ws!==channel)return;
-      send({type:'connect',mode,language:currentLanguage()});send({type:'playback_status',...output.snapshot()});
+      send({type:'connect',mode,language:currentVoiceLanguage()});send({type:'playback_status',...output.snapshot()});
       update();
       heartbeat=setInterval(()=>{if(ws===channel&&channel.readyState===WebSocket.OPEN)send({type:'ping'})},10000);
     };

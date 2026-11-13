@@ -37,7 +37,7 @@ server.serve_forever()
       gateway.once('exit',()=>{clearTimeout(timer);reject(new Error('Gateway exited: '+errors))});
     });
     const sockets=[];page.on('websocket',socket=>sockets.push(socket.url()));
-    await page.goto(prefix+'?room=1');await expect(page.locator('#connection-label')).toHaveText('本地工作台已连接');
+    await page.goto(prefix+'index.html?room=1');await expect(page.locator('#connection-label')).toHaveText('本地工作台已连接');
     await page.locator('[data-action="nod"]').click();await expect(page.locator('#activity-log')).toContainText('点头 · 已完成');
     // A second browser's local channel reserves the real backend device. Verify
     // release through HTTPS while its page/channel context remains alive.

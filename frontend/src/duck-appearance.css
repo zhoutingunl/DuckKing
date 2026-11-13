@@ -1,3 +1,4 @@
+.physics-caption{display:none}
 .duck-appearance{position:absolute;left:14px;bottom:14px;z-index:3;display:flex;align-items:center;gap:9px;padding:8px 11px;border:1px solid #d8decd;border-radius:14px;background:#fffffff0;box-shadow:0 3px 16px #24341b12;color:#424c37;font-size:12px;max-width:calc(100% - 28px)}
 .duck-appearance[hidden],.duck-appearance [hidden]{display:none}
 .appearance-caption{font-size:11px;color:#748066;white-space:nowrap}
@@ -19,4 +20,11 @@
   .appearance-swatch[aria-pressed=true]{box-shadow:none}
   .appearance-swatch[aria-pressed=true]::before{box-shadow:0 0 0 2px #465f2e}
   .duck-appearance select{min-width:56px;max-width:72px}
+}
+@media(max-width:760px){
+ .physics-caption{position:absolute;bottom:0;left:0;right:0;z-index:3;display:flex;align-items:center;gap:9px;padding:4px 8px;background:#edf0e5ed;min-height:44px}
+ .physics-caption .duck-appearance,.stage-caption .duck-appearance{position:static;flex:none;max-width:none;background:transparent;border:0;box-shadow:none;padding:0;margin:0}
+ .physics-status{font-size:11px;color:#60734d;overflow-wrap:anywhere;min-width:0}
+ .stage-caption{gap:10px}.stage-caption .duck-appearance+span{font-size:11px;min-width:0;overflow-wrap:anywhere}.stage-caption:has(.duck-appearance)>span:last-child{display:none}
+ .physics-caption .appearance-swatch,.stage-caption .appearance-swatch{width:32px;height:36px}.physics-caption .appearance-swatch::before,.stage-caption .appearance-swatch::before{width:20px;height:20px}
 }

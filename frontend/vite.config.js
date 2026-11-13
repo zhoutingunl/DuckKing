@@ -11,6 +11,14 @@ export default defineConfig({
   base: './',
   plugins: [{
     name: 'secure-public-entry',
+    configureServer(server) {
+      server.middlewares.use((req,res,next)=>{
+        const url=new URL(req.url,'http://localhost');
+        if(url.pathname!=='/')return next();
+        url.searchParams.set('sort','top');
+        res.writeHead(307,{Location:'/features.html?'+url.searchParams});res.end();
+      });
+    },
     // Runs before application modules, in both development HTML and every built page.
     transformIndexHtml() {
       return [{tag:'script',attrs:{src:'./secure-entry.js'},injectTo:'head-prepend'}];
@@ -22,6 +30,7 @@ export default defineConfig({
       output: {codeSplitting: {groups: [{name: 'three', test: /node_modules[\/]three/}]}},
       input: {
         main: fileURLToPath(new URL('./index.html', import.meta.url)),
+        features: fileURLToPath(new URL('./features.html', import.meta.url)),
         experience: fileURLToPath(new URL('./experience.html', import.meta.url)),
         statistics: fileURLToPath(new URL('./statistics.html', import.meta.url)),
         studio: fileURLToPath(new URL('./studio.html', import.meta.url)),

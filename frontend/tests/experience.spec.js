@@ -30,7 +30,7 @@ test('persistent experience filters, nearest-rank table, trend, export and failu
 
 test('real browser model loading persists without disconnecting the working page',async({page,context})=>{
   const posts=[];page.on('request',r=>{if(r.method()==='POST'&&new URL(r.url()).pathname==='/api/experience')posts.push(r.postDataJSON())});
-  await page.goto('/?room=1');
+  await page.goto('/index.html?room=1');
   await expect(page.locator('#viewport')).toHaveAttribute('data-model','official',{timeout:90000});
   await expect.poll(()=>posts.flatMap(p=>p.events).some(e=>e.kind==='load'&&e.status==='completed')).toBe(true);
   const load=posts.flatMap(p=>p.events).find(e=>e.kind==='load'&&e.status==='completed');
@@ -65,7 +65,7 @@ test('browser voice reports local and fallback timings from release, without spe
       }
     });
   });
-  await page.goto('/?room=2');await page.locator('#connect-voice').click();
+  await page.goto('/index.html?room=2');await page.locator('#connect-voice').click();
   await expect(page.locator('#talk-button')).toBeEnabled();
   await page.locator('#talk-button').dispatchEvent('pointerdown',{pointerId:1});
   await expect(page.locator('#voice-badge')).toHaveText('正在聆听');

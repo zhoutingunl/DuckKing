@@ -30,7 +30,7 @@ test('local-first source stays explicit and cloud mode remains selectable',async
       if(d.type==='disconnect')send({type:'voice_status',state:'disconnected'});
     });
   });
-  await page.goto('/?room=1');
+  await page.goto('/index.html?room=1');
   await expect(page.locator('#voice-mode')).toHaveValue('local_first');
   await expect(page.locator('#connect-voice')).toHaveAccessibleName('启用语音');
   await expect(page.locator('#connect-voice svg')).toHaveCount(1);
@@ -98,7 +98,7 @@ test('late capability response cannot switch an already connected cloud session'
   await page.routeWebSocket('**/voice',socket=>socket.onMessage(message=>{
     if(typeof message==='string'&&JSON.parse(message).type==='connect')socket.send(JSON.stringify({type:'voice_status',state:'ready'}));
   }));
-  await page.goto('/?room=1');
+  await page.goto('/index.html?room=1');
   await page.locator('#connect-voice').click();
   await expect(page.locator('#voice-badge')).toHaveText('灵矽已连接');
   release();

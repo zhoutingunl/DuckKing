@@ -58,13 +58,17 @@ class RoomRegistry:
 
     @staticmethod
     def busy(room):
+        feature_busy = (room.scene_motion is not None
+                        and getattr(room.scene_motion.backend, "scene", None) == "functional"
+                        and (room.scene_motion.backend.state or {}).get("feature", {})
+                        .get("status") == "running")
         # RL scenes own bounded tasks directly on their physics backends.
         physics_task = (getattr(room.scene_motion.backend, "task", None)
                         if (room.scene_motion
                             and getattr(room.scene_motion.backend, "scene", None)
                             in {"balance", "seesaw"})
                         else None)
-        return (getattr(room, "preparing", None) is not None or room.viewers
+        return (feature_busy or getattr(room, "preparing", None) is not None or room.viewers
                 or room.voice is not None or room.motion.current is not None
                 or (physics_task is not None and not physics_task.done())
                 or (room.scene_motion is not None and (room.scene_motion.current is not None
@@ -91,7 +95,7 @@ class RoomRegistry:
 
     def claim_result(self, number, language):
         result = {"room": number}
-        if language in {"fr", "en"}:
+        if language in {"fr", "en", "ja"}:
             from .voice_profiles import profiles
             available = f"language_{language}" in profiles(self.primary.settings)["agents"]
             result["voice_language"] = language if available else "default"
@@ -115,7 +119,7 @@ class RoomRegistry:
     async def claim(self, *, create=False, language="zh", owner=INTERNAL):
         if owner is None:
             raise HTTPException(401, "请先建立访客会话")
-        if language not in {"zh", "fr", "en"}:
+        if language not in {"zh", "fr", "en", "ja"}:
             raise HTTPException(422, "不支持的房间语言")
         # Iterate the configured order; the sets above are only for membership.
         voice_rooms = {

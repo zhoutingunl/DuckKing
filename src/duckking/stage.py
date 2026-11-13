@@ -403,8 +403,24 @@ class FloorStage:
         ):
             raise ValueError("请等待四鸭坐稳或站稳后再表演")
 
+    async def wait_ready(self):
+        # A verified posture can briefly cross the classifier's boundary on the
+        # next physics tick. Let it settle before a chained performance, while
+        # retaining the same posture/fall checks and a bounded, cancellable wait.
+        deadline = float(self.b.data.time) + 1.2
+        wall_deadline = time.monotonic() + 4
+        while True:
+            self.guard()
+            if all(measure_posture(self.b, d)["observed"] in {"sit", "stand"}
+                   for d in self.b.drivers):
+                return
+            if self.b.data.time >= deadline or time.monotonic() >= wall_deadline:
+                self.require_ready()
+                return
+            await asyncio.sleep(0.02)
+
     async def roll(self, members):
-        self.require_ready()
+        await self.wait_ready()
         self.phase = "roll_rising"
         standing = await self.posture(list(range(4)), "stand")
         indices = [MEMBERS.index(member) for member in members]
@@ -503,7 +519,7 @@ class FloorStage:
         return {"verified": True, **self.last_roll}
 
     async def dance(self, members):
-        self.require_ready()
+        await self.wait_ready()
         indices = [MEMBERS.index(member) for member in members]
         self.phase = "dance_rising"
         standing = await self.posture(indices, "stand")

@@ -1,18 +1,26 @@
 # DuckKing
 
-让用户在购买硬件之前，先在浏览器里了解 MicroDuck、体验灵矽语音交互。通过语音和按钮控制仿真小鸭，完成踢球、搬运、前滚翻、轮滑、四鸭演出，还能对比官方步态基线与 PPO 平衡策略。支持服务器离线识别优先、真实灵矽语音、独立房间、十三幕自动演示和十项互动工坊任务。
+让用户在购买硬件之前，先在浏览器里了解 MicroDuck、体验灵矽语音交互。通过语音和按钮控制仿真小鸭，完成踢球、搬运、前滚翻、轮滑、四鸭演出，还能对比官方步态基线与 PPO 平衡策略。支持服务器离线识别优先、真实灵矽语音、独立房间、十三幕自动演示、十项互动工坊任务和四十一项功能场景。
 
-[在线体验](https://ztmonitor.qbox.net/duckking/) · [演示场景](https://ztmonitor.qbox.net/duckking/demos.html) · [物理实验室](https://ztmonitor.qbox.net/duckking/scenarios.html) · [部署记录](https://ztmonitor.qbox.net/duckking/deploys.html)
+[在线体验](https://duck.qbox.net/) · [语音工作台](https://duck.qbox.net/index.html) · [演示场景](https://duck.qbox.net/demos.html) · [物理实验室](https://duck.qbox.net/scenarios.html) · [部署记录](https://duck.qbox.net/deploys.html)
 
-![当前线上工作台：官方配色、动画预览与语音入口](docs/media/current-workbench.png)
+![场景首页候选：TOP、最新与分类入口（2026-11-13本地截图）](docs/media/current-scene-home.png)
 
-本文功能截图与功能导览采自公网发布 `62c6784`（2026-11-01）。决赛主片结合本地候选版本的灵矽实连、离线识别实录，以及公网的转盘对照、PPO 训练记录和测试覆盖率，各章记录来源与版本；第 11 幕实录保留录制时的本地来源，当前发布状态以部署记录为准。[录制、结果与版本](docs/DEMO_VIDEO.md) · [媒体来源](docs/media/README.md)。历史素材保留各自日期。
+新的场景首页截图采自2026-11-13本地候选，尚不代表公网已升级。其余功能截图与功能导览采自公网发布 `62c6784`（2026-11-01）。决赛主片结合本地候选版本的灵矽实连、离线识别实录，以及公网的转盘对照、PPO 训练记录和测试覆盖率，各章记录来源与版本；第 11 幕实录保留录制时的本地来源，当前发布状态以部署记录为准。[录制、结果与版本](docs/DEMO_VIDEO.md) · [媒体来源](docs/media/README.md)。历史素材保留各自日期。
 
 当前工作台使用官方模型外观，动作由本项目脚本驱动，属于**动画预览**。物理实验室与演示剧场使用**真实 MuJoCo CPU + 官方 ONNX 策略**；另有独立的官方 **robotd / MuJoCo** 适配。三条路径分别标识，连接失败会明确报错。项目目前是软件仿真，没有实体机器人验收。
 
 **赛后外观更新（2026-11-01）：** 首页、物理实验室、演示剧场与互动工坊支持四种官方配色：奶油白 Cream、石墨灰 Graphite、薰衣草紫 Lavender、天空蓝 Sky。画面左下角可换色，多鸭场景先选择鸭子；默认 A/B/C/D 分别对应这四种颜色，走动、换位与重置不会交换身份。外壳、金属关节和镜头使用不同材质及环境反射；选择保存在当前浏览器，只影响外观，不改变运动策略或接触物理。四鸭共享模型网格，换色无需重新下载模型。
 
 **竞赛主演示：** [灵矽实连决赛演示](docs/media/duckking-competition-live.mp4) · [章节、实测与复录说明](docs/DEMO_VIDEO.md)。第 11 幕选择“灵矽实连 · 预录指令”与《两只老虎》，随后介绍真实离线识别、转盘 PPO 对照、CPU 训练记录、两页使用统计和绑定提交的后端测试覆盖率；音乐为浏览器本地合成。另有 [功能导览](docs/PRODUCT_TOUR_VIDEO.md) 与 [2026-10 竞赛视频存档](docs/DEMO_VIDEO_ARCHIVE.md)。
+
+## 场景首页（赛后扩展）
+
+网站首页为 [TOP 场景](https://duck.qbox.net/features.html?sort=top)，支持 TOP / 最新和全部分类。TOP 每天按北京时间生成持久快照，固定按累计有效体验时长（点击数×封顶后的平均时长）排序，单次最多计入5分钟；无记录先推荐十个有趣场景。最新按本站首次加入时间倒序。旧语音工作台在 `index.html`，剧场、物理练习与 PPO 页面继续保留。
+
+功能目录现有四十一项，新增八高度高跷、独立起身、六种真实地面/风场、巨球、助跑滚翻、轮滑绕锥/短单脚滑、爬梯和窄缝攀爬、后空翻及站姿回桩，还有倒立头旋连续技、竞速/红灯停与双鸭拔河。手机配色和状态共用底栏，场景设置和模型类型同行。五种程序化地面外观只改变显示。
+
+所有物理结果按本轮实际状态验收；秋千、爬梯、后空翻、短单脚滑与站姿离窝仍有未通过项，明确显示失败。20cm高跷、单台阶下降和窄缝攀爬在首次Linux试跑未达标，Mac单轮成功不能当成跨平台保证。仿真回桩只有接通代理和虚拟电量，不是真实电气充电。安装、逐项边界、排名口径与验收见 [功能场景](docs/FUNCTIONAL_SCENES.md)，全生态来源及尚未接入的研究见 [复审报告](reports/MicroDuck%20全生态%20能力覆盖%20复审.md)。
 
 ## 商业价值与产品设计
 
@@ -28,7 +36,8 @@
 
 | 页面 | 可以做什么 |
 |---|---|
-| [语音工作台](https://ztmonitor.qbox.net/duckking/) | 点头、摇头、歪头、前后移动、横移、左右转、两个舞步；连接语音或选择本地优先 |
+| [TOP / 最新场景](https://duck.qbox.net/features.html?sort=top) | 四十一项功能，按人气、加入时间和类别浏览；选择后自动准备，不自动开赛 |
+| [语音工作台](https://duck.qbox.net/index.html) | 点头、摇头、歪头、前后移动、横移、左右转、两个舞步；连接语音或选择本地优先 |
 | [动作训练场](https://ztmonitor.qbox.net/duckking/scenarios.html) | 单鸭踢球、双鸭互动、嘴部搬运、动作练习场、轮滑；按钮无需启用语音 |
 | [演示场景](https://ztmonitor.qbox.net/duckking/demos.html) | 十三幕逐幕点播；预录对白本地编排与灵矽实连预录指令可现场切换 |
 | [现场互动工坊](https://ztmonitor.qbox.net/duckking/studio.html) | 十项语音任务、本地排练、临场改序与任务控制；真人语音固定走灵矽，见 [使用说明](docs/INTERACTIVE_STUDIO.md) |
@@ -50,14 +59,15 @@
 ```mermaid
 flowchart TB
     User["浏览器 · 手机 / 电脑<br/>语音、动作、十三幕演示"]
-    Gateway["HTTPS 入口 /duckking/<br/>ai_gateway 固定转发"]
+    Gateway["HTTPS · duck.qbox.net<br/>OpenResty 直连，兼容旧网关入口"]
     App["DuckKing · FastAPI<br/>动态房间、语音会话、任务编排"]
     Local["服务器离线识别<br/>SenseVoiceSmall + 整句规则"]
     Cloud["灵矽云端<br/>识别、对话、MCP 工具、语音回复"]
     Motion["有界动作控制<br/>限时、取消、去重、实际结果"]
-    Preview["首页预览<br/>官方外观 + 脚本动画"]
+    Preview["语音工作台预览<br/>官方外观 + 脚本动画"]
     Physics["物理场景<br/>MuJoCo + 官方 ONNX 策略"]
     Robotd["可选官方 robotd<br/>Unix socket → MuJoCo body"]
+    Discovery["场景首页<br/>TOP / 最新 / 分类与匿名体验计时"]
     Evidence["可追溯数据<br/>使用体验、逐轮诊断、部署与覆盖率"]
     User <-->|"HTTPS API / 有序音频与状态帧"| Gateway
     Gateway <--> App
@@ -70,11 +80,13 @@ flowchart TB
     Motion --> Preview
     Motion --> Physics
     Motion --> Robotd
+    App <--> Discovery
+    Discovery --> Evidence
     App --> Evidence
     User -->|"浏览器端计时"| Evidence
 ```
 
-公网音频与状态帧经 HTTPS 长轮询转到真实后端 WebSocket，本地可直连 WebSocket。各房间隔离语音与动作；物理场景按需加载。三个动作后端显式区分，预览不计算接触，仿真也不等于实体硬件。灵矽回复、本地确认和预录音乐分别标记。
+当前 duck.qbox.net 直接转发原生 WebSocket；旧 ztmonitor 网关路径使用 HTTPS 长轮询转到真实后端 WebSocket。各房间隔离语音与动作；物理场景按需加载。三个动作后端显式区分，预览不计算接触，仿真也不等于实体硬件。灵矽回复、本地确认和预录音乐分别标记。
 
 [架构设计文档](docs/ARCHITECTURE.md)包含部署图、语音时序、模块输入输出、故障边界和接口规格；[模块分工与验收](docs/TEAM.md)对应负责人和测试入口。两者共同组成竞赛的“架构设计文档（包含模块规格、分工）”。
 
@@ -95,7 +107,7 @@ scripts/run_local.sh
 
 ## 语音：本地优先与灵矽云端
 
-首页和物理实验室都支持“本地优先 / 灵矽云端”。本地优先使用服务器上的 **sherpa-onnx + SenseVoiceSmall INT8**，手机浏览器无需安装模型。整句动作命中后直接执行并用短预录语音、文字确认；问句、未匹配或识别失败时，把本轮原始录音一次性交给真实灵矽。否定句和未知后缀不会先执行已认识的半句；本地动作一旦开始，失败后不会再交云端重复执行。
+语音工作台和物理实验室都支持“本地优先 / 灵矽云端”。本地优先使用服务器上的 **sherpa-onnx + SenseVoiceSmall INT8**，手机浏览器无需安装模型。整句动作命中后直接执行并用短预录语音、文字确认；问句、未匹配或识别失败时，把本轮原始录音一次性交给真实灵矽。否定句和未知后缀不会先执行已认识的半句；本地动作一旦开始，失败后不会再交云端重复执行。
 
 本地启用离线识别：
 
@@ -120,7 +132,7 @@ uv run duckking-setup --room 2
 
 初始化显式创建或复用专用 DuckKing 智能体并绑定设备，不在页面加载时执行。也可按页面激活码在灵矽控制台绑定。手工设备凭证填写到 `~/.secrets/duckking.env`，参考 [.env.example](.env.example)，权限设为 600；设备 token 不等于平台管理 Key。新增工具后重新连接语音；已有中文智能体可用 `uv run duckking-setup --sync-prompt` 备份并同步工具提示词。多语言配置和同步使用下方的 `--language-profile`，同时验证语种、音色和自动识别语言开关。
 
-**按地区默认语言：美国/英国→英语，欧洲（非英国）→法语，其他→中文。** 地区查询使用服务器本地 IP 库，代理头仅在来源命中 `DUCKKING_GEO_TRUSTED_PROXIES` 时受信任；未核实代理时回退中文。十个页面共用中英法界面，覆盖动态状态、提示、动作标签与训练说明；用户转写和真实云端回复保留原文。顶部最右「语言」同时选择界面与下一次灵矽会话的默认回答语言，选择后原地更新界面，保留房间、模型和视角；若正在使用真人语音面板，会取消当前录音、停止旧回复并释放旧会话，用户重新连接后使用新语言；手机上固定在品牌右侧第一行；「源代码」随第二行导航横向滚动，不单独固定。所有页面顶部都有「首页」入口；导航顺序为首页、动作训练场、演示场景、现场互动、训练新动作、交互统计、使用体验、部署记录、源代码、语言。`?lang=zh|en|fr` 可覆盖默认并保存选择。英法语仅支持灵矽云端，面板会说明本地动作识别仅支持中文；切回中文时恢复用户的识别方式偏好。连接等待时显示真实通道阶段及已等待秒数，可随时断开取消；这不是云端内部处理进度。
+**按地区默认语言：美国/英国→英语，欧洲（非英国）→法语，其他→中文。** 地区查询使用服务器本地 IP 库，代理头仅在来源命中 `DUCKKING_GEO_TRUSTED_PROXIES` 时受信任；未核实代理时回退中文。页面共用中英法界面，覆盖动态状态、提示、动作标签与训练说明；用户转写和真实云端回复保留原文。顶部最右「语言」的中英法选项同时选择界面与下一次灵矽会话的默认回答语言；新增「日本語（音声）」仅切换日语识别与回复，保留当前界面语言，选择后原地更新界面，保留房间、模型和视角；若正在使用真人语音面板，会取消当前录音、停止旧回复并释放旧会话，用户重新连接后使用新语言；手机上固定在品牌右侧第一行；「源代码」随第二行导航横向滚动，不单独固定。所有页面顶部都有「首页」入口；导航顺序为首页、语音工作台、动作训练场、演示场景、现场互动、训练新动作、交互统计、使用体验、部署记录、源代码、语言。`?lang=zh|en|fr` 可覆盖默认并保存选择；`?voice_lang=ja` 单独选择日语对话。英语、法语和日语对话仅支持灵矽云端，面板会说明本地动作识别仅支持中文；切回中文时恢复用户的识别方式偏好。连接等待时显示真实通道阶段及已等待秒数，可随时断开取消；这不是云端内部处理进度。
 
 首次启用多语言，在服务的数据目录下执行一次：
 
@@ -128,15 +140,17 @@ uv run duckking-setup --room 2
 uv run duckking-setup --language-profile --lang-code zh
 uv run duckking-setup --language-profile --lang-code en
 uv run duckking-setup --language-profile --lang-code fr
+uv run duckking-setup --language-profile --lang-code ja
 ```
 
-语言智能体存于私有 `voice-profiles.json` 的 `language_zh/en/fr` 白名单。英法语配置使用 `transport: bound_device`：每个房间在 `languages/en`、`languages/fr` 下保留独立私有设备身份，预先绑定对应语言智能体；重连仍发送 `X-Agent-ID`，原房间设备、场景及所有权保持不变。仅切换 Header 的旧配置不能保证云端告别遵循语言；升级时须重跑语言配置，并为已启用房间执行下面的设备准备命令。页面不会创建或重新绑定设备；缺失或不匹配的绑定记录明确报错，不回退原中文设备。已有 `DUCKKING_FRENCH_ROOMS` / `DUCKKING_ENGLISH_ROOMS` 仍可作为分房偏好，但不能代替语言智能体配置。缺少目标语言配置时明确报错，不偷偷用中文回复。当前离线命令链仅支持中文；英语/法语直接使用灵矽云端。预录剧场音轨仍为中文，界面明确标注；不会将它们称为法语实连回复。
+语言智能体存于私有 `voice-profiles.json` 的 `language_zh/en/fr/ja` 白名单。英语、法语和日语配置使用 `transport: bound_device`：每个房间在 `languages/en`、`languages/fr`、`languages/ja` 下保留独立私有设备身份，预先绑定对应语言智能体；重连仍发送 `X-Agent-ID`，原房间设备、场景及所有权保持不变。仅切换 Header 的旧配置不能保证云端告别遵循语言；升级时须重跑语言配置，并为已启用房间执行下面的设备准备命令。页面不会创建或重新绑定设备；缺失或不匹配的绑定记录明确报错，不回退原中文设备。已有 `DUCKKING_FRENCH_ROOMS` / `DUCKKING_ENGLISH_ROOMS` 仍可作为分房偏好，但不能代替语言智能体配置。缺少目标语言配置时明确报错，不偷偷用中文回复。当前离线命令链仅支持中文；英语/法语/日语直接使用灵矽云端。预录剧场音轨仍为中文，界面明确标注；不会将它们称为法语实连回复。
 
-为每个已启用房间准备两种语言（以下以房间 1 为例，最多按 `DUCKKING_MAX_ROOMS` 重复）：
+为每个已启用房间准备所需的非中文语言（以下以房间 1 为例，最多按 `DUCKKING_MAX_ROOMS` 重复）：
 
 ```bash
 uv run duckking-setup --room 1 --language-device --lang-code fr
 uv run duckking-setup --room 1 --language-device --lang-code en
+uv run duckking-setup --room 1 --language-device --lang-code ja
 ```
 
 已用系统合成的法语/英语口令验证真实灵矽 STT → 点头工具完成 → 对应语言语音回复及自动告别，见 [验证记录](docs/VALIDATION.md)。这不等于 iPhone 真机、真人口音或噪声环境已验收。
@@ -213,7 +227,7 @@ scripts/run_simulator.sh
 uv run duckking --backend robotd --socket ~/.cache/duck-sim/duck-a.sock
 ```
 
-`DUCKKING_SIM_DIR` 可指定外部资源目录，`DUCK_SIM_VIEWER=0` 可无窗口运行。首页此时仍是动画示意，真实物理画面查看官方 MuJoCo 窗口；不在适配失败时切回预览。适配器已做仿真联调，未做实体机器人测试。
+`DUCKKING_SIM_DIR` 可指定外部资源目录，`DUCK_SIM_VIEWER=0` 可无窗口运行。语音工作台此时仍是动画示意，真实物理画面查看官方 MuJoCo 窗口；不在适配失败时切回预览。适配器已做仿真联调，未做实体机器人测试。
 
 Linux 在 YZH737 上使用独立 DuckKing / ASR systemd 服务，现通过 `https://duck.qbox.net/` 的前置 OpenResty 直连 8765，提供页面、API 与原生 WebSocket，不经过 ai_gateway。直连配置在升级后保留，浏览器麦克风使用该域名的 HTTPS 安全上下文。原有 `ztmonitor.qbox.net` 网关接入方式保留在部署指南中。发布包带固定模型、来源与 SHA-256；安装自检、公网检查、真实语音验收分别记录，暂存不等于验收成功。步骤见 [部署指南](deploy/README.md)。
 

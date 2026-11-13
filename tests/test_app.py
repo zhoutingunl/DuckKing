@@ -53,13 +53,13 @@ def test_missing_build_explains_setup_and_built_assets_are_served(tmp_path, monk
     (static / "versioned.js").write_text("// fingerprinted bundle")
     with TestClient(create_app()) as client:
         assert "DuckKing" in client.get("/").text
-        for path in ('/', '/index.html', '/scenarios.html'):
+        for path in ("/", "/index.html", "/scenarios.html"):
             response = client.get(path)
-            assert response.headers['cache-control'] == 'no-cache'
-            cached = client.get(path, headers={'If-None-Match': response.headers['etag']})
+            assert response.headers["cache-control"] == "no-cache"
+            cached = client.get(path, headers={"If-None-Match": response.headers["etag"]})
             assert cached.status_code == 304
-            assert cached.headers['cache-control'] == 'no-cache'
-        assert 'cache-control' not in client.get('/versioned.js').headers
+            assert cached.headers["cache-control"] == "no-cache"
+        assert "cache-control" not in client.get("/versioned.js").headers
 
 
 def test_cli_binds_loopback(monkeypatch):
@@ -73,3 +73,19 @@ def test_cli_binds_loopback(monkeypatch):
         "proxy_headers": False,
         "access_log": False,
     }
+
+
+def test_new_home_redirects_to_top_and_preserves_language_room_and_legacy_workbench(
+    tmp_path, monkeypatch
+):
+    monkeypatch.setattr("duckking.app.ROOT", tmp_path)
+    static = tmp_path / "frontend/dist"
+    static.mkdir(parents=True)
+    (static / "features.html").write_text("new scene home")
+    (static / "index.html").write_text("voice workbench")
+    with TestClient(create_app()) as client:
+        response = client.get("/?room=2&lang=fr&sort=latest", follow_redirects=False)
+        assert response.status_code == 307
+        assert response.headers["location"] == "features.html?room=2&lang=fr&sort=top"
+        assert client.get("/").text == "new scene home"
+        assert client.get("/index.html").text == "voice workbench"

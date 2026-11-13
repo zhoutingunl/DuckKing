@@ -1,14 +1,21 @@
 import {test,expect} from '@playwright/test';
 
-const pages=['index','training','balance','seesaw','scenarios','demos','studio','experience','statistics','deploys'];
+const pages=['index','features','training','balance','seesaw','scenarios','demos','studio','experience','statistics','deploys'];
 for(const language of ['fr','en'])test(`${language}: every page localizes visible interface and dynamic state`,async({page})=>{
  test.setTimeout(90000);
  const errors=[];page.on('pageerror',e=>errors.push(e.message));
+ // Exercise visible conflict recovery copy without starting three physical worlds.
+ // Actual model/action lifecycle is covered in the dedicated scene tests.
+ await page.request.post('/api/scenes/close?room=1');
+ for(const endpoint of ['balance','seesaw','features']){
+  const message=endpoint==='features'?'本房间已有场景，请切换或新建房间。':`本房间已有其他场景。点击“切换为${endpoint==='balance'?'圆盘':'跷跷板'}”会结束原场景；也可新建房间。`;
+  await page.route(`**/api/${endpoint}/prepare?*`,route=>route.fulfill({status:409,json:{detail:{code:'scene_conflict',message}}}));
+ }
  for(const name of pages){
-  await page.goto(`/${name==='index'?'':name+'.html'}?room=1&lang=${language}`);
+  await page.goto(`/${name}.html?room=1&lang=${language}`);
   await expect(page.locator('html')).toHaveAttribute('lang',language);
   await expect(page.locator('#lang-switch-button')).toHaveText(language==='fr'?'Langue':'Language');
-  await expect(page.locator('.home-nav a')).toHaveCount(9);
+  await expect(page.locator('.home-nav a')).toHaveCount(10);
   // A genuine server state update must not reintroduce Chinese between frames.
   if(name==='index'){
    await expect(page.locator('#data-source')).toHaveText(language==='fr'?'Aperçu local':'Local preview');
@@ -49,7 +56,7 @@ for(const language of ['fr','en'])test(`${language}: voice handshake and changin
    if(data.type==='connect')socket.send(JSON.stringify({type:'voice_status',state:'ready',mode:'cloud',language}));
   });
  });
- await page.goto(`/?room=1&lang=${language}`);
+ await page.goto(`/index.html?room=1&lang=${language}`);
  await page.locator('#connect-voice').click();
  await expect(page.locator('#talk-button')).toBeEnabled();
  expect(commands.find(x=>x.type==='connect')).toMatchObject({language,mode:'cloud'});
@@ -63,7 +70,7 @@ for(const language of ['fr','en'])test(`${language}: voice handshake and changin
 });
 
 test('missing language connection exits preparation and leaves a visible translated error',async({page})=>{
- await page.goto('/?room=1&lang=fr');
+ await page.goto('/index.html?room=1&lang=fr');
  await page.locator('#connect-voice').click();
  await expect(page.locator('#voice-badge')).toHaveText('Erreur de connexion');
  await expect(page.locator('#talk-button')).toBeDisabled();

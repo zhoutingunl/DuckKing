@@ -1,0 +1,48 @@
+import {test,expect} from '@playwright/test';
+
+test('home is TOP, latest stays selectable and phone controls share compact rows',async({page})=>{
+ test.setTimeout(90000);
+ const errors=[];let prepares=0;page.on('pageerror',e=>errors.push(e.message));
+ page.on('request',r=>{if(r.method()==='POST'&&r.url().includes('/api/features/prepare'))prepares++});
+ await page.request.post('/api/scenes/close?room=1');
+ await page.setViewportSize({width:390,height:844});
+ await page.goto('/?room=1&lang=fr&sort=latest');
+ await expect(page).toHaveURL(/features\.html\?.*sort=top/);
+ await expect(page.locator('#sort-top')).toHaveAttribute('aria-pressed','true');
+ await expect(page.locator('[data-capability]:visible')).toHaveCount(10);
+ await expect(page.locator('#functional-workspace')).toBeHidden();
+ await expect(page.locator('#physics-viewport canvas')).toHaveCount(0);expect(prepares).toBe(0);
+ await page.locator('#show-all-scenes').click();
+ await page.locator('[data-capability=movement]').click();
+ await expect(page.locator('#scene-placeholder')).toBeHidden({timeout:45000});
+ await expect(page.locator('.physics-caption .duck-appearance')).toBeVisible();
+ await expect(page.locator('#scene-settings-toggle')).toHaveAccessibleName('Réglages de la scène');
+ await page.locator('#feature-commands').scrollIntoViewIfNeeded();
+ const colour=await page.locator('.duck-appearance').boundingBox();
+ const status=await page.locator('.physics-status').boundingBox();
+ expect(Math.abs(colour.y+colour.height/2-status.y-status.height/2)).toBeLessThan(8);
+ const settings=await page.locator('#scene-settings-toggle').boundingBox();
+ const tag=await page.locator('.feature-stage-heading .tag').boundingBox();
+ expect(Math.abs(settings.y+settings.height/2-tag.y-tag.height/2)).toBeLessThan(8);
+ await expect(page.locator('.feature-stage-heading .tag')).toHaveText('Simulation MuJoCo');
+ for(const width of [320,390,430]){
+  await page.setViewportSize({width,height:844});
+  const source=await page.locator('.feature-stage-heading .tag').boundingBox();
+  const settingsButton=await page.locator('#scene-settings-toggle').boundingBox();
+  const resetButton=await page.locator('#reset-camera').boundingBox();
+  const toolbar=await page.locator('.stage-toolbar').boundingBox();
+  expect(settingsButton.x).toBeGreaterThanOrEqual(source.x+source.width);
+  expect(resetButton.x+resetButton.width).toBeLessThanOrEqual(toolbar.x+toolbar.width);
+ }
+ await page.locator('#scene-settings-toggle').click();
+ await page.locator('#ground-style').selectOption('wood');
+ await page.locator('#scene-settings-toggle').click();
+ await page.locator('#sort-latest').scrollIntoViewIfNeeded();await page.locator('#sort-latest').click();
+ await expect(page.locator('[data-capability]:visible')).toHaveCount(41);
+ await expect(page).toHaveURL(/sort=latest/);
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+ await page.locator('#sort-top').click();
+ await expect(page.locator('#ranking-metric,.feature-coverage')).toHaveCount(0);
+ expect(errors).toEqual([]);
+ await page.request.post('/api/scenes/close?room=1');
+});

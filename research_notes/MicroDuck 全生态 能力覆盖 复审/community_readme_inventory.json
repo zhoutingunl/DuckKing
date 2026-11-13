@@ -1,0 +1,1880 @@
+[
+  {
+    "name": "pollen-robotics/microduck",
+    "source": "https://github.com/pollen-robotics/microduck",
+    "category": "Software",
+    "registry_description": "The robot's software: `robotd` 50 Hz control loop, `mediad` camera/WebRTC, `padd` gamepad, updater, the official policy set and the `robotctl policy` channel that installs community policies from the Hub."
+  },
+  {
+    "name": "microduck_os",
+    "source": "https://github.com/pollen-robotics/microduck_yocto",
+    "category": "Software",
+    "registry_description": "The robot's operating system: a Yocto image for the RK3566 that boots straight into the daemons and updates itself with signed A/B bundles that roll back when a new slot does not come up healthy. It boots, updates and rolls back on a Radxa Zero 3W stand-in, and is in bring-up on the first custom board."
+  },
+  {
+    "name": "pollen-robotics/microduck_rl",
+    "source": "https://github.com/pollen-robotics/microduck_rl",
+    "category": "Software",
+    "registry_description": "RL training environments on mjlab (MuJoCo Warp) with PPO, BAM actuator models, backlash simulation and domain randomization. Needs a CUDA GPU."
+  },
+  {
+    "name": "pollen-robotics/microduck-gst-plugins",
+    "source": "https://github.com/pollen-robotics/microduck-gst-plugins",
+    "category": "Software",
+    "registry_description": "Prebuilt aarch64 GStreamer plugins (Rockchip MPP encoders, gst-plugins-rs WebRTC) used by the on-robot media daemon."
+  },
+  {
+    "name": "Microduck Sandbox",
+    "source": "https://huggingface.co/spaces/pollen-robotics/microduck-simulator",
+    "category": "Spaces",
+    "registry_description": "Official in-browser simulator: MuJoCo compiled to WebAssembly plus onnxruntime-web running the real policies at 50 Hz, with gamepad support and the roller-skate variant."
+  },
+  {
+    "name": "Microduck Console",
+    "source": "https://huggingface.co/spaces/pollen-robotics/microduck-console",
+    "category": "Spaces",
+    "registry_description": "Official hosted console for driving a duck that is not on your own network, over WebRTC and Hugging Face sign-in."
+  },
+  {
+    "name": "Policy Playground",
+    "source": "https://huggingface.co/spaces/pollen-robotics/microduck-policy-playground",
+    "category": "Spaces",
+    "registry_description": "Official Space that reads every `microduck-` policy on the Hub the way the robot reads it and installs one onto your duck in one click, through the same calls `robotctl policy add` makes."
+  },
+  {
+    "name": "Vision demo",
+    "source": "https://huggingface.co/spaces/pollen-robotics/microduck-vision-demo",
+    "category": "Spaces",
+    "registry_description": "Official Space that takes the duck's camera feed and runs the processing on Hugging Face hardware instead of on the robot."
+  },
+  {
+    "name": "Microduck Arena",
+    "source": "https://huggingface.co/spaces/pollen-robotics/microduck-arena",
+    "category": "Spaces",
+    "registry_description": "Official leaderboard that races submitted policies server-side over five perturbed seeds at every speed in the event's sweep, so board times reproduce. Events: 2 m sprint, 2 m roller sprint, 1.5 m hill climb, Got a Talent (voted performances) and Tug of War (duels over a pit, with a weekly cup) and Sock Heist (a 6 m dash to a giant duck's nest, freezing whenever it looks). Runs locally too; [source](https://github.com/pollen-robotics/microduck-arena)."
+  },
+  {
+    "name": "Vet book",
+    "source": "https://huggingface.co/spaces/pollen-robotics/microduck-vetbook",
+    "category": "Spaces",
+    "registry_description": "Official Space that turns a robot's vet book, the record `robotctl vetbook` keeps of hours awake, metres walked, falls, tricks and every servo replaced, into a shareable card once the owner publishes it to their own Hugging Face account."
+  },
+  {
+    "name": "microduck-policies",
+    "source": "https://huggingface.co/pollen-robotics/microduck-policies",
+    "category": "Models and Datasets",
+    "registry_description": "The ten official ONNX policies as a standalone Apache-2.0 repository on the Hugging Face Hub, described by one schema-2 `manifest.json`, with `velstand` the default walk since 14 September."
+  },
+  {
+    "name": "microduck-training",
+    "source": "https://huggingface.co/pollen-robotics/microduck-training",
+    "category": "Models and Datasets",
+    "registry_description": "Official full training checkpoints behind the shipped policies, with weights, normalisers, optimiser state and curriculum step, each mapped to the exported ONNX and the code commit, so training can resume from them with `--init-checkpoint`."
+  },
+  {
+    "name": "Arena reference policies",
+    "source": "https://huggingface.co/pollen-robotics/microduck-sprint-2m-reference",
+    "category": "Models and Datasets",
+    "registry_description": "Pollen's reproducible baselines for each Arena event: 2 m sprint, [2 m roller sprint](https://huggingface.co/pollen-robotics/microduck-roller-sprint-2m-reference), [1.5 m hill climb](https://huggingface.co/pollen-robotics/microduck-hill-climb-1m5-reference) a [Got a Talent](https://huggingface.co/pollen-robotics/microduck-got-a-talent-reference) sit-and-stand reference and a [6 m Sock Heist](https://huggingface.co/pollen-robotics/microduck-sock-heist-6m-reference). The [challenge repository](https://github.com/pollen-robotics/microduck-challenges) has one training folder per event, each with an `AGENTS.md` for coding agents."
+  },
+  {
+    "name": "microduck-emotions",
+    "source": "https://huggingface.co/datasets/pollen-robotics/microduck-emotions",
+    "category": "Models and Datasets",
+    "registry_description": "Official Apache-2.0 dataset of emotional body-language animations, published so the duck and Reachy Mini can act scenes together. The [design repository](https://github.com/pollen-robotics/microduck_emotions) behind it holds the 14 emotions as keyframes and sounds, a runtime patch that plays them from the gamepad, and the duck's voice synthesiser in Python."
+  },
+  {
+    "name": "microduck-duck-detector",
+    "source": "https://huggingface.co/pollen-robotics/microduck-duck-detector",
+    "category": "Models and Datasets",
+    "registry_description": "Official one-class detector that finds *other* ducks in a duck's own camera, shipped as PyTorch, ONNX and INT8 RKNN for the robot's NPU and run on board by `duck-detect`. Scored at 0.80 mAP50, with every training run kept as a Git tag."
+  },
+  {
+    "name": "pollen-robotics/duck_detector",
+    "source": "https://github.com/pollen-robotics/duck_detector",
+    "category": "Models and Datasets",
+    "registry_description": "The Apache-2.0 pipeline behind that model: capture, label, train and quantize, end to end."
+  },
+  {
+    "name": "Product page",
+    "source": "https://pollen-robotics.com/microduck",
+    "category": "Product and Press",
+    "registry_description": "Specs, colorways and the launch story."
+  },
+  {
+    "name": "Store",
+    "source": "https://store.pollen-robotics.com/products/microduck",
+    "category": "Product and Press",
+    "registry_description": "Pre-orders at $399."
+  },
+  {
+    "name": "Press kit",
+    "source": "https://pollen-robotics.com/microduck/press-kit/",
+    "category": "Product and Press",
+    "registry_description": "Facts, full spec sheet, photos and downloads."
+  },
+  {
+    "name": "Meet Microduck",
+    "source": "https://pollen-robotics.com/microduck/blog/introducing-microduck/",
+    "category": "Product and Press",
+    "registry_description": "Launch blog post from Pollen Robotics."
+  },
+  {
+    "name": "Docs index",
+    "source": "https://github.com/pollen-robotics/microduck/blob/main/docs/README.md",
+    "category": "Documentation",
+    "registry_description": "Map of every doc in the repo."
+  },
+  {
+    "name": "Cheat sheet",
+    "source": "https://github.com/pollen-robotics/microduck/blob/main/docs/robot/cheatsheet.md",
+    "category": "Documentation",
+    "registry_description": "`robotctl` commands for day-to-day use of the robot."
+  },
+  {
+    "name": "Architecture",
+    "source": "https://github.com/pollen-robotics/microduck/blob/main/docs/design/architecture.md",
+    "category": "Documentation",
+    "registry_description": "How the daemons, control loop, policies and updater fit together."
+  },
+  {
+    "name": "Design docs",
+    "source": "https://github.com/pollen-robotics/microduck/tree/main/docs/design",
+    "category": "Documentation",
+    "registry_description": "`robotd`, updater, remote WebRTC, boot recovery, restart order and the WebRTC console."
+  },
+  {
+    "name": "Policy channel design",
+    "source": "https://github.com/pollen-robotics/microduck/blob/main/docs/design/policy-channel-design.md",
+    "category": "Documentation",
+    "registry_description": "How community policies reach robots from the Hub: slots, the origin rule, and the reasoning behind the manifest."
+  },
+  {
+    "name": "Policy manifest",
+    "source": "https://github.com/pollen-robotics/microduck/blob/main/docs/policy-manifest.md",
+    "category": "Documentation",
+    "registry_description": "The schema-2 `manifest.json` contract: what each field means, and why only a constant-command episodic policy can become a one-shot skill."
+  },
+  {
+    "name": "Roadmap",
+    "source": "https://github.com/pollen-robotics/microduck/blob/main/docs/project/roadmap.md",
+    "category": "Documentation",
+    "registry_description": "Milestones M1–M9, including the Hub model channel (M8) and autonomous brain (M9)."
+  },
+  {
+    "name": "duckctl",
+    "source": "https://github.com/pollen-robotics/microduck/blob/main/docs/robot/duckctl.md",
+    "category": "Documentation",
+    "registry_description": "Controlling the robot from a laptop over Bluetooth."
+  },
+  {
+    "name": "Pair a gamepad",
+    "source": "https://github.com/pollen-robotics/microduck/blob/main/docs/robot/pair-a-gamepad.md",
+    "category": "Documentation",
+    "registry_description": "Bonding a controller to the robot."
+  },
+  {
+    "name": "Dev board setup",
+    "source": "https://github.com/pollen-robotics/microduck/blob/main/docs/robot/install-dev.md",
+    "category": "Documentation",
+    "registry_description": "Setting up a development board and pushing branches."
+  },
+  {
+    "name": "Contributing guide",
+    "source": "https://github.com/pollen-robotics/microduck/blob/main/CONTRIBUTING.md",
+    "category": "Documentation",
+    "registry_description": "Upstream contribution standards."
+  },
+  {
+    "name": "Microduck with Isaac Lab 3.0",
+    "source": "https://huggingface.co/blog/nvidia/microduck-isaac-lab-sim-to-real",
+    "category": "Documentation",
+    "registry_description": "Tutorial from NVIDIA engineers on the Hugging Face blog: train the walk with Isaac Lab and Newton, test and export it as ONNX, then deploy it, share it on the Hub or enter it in the Arena, with pointers to more advanced tasks."
+  },
+  {
+    "name": "Isaac Lab Microduck port",
+    "source": "https://github.com/5usu/IsaacLab/blob/microduck-port/source/isaaclab_microduck/docs/README.md",
+    "category": "Ports to Other Simulators and Frameworks",
+    "registry_description": "Isaac Lab extension with Microduck assets, BAM/backlash actuators and RSL-RL tasks for walking, kicking and parkour. *Sim-only.*"
+  },
+  {
+    "name": "isaaclab-microduck (Newton)",
+    "source": "https://github.com/kabilankb/isaaclab-microduck",
+    "category": "Ports to Other Simulators and Frameworks",
+    "registry_description": "Isaac Lab 3.0 (Newton MJWarp) port with locomotion, running, ball-kick and two-robot rally tasks, each A/B'd against the mjlab baseline. *Sim-only.*"
+  },
+  {
+    "name": "isaaclab_microduck (PhysX)",
+    "source": "https://github.com/dreamerarun/isaaclab_microduck",
+    "category": "Ports to Other Simulators and Frameworks",
+    "registry_description": "Full port of the official training stack to IsaacLab and PhysX: 37 environments across walking, collision, roller, backlash and testbench models, BAM M6 actuator dynamics, PPO configs and ONNX export. The published checkpoint is an integration smoke test, not a converged gait. *Sim-only.*"
+  },
+  {
+    "name": "microduck-ros2-isaac",
+    "source": "https://github.com/osrbot/microduck-ros2-isaac",
+    "category": "Ports to Other Simulators and Frameworks",
+    "registry_description": "Tutorial for driving the public Microduck model from ROS 2 Jazzy and NVIDIA Isaac Sim, with joint control in RViz and the released walking policy in USD. *Sim-only.*"
+  },
+  {
+    "name": "microduck_description",
+    "source": "https://github.com/adityakamath/microduck_description",
+    "category": "Ports to Other Simulators and Frameworks",
+    "registry_description": "ROS 2 description package: URDF and xacro generated from the public model, with 38 visual meshes and a `robot_state_publisher` launch file."
+  },
+  {
+    "name": "microduck-rl-genesis",
+    "source": "https://github.com/Macmachi/microduck-rl-genesis",
+    "category": "Ports to Other Simulators and Frameworks",
+    "registry_description": "Genesis port of the walking task for AMD/ROCm GPUs, actuator model validated bit-exact against upstream. *Sim-only.*"
+  },
+  {
+    "name": "microduck_genesis",
+    "source": "https://github.com/green-creeper/microduck_genesis",
+    "category": "Ports to Other Simulators and Frameworks",
+    "registry_description": "Genesis World physics as a drop-in for the official stack: a TCP `duck-body` server the real daemons attach to with `--sim`, and an interactive viewer for rehearsing exported ONNX policies by keyboard. Apache-2.0. *Sim-only.*"
+  },
+  {
+    "name": "microdux",
+    "source": "https://github.com/noahfarr/microdux",
+    "category": "Ports to Other Simulators and Frameworks",
+    "registry_description": "JAX and MJX port of the training stack to MuJoCo Playground, with all fourteen official tasks registered for `registry.load` and the reward set checked term by term against upstream on a frozen transition. *Sim-only.*"
+  },
+  {
+    "name": "microduck-rl-torch",
+    "source": "https://github.com/bsprenger/microduck-rl-torch",
+    "category": "Ports to Other Simulators and Frameworks",
+    "registry_description": "PyTorch-native rewrite of the training stack for machines without CUDA, with the same workflow carried up to an NVIDIA box or the cloud. Continuous integration and coverage on every commit. *Sim-only.*"
+  },
+  {
+    "name": "microduck-mjbatch",
+    "source": "https://github.com/tailong-wu/microduck-mjbatch",
+    "category": "Ports to Other Simulators and Frameworks",
+    "registry_description": "Trains on the CPU alone through mjbatch, thousands of MuJoCo instances stepped in a C++ thread pool: a walking policy solved in 2 hours 36 minutes on 8 vCPU with zero falls, and a ball-balance task reported as half-solved, with a median survival of 2.03 seconds and 78 percent of episodes still ending in a fall. *Sim-only.*"
+  },
+  {
+    "name": "mujoco-vecenv-cpp",
+    "source": "https://github.com/AungKaung1928/mujoco-vecenv-cpp",
+    "category": "Ports to Other Simulators and Frameworks",
+    "registry_description": "Threaded C++17 environment whose claim is equality rather than speed: the same observations, reward and flags as its Python reference to the bit, tested on every commit, with NumPy's random generator reproduced exactly. It runs its parent project's PPO unchanged; training on it is the one result still open. MIT. *Sim-only.*"
+  },
+  {
+    "name": "MicroDuck Unity Sim2Sim",
+    "source": "https://github.com/sgyli7/MicroDuck-Unity-Sim2Sim",
+    "category": "Ports to Other Simulators and Frameworks",
+    "registry_description": "Runs the official MJCF and ONNX policies inside Unity/Tuanjie with native MuJoCo kept as the physics authority and Barracuda doing inference, so the engine owns only scene, input and rendering. A [Godot/Jolt counterpart](https://github.com/sgyli7/Sai_Lab) now also runs the roller variant and a second robot in one window. Non-commercial use only, per the model license. *Sim-only.*"
+  },
+  {
+    "name": "MicroDuck Swan Lake",
+    "source": "https://github.com/jjshdbndg/microduck-motrixsim",
+    "category": "Ports to Other Simulators and Frameworks",
+    "registry_description": "Trains a walking policy in the MotrixSim simulator, then blends it per joint with open-loop choreography (policy on the legs, choreography on the head and neck) for a two-minute ballet with a written root-cause log. In Chinese. *Sim-only.*"
+  },
+  {
+    "name": "MotrixLab MicroDuck rollers",
+    "source": "https://github.com/jjshdbndg/MotrixLab-MicroDuck",
+    "category": "Ports to Other Simulators and Frameworks",
+    "registry_description": "Passive-roller skating environment for MotrixLab built around alternating push-off cycles, heading control and recovery after contact, with a bundled checkpoint, a deterministic evaluation script and reward regression tests. In Chinese and English. *Sim-only.*"
+  },
+  {
+    "name": "microduck_rl_unilab",
+    "source": "https://github.com/rocPAI-Forge/microduck_rl_unilab",
+    "category": "Ports to Other Simulators and Frameworks",
+    "registry_description": "Runs the upstream tasks on the UniLab distribution without depending on its source, pinned to upstream commit `29e887e` with an alignment contract and an audit script that checks the port has not drifted from it. Apache-2.0, in Chinese. *Sim-only.*"
+  },
+  {
+    "name": "microduck-miniverse",
+    "source": "https://github.com/DollhouseRobotics/microduck-miniverse",
+    "category": "Ports to Other Simulators and Frameworks",
+    "registry_description": "Every published ONNX policy repackaged as a deterministic Miniverse simulation bundle."
+  },
+  {
+    "name": "Wicroduck",
+    "source": "https://github.com/ngxson/wicroduck",
+    "category": "Ports to Other Simulators and Frameworks",
+    "registry_description": "Attempt to put the whole loop behind a URL: MuJoCo compiled to WebAssembly steps the real MJCF in the browser with no Python and no backend. Simulation works today; in-browser training is the goal, not yet the state. *Sim-only.*"
+  },
+  {
+    "name": "microduck_ros2",
+    "source": "https://github.com/Arjunros/microduck_ros2",
+    "category": "Ports to Other Simulators and Frameworks",
+    "registry_description": "ROS 2 simulation and policy runtime: MuJoCo with the BAM XL330 actuator model, driven by the official ONNX policies over standard topics, so the duck takes `/cmd_vel`, shows in RViz and records to rosbag. Apache-2.0. *Sim-only.*"
+  },
+  {
+    "name": "microduck-lab (DGX Spark)",
+    "source": "https://github.com/jvpflum/microduck-lab",
+    "category": "Training Setups for Specific Machines",
+    "registry_description": "Reproducible training and evaluation workspace for NVIDIA DGX Spark that pins the official runtime, simulator and `microduck_rl` as submodules."
+  },
+  {
+    "name": "microduck-rl-on-thor",
+    "source": "https://github.com/metahubaifeel/microduck-rl-on-thor",
+    "category": "Training Setups for Specific Machines",
+    "registry_description": "Getting the official training stack to run on aarch64 CUDA hardware (Thor, DGX Spark, Jetson), with every trap documented and verified on real machines. In English and Chinese."
+  },
+  {
+    "name": "microduck-lab (Apple Silicon)",
+    "source": "https://github.com/jonathanhawkins/microduck-lab",
+    "category": "Training Setups for Specific Machines",
+    "registry_description": "Trains policies on a Mac with no CUDA GPU, against the same MJCF model and 61/14 contract as upstream, with a live browser viewer. *Sim-only.*"
+  },
+  {
+    "name": "microduck-lab (Colab)",
+    "source": "https://github.com/heranhe/microduck-lab-cloud",
+    "category": "Training Setups for Specific Machines",
+    "registry_description": "Continuation of microduck-lab (Apple Silicon) that adds a Google Colab GPU training path for people without a local NVIDIA card, with a bilingual interface, crediting the original throughout. Apache-2.0, in Chinese and English. *Sim-only.*"
+  },
+  {
+    "name": "microduck_rl_mac",
+    "source": "https://github.com/keeeeenw/microduck_rl_mac",
+    "category": "Training Setups for Specific Machines",
+    "registry_description": "The official training environments on Apple Silicon with the task managers, rewards, randomisation and BAM actuator model left intact, running physics on the CPU and PPO on the Apple GPU. Flat-ground walking is demonstrated on an M1 Max. Apache-2.0. *Sim-only.*"
+  },
+  {
+    "name": "mjlab-sycl",
+    "source": "https://github.com/guang384/mjlab-sycl",
+    "category": "Training Setups for Specific Machines",
+    "registry_description": "Companion package that gets mjlab's CUDA-only path training on an Intel integrated GPU or Arc card without editing your project: install it into the same environment and run one overlay command. Apache-2.0, with continuous integration. *Sim-only.*"
+  },
+  {
+    "name": "maxy_duck",
+    "source": "https://github.com/CdyDoodle/maxy_duck",
+    "category": "Training Setups for Specific Machines",
+    "registry_description": "The duck on a Windows PC: simulation running natively with the same BAM servo model and the official policies, training in WSL on the official stack, and a web monitor with live learning curves. Apache-2.0, in English and Chinese. *Sim-only.*"
+  },
+  {
+    "name": "microduck-docker (ajeetraina)",
+    "source": "https://github.com/ajeetraina/microduck-docker",
+    "category": "Training Setups for Specific Machines",
+    "registry_description": "The simulator, the pretrained policies, a 3D browser viewer and a training lab in one `docker run`, with no Python, GPU or robot needed. A [companion repository](https://github.com/ajeetraina/microduck-docker-sandbox) runs the same image inside a network-off Docker Sandboxes microVM. Apache-2.0. *Sim-only.*"
+  },
+  {
+    "name": "microduck-docker (srayuth089)",
+    "source": "https://github.com/srayuth089/microduck-docker",
+    "category": "Training Setups for Specific Machines",
+    "registry_description": "The simulator, MuJoCo physics and the pretrained policies in a single published container, so trying the robot is one `docker run` rather than an environment. Apache-2.0, built in CI and on Docker Hub."
+  },
+  {
+    "name": "Microduck RL one-click toolkit",
+    "source": "https://github.com/OneRobotAI/microduck",
+    "category": "Training Setups for Specific Machines",
+    "registry_description": "Two scripts that take a bare Linux box from no environment to a usable gait and an exported ONNX with its validation, timed at about four hours on an RTX 5060 Ti. In Chinese. *Sim-only.*"
+  },
+  {
+    "name": "microduck-sim-playground",
+    "source": "https://github.com/x10zyn/microduck-sim-playground",
+    "category": "Training Setups for Specific Machines",
+    "registry_description": "Lightweight educational workspace: bootstrap script, CPU MuJoCo viewer with keyboard poses, upstream pinned as submodules."
+  },
+  {
+    "name": "duckbench",
+    "source": "https://github.com/craigm26/duckbench",
+    "category": "Digital Twins and Benches",
+    "registry_description": "The physics bench under the golden vectors and the scored challenges: MuJoCo plus the shipped policies behind an HTTP service, a WebAssembly phone build, and the same bench exposed as MCP tools. Every published number names the plant it was measured in."
+  },
+  {
+    "name": "microduck-twin",
+    "source": "https://github.com/digows/microduck-twin",
+    "category": "Digital Twins and Benches",
+    "registry_description": "Completes Pollen's own digital twin rather than replacing it: one command brings up the real daemons against the official simulated body, then adds what that setup leaves out, an audible voice, battery and thermals that follow what the robot is doing, the head microphone as a sensor, a console and the roller variant. No policy is retrained. Apache-2.0. *Sim-only.*"
+  },
+  {
+    "name": "microduck_academy (JdeRobot)",
+    "source": "https://github.com/mshooter/microduck_academy",
+    "category": "Digital Twins and Benches",
+    "registry_description": "A MuJoCo simulation server that runs the shipped policies and speaks the robot's own intent API over a Unix socket, so a client written against it should work on a real duck unchanged. It is the first stage of a JdeRobot Robotics Academy exercise, with Gazebo and Academy integration to follow, and vendors the robot model and policies with a notice. Apache-2.0. *Sim-only.*"
+  },
+  {
+    "name": "microduck-ai-world",
+    "source": "https://github.com/shaibuafeez/microduck-ai-world",
+    "category": "Digital Twins and Benches",
+    "registry_description": "Embodied-AI playground pairing a robot runtime and RL policies with a detailed MuJoCo world and a vision-language brain that stays off the control loop. *Sim-only.*"
+  },
+  {
+    "name": "Microduck simulation container",
+    "source": "https://github.com/delfy22/microduck",
+    "category": "Digital Twins and Benches",
+    "registry_description": "Builds the Rust daemons and runs them against the MuJoCo body in a container from two pinned submodules, with a roadmap towards ROS 2, mapping and navigation. GPL-3.0. *Sim-only.*"
+  },
+  {
+    "name": "Microduck virtual lab",
+    "source": "https://github.com/gnana70/microduck-virtual-lab",
+    "category": "Digital Twins and Benches",
+    "registry_description": "Tests the official duck and the community replica in MuJoCo with BAM servo models and the `velstand` policy before you buy parts, with a result file per test, as companion code to a build video. Apache-2.0. *Sim-only.*"
+  },
+  {
+    "name": "Creature Lab",
+    "source": "https://github.com/oney-erge/Creature-Lab",
+    "category": "Digital Twins and Benches",
+    "registry_description": "Local browser workbench that runs published robots, the duck among them, with their real policies: shove one, make the floor slippery, and get an evidence-backed explanation of each fall, with every experiment saved for replay. Apache-2.0. *Sim-only.*"
+  },
+  {
+    "name": "RDK Robot Learning Platform",
+    "source": "https://github.com/D-Robotics/robot-learning-platform",
+    "category": "Training Workbenches",
+    "registry_description": "Vendor workbench from D-Robotics that takes a motion recorded in the browser simulator through training, evaluation and a pre-flight check toward its RDK-X5 board, all under one model contract. The local worker is a mock by default; the real training back end and board agent plug in through adapters. In Chinese."
+  },
+  {
+    "name": "Microduck RL WebUI",
+    "source": "https://github.com/Stickic-cyber/Microduck_UI",
+    "category": "Training Workbenches",
+    "registry_description": "Web panel that launches training with editable PPO settings and plots reward and loss live, beside an inference pane streaming an off-screen MuJoCo render of a loaded ONNX policy under joystick, mouse or keyboard control. Apache-2.0, in Chinese. *Sim-only.*"
+  },
+  {
+    "name": "RewardScope",
+    "source": "https://github.com/lanti1321/RewardScope",
+    "category": "Training Workbenches",
+    "registry_description": "Local browser workbench for setting reward weights, masking terms, resizing the network and starting or stopping training while watching the reward broken down by term. Its scanner checks structure and the training path, and says it does not judge reward design or convergence. MIT, in Chinese and English. *Sim-only.*"
+  },
+  {
+    "name": "Microduck Carpet Lab",
+    "source": "https://github.com/yuecui0130-create/microduck-carpet-lab",
+    "category": "Training Workbenches",
+    "registry_description": "Configuration dashboard and training adapter for walking on compliant, variable-friction ground, laying out the observation and action contract, PPO settings and reward terms on a static site that can also recompute an imported evaluation report. States plainly that it ships no trained policy and that its contact model approximates carpet rather than simulating fibres. MIT. *Sim-only.*"
+  },
+  {
+    "name": "duckbatch",
+    "source": "https://github.com/craigm26/duckbatch",
+    "category": "Training Workbenches",
+    "registry_description": "Batched, judged training on one 4 GB laptop GPU, with a pre-registered kill order pruning small attempts. Its first result is a [student 7.5 times smaller](https://huggingface.co/craigm26/microduck-duckbatch-b002-128x128) than the default walker that tracks velocity within 5 percent of it but falls about three times as often under pushes. Apache-2.0. *Sim-only.*"
+  },
+  {
+    "name": "Microduck School (Korean training app)",
+    "source": "https://huggingface.co/spaces/marcusyun1664/microduck-school",
+    "category": "Training Workbenches",
+    "registry_description": "Gradio app that starts `microduck_rl` training in a few taps as Hugging Face Jobs on your own account (about 0.80 USD an hour on an L4), saving a private model. Built so a child can use it once an adult has deployed it, with a practice mode that fakes training when no token is set. Apache-2.0, in Korean. *Sim-only.*"
+  },
+  {
+    "name": "nebius-claw-microduck-isaaclab",
+    "source": "https://github.com/kabilankb/nebius-claw-microduck-isaaclab",
+    "category": "Training Workbenches",
+    "registry_description": "Agents running Nemotron on Nebius Token Factory train the duck in Isaac Lab from one sentence, read the reward curves, tune, judge the gait from video, then export a policy and check it against the robot's interface. The bundle is staged for a real duck but has not run on one. [Project page](https://kabilankb.github.io/nebius-claw-microduck-isaaclab/). Apache-2.0. *Sim-only.*"
+  },
+  {
+    "name": "Microduck School",
+    "source": "https://huggingface.co/spaces/ysharma/gr-workflow-microduck-school",
+    "category": "Courses and Workshops",
+    "registry_description": "Hosted Space where you set a lesson in plain English and watch the duck fail, retry and improve while the score climbs."
+  },
+  {
+    "name": "Microduck Academy (Hugging Face)",
+    "source": "https://huggingface.co/spaces/tfrere/microduck-academy",
+    "category": "Courses and Workshops",
+    "registry_description": "Type a sentence and an agent writes the reward and a judge, fine-tunes from a base checkpoint as short Hugging Face Jobs on your own account, has a vision model watch each take, then revises or ships a move repository with a daemon-ready `policy.onnx` and manifest. The harness, not the model, enforces a hard cap of 5 USD per session. *Sim-only.*"
+  },
+  {
+    "name": "Microduck Academy (classroom)",
+    "source": "https://github.com/kingsleyli920/microduck-academy",
+    "category": "Courses and Workshops",
+    "registry_description": "Staged reinforcement-learning classroom for software engineers new to the field: read the task, write Python, run real tests and watch the result, all on one page, ending in the official 3D simulator. Independent and explicit about it. In Chinese and English."
+  },
+  {
+    "name": "microduck_rl_tutorial",
+    "source": "https://github.com/rocPAI-Forge/microduck_rl_tutorial",
+    "category": "Courses and Workshops",
+    "registry_description": "Beginner's Jupyter lab for omnidirectional velocity training on AMD ROCm, running from reinforcement-learning fundamentals through a smoke run, a train-from-scratch of about four minutes on an MI300X, an evaluation against a bundled reference checkpoint and keyboard teleoperation. MIT. *Sim-only.*"
+  },
+  {
+    "name": "Microduck Workshop",
+    "source": "https://github.com/NV-DLI/Microduck-Workshop",
+    "category": "Courses and Workshops",
+    "registry_description": "Self-paced bilingual course that uses Isaac Sim for scenes and sensors, Isaac Lab for parallel learning and Newton for dynamics, connecting perception, navigation and learned skills into an autonomous football task. Readable [online](https://nv-dli.github.io/Microduck-Workshop/en/index.html). AGPL-3.0 for new code, with Pollen's CAD kept under its own licence. *Sim-only.*"
+  },
+  {
+    "name": "MicroDuck ROS 2 workshop",
+    "source": "https://github.com/johnnynunez/microduck-ros2-isaac-newton-workshop",
+    "category": "Courses and Workshops",
+    "registry_description": "Materials for a two-hour ROSCon España 2026 workshop using ROS 2 Lyrical, Isaac ROS, Isaac Sim, Isaac Lab and Newton on cloud GPUs, ending with a CASCADE agent controlling a simulated duck through camera, ROS and agent episodes. Apache-2.0. *Sim-only.*"
+  },
+  {
+    "name": "MicroDuck Playground",
+    "source": "https://github.com/Vottivott/microduck-playground",
+    "category": "Experiments and Tricks",
+    "registry_description": "Independent continuation of `microduck_rl` collecting reproducible experiments, policy demonstrations and printable hardware add-ons, rebased on a pinned upstream commit."
+  },
+  {
+    "name": "microduck-rl-lab",
+    "source": "https://github.com/AlexandreEDMOND/microduck-rl-lab",
+    "category": "Experiments and Tricks",
+    "registry_description": "Retrains five official skills and composes them into one automatic MuJoCo obstacle course. *Sim-only.*"
+  },
+  {
+    "name": "Microduck RL Ball Follow",
+    "source": "https://github.com/yangyihai/Microduck_RL_Ball_Follow",
+    "category": "Experiments and Tricks",
+    "registry_description": "MuJoCo Warp training repo adding a target-following task, a command-block contract layer and a drag-the-ball demo. *Sim-only.*"
+  },
+  {
+    "name": "microduck-locomotion-diagnosis",
+    "source": "https://github.com/Qi-hub-dot/microduck-locomotion-diagnosis",
+    "category": "Experiments and Tricks",
+    "registry_description": "Reproduces upstream [issue #46](https://github.com/pollen-robotics/microduck_rl/issues/46), where the walking task converges to standing still, and traces it to three reward and metric flaws. Gating the reward on achieved motion and reweighting lateral error took `error_vel_xy` from 0.43 to 0.21. Also notes how to run the CUDA-only stack on Windows. In Chinese. *Sim-only.*"
+  },
+  {
+    "name": "microduck-kick",
+    "source": "https://github.com/Rishitha2628/microduck-kick",
+    "category": "Experiments and Tricks",
+    "registry_description": "Compares PPO with FastSAC and FastTD3 on a right-foot ball kick, judging whether the duck is still standing afterwards rather than trusting the task's fall flag. PPO kicked hardest but fell in 3 of 3 seeds; FastSAC stayed up in 2 of 3. The author notes Pollen's released kick stays up every time. Apache-2.0. *Sim-only.*"
+  },
+  {
+    "name": "my-microduck-journal",
+    "source": "https://github.com/xinhuagu/my-microduck-journal",
+    "category": "Experiments and Tricks",
+    "registry_description": "Retraining the skills from scratch on one consumer GPU under WSL2, with every number and dead end logged. It shows the walk-and-get-up skill can't be trained from the public recipe without private teacher checkpoints, and rebuilds those teachers locally. Checkpoints and a fixed-seed evaluation are still missing, and it says so. Apache-2.0. *Sim-only.*"
+  },
+  {
+    "name": "MicroDuck HD1910 RL",
+    "source": "https://github.com/Ley-WL/microduck-rl",
+    "category": "Experiments and Tricks",
+    "registry_description": "Adaptation of `microduck_rl` to HD-1910 replica builds, with a replica MJCF, published 1910 M6 actuator parameters, and locomotion, recovery and dance tasks. Its authors say the robustness evaluation still has failures and deployment is not a hardware sign-off. Code Apache-2.0, 3D models under upstream non-commercial terms, in Chinese."
+  },
+  {
+    "name": "Microduck ACT",
+    "source": "https://github.com/hiro-se/microduck-act",
+    "category": "Experiments and Tricks",
+    "registry_description": "Imitation-learning pipeline in CPU MuJoCo: collect keyboard demonstrations of finding and dribbling a ball, train LeRobot ACT on camera images and state, and run it hierarchically over the walking ONNX policy. Its author notes the tests check the pipeline, not a task success rate. Apache-2.0, in Japanese. *Sim-only.*"
+  },
+  {
+    "name": "Duck Worlds",
+    "source": "https://github.com/suvadityamuk/microduck-ppo-blender-kimi",
+    "category": "Experiments and Tricks",
+    "registry_description": "A language model writes simulated worlds as Blender Python scripts, PPO fine-tunes the official walk in each, and a CPU simulator compares the result with the stock walk on each world's tasks. [Worlds](https://huggingface.co/datasets/suvadityamuk/microduck-duck-worlds) and [policies](https://huggingface.co/suvadityamuk/microduck-duck-worlds-policies) are on the Hub. Apache-2.0. *Sim-only.*"
+  },
+  {
+    "name": "microduck-dance",
+    "source": "https://github.com/tomomimu12345/microduck-dance",
+    "category": "Experiments and Tricks",
+    "registry_description": "Give it a song and the duck dances to it: EDGE generates the dance, a retarget turns it into commands, and policies trained on [MicroDuck Playground](https://github.com/Vottivott/microduck-playground) follow it on flat floor, rough terrain and roller skates, with a [video](https://youtu.be/scfU_0LVZqI). Apache-2.0, in English and Japanese. *Sim-only.*"
+  },
+  {
+    "name": "microduck-acrobatics",
+    "source": "https://github.com/reble2421/microduck-acrobatics",
+    "category": "Experiments and Tricks",
+    "registry_description": "Head-spin and backward-roll policies switched into one routine, checked in CPU MuJoCo with the BAM servo model: the full routine succeeded 50 times out of 50 with 15 to 30 ms command lag, and the write-up notes that the head spin stalls below 5 ms. Apache-2.0, in Japanese. *Sim-only.*"
+  },
+  {
+    "name": "Microduck RL cool curriculum",
+    "source": "https://github.com/scchy/microduck-rl-cool-curriculum",
+    "category": "Experiments and Tricks",
+    "registry_description": "Fork of `microduck_rl` with staged reward curricula for tricks, starting with a roll-and-wall-jump over walls from 0.5 cm to 5 cm, with a [checkpoint and demo run](https://huggingface.co/SccHy/microduck-rl-cool-curriculum) on the Hub. Apache-2.0. *Sim-only.*"
+  },
+  {
+    "name": "microduck-headcam-imitation",
+    "source": "https://github.com/ksy69471/microduck-headcam-imitation",
+    "category": "Experiments and Tricks",
+    "registry_description": "Walks the duck from its head camera: records the official walk, estimates speed and heading from the video, replays them as commands, then trains a following policy with PPO. Apache-2.0, in Japanese. *Sim-only.*"
+  },
+  {
+    "name": "MicroDuck PPO Navigation",
+    "source": "https://github.com/zakiyamaaaaa/microduck-ppo-navigation",
+    "category": "Experiments and Tricks",
+    "registry_description": "Go 1 m forward, turn and come back to the start, by generating velocity commands from position feedback over the official walk, with a hold-to-arrive check, Colab evaluation and video. Its author says it is unverified on hardware. Apache-2.0, in Japanese. *Sim-only.*"
+  },
+  {
+    "name": "Foot-slip penalty comparison",
+    "source": "https://github.com/matcha-7777/microduck-rl-experiments",
+    "category": "Experiments and Tricks",
+    "registry_description": "Fork of `microduck_rl` comparing walking policies trained with different `foot_slip` weights on forward, turning and backward commands, with the trained models, evaluation code and results. Apache-2.0, in Japanese. *Sim-only.*"
+  },
+  {
+    "name": "Microduck Jenga simulation and training",
+    "source": "https://github.com/speccy88/microduck-jenga-sim",
+    "category": "Experiments and Tricks",
+    "registry_description": "Placement-controlled Jenga training and CEM head taps in MuJoCo: a two-block controller passed 25/30 resets, while three-block PPO remains unsolved. Apache-2.0 code; robot models CC BY-NC-SA 4.0. *Sim-only.*"
+  },
+  {
+    "name": "MicroDuck Indoor Object Search RL",
+    "source": "https://github.com/Bravo-Robots/microduck-indoor-object-search-rl",
+    "category": "Experiments and Tricks",
+    "registry_description": "A PPO search supervisor trained to find objects in a furnished room, then run on the free-floating full-body duck in MuJoCo, with the room, trained models and assets on the [Hub](https://huggingface.co/BravoRobots/microduck-indoor-object-search-rl). Apache-2.0. *Sim-only.*"
+  },
+  {
+    "name": "microduck-backflip",
+    "source": "https://github.com/Lulzx/microduck-backflip",
+    "category": "Policies and Skills",
+    "registry_description": "Reproducible mjlab backflip task with an evaluation battery, experiment log and explicit safety gates. *Sim-only.*"
+  },
+  {
+    "name": "microduck-courier",
+    "source": "https://github.com/selinayfilizp/microduck-courier",
+    "category": "Policies and Skills",
+    "registry_description": "Pick-carry-place task in an apartment scene with a trained policy, rollout clip and telemetry. *Sim-only.*"
+  },
+  {
+    "name": "Jump playground",
+    "source": "https://github.com/Liyucheng1997/318_lab-microduck-simulator",
+    "category": "Policies and Skills",
+    "registry_description": "Browser sandbox fork with a custom-trained vertical-jump policy; [live demo](https://duck.liyucheng.me). *Sim-only.*"
+  },
+  {
+    "name": "microduck-sidekick-dance",
+    "source": "https://github.com/pezzonovante7/microduck-sidekick-dance",
+    "category": "Policies and Skills",
+    "registry_description": "Drop-in mjlab task for a lateral dance step, with reward design notes. Task only, not yet trained."
+  },
+  {
+    "name": "microduck-step-up-policy",
+    "source": "https://github.com/bihaokun/microduck-step-up-policy",
+    "category": "Policies and Skills",
+    "registry_description": "Policy pair for crossing a 25 mm square-edged step using the head as a temporary brake, then recovering upright; weights on the [Hub](https://huggingface.co/Nupr-Haokun/microduck-step-up-head-brake). *Sim-only.*"
+  },
+  {
+    "name": "microduck-max-height-jump",
+    "source": "https://github.com/ThomasBurgess2000/microduck-max-height-jump",
+    "category": "Policies and Skills",
+    "registry_description": "Deployable ONNX export and reproducibility evidence for a one-shot PPO jump, with the height claim stated as a training objective rather than a physical maximum. *Sim-only.*"
+  },
+  {
+    "name": "microduck-walking yaw ablation",
+    "source": "https://github.com/alertform/microduck-walking",
+    "category": "Policies and Skills",
+    "registry_description": "Single-variable reward ablation that cuts yaw-rate variance against the released `alpha_walking` baseline, with the evaluation harness that makes the comparison reproducible. *Sim-only.*"
+  },
+  {
+    "name": "Microduck Circus",
+    "source": "https://github.com/ros-claw/microduck",
+    "category": "Policies and Skills",
+    "registry_description": "Three ducks learn to skip a shared long rope, two turning and one jumping, through an act-fail-practice-adapt agent loop with a holdout round. *Sim-only.*"
+  },
+  {
+    "name": "microduck-flamingo-cycle",
+    "source": "https://huggingface.co/RemiFabre/microduck-flamingo-cycle",
+    "category": "Policies and Skills",
+    "registry_description": "One-legged flamingo pose policy on the Hugging Face Hub."
+  },
+  {
+    "name": "microduck-polite-bow",
+    "source": "https://huggingface.co/fffiloni/microduck-polite-bow-b1d864",
+    "category": "Policies and Skills",
+    "registry_description": "Bow gesture policy on the Hugging Face Hub."
+  },
+  {
+    "name": "microduck-moonwalk-backward",
+    "source": "https://huggingface.co/fffiloni/microduck-moonwalk-backward-55e6af",
+    "category": "Policies and Skills",
+    "registry_description": "Backward moonwalk gait on the Hugging Face Hub."
+  },
+  {
+    "name": "More policies on the Hub",
+    "source": "https://huggingface.co/models?search=microduck",
+    "category": "Policies and Skills",
+    "registry_description": "The growing long tail of community-trained gaits and gestures, searchable on the Hugging Face Hub."
+  },
+  {
+    "name": "MicroDuck skills for TorchRL",
+    "source": "https://huggingface.co/torchrl/microduck-skills",
+    "category": "Policies and Skills",
+    "registry_description": "One recurrent policy covering seven skills (stand, four directions, two turns) through a task embedding and a GRU, with all 56 evaluation episodes surviving the full horizon. Published by the TorchRL project with its known limits: the head drops about 63 degrees walking backward, and turns reach about two thirds of the commanded rate. *Sim-only.*"
+  },
+  {
+    "name": "microduck-basketball",
+    "source": "https://huggingface.co/HannesVonEssen/microduck-basketball",
+    "category": "Policies and Skills",
+    "registry_description": "Balances on a free-rolling size-7 basketball and follows velocity commands from proprioception alone, through a one-layer LSTM with no ball state in the actor inputs. Simulation and export checks pass; onboard timing and real-robot behavior are untested."
+  },
+  {
+    "name": "microduck-swing",
+    "source": "https://huggingface.co/HannesVonEssen/microduck-swing",
+    "category": "Policies and Skills",
+    "registry_description": "Starts motionless at the bottom of a two-cord swing and pumps itself with its head and legs to a 173 degree span, with 71 of 100 randomized seeds clearing every full-horizon validity gate and rollouts rejected for cord slack, lateral drift or attachment misalignment rather than judged on angle alone. Printable seat and straps included. *Sim-only.*"
+  },
+  {
+    "name": "microduck-stilts",
+    "source": "https://huggingface.co/HannesVonEssen/microduck-stilts",
+    "category": "Policies and Skills",
+    "registry_description": "Eight forward-walking policies for stilts from 10 cm to 2 metres, each height its own ONNX graph, continuation checkpoint, manifest and video behind a machine-readable index, with the printable stilt hardware alongside. *Sim-only.*"
+  },
+  {
+    "name": "microduck-running",
+    "source": "https://huggingface.co/HannesVonEssen/microduck-running",
+    "category": "Policies and Skills",
+    "registry_description": "Running policy robustified from a 1.687 m/s speed frontier with velocity pushes, centre-of-mass variation and initial tilt, holding 1.651 m/s nominal and 1.612 m/s under a combined backlash and disturbance battery. The author calls it a hardware candidate and says heading and lateral drift remain substantial. *Sim-only.*"
+  },
+  {
+    "name": "microduck-climb",
+    "source": "https://huggingface.co/HannesVonEssen/microduck-climb",
+    "category": "Policies and Skills",
+    "registry_description": "Climbing and get-up policies for a desk ladder, with checkpoints, hashes and printable ladder parts. The switch between them reads simulator contact, and the ladder parts are geometry-checked but not yet printed or load-tested. A [chimney variant](https://huggingface.co/HannesVonEssen/microduck-chimney-climb) braces between two walls to climb. *Sim-only.*"
+  },
+  {
+    "name": "Raised-platform backflip and long jump",
+    "source": "https://huggingface.co/HannesVonEssen/microduck-backflip",
+    "category": "Policies and Skills",
+    "registry_description": "A backflip dropping 0.8 m onto a soft mat and a [long jump](https://huggingface.co/HannesVonEssen/microduck-long-jump) across a 30 cm gap, each with a checkpoint, ONNX and config. The backflip card warns that landings may break the robot and that a soft simulated mat says nothing about a rigid floor. Apache-2.0. *Sim-only.*"
+  },
+  {
+    "name": "microduck-happy-hop",
+    "source": "https://huggingface.co/joanfox/microduck-happy-hop",
+    "category": "Policies and Skills",
+    "registry_description": "Short two-foot hop that crouches, takes off, absorbs the landing and returns home, and one of the first community policies shown running on a physical MicroDuck, after Pollen restored the one-step action delay it depends on. The card states that delay alongside the rest of the contract."
+  },
+  {
+    "name": "beak-throw",
+    "source": "https://github.com/llama/microduck-beak-throw",
+    "category": "Policies and Skills",
+    "registry_description": "Winds up, throws a 24 mm ball from the beak and recovers to a stand as a one-shot skill, with weights on the [Hub](https://huggingface.co/q2p/microduck-beak-throw). It completed 50 of 50 randomized trials only with a mandatory runtime clamp and failed the stricter raw-output gate, and a safety note governs any first hardware run. *Sim-only.*"
+  },
+  {
+    "name": "microduck-rl running",
+    "source": "https://github.com/zhoumiaosen/microduck-rl",
+    "category": "Policies and Skills",
+    "registry_description": "Training repository with 39 registered tasks and a published [straight-running policy](https://huggingface.co/zhoumiaosen/microduck-straight-running) holding 1.844 m/s over 10 seconds and 1.806 m/s over 30 under a heading-hold controller, stating plainly that the 2.0 m/s target was not met. *Sim-only.*"
+  },
+  {
+    "name": "rough-walk-e",
+    "source": "https://huggingface.co/RemiFabre/microduck-rough-walk-e",
+    "category": "Policies and Skills",
+    "registry_description": "Drop-in replacement for `alpha_walking` fine-tuned on a hostile-terrain ladder of tiles, small stairs, rubble and slopes, with roughly half the falls; the from-scratch [rough-walk-g](https://huggingface.co/RemiFabre/microduck-rough-walk-g) is sturdier on stairs and slopes at 17 percent more motor power. Stated limits include falling on downward steps of 2 cm or more. *Sim-only.*"
+  },
+  {
+    "name": "Collision Flamingo II",
+    "source": "https://huggingface.co/Teethyfish/microduck-collision-flamingo-ii",
+    "category": "Policies and Skills",
+    "registry_description": "One-foot balance trained against a full exterior-shell collision model, shipped with the exact overlay needed to reproduce it. It works through the ONNX deployment rehearsal but not through the training repository's own play viewers, and the card reports that discrepancy as unresolved. *Sim-only.*"
+  },
+  {
+    "name": "MicroDuck Jump",
+    "source": "https://github.com/chenp9527/microduck-jump",
+    "category": "Policies and Skills",
+    "registry_description": "Raises happy-hop's band to an in-place hop of 3 to 6 cm on stock servos, with the checkpoint chosen by in-band rate rather than by recency: over 128 episodes half land inside the band and none fall. Its own acceptance checklist records the failure as well, a 128 N landing peak against a 40 N target, with the fix identified but not yet validated. *Sim-only.*"
+  },
+  {
+    "name": "microduck-standup",
+    "source": "https://huggingface.co/QingMuLYL/microduck-standup",
+    "category": "Policies and Skills",
+    "registry_description": "Episodic get-up that runs for six seconds and returns itself to a standing pose, published against manifest schema 2 with its `robotctl policy add` line and its training branch and commit named. The card also admits the export came from a checkout with uncommitted changes. *Sim-only.*"
+  },
+  {
+    "name": "microduck-groove",
+    "source": "https://huggingface.co/kramp/microduck-groove",
+    "category": "Policies and Skills",
+    "registry_description": "Ten-second in-place dance of knee bounce and head sway that returns to standing, with its `robotctl policy add` line. In simulation it never falls, but it bounces at about 126 BPM against a 100 BPM target, and the planned head nod and hip sway were not learned. The training fork is unpublished. *Sim-only.*"
+  },
+  {
+    "name": "microduck-playdead",
+    "source": "https://huggingface.co/drfonz-indigo/microduck-playdead",
+    "category": "Policies and Skills",
+    "registry_description": "Five-second policy that sits, then flops onto its back with legs up and head turned. Its card notes the next policy must be able to get up (`velstand` did so 32 of 32 times) and that the runtime has to open the beak, which is not among its actions. It never ended on a side or face in 256-duck evaluations. *Sim-only.*"
+  },
+  {
+    "name": "on-sourccey-dome",
+    "source": "https://huggingface.co/cetiennec/microduck-on-sourccey-dome",
+    "category": "Policies and Skills",
+    "registry_description": "Balances on top of a moving [Sourccey](https://github.com/vulcan-forge/sourccey-hardware) robot's 3D-printed dome, trained with the daemon's own target low-pass and standing gain. In held-out sim-to-sim runs on the full Sourccey it held 13 of 16 thirty-second trials, up from 7 of 16 for the previous version. *Sim-only.*"
+  },
+  {
+    "name": "Microduck Arena Lab",
+    "source": "https://huggingface.co/Kyry10/microduck-arena-lab",
+    "category": "Policies and Skills",
+    "registry_description": "A research snapshot of searching for faster Arena gaits by adapting a licensed running policy and selecting checkpoints on an exact five-seed evaluation, with results per course for the sprint, roller sprint and hill climb. Its card reports the roller entry reaching first place on the official board at 1.648 s, and a later 1.516 s local candidate. Apache-2.0. *Sim-only.*"
+  },
+  {
+    "name": "Microduck headstand",
+    "source": "https://github.com/zachgarner/microduck-headstand",
+    "category": "Policies and Skills",
+    "registry_description": "Six policies chained into an acrobatic routine that folds, kicks up, rolls back, holds a split headstand and splits over to standing. The full routine passed 87 of 96 attempts, with checkpoints and ONNX on the [Hub](https://huggingface.co/ZachGarner/microduck-headstand-fold) and the tasks proposed [upstream](https://github.com/pollen-robotics/microduck_rl/pull/55). *Sim-only.*"
+  },
+  {
+    "name": "Microduck Vision Soccer",
+    "source": "https://github.com/toyhank/microduck-vision-soccer",
+    "category": "Policies and Skills",
+    "registry_description": "Head-camera striker against a monocular goalkeeper, built so the same perception and state machine can run on the robot through `mediad` and `robotd`. Its frozen ground-truth navigation baseline scored 98 of 100 goals with no falls, reported separately from the camera-driven controller on purpose; full soccer has not been run on hardware. Apache-2.0. *Sim-only.*"
+  },
+  {
+    "name": "microduck-rl (CPU)",
+    "source": "https://github.com/AungKaung1928/microduck-rl",
+    "category": "Policies and Skills",
+    "registry_description": "Balance-and-recover policy trained on a laptop with no GPU, evaluated on physics models from the robot's own authors. It beats a PD baseline, reports that its domain randomisation made standing worse, and its tests catch a silent indexing bug affecting 13 of 14 joints on the backlash model. MIT. *Sim-only.*"
+  },
+  {
+    "name": "MicroDuck Piano Learning",
+    "source": "https://github.com/KhushiJ2911/microduck-piano-learning",
+    "category": "Policies and Skills",
+    "registry_description": "Two ducks walking across a passive floor keyboard, published as an honest snapshot: one accepted traversal in which 1 of 64 evaluation worlds passed every strict gate, pressing and releasing six keys without a fall. Its author is clear it is not yet a score-following performance. Apache-2.0. *Sim-only.*"
+  },
+  {
+    "name": "microduck-tricks",
+    "source": "https://huggingface.co/langli11/microduck-tricks",
+    "category": "Policies and Skills",
+    "registry_description": "Three skills trained on Hugging Face Jobs and scored against the shipped policies on held-out tests: a run into a forward roll (200 of 200 handoffs against 86 percent), a cone slalom (8 of 8 gates against 21 percent) and a one-foot skate. A sustained one-blade glide is reported as unreachable, with the measured ceiling. *Sim-only.*"
+  },
+  {
+    "name": "microduck-onefoot-skate",
+    "source": "https://github.com/hikarioyama/microduck-onefoot-skate",
+    "category": "Policies and Skills",
+    "registry_description": "Interim checkpoint on a sustained left-foot glide, published as method rather than result: only 1 episode in 64 clears the 2.0 s gate, though 96.9 percent glide past 1.0 s. It includes a training audit, all 15 runs as curves, decision records and an ONNX path that runs without MuJoCo. *Sim-only.*"
+  },
+  {
+    "name": "microduck-detector",
+    "source": "https://huggingface.co/pngwn/microduck-detector",
+    "category": "Policies and Skills",
+    "registry_description": "YOLO11n detector that finds a Microduck in an image, 2.6M parameters, scored at 0.63 mAP50 on a held-out split of synthetic renders and real press photos; try it in [what-the-microduck](https://huggingface.co/spaces/pngwn/what-the-microduck)."
+  },
+  {
+    "name": "Microduck RL 4096x6000",
+    "source": "https://huggingface.co/Datawhale/Microduck-RL-4096x6000",
+    "category": "Policies and Skills",
+    "registry_description": "Velocity-tracking reproduction pinned to an upstream commit: 4096 parallel environments, 6000 PPO iterations, with intermediate checkpoints, the ONNX export, training config, TensorBoard events and closed-loop replay video all kept, and a matching [ball-kick run](https://huggingface.co/Datawhale/Microduck-BallKick-4096x6000) keeps the same record. *Sim-only.*"
+  },
+  {
+    "name": "Microduck action pack",
+    "source": "https://github.com/wat-bill/microduck-action-pack",
+    "category": "Policies and Skills",
+    "registry_description": "Head-nod and head-shake rhythm dance for the `microduck_rl` simulator, choreographed only through the `head_pose` and `body_pose` command channels while the policy keeps balance, with a squat-capable standing policy for the body-height channel. Code Apache-2.0, 3D assets under their upstream non-commercial terms, in Chinese. *Sim-only.*"
+  },
+  {
+    "name": "Microduck footsteps",
+    "source": "https://huggingface.co/apirrone/microduck-footsteps",
+    "category": "Policies and Skills",
+    "registry_description": "Walking on placed footsteps: a footstep-tracking policy, the one tested on the robot, and a [FootstepNet planner](https://huggingface.co/apirrone/microduck-footstepnet) retrained for the duck's feet that plans one step at a time around an obstacle. The runtime's `footsteps` branch fetches both when footstep control is switched on; in simulation it lands 5 to 7 mm from its targets. Apache-2.0."
+  },
+  {
+    "name": "static-grasp",
+    "source": "https://huggingface.co/RemiFabre/microduck-static-grasp",
+    "category": "Policies and Skills",
+    "registry_description": "Lower ground pick for the A button that crouches until the open beak is about 1 cm above the floor, keeps the centre of mass over the feet, bites and stands up holding a small object, with a [real-robot demo](https://www.youtube.com/watch?v=MpWuZ9_dxuk). It needs a matching runtime update on the duck. Apache-2.0."
+  },
+  {
+    "name": "witcheer walk family",
+    "source": "https://huggingface.co/witcheer/microduck-walk-flat",
+    "category": "Policies and Skills",
+    "registry_description": "Walks for the `walk` slot, retrained with ±1° of gear play in every servo, from a flat-ground base to variants for [rough ground](https://huggingface.co/witcheer/microduck-walk-rough), [slopes](https://huggingface.co/witcheer/microduck-walk-slope), [single steps](https://huggingface.co/witcheer/microduck-walk-step), [short stairs](https://huggingface.co/witcheer/microduck-walk-stairs), [slippery floors](https://huggingface.co/witcheer/microduck-walk-slip), a [headwind](https://huggingface.co/witcheer/microduck-walk-gale) and [walk-and-recover](https://huggingface.co/witcheer/microduck-walk-recover). Each card logs its training and simulation takes, misses included. Apache-2.0. *Sim-only.*"
+  },
+  {
+    "name": "witcheer stand-up, roll and kicks",
+    "source": "https://huggingface.co/witcheer/microduck-standup",
+    "category": "Policies and Skills",
+    "registry_description": "A get-up policy retrained with ±1° of servo gear play, a [forward roll](https://huggingface.co/witcheer/microduck-roulade), a [right-foot kick](https://huggingface.co/witcheer/microduck-kick-right) that is blind to the ball by design, so the ball must sit at the toe, and a [giant-ball kick](https://huggingface.co/witcheer/microduck-kick-right-giant-ball) for a 300 mm ball bigger than the duck. Apache-2.0. *Sim-only.*"
+  },
+  {
+    "name": "Microduck policies reproduction",
+    "source": "https://huggingface.co/mindthink/microduck-policies-repro",
+    "category": "Policies and Skills",
+    "registry_description": "Independent reproduction of the official walk and `velstand` recipes from Pollen's training checkpoints, with a patch that fixes `velstand` standing still at slow commands, checkpoints, configs, evaluation scripts and comparison tables against the official policy. Not an official release. Apache-2.0. *Sim-only.*"
+  },
+  {
+    "name": "HD1910 replica policies",
+    "source": "https://github.com/thejerrycheng/microduck_replication_feetech",
+    "category": "Policies and Skills",
+    "registry_description": "Three policies for kissqy-style builds on Feetech HD-1910 servos, trained with Isaac Lab 3.0 and Newton on a BAM model of that servo, keeping the official 61-in, 14-out layout so they load with `robotctl policy load`. Its readme shows training clips, not hardware runs. MIT. *Sim-only.*"
+  },
+  {
+    "name": "Policy golden vectors",
+    "source": "https://huggingface.co/datasets/craigm26/microduck-policy-golden-vectors",
+    "category": "Datasets and Benchmarks",
+    "registry_description": "Observation and action pairs recorded from the shipped policies, so an independent runner can be checked against the same numbers. A conformance fixture, not weights."
+  },
+  {
+    "name": "Microduck Ball Challenge",
+    "source": "https://huggingface.co/datasets/craigm26/microduck-ball-challenge",
+    "category": "Datasets and Benchmarks",
+    "registry_description": "Scored ball-chasing benchmark with the physics plant pinned by hash; a [stairs challenge](https://huggingface.co/datasets/craigm26/microduck-stairs-challenge) follows the same discipline. *Sim-only.*"
+  },
+  {
+    "name": "Trajectory dataset",
+    "source": "https://huggingface.co/datasets/allen73/microduck-trajectory-dataset",
+    "category": "Datasets and Benchmarks",
+    "registry_description": "Multi-modal state-action trajectories from the 14-DOF simulated robot, aimed at offline reinforcement learning and imitation. *Sim-only.*"
+  },
+  {
+    "name": "Microduck detection dataset",
+    "source": "https://huggingface.co/datasets/pngwn/microduck-detection-dataset",
+    "category": "Datasets and Benchmarks",
+    "registry_description": "Labelled bounding boxes over synthetic renders, composites and real press photographs, the training and validation split behind the detector above."
+  },
+  {
+    "name": "Microduck skill tree",
+    "source": "https://huggingface.co/datasets/witcheer/microduck-skill-tree",
+    "category": "Datasets and Benchmarks",
+    "registry_description": "Build log for a ladder of skills trained against a pinned upstream commit on one GPU, one folder per level whether it shipped or not, with the installable policies in their own repositories such as [walk-recover](https://huggingface.co/witcheer/microduck-walk-recover). It reports its misses too, like a recovery policy that failed to get up from its back in 3 of 3 takes. MIT. *Sim-only.*"
+  },
+  {
+    "name": "Hermes Agent runs",
+    "source": "https://huggingface.co/datasets/witcheer/microduck-hermes-runs",
+    "category": "Datasets and Benchmarks",
+    "registry_description": "One sentence typed to [Hermes Agent](https://github.com/NousResearch/hermes-agent) and the duck carries it out, with every run logged: the sentence, the agent's full transcript, the simulator's ground truth, the robot daemon's own monitor and a replay. Only the body is simulated; `robotd`, its safety layer and its control loop are the real ones. Apache-2.0. *Sim-only.*"
+  },
+  {
+    "name": "Microduck community feedback",
+    "source": "https://huggingface.co/datasets/craigm26/microduck-feedback",
+    "category": "Datasets and Benchmarks",
+    "registry_description": "Human judgments collected from a planning studio: corrections to how a plain-language router labelled each instruction, and pairwise preferences between two trained walkers doing the same thing. CC0."
+  },
+  {
+    "name": "MicroDuck x AIProbe",
+    "source": "https://github.com/rahilmehta-dev/microduck-aiprobe",
+    "category": "Datasets and Benchmarks",
+    "registry_description": "Black-box test of the official ball-kick policy on 1,000 sampled worlds in Pollen's simulator: 90.7 percent completed across 10 seeds, and a planner decides whether each failure was the agent's fault or an impossible task. Per-task data included. MIT. *Sim-only.*"
+  },
+  {
+    "name": "joeynyc/microduck-mcp",
+    "source": "https://github.com/joeynyc/microduck-mcp",
+    "category": "Agent Tools and MCP",
+    "registry_description": "Agent-agnostic MCP server modeled on the real-robot `robotd` architecture: mock, MuJoCo sim, Unix-socket and SSH transports behind one tool set, with a safety layer. Hardware transports are pre-validation."
+  },
+  {
+    "name": "aj-dev-smith/microduck-mcp",
+    "source": "https://github.com/aj-dev-smith/microduck-mcp",
+    "category": "Agent Tools and MCP",
+    "registry_description": "MCP server driving the simulated duck (CPU MuJoCo with the official policies), with rendered camera frames as tool output and a live agent-experience debug page. *Sim-only.*"
+  },
+  {
+    "name": "quackd",
+    "source": "https://github.com/rokbenko/quackd",
+    "category": "Agent Tools and MCP",
+    "registry_description": "Agent CLI that began as the brain daemon the duck was missing, named after its own services: register robots once, then state a goal in plain language and Claude, OpenAI, Gemini or Grok sequences each robot's existing skills, alone or as a flock. `.duck` task files, safety rules, MCP support, on PyPI. It now drives seven robots, all in simulators or mocks so far."
+  },
+  {
+    "name": "meckie-duck-gateway",
+    "source": "https://github.com/rangerchaz/meckie-duck-gateway",
+    "category": "Agent Tools and MCP",
+    "registry_description": "Holds the robot's WebRTC/JSON-RPC session and re-exposes it as a small local HTTP API, with a hardware-free protocol double for testing."
+  },
+  {
+    "name": "OpenCastor Microduck integration",
+    "source": "https://docs.opencastor.com/robots/microduck/",
+    "category": "Agent Tools and MCP",
+    "registry_description": "Third-party robot-agent framework that discovers Microducks, sends intents through `robotd` and composes routines."
+  },
+  {
+    "name": "Strands Robots Microduck provider",
+    "source": "https://strands-labs.github.io/robots/policies/microduck/",
+    "category": "Agent Tools and MCP",
+    "registry_description": "Python/MuJoCo provider wrapping the shipped ONNX policies behind a common simulation and hardware interface."
+  },
+  {
+    "name": "Microduck Lab (gr.Workflow)",
+    "source": "https://huggingface.co/spaces/ysharma/gr-workflow-microduck-lab",
+    "category": "Agent Tools and MCP",
+    "registry_description": "Hosted Space that turns a plain-English routine into a sequence of the robot's skills through a language model, then plays it back."
+  },
+  {
+    "name": "quacksat",
+    "source": "https://github.com/andreagenovese/quacksat",
+    "category": "Agent Tools and MCP",
+    "registry_description": "Turns the duck into a roaming voice satellite, with interchangeable Home Assistant Wyoming, agent-bridge and direct backends selected from one config file."
+  },
+  {
+    "name": "MicroDuck TinyVLA",
+    "source": "https://huggingface.co/spaces/AlexWortega/microduck-vla-simulator",
+    "category": "Agent Tools and MCP",
+    "registry_description": "Vision-language-action model driving a live MuJoCo duck from a head-camera frame, the 61-float state and a plain-English instruction, all on ONNX Runtime CPU. *Sim-only.*"
+  },
+  {
+    "name": "microduck-cli",
+    "source": "https://github.com/agentculture/microduck-cli",
+    "category": "Agent Tools and MCP",
+    "registry_description": "Same verbs for an agent and for a human: five noun groups over `robotd`'s own JSON-RPC socket, `--json` on every command, and an empty runtime dependency list. On PyPI; checked against the real daemon and the MuJoCo body."
+  },
+  {
+    "name": "microduck-plugin",
+    "source": "https://github.com/acnlabs/microduck-plugin",
+    "category": "Agent Tools and MCP",
+    "registry_description": "Agent Plugins package that gives Cursor, Copilot, Codex, VS Code or Kiro the train, export, publish-to-Hub and install loop as a single skill. MIT, with continuous integration."
+  },
+  {
+    "name": "microduck_demo_part1",
+    "source": "https://github.com/hjianbo/microduck_demo_part1",
+    "category": "Agent Tools and MCP",
+    "registry_description": "Drives the official walking policy in MuJoCo over MQTT through a small adapter, with upstream pinned as submodules and a one-script bootstrap; motor control and inference are left untouched. *Sim-only.*"
+  },
+  {
+    "name": "microduck-remote-policy-server",
+    "source": "https://github.com/lukegao209/microduck-remote-policy-server",
+    "category": "Agent Tools and MCP",
+    "registry_description": "Experimental server for running policy inference off the robot at 50 Hz: it checks each ONNX against the 61/14 contract and stays silent for a network it did not load, so `robotd` falls back to its local copy. Pairs with an experimental branch of a runtime fork."
+  },
+  {
+    "name": "microduck-lab (Hermes Agent)",
+    "source": "https://github.com/notwitcheer/microduck-lab",
+    "category": "Agent Tools and MCP",
+    "registry_description": "Lets a Hermes Agent drive the duck from plain sentences by sending intents to `robotd` only, refusing speeds outside the policy's trained range because `robotd` does not clamp them. Also includes scoring tools based on logged trunk height and gravity, and six fixes to rough-terrain training. Apache-2.0. *Sim-only.*"
+  },
+  {
+    "name": "Oh My Duck",
+    "source": "https://github.com/jixinyan/Oh-My-Duck",
+    "category": "Agent Tools and MCP",
+    "registry_description": "Agentic system that gives the duck a voice, perception and trainable skills, recording evidence, commands and results as replayable episodes. In simulation, an office navigation task passed an independent verifier with a 0.162 m goal error; missed walking segments are kept as failures, and hardware validation is pending. *Sim-only.*"
+  },
+  {
+    "name": "Harboria",
+    "source": "https://github.com/Harboria/harboria",
+    "category": "Agent Tools and MCP",
+    "registry_description": "Rust runtime for an assistant that holds long-term context and decides when to intervene, rather than answering one request at a time, with the duck as its first adapter. Apache-2.0 and early: the domain model and daemon are there, the robot side is not yet exercised on hardware."
+  },
+  {
+    "name": "Jev drives a MicroDuck",
+    "source": "https://github.com/miguelaeh/jev-microduck",
+    "category": "Agent Tools and MCP",
+    "registry_description": "Replaces the gamepad with a typed-judgment model that sees only the head camera rendered as characters and picks the next move about every 150 ms, leaving the 50 Hz locomotion policy untouched. *Sim-only.*"
+  },
+  {
+    "name": "Jevduck",
+    "source": "https://github.com/amazedsaint/jevduck",
+    "category": "Agent Tools and MCP",
+    "registry_description": "Browser research simulator asking whether a model can choose useful next actions from measured robot state while a separate controller keeps execution bounded, and keeping an accepted instruction and the physical result it actually produced as separate events. MuJoCo WebAssembly with the official policies, a [live build](https://jevduck.vercel.app/) and a validation record. *Sim-only.*"
+  },
+  {
+    "name": "quack-nav",
+    "source": "https://github.com/andreagenovese/quacknav",
+    "category": "Agent Tools and MCP",
+    "registry_description": "Navigation daemon beside the released `robotd`: time-of-flight mapping and relocalization, a cliff guard, a costmap planner, named places, an explorer that maps a house a charge at a time and `go_to`, as JSON-RPC tools, with its twin results published, misses included. Apache-2.0, in English and Italian. *Sim-only.*"
+  },
+  {
+    "name": "quack-control",
+    "source": "https://github.com/andreagenovese/quack-control",
+    "category": "Agent Tools and MCP",
+    "registry_description": "Local control page for the duck's daemons in a browser on the home network: the map [quack-nav](https://github.com/andreagenovese/quacknav) builds with the duck on it live, tap to send it somewhere, named places, exploration, the head camera, and every navigation tool and knob behind an advanced tab. Apache-2.0, in English and Italian. *Sim-only.*"
+  },
+  {
+    "name": "microduck_maploc_rs",
+    "source": "https://github.com/apirrone/microduck_maploc_rs",
+    "category": "Agent Tools and MCP",
+    "registry_description": "Time-of-flight submap SLAM, relocalization and A\\* planning in Rust, written by a Pollen engineer for the prototype duck runtime. The runtime it targets is not public; the crate is."
+  },
+  {
+    "name": "LLM robot pet",
+    "source": "https://github.com/Hchenye0503/llm-robot-pet",
+    "category": "Agent Tools and MCP",
+    "registry_description": "Pet layer where a language model picks from a library of dog and cat behaviours based on what the head camera sees and the duck's own energy and mood, a validator checks the plan, and the RL policies move the body. Apache-2.0, with a three-minute [video](https://youtu.be/M3AWN9dTlrI). *Sim-only.*"
+  },
+  {
+    "name": "gpt-microduck",
+    "source": "https://github.com/Lourisy/gpt-microduck",
+    "category": "Agent Tools and MCP",
+    "registry_description": "Browser demo where a hosted vision-language model reads the task, the head-camera image and an execution summary, then picks one of the official skills at a time while MuJoCo and the policies run locally at 50 Hz. Apache-2.0; its author says the integration is still under active development. *Sim-only.*"
+  },
+  {
+    "name": "microduck-brain",
+    "source": "https://github.com/samoxis/microduck-brain",
+    "category": "Agent Tools and MCP",
+    "registry_description": "Autonomy client over the public JSON-RPC API, with no changes to the robot's software: heading hold, obstacle steering, avoidance of low objects and drops, and every decision logged for replay. A 300 s run in the full simulator avoided both low objects and a stairwell with no falls. Apache-2.0. *Sim-only.*"
+  },
+  {
+    "name": "rax-microduck",
+    "source": "https://github.com/easyrider11/rax-microduck",
+    "category": "Agent Tools and MCP",
+    "registry_description": "MuJoCo backend for the RAX robot-agent harness that runs on a MacBook with no CUDA: a coding agent explores a reach-the-cube task through RAX's tools, then compiles what worked into a standalone controller, which scored 4/5 on held-out layouts, the miss included. Apache-2.0. *Sim-only.*"
+  },
+  {
+    "name": "decision-robot-control",
+    "source": "https://github.com/andomeder/decision-robot-control",
+    "category": "Agent Tools and MCP",
+    "registry_description": "A small local vision model served by `llama.cpp` reads the scene and names the next skill, and the official policies walk, turn, pick and sit through a six-box maze in MuJoCo. Apache-2.0. *Sim-only.*"
+  },
+  {
+    "name": "DuckKing",
+    "source": "https://github.com/zhoutingunl/DuckKing",
+    "category": "Agent Tools and MCP",
+    "registry_description": "Voice control through a Linx voice assistant, with MCP actions and short choreographed routines, running against the official `robotd` in MuJoCo as well as an animated preview, with demo videos and a validation record. MIT, in Chinese. *Sim-only.*"
+  },
+  {
+    "name": "microduck-companion",
+    "source": "https://github.com/Smartulf123/microduck-companion",
+    "category": "Agent Tools and MCP",
+    "registry_description": "Offline voice commands through Whisper in English, Norwegian or any language given a word table, PS5 controller driving, and face recognition with follow-me, all on a laptop CPU with no cloud or GPU. Tested against Pollen's own robot software driving a simulated duck; its author says it has not run on a real duck yet. Apache-2.0. *Sim-only.*"
+  },
+  {
+    "name": "quackback",
+    "source": "https://github.com/khamidollanurakhmet/quackback",
+    "category": "Agent Tools and MCP",
+    "registry_description": "Rubber-duck debugging in reverse: an MCP server with one tool, `ask_human`, that a stuck coding agent calls so the duck finds you with its camera, walks over, asks the question aloud and carries your spoken answer back. Works with the simulated duck so far. Apache-2.0. *Sim-only.*"
+  },
+  {
+    "name": "Microduck Companion (duck-chat)",
+    "source": "https://github.com/GC-RENCAO/microduck-companion",
+    "category": "Agent Tools and MCP",
+    "registry_description": "Local LLM companion running beside the official daemons and simulator: chat, webcam gestures, pet-like behaviour, and indoor path planning through a 3D apartment to come to you. Apache-2.0, in English and Chinese. *Sim-only.*"
+  },
+  {
+    "name": "LightX2V × MicroDuck",
+    "source": "https://github.com/fuheaven/LightX2V-microduck",
+    "category": "Agent Tools and MCP",
+    "registry_description": "FastWAM world-action model that steers the duck to a ball from head-camera history while the official policies walk, with a React studio for scenes, data, training and evaluation. It scored 59/60 on new layouts in real time on one H200, and 0/60 with its optimisations off. [Weights](https://huggingface.co/lightx2v/microduck). Apache-2.0, in Chinese. *Sim-only.*"
+  },
+  {
+    "name": "Laya Vision find-and-kick",
+    "source": "https://huggingface.co/thaitea/laya-vision-microduck-kick",
+    "category": "Agent Tools and MCP",
+    "registry_description": "A 201M vision-language model fine-tuned to drive the duck from its own head camera, choosing forward, left, right or kick about every 70 ms to find a ball and kick it in quackd's MuJoCo simulator, with a [live demo](https://huggingface.co/spaces/thaitea/laya-vision-microduck-kick-demo) that plays whole episodes. CC BY-NC-SA 4.0. *Sim-only.*"
+  },
+  {
+    "name": "Curious Explorer",
+    "source": "https://github.com/hidrogencloride/microduck-curious-explorer",
+    "category": "Agent Tools and MCP",
+    "registry_description": "Persona layer that asks the duck's existing software for short exploratory walks and head movements, yields to manual control and never installs or replaces a policy, with reproducible scripted runs in the official browser sandbox. Its author says no installable persona exists yet and the robot connector is unvalidated. Apache-2.0. *Sim-only.*"
+  },
+  {
+    "name": "Agentic Microduck",
+    "source": "https://github.com/Aachal-Sharma/agentic-microduck",
+    "category": "Agent Tools and MCP",
+    "registry_description": "Type a goal like \"find the red ball\" and a vision-language model reports where the target is in the head-camera image, while a simple controller, not the model, picks the moves for Pollen's walking policy. Works with vision models on NVIDIA's endpoint, with a dashboard. Apache-2.0. *Sim-only.*"
+  },
+  {
+    "name": "MicroDuck on RK3588: toy retrieval",
+    "source": "https://github.com/Baro7ue/microduck-rk3588-toy-retrieval",
+    "category": "Agent Tools and MCP",
+    "registry_description": "Told which toy to fetch, the duck searches, walks over, picks it up with its beak and drops it in a tray, with `robotd`, the policies and an INT8 YOLO detector on an RK3588 board's NPU and the body simulated in MuJoCo over Ethernet. 52 of 60 formal runs succeeded. Apache-2.0. *Sim-only.*"
+  },
+  {
+    "name": "duckmind",
+    "source": "https://github.com/joseyarashio/duckmind",
+    "category": "Agent Tools and MCP",
+    "registry_description": "A mind for the duck: identity, moods, memories, the people it knows, goals and what it learns, with a browser simulator and documentation in seven languages. Unofficial. Apache-2.0. *Sim-only.*"
+  },
+  {
+    "name": "MicroDuck Zero-Shot Robotics Harness",
+    "source": "https://github.com/Prasoon1207/microduck-harness",
+    "category": "Agent Tools and MCP",
+    "registry_description": "About 140 lines that let general-purpose LLMs control the joints directly in a 50 Hz MuJoCo simulation, with no RL policies or agent framework underneath, only physical rules and structured thought-and-action output. MIT. *Sim-only.*"
+  },
+  {
+    "name": "Knowlin",
+    "source": "https://github.com/knowlin-ai/knowlin",
+    "category": "Agent Tools and MCP",
+    "registry_description": "Self-learning companion that embodies small robots, the duck, Open Duck Mini and Reachy Mini, simulated on your PC, fetching Pollen's models from their source instead of bundling them. Free hobby project, in German and English. Apache-2.0. *Sim-only.*"
+  },
+  {
+    "name": "MicroduckHub",
+    "source": "https://microduckhub.com",
+    "category": "Community Hubs and Registries",
+    "registry_description": "Community policy browser listing the shipped behaviors and Hub retrains, with one-click deploy planned for when upstream's model channel ships."
+  },
+  {
+    "name": "uDuck Registry",
+    "source": "https://uduck-registry.pages.dev",
+    "category": "Community Hubs and Registries",
+    "registry_description": "Independent catalog of community policy descriptors with contract specs and verification status."
+  },
+  {
+    "name": "DuckSpace",
+    "source": "https://duckspace.org",
+    "category": "Community Hubs and Registries",
+    "registry_description": "Catalog of community ONNX skills for the duck and similar bipeds on several servo types, with a 3D MuJoCo apartment to try them in the browser. [Source](https://github.com/aminadav-ai/duckspace), Apache-2.0."
+  },
+  {
+    "name": "microduck-arena (3v3 football)",
+    "source": "https://github.com/00make/microduck-arena",
+    "category": "Games",
+    "registry_description": "Three-a-side reinforcement-learning football in the browser on MuJoCo WebAssembly and onnxruntime-web, with a [playable site](https://microduck-arena.com/). MIT, readme in English and Chinese. *Sim-only.*"
+  },
+  {
+    "name": "Microduck walker arena",
+    "source": "https://huggingface.co/spaces/craigm26/microduck-arena",
+    "category": "Games",
+    "registry_description": "Every valid walking policy on one field under one set of controls, each duck in its own identically reset MuJoCo world so the network is the only difference between lanes, with any Hub policy added by URL. A community tool, not Pollen's Microduck Arena. Apache-2.0. *Sim-only.*"
+  },
+  {
+    "name": "Microduck Racer",
+    "source": "https://huggingface.co/spaces/Nirav-Madhani/microduck-racer",
+    "category": "Games",
+    "registry_description": "Four roller-skating ducks race waypoints around a furnished dining room, a racing layer on top of the unchanged roller policy and observation contract. *Sim-only.*"
+  },
+  {
+    "name": "Microduck Playground Competition",
+    "source": "https://huggingface.co/spaces/HandsomeWu666/Microduck-playground-competition",
+    "category": "Games",
+    "registry_description": "Pick the winner of a two-lap race between three ducks, each running its own physics and policy in the browser, and win or lose fish on the result. Apache-2.0. *Sim-only.*"
+  },
+  {
+    "name": "Duck-Man",
+    "source": "https://github.com/nyle-prosal/duckman-microduck",
+    "category": "Games",
+    "registry_description": "Maze tag for five ducks walking on the published gait, with a trained stand-up policy for tagged or fallen ducks and a strategy network evolved on a laptop CPU. Apache-2.0. *Sim-only.*"
+  },
+  {
+    "name": "duck running!",
+    "source": "https://wander521.github.io/microduck-running/",
+    "category": "Games",
+    "registry_description": "Browser racing game around an island circuit with three ducks driven by ONNX policies on MuJoCo physics, with crashes, crates, rolls and get-ups. Desktop only. [Source](https://github.com/wander521/microduck-running), Apache-2.0."
+  },
+  {
+    "name": "Rayuela",
+    "source": "https://github.com/Bravo-Robots/microduck_rl-rayuela",
+    "category": "Games",
+    "registry_description": "Hopscotch: the duck kicks a ball onto a board, a camera rectified to a top-down view works out which square it landed on, and the duck walks or rolls there and back, as ROS 2 Humble nodes over the official policies with the BAM actuator model, plus keyboard control including kick to square N. Made for a workshop, with install notes in Spanish. Apache-2.0. *Sim-only.*"
+  },
+  {
+    "name": "Simon Says with Microduck",
+    "source": "https://github.com/LizMyers/micro-duck",
+    "category": "Games",
+    "registry_description": "A virtual duck that calls the moves while your webcam referees, with a local voice agent for chat between rounds and the simulated duck turning its head, quacking and moving its beak on real policies. Speech runs on a Mac and pose tracking in the browser, with no cloud inference or API keys. Ships a patch to the official simulator rather than the simulator itself. No licence is stated. *Sim-only.*"
+  },
+  {
+    "name": "MicroDuck Mommy Flock",
+    "source": "https://huggingface.co/spaces/oliveirabruno01/microduck-mommy-flock",
+    "category": "Games",
+    "registry_description": "Lead a mother duck while two ducklings learn to follow her, in a fork of the official sandbox that its author marks experimental, with simulated perception. *Sim-only.*"
+  },
+  {
+    "name": "MicroDuck for Garry's Mod",
+    "source": "https://github.com/DJ210517/microduck-gmod",
+    "category": "Games",
+    "registry_description": "Experimental Windows port that brings the walking and roller ducks, their original public ONNX policies and the tricks into Garry's Mod, with a remote and chase camera. The Workshop item is private while testing, so it ships as a release download. Apache-2.0."
+  },
+  {
+    "name": "omo-microduck",
+    "source": "https://github.com/omoresearch/omo-microduck",
+    "category": "Games",
+    "registry_description": "Minecraft mod where the duck, with its real CAD, servo model and walking policy simulated live in MuJoCo, walks on your blocks as a companion, with reels cut from live play. MIT."
+  },
+  {
+    "name": "MicroDuckModels",
+    "source": "https://github.com/IronSpiderMan/MicroDuckModels",
+    "category": "Browser and Desktop Simulators",
+    "registry_description": "Browser simulator rebuilt on Three.js and React Three Fiber with MuJoCo WebAssembly physics and local ONNX inference, running all nine shipped policies. Readme in Chinese and English."
+  },
+  {
+    "name": "Microduck Web",
+    "source": "https://github.com/TonyRuan/microduck-web",
+    "category": "Browser and Desktop Simulators",
+    "registry_description": "Browser simulator running the original MJCF, MuJoCo physics and eight ONNX policies entirely on the client, deployable as a plain static site with offline caching and no backend at all, with a [live build](https://tonyruan.github.io/microduck-web/). Apache-2.0, in Chinese. *Sim-only.*"
+  },
+  {
+    "name": "microduck-viewer",
+    "source": "https://github.com/MACRL2/microduck-viewer",
+    "category": "Browser and Desktop Simulators",
+    "registry_description": "Runs a trained locomotion policy as plain JavaScript at 50 Hz with no inference runtime at all, against MuJoCo WebAssembly physics, as embeddable pages for an [interactive control textbook](https://macrl2.github.io/). No server, no build step. *Sim-only.*"
+  },
+  {
+    "name": "3D bipedal teleop",
+    "source": "https://huggingface.co/spaces/hwihwalab/microduck-3d-bipedal-teleop",
+    "category": "Browser and Desktop Simulators",
+    "registry_description": "Browser digital twin driven by the shipped policies over ONNX Runtime, with omnidirectional teleoperation and reported velocity-tracking error. In English and Korean. *Sim-only.*"
+  },
+  {
+    "name": "RL Physics Overlay",
+    "source": "https://github.com/carpentry-liu/rl-physics-overlay",
+    "category": "Browser and Desktop Simulators",
+    "registry_description": "Dependency-free telemetry overlay for the browser simulator showing joint forces, torques, contacts and learning signals without blocking the training loop. In Chinese and English."
+  },
+  {
+    "name": "Kinematic viewer",
+    "source": "https://github.com/taherfattahi/microduck-rigid-body-kinematic-viewer",
+    "category": "Browser and Desktop Simulators",
+    "registry_description": "Drag any joint through its real range and watch the chain follow, with axis, hard limits, trainable limits and home angle shown live. One `index.html`, no build step; also a [hosted Space](https://huggingface.co/spaces/TaherFattahi/microduck-rigid-body-kinematic-viewer)."
+  },
+  {
+    "name": "Microduck Anatomy",
+    "source": "https://huggingface.co/spaces/mishig/microduck-anatomy",
+    "category": "Browser and Desktop Simulators",
+    "registry_description": "Interactive holographic anatomy viewer with staged component focus and exploded assembly views."
+  },
+  {
+    "name": "Microduck and Reachy Mini Simulator",
+    "source": "https://huggingface.co/spaces/FormaLau/microduck-reachy-simulator",
+    "category": "Browser and Desktop Simulators",
+    "registry_description": "Both Pollen robots in one shared MuJoCo world in the browser, editable source included; a [fork by a Pollen engineer](https://huggingface.co/spaces/RemiFabre/microduck-reachy-simulator) adds the duck's real gamepad emotions and its own sounds. *Sim-only.*"
+  },
+  {
+    "name": "RoboMasters MicroDuck Simulator",
+    "source": "https://github.com/dnorton94/robomasters-microduck",
+    "category": "Browser and Desktop Simulators",
+    "registry_description": "Educational extension of the official browser simulator that keeps its policies and controls and adds autonomous roam and chase-ball modes, placeable obstacles, interactive sensors and a head-camera view. Apache-2.0. *Sim-only.*"
+  },
+  {
+    "name": "duck3d",
+    "source": "https://github.com/guang384/duck3d",
+    "category": "Browser and Desktop Simulators",
+    "registry_description": "Native desktop console, hardware-rendered with wgpu, with MuJoCo physics on a 50 Hz timer, inference through the same ONNX Runtime version the robot's daemon uses, and a port of the daemon's control scheduling. Apache-2.0, in Chinese. *Sim-only.*"
+  },
+  {
+    "name": "MicroDuck-LKG",
+    "source": "https://github.com/Jup33Q/microduck-lkg",
+    "category": "Browser and Desktop Simulators",
+    "registry_description": "Native macOS viewer in Swift and Metal that renders the simulated duck for a Looking Glass light-field display, pairing the Laya vision model listed above for find-and-kick decisions with a PPO walking policy, and starting local training from the app's panel. Policies and model weights are downloaded from the Hub rather than bundled. No licence is stated for its own code. In Chinese. *Sim-only.*"
+  },
+  {
+    "name": "CogniPilot Microduck demo",
+    "source": "https://cognipilot.github.io/microduck_web",
+    "category": "Browser and Desktop Simulators",
+    "registry_description": "Static browser demo built on Modelica, with vendor files, licence notices and model and policy provenance shipped alongside, and no service or API key. [Source](https://github.com/CogniPilot/microduck_web), Apache-2.0. *Sim-only.*"
+  },
+  {
+    "name": "DuckKit",
+    "source": "https://github.com/craigm26/duckkit",
+    "category": "Mobile and XR",
+    "registry_description": "The Microduck as a pure Swift package: runs the real ONNX policies with the real 61-float observation at 50 Hz, plus kinematics, protocol types and Linux tests."
+  },
+  {
+    "name": "microduck-sim (iPhone)",
+    "source": "https://github.com/littlejohntj/microduck-sim",
+    "category": "Mobile and XR",
+    "registry_description": "The nine shipped policies plus MuJoCo running natively on iPhone in Swift/RealityKit, with an AR mode at true scale."
+  },
+  {
+    "name": "Microduck Android",
+    "source": "https://github.com/TonyRuan/microduck-android",
+    "category": "Mobile and XR",
+    "registry_description": "The real policies and MuJoCo physics running offline on a phone behind a touch joystick, walking, sitting, rolling and kicking, with a published APK and recordings from the device. Apache-2.0, in Chinese, and explicit that it is not an official port. *Sim-only.*"
+  },
+  {
+    "name": "Microduck WebXR",
+    "source": "https://github.com/ApurvK032/microduck-webxr",
+    "category": "Mobile and XR",
+    "registry_description": "Physics-driven Microduck for Meta Quest and ordinary browsers, with controller walking, learned skills, room placement and an autonomous wander mode."
+  },
+  {
+    "name": "Microduck AR",
+    "source": "https://huggingface.co/spaces/multimodalart/microduck-ar",
+    "category": "Mobile and XR",
+    "registry_description": "WebXR adaptation of the official sandbox with AR placement and ground-pick interaction."
+  },
+  {
+    "name": "specs-microduck",
+    "source": "https://github.com/kgediya/specs-microduck",
+    "category": "Mobile and XR",
+    "registry_description": "Hand-gesture teleoperation of the simulated duck from Snap Spectacles, with in-lens telemetry."
+  },
+  {
+    "name": "Duck on Desk",
+    "source": "https://github.com/Happenmass/duck-on-desk",
+    "category": "Desktop Pets and Companions",
+    "registry_description": "Desktop companion that reacts to Claude Code, Codex, Pi and opencode, thinking while you prompt, walking while tools run and quacking when an agent needs approval, driven by the simulator rig and real walking policies rather than canned animation. Prebuilt for macOS and Windows, AGPL-3.0."
+  },
+  {
+    "name": "Digital Duck",
+    "source": "https://gurmundi7.github.io/digital-duck/",
+    "category": "Desktop Pets and Companions",
+    "registry_description": "Unofficial desktop pet for the Mac that walks along the bottom of the screen, hops onto windows, falls, gets up and talks back, with every step coming from Pollen's MuJoCo model and trained policies rather than canned animation. [Source](https://github.com/gurmundi7/digital-duck), Apache-2.0."
+  },
+  {
+    "name": "Desktop Microduck",
+    "source": "https://github.com/mia-yanhl/desktop-microduck",
+    "category": "Desktop Pets and Companions",
+    "registry_description": "A flock of up to five hand-inked ducks that wander a Mac desktop, kick balls, pick up blocks and quack, plus a [web page](https://mia-yanhl.github.io/desktop-microduck/) to drive one, open it up chapter by chapter and build it step by step. Drawn animation, not the policies. MIT."
+  },
+  {
+    "name": "DuckPet",
+    "source": "https://github.com/a125477365/DuckPet",
+    "category": "Desktop Pets and Companions",
+    "registry_description": "Pet brain assembled from swappable plugins, wake word, voiceprint, face and body recognition, following and object detection, over priority arbitration and a behaviour state machine, driving the official simulator's walking, kicking and beak policies to wander, follow, fetch and dance. AGPL-3.0, in Chinese. *Sim-only.*"
+  },
+  {
+    "name": "darkride-automata",
+    "source": "https://github.com/Madders/darkride-automata",
+    "category": "Desktop Pets and Companions",
+    "registry_description": "Wandering residents for Darkride and Overte virtual worlds that greet visitors, take spoken commands and remember who they have met, moving with motion recorded from the official walking and trick policies in MuJoCo on bodies of their own. Apache-2.0."
+  },
+  {
+    "name": "Microduck Companion (H5)",
+    "source": "https://github.com/butterflylittle/Microduck-Companion",
+    "category": "Desktop Pets and Companions",
+    "registry_description": "Emotional companion [web page](https://microduck-ten.vercel.app) in Vue and Three.js where the duck responds to text, touch and praise with moods, beak motion and sounds, plus optional chat through a language model you configure. Apache-2.0, in Chinese."
+  },
+  {
+    "name": "microquack",
+    "source": "https://osolmaz.github.io/microquack/",
+    "category": "Music and Voice",
+    "registry_description": "Procedural droid-voice synthesis for the duck: a Rust core rendered live in the browser via WebAssembly, also on [Hugging Face](https://huggingface.co/spaces/osolmaz/microquack)."
+  },
+  {
+    "name": "Quackify",
+    "source": "https://huggingface.co/spaces/cat5v/microduck-songbook",
+    "category": "Music and Voice",
+    "registry_description": "Four-part chorales sung in the duck's own voice from a MIDI file, using the robot's `sounds` crate compiled to WebAssembly, so a song that sounds right here should sound the same on the hardware."
+  },
+  {
+    "name": "Bohemian Rhapsody by the Microducks",
+    "source": "https://huggingface.co/spaces/FormaLau/microduck-bohemian-rhapsody",
+    "category": "Music and Voice",
+    "registry_description": "Four ducks perform the operatic section in the browser simulator. *Sim-only.*"
+  },
+  {
+    "name": "Talk to Microduck",
+    "source": "https://huggingface.co/spaces/jackboyla/microduck-voice",
+    "category": "Music and Voice",
+    "registry_description": "Voice commands for the duck in the official simulator, with the speech models and the physics both running in your browser: no API key, no server, no robot. Needs a WebGPU browser and about 5 GB of GPU memory, and downloads roughly 2.5 GB of models on first use. *Sim-only.*"
+  },
+  {
+    "name": "microhear",
+    "source": "https://github.com/Archdiner/microhear",
+    "category": "Music and Voice",
+    "registry_description": "How the duck hears: one Rust core for loudness, onsets and pitch measured against the room and the speaker, running in the browser over WebAssembly now and meant for the duck's microphone worker later. MIT."
+  },
+  {
+    "name": "mooduck_quacklib",
+    "source": "https://github.com/paudar/mooduck_quacklib",
+    "category": "Music and Voice",
+    "registry_description": "Small dependency-free Rust crate for expressive synthetic duck sounds by mood and intensity, with a CLI for listening and a PCM interface for use on a robot. Apache-2.0."
+  },
+  {
+    "name": "Microduck Studio",
+    "source": "https://github.com/microai-lab/microduck-studio",
+    "category": "Control Panels and Builders",
+    "registry_description": "Local control room that puts `robotd` status, safe control and the MuJoCo body behind one browser page, deliberately duplicating none of the safety, inference or physics it fronts. Readme in English and Chinese."
+  },
+  {
+    "name": "Duck Studio",
+    "source": "https://github.com/Tim-is-coding/Microduck-Studio",
+    "category": "Control Panels and Builders",
+    "registry_description": "No-code behaviour builder: click together a trigger, perception, skills and stop conditions as a step list, test it in simulation, send it to the duck and share it on the Hub, over a small documented Python runtime. Apache-2.0, in German and English."
+  },
+  {
+    "name": "Microduck Control for Robo-Boy",
+    "source": "https://github.com/tessel-la/robo-boy-microduck-control-panel",
+    "category": "Control Panels and Builders",
+    "registry_description": "Robo-Boy workspace panel that drives a simulated duck, switches learned motion modes and moves the beak through Robo-Boy's brokered ROS API, requesting only the resources it declares. MIT. *Sim-only.*"
+  },
+  {
+    "name": "Microduck Color Studio",
+    "source": "https://github.com/LathamZ/microduck-color-studio",
+    "category": "Control Panels and Builders",
+    "registry_description": "Colors and materials per part across the 70 instances of the simulation assembly, then exports a color-preserving multi-plate 3MF and per-part STLs for printing. Apache-2.0 code with the model's own provenance kept in its notice, and a [live version](https://lathamz.github.io/microduck-color-studio/). In Chinese and English."
+  },
+  {
+    "name": "microduck console (paint shop)",
+    "source": "https://github.com/lucienxxxxxx/microduck-console",
+    "category": "Control Panels and Builders",
+    "registry_description": "Browser previewer for 3D-print colour schemes and stickers on each part of the duck before printing. Code MIT, duck meshes under Pollen's non-commercial licence, in Chinese."
+  },
+  {
+    "name": "esp-duck",
+    "source": "https://github.com/xingxingRealzyx/esp-duck",
+    "category": "Ports to Other Hardware and Runtimes",
+    "registry_description": "All nine shipped policies compiled onto an ESP32-S3 and hot-swappable at runtime, holding 50 Hz with roughly two times margin on per-channel INT8 weights and FP32 activations, fed by the board's own IMU, with a quantization-accuracy gate that runs on the host, on the device and at every boot."
+  },
+  {
+    "name": "spacemit-microduck",
+    "source": "https://github.com/fivif/spacemit-microduck",
+    "category": "Ports to Other Hardware and Runtimes",
+    "registry_description": "Brain swap to SpacemiT RISC-V: the official Rust runtime cross-compiled natively for K3 and K1 boards driving the servo bus directly, training left on the existing x86 and GPU chain. K3 measured; K1 still in progress. In Chinese."
+  },
+  {
+    "name": "microduck-imx6ull",
+    "source": "https://github.com/TonyRuan/microduck-imx6ull",
+    "category": "Ports to Other Hardware and Runtimes",
+    "registry_description": "Specialises the ten shipped v5 policies into C and NEON for an i.MX6ULL board rather than porting a general ONNX runtime, then closes the loop with `robotd` on the real board while MuJoCo on a Mac supplies the sensors and motor response. Apache-2.0, in Chinese."
+  },
+  {
+    "name": "ArduPilot Neural Mixer",
+    "source": "https://github.com/virtualrobotix/Ardupilot-Neural-Mixer",
+    "category": "Ports to Other Hardware and Runtimes",
+    "registry_description": "Runs a walking policy inside ArduPilot's rover firmware as plain C, with weights loaded from the microSD card and no companion computer. It stands, walks and turns in software-in-the-loop against MuJoCo, and has stood for 15 seconds as hardware-in-the-loop on a Pixhawk 6C; driving a real robot still needs a servo-bus backend. In English and Italian. *Sim-only.*"
+  },
+  {
+    "name": "shinro-demo-microduck",
+    "source": "https://github.com/Shinro-xyz/shinro-demo-microduck",
+    "category": "Ports to Other Hardware and Runtimes",
+    "registry_description": "The walking policy compiled to a standalone shared object, with the observation encoder, network and action post-processing lowered to a dataflow graph and cross-compiled, then driven in MuJoCo through a C ABI with ONNX Runtime kept out of the control path. Three independent implementations are checked against each other, and provenance of the vendored model is written up. Apache-2.0. *Sim-only.*"
+  },
+  {
+    "name": "DuckFly",
+    "source": "https://github.com/amazedsaint/duckfly",
+    "category": "Research Experiments",
+    "registry_description": "Wires a simulated 668-neuron fly circuit to the duck: map any of 19 circuit signals to 10 robot actions in a wizard, then watch the neural activity and the resulting movement side by side. Runs locally in a browser or as a Mac app, with a [hosted version](https://makeduckfly.com). *Sim-only.*"
+  },
+  {
+    "name": "FlyWire MicroDuck",
+    "source": "https://huggingface.co/spaces/AlexWortega/flywire-microduck",
+    "category": "Research Experiments",
+    "registry_description": "Couples a fixed spiking model of the whole released fly connectome, 139,255 neurons, to a trained walking policy; only an 84k-parameter readout from descending neurons is learned. Reaches 95 of 100 held-out goals without a fall, against 0 of 100 with the stimulation, the readout features or their identities removed. *Sim-only.*"
+  },
+  {
+    "name": "DuckPFN",
+    "source": "https://github.com/nikikilbertus/duckpfn",
+    "category": "Research Experiments",
+    "registry_description": "Walks the duck with a tabular foundation model that learns in context, turning about 60,000 context rows into joint actions at 50 Hz. Includes a notebook, a film and experiments, from weaker motors (0 of 3 walks completed rising to 3 of 3) to raw text instructions (51 of 54). Apache-2.0, with model weights under their own licence. *Sim-only.*"
+  },
+  {
+    "name": "microduck-tracking",
+    "source": "https://github.com/AlexBodner/microduck-tracking",
+    "category": "Research Experiments",
+    "registry_description": "Multi-object tracking on top of roboflow/trackers that gives the duck a target lock, so it fetches one thrown ball past identical distractors."
+  },
+  {
+    "name": "Microduck beak lab",
+    "source": "https://github.com/qilinxiaoxiang/microduck-beak-lab",
+    "category": "Research Experiments",
+    "registry_description": "Picks up, holds and drops an object with the beak, comparing a trained jaw policy with its untrained start and a scripted controller in the same scene; broader head and jaw learning is proposed, not done. *Sim-only.*"
+  },
+  {
+    "name": "Duckophila",
+    "source": "https://github.com/first-it-consulting/duckophila",
+    "category": "Research Experiments",
+    "registry_description": "The whole FlyWire fruit-fly connectome, 138,639 neurons, run in closed loop with the duck in MuJoCo, its depth sensing feeding the brain and the brain steering the walk, with a viewer lighting each neuron as it spikes and a [video](https://huggingface.co/spaces/HW01/duckophila). Apache-2.0. *Sim-only.*"
+  },
+  {
+    "name": "Micro Garden",
+    "source": "https://github.com/ChristianNHill/micro-garden",
+    "category": "Research Experiments",
+    "registry_description": "Five ducks, each on its own copy of the FlyWire fruit-fly connectome, smell, see and hear in a persistent garden, get hungry and thirsty, and show what emerges; the brain talks to the body through the robot's command protocol. [Browser version](https://chrisnhill.com/garden/). MIT. *Sim-only.*"
+  },
+  {
+    "name": "Fanduck",
+    "source": "https://github.com/7757/fanduck",
+    "category": "Replicas and Builds",
+    "registry_description": "A finished replica, with photographs and video of a working duck built from parts sourcing through printing to assembly, and the maker pack mirrored alongside: bill of materials, print files, board files and a 3D pose workbench. Its licence file pins the upstream commit everything derives from and flags the official mechanical model as non-commercial. In Chinese."
+  },
+  {
+    "name": "Microduck build tutorial",
+    "source": "https://github.com/AI-FanGe/Microduck-build-tutorial",
+    "category": "Replicas and Builds",
+    "registry_description": "End-to-end build of a working small biped on a Raspberry Pi Zero 2 W: wiring, a flashable image, Wi-Fi and SSH setup, printable files, the deployment code that drives the Dynamixel bus from an ONNX gait, and the mjlab environment that trains it. Walking hardware on video. In Chinese."
+  },
+  {
+    "name": "Microduck DIY build docs",
+    "source": "https://github.com/wslengzhicheng/microduck-diy",
+    "category": "Replicas and Builds",
+    "registry_description": "Documentation companion to that build: bill of materials, printing, wiring, phased assembly, servo and IMU commissioning and first walk, with the software left upstream. Apache-2.0, in Chinese."
+  },
+  {
+    "name": "microduck-diy",
+    "source": "https://github.com/ScrapMeta/microduck-diy",
+    "category": "Replicas and Builds",
+    "registry_description": "Month-long build log for a hand-made duck from the public simulation meshes and printable parts, with staged files and a parts list. In Chinese."
+  },
+  {
+    "name": "Microduck-kissqy",
+    "source": "https://github.com/kissqy/Microduck-kissqy",
+    "category": "Replicas and Builds",
+    "registry_description": "Finished Feetech HD-1910 replica on a Radxa ZERO 3W, based on the official 0.15.1 software, with a flashable image, adapted firmware, Chinese robot and training consoles, a home-made HAT and IMU, the print set, a build guide and seven hardware videos. Original parts are for personal, non-commercial use. In Chinese and English."
+  },
+  {
+    "name": "mircoduck-lew",
+    "source": "https://github.com/lucienxxxxxx/mircoduck-lew",
+    "category": "Replicas and Builds",
+    "registry_description": "Personal derivative of the kissqy replica that adds support for the IMU-to-Feetech v0.1 board, a UDP layer and DuckPilot, an Android app for driving the duck. It is licensed item by item, not as one open-source licence. In Chinese."
+  },
+  {
+    "name": "Microduck HD1910 + BNO085",
+    "source": "https://github.com/MHDuck/microduck",
+    "category": "Replicas and Builds",
+    "registry_description": "Fork of the runtime adapted to Feetech HD-1910 servos and an I²C BNO085 IMU on a Radxa ZERO 3W, with build, deploy and gamepad docs and a matching [training repository](https://github.com/MHDuck/microduck_rl). Apache-2.0, in Chinese and English."
+  },
+  {
+    "name": "CMU MicroDuck",
+    "source": "https://github.com/qilinxiaoxiang/cmu-microduck",
+    "category": "Replicas and Builds",
+    "registry_description": "Hand-built duck from Carnegie Mellon's robotics club, with a Radxa Cubie A7Z in the head and touch pads that make it hold when gripped. It stands and walks on the official policies at 0.25 m/s, with the full build and an 82-step guide. An open overheating issue slows the loop to about 40 Hz and the walk diverges. MIT."
+  },
+  {
+    "name": "RDK X5 MicroDuck",
+    "source": "https://github.com/Xiaomiju-x/rdk-x5-microduck",
+    "category": "Replicas and Builds",
+    "registry_description": "Physical prototype on Feetech HD1910M servos with an RDK X5 brain, running a short walk on flat ground, with failed takes published too. The walk replays recorded servo targets with live correction on one joint, not the full policy, and no HD1910M policy is trained yet. Apache-2.0, in Chinese."
+  },
+  {
+    "name": "Dukki",
+    "source": "https://github.com/lachlanhurst/dukki",
+    "category": "Replicas and Builds",
+    "registry_description": "Rework of the biped around Unitree J288 servos, about three times faster than the XL330 at similar torque, with a Radxa CM4 brain. It holds KiCad boards, STM32 servo-bridge firmware and single-servo bench tests, plus a fix for a head-IMU temperature bug its author says affects Pollen's robots too. Flagged as nowhere near complete. MIT."
+  },
+  {
+    "name": "DuckBuddy",
+    "source": "https://github.com/Animan-AI/DuckBuddy",
+    "category": "Replicas and Builds",
+    "registry_description": "Independent build on Feetech HL-2915 servos and an Orange Pi with policies retrained for those servos, offline speech recognition, two-microphone sound direction, face tracking and a mood-and-needs layer, all running on the robot. A hardware video shows it carrying out a spoken chain of moves; vision and route-following are still being tested on hardware. Apache-2.0, in Chinese."
+  },
+  {
+    "name": "Microduck-S288",
+    "source": "https://github.com/zj281136/microduck-s288",
+    "category": "Replicas and Builds",
+    "registry_description": "Replica on fifteen off-the-shelf S288 motors and a Raspberry Pi Zero 2 W with no custom PCB, with build, calibration, training and deployment guides and a pretrained ONNX. Its author says wiring details, zero-pose references and walking videos are still being added. Apache-2.0, in Chinese."
+  },
+  {
+    "name": "RDK X5 Duck",
+    "source": "https://github.com/CanNyCat17/rdk-x5-microduck",
+    "category": "Replicas and Builds",
+    "registry_description": "Full build on an RDK X5 covering parts, printing and assembly, onboard control, IMU setup and MuJoCo simulation, with a video of a short onboard walk and a validated single-battery power setup. Its author says walking stability is still being tuned. Apache-2.0, in Chinese."
+  },
+  {
+    "name": "kryakva",
+    "source": "https://github.com/AleksWolf/kryakva",
+    "category": "Replicas and Builds",
+    "registry_description": "Custom duck on fifteen HD-1910 servos with parts drawn from scratch, its own PCB, a Radxa Zero 3W, camera, rangefinder, microphone and speaker, and policies trained for these servos; it stands up, walks and turns from a DualSense pad. Code Apache-2.0, 3D models CC BY-NC-SA 4.0, in English and Russian."
+  },
+  {
+    "name": "microduck-software (HD-1910)",
+    "source": "https://github.com/harrysungit/microduck-software",
+    "category": "Replicas and Builds",
+    "registry_description": "The software side of the fanhao375 HD-1910 replica: [extra training tasks](https://github.com/harrysungit/microduck-rl) for those servos and ROCm GPUs, a runtime fork with fixes, IMU compatibility and the Studio web console. Apache-2.0, in English and Chinese."
+  },
+  {
+    "name": "OpenMicroDuck",
+    "source": "https://github.com/SaberOnGo/open-microduck",
+    "category": "Reconstructions, CAD and Printable Parts",
+    "registry_description": "Independent reverse-engineering and documentation project mapping what the robot contains and how its stack works, in English and Chinese, explicit that the hardware is not open source."
+  },
+  {
+    "name": "microduck-replica",
+    "source": "https://github.com/fanhao375/microduck-replica",
+    "category": "Reconstructions, CAD and Printable Parts",
+    "registry_description": "Reconstruction study deriving assembly and exploded drawings, CAD-importable assemblies, a fastener list and an electronics teardown (Radxa Zero 3W, TTL servo bus, the two custom boards) from the public MJCF, STL meshes and runtime source, in English and Chinese and not verified against physical hardware."
+  },
+  {
+    "name": "microduck-replica-cad",
+    "source": "https://github.com/fanhao375/microduck-replica-cad",
+    "category": "Reconstructions, CAD and Printable Parts",
+    "registry_description": "The companion drawing set for that reconstruction: 56 editable SolidWorks parts and assemblies rather than meshes, plus a 21-page assembly manual, modelled from scratch by a named author. In Chinese."
+  },
+  {
+    "name": "microduck-hardware-replica",
+    "source": "https://github.com/lingzolabs/microduck-hardware-replica",
+    "category": "Reconstructions, CAD and Printable Parts",
+    "registry_description": "FreeCAD multi-part assemblies, printable meshes and a planning-stage bill of materials derived from the public MJCF and STL models. In Chinese, and explicit that it is unaffiliated and unverified."
+  },
+  {
+    "name": "ChinaMicroDuck",
+    "source": "https://github.com/Shiyao-Huang/ChinaMicroDuck",
+    "category": "Reconstructions, CAD and Printable Parts",
+    "registry_description": "Replication reference library: four costed manufacturing routes compared, an audit of which official assets may be reused under which license, environment verification reports and Chinese translations of the official docs."
+  },
+  {
+    "name": "OpenMicroDuck (FreeCAD)",
+    "source": "https://github.com/MengyangGao/OpenMicroDuck",
+    "category": "Reconstructions, CAD and Printable Parts",
+    "registry_description": "FreeCAD model and engineering drawings alongside a keyboard-driven MuJoCo simulation with walking, sitting and standing, fall recovery and jaw control, plus ramp and low-grip test scenes. Apache-2.0, in Chinese and still iterating; unrelated to the reverse-engineering project of the same name above."
+  },
+  {
+    "name": "Microduck Replica Lab",
+    "source": "https://github.com/tachytelicdetonation/microduck-replica-lab",
+    "category": "Reconstructions, CAD and Printable Parts",
+    "registry_description": "Assembly explorer, a rehearsal of the published walking policy, reference CAD, build instructions and US and China sourcing guides. Code is Apache-2.0 while reference geometry stays under CC BY-NC-SA with a license map, and the project says it is not a tested kit."
+  },
+  {
+    "name": "Microduck Replica Kit",
+    "source": "https://github.com/qianen6/microduck-replica-kit",
+    "category": "Reconstructions, CAD and Printable Parts",
+    "registry_description": "Evidence-traceable reconstruction package that separates upstream facts from reproducible derivations and open questions, with an assembly exporter for the 47 public meshes and a staged bill of materials. Walking hardware is not finished. In Chinese."
+  },
+  {
+    "name": "MicroDuck 3D assembly guide",
+    "source": "https://ley-wl.github.io/microduck-guide/",
+    "category": "Reconstructions, CAD and Printable Parts",
+    "registry_description": "Step-through assembly of fifteen modules with servo IDs, a parts inventory and a print list, built on the reconstruction and drawings listed above and carrying their non-commercial licence with a notice. Its authors say the internal steps are a fitting reference, not verified part by part on a physical build. [Source](https://github.com/Ley-WL/microduck-guide), in Chinese."
+  },
+  {
+    "name": "MicroDuck BoBoRedesign",
+    "source": "https://github.com/AiBoBoMaker/MicroDuck-BoBoRedesign",
+    "category": "Reconstructions, CAD and Printable Parts",
+    "registry_description": "Every part redesigned for FDM and SLA printing rather than injection moulding while keeping the original look, with PCB files and a path toward cheaper domestic servos. The printed designs carry the same non-commercial licence as the original models. In Chinese and English."
+  },
+  {
+    "name": "microduck-jetson-mount",
+    "source": "https://github.com/adammong/microduck-jetson-mount",
+    "category": "Reconstructions, CAD and Printable Parts",
+    "registry_description": "External mount carrying a Jetson Orin Nano and a 4S battery, as parametric CAD and printable parts with MuJoCo models of the loaded robot. The unchanged official walk carries the load in simulation; nothing is shown on hardware yet. The mount design itself carries no licence. *Sim-only.*"
+  },
+  {
+    "name": "MicroDuck-Replica (deanxizian)",
+    "source": "https://github.com/deanxizian/MicroDuck-Replica",
+    "category": "Reconstructions, CAD and Printable Parts",
+    "registry_description": "Refined HD-1910 print set based on the original and the kissqy build, with reworked neck, leg and head fits, room for a moving beak, a full assembly model, board references and a parts list. Licensed path by path, with non-commercial upstream terms kept. In Chinese."
+  },
+  {
+    "name": "microduck_imu_to_ttl",
+    "source": "https://github.com/avanx/microduck_imu_to_ttl",
+    "category": "Boards and Sensors",
+    "registry_description": "Open-hardware `imu_to_dxl` board putting an LSM6DSV16X on the half-duplex Dynamixel bus, with its own regulation and transceiver buffering, schematic and block diagram published and the project also on [OSHWHub](https://oshwhub.com/avanx/project_whiijerp). Fills one of the parts the replica projects list as still to be designed. Apache-2.0, in Chinese."
+  },
+  {
+    "name": "microduck-community-kit",
+    "source": "https://github.com/jyg9/microduck-community-kit",
+    "category": "Boards and Sensors",
+    "registry_description": "The boards a replica is missing: an `imu_to_dxl` body-sensor board kept close to the original, with field-upgradable firmware and host test software, plus the small board above the battery, a servo-bus hub and a Feetech servo debugger. Apache-2.0, in Chinese."
+  },
+  {
+    "name": "IMU replacement reference",
+    "source": "https://github.com/Juxi-Technology/imu-displace-microduck",
+    "category": "Boards and Sensors",
+    "registry_description": "Patch and bilingual guide for moving HD-1910 builds to an I²C ICM-42670-P trunk IMU. The data path is verified on hardware; wiring it into `robotd` is not done yet, and the guides say so. Apache-2.0."
+  },
+  {
+    "name": "MicroDuck observer",
+    "source": "https://github.com/Ley-WL/microduck-observer",
+    "category": "Boards and Sensors",
+    "registry_description": "Read-only web dashboard for a physical build, showing a BNO085 IMU's attitude on a 3D duck beside all fifteen HD-1910 servos, with shadow ONNX inference to check a policy against live data. It never sends a motion command, and runs against a simulated backend or on a Radxa ZERO 3W. Apache-2.0, in Chinese."
+  },
+  {
+    "name": "microduck-eyes",
+    "source": "https://github.com/jadberro/microduck-eyes",
+    "category": "Boards and Sensors",
+    "registry_description": "Cartoon eyes for two round 1.28-inch GC9A01 screens driven from a Radxa Zero, with a behaviour engine and a desktop simulator at true size to design them before the hardware is fitted. MIT."
+  },
+  {
+    "name": "Microduck HUB board",
+    "source": "https://github.com/jaggerzhong/microduck-hub-board",
+    "category": "Boards and Sensors",
+    "registry_description": "Passive four-port servo-bus hub for HD-1910 builds, 23 × 34 mm with holes matching the hip servo housing and room for a bulk capacitor, with Gerbers, KiCad files and ordering notes. CERN-OHL-S-2.0, in Chinese and English."
+  },
+  {
+    "name": "MicroDuck servo numbering",
+    "source": "https://github.com/JieJie-H/microduck-servo-numbering",
+    "category": "Calibration and Assembly Tools",
+    "registry_description": "Tool for Feetech HD-1910 builds that highlights each joint on a 3D duck, then scans, writes and re-checks one servo's bus ID at a time. Code MIT, 3D model under the upstream non-commercial licence, in Chinese."
+  },
+  {
+    "name": "Microduck calibration guide",
+    "source": "https://github.com/janauto/microduck-calibration-guide",
+    "category": "Calibration and Assembly Tools",
+    "registry_description": "Read-only joint-direction check for HD-1910 builds: it animates the expected motion, you move the joint by hand, and it shows the encoder change, without ever commanding a servo. MIT, in Chinese."
+  },
+  {
+    "name": "MicroDuck Maker",
+    "source": "https://github.com/lxm/microduck-maker",
+    "category": "Calibration and Assembly Tools",
+    "registry_description": "Maintenance toolkit for HD-1910 builds: per-joint zero calibration with a 3D reference, backup and restore, and a servo numbering and assembly check you can [view online](https://lxm.github.io/microduck-servo-guide/). Original code MIT; the bundled kissqy reference code and CAD-derived models keep their non-commercial terms. In Chinese."
+  },
+  {
+    "name": "microduck-tools",
+    "source": "https://github.com/jackwuwei/microduck-tools",
+    "category": "Calibration and Assembly Tools",
+    "registry_description": "Servo zero-calibration workbench that runs on a computer and reaches the duck's servo bus over SSH or a direct USB serial link, with a printable calibration tray, the control-program patches it needs and photos of it in use. Apache-2.0, in Chinese and English."
+  },
+  {
+    "name": "TechCrunch",
+    "source": "https://techcrunch.com/2026/08/27/hugging-face-is-selling-a-cute-399-open-source-duck-robot-microduck/",
+    "category": "Articles and Coverage",
+    "registry_description": "Launch coverage."
+  },
+  {
+    "name": "WhatDuck",
+    "source": "https://duck.whatled.com",
+    "category": "Articles and Coverage",
+    "registry_description": "Learning site for the replication effort: four handbooks, a thirty-lesson course and two hundred deep readings of the official code and hardware, with the [site source and content](https://github.com/sxyseo/duck-whatled) published together. In Chinese."
+  },
+  {
+    "name": "Engadget",
+    "source": "https://www.engadget.com/2245407/huggingface-and-pollen-robotics-opn-pre-orders-for-the-microduck-robot/",
+    "category": "Articles and Coverage",
+    "registry_description": "Pre-order details and specs."
+  },
+  {
+    "name": "The Register",
+    "source": "https://www.theregister.com/ai-and-ml/2026/08/27/hugging-face-offers-399-robot-duck-to-help-you-quack-the-ai-code/5293011",
+    "category": "Articles and Coverage",
+    "registry_description": "Launch coverage with a developer angle."
+  },
+  {
+    "name": "The New Stack",
+    "source": "https://thenewstack.io/hugging-face-microduck-robot/",
+    "category": "Articles and Coverage",
+    "registry_description": "Why the duck is a reinforcement-learning teaching platform."
+  },
+  {
+    "name": "IEEE Spectrum",
+    "source": "https://spectrum.ieee.org/video-friday-microduck-robot",
+    "category": "Articles and Coverage",
+    "registry_description": "Video Friday feature."
+  },
+  {
+    "name": "Digital Trends",
+    "source": "https://www.digitaltrends.com/cool-tech/pollen-robotics-microduck-aims-to-make-training-physical-ai-far-less-fragile-and-cheaper/",
+    "category": "Articles and Coverage",
+    "registry_description": "On making physical-AI training cheaper and less fragile."
+  },
+  {
+    "name": "MarkTechPost",
+    "source": "https://www.marktechpost.com/2026/08/28/pollen-robotics-hugging-face-microduck-399-open-source-rl-biped-robot/",
+    "category": "Articles and Coverage",
+    "registry_description": "Technical summary of the RL stack."
+  },
+  {
+    "name": "Interesting Engineering",
+    "source": "https://interestingengineering.com/ai-robotics/new-robot-duck-learn-from-its-mistakes",
+    "category": "Articles and Coverage",
+    "registry_description": "Overview of the robot's fall recovery and learning loop."
+  },
+  {
+    "name": "Hacker News discussion",
+    "source": "https://news.ycombinator.com/item?id=49462763",
+    "category": "Articles and Coverage",
+    "registry_description": "Launch thread with 700+ points, including Pollen engineers answering questions."
+  },
+  {
+    "name": "Pointcast 031",
+    "source": "https://mhoydich.github.io/pointcast-microduck/",
+    "category": "Articles and Coverage",
+    "registry_description": "Long-form feature on the hardware, the open stack and programming behavior with agents."
+  },
+  {
+    "name": "CNX Software",
+    "source": "https://www.cnx-software.com/2026/08/28/microduck-a-duck-like-biped-robot-designed-for-physical-ai-experimentation-and-fun/",
+    "category": "Articles and Coverage",
+    "registry_description": "Hardware-focused launch write-up covering the RK3566 board, memory and storage, motors and sensors."
+  },
+  {
+    "name": "The Next Web",
+    "source": "https://thenextweb.com/news/hugging-face-microduck-399-open-source-robot",
+    "category": "Articles and Coverage",
+    "registry_description": "Launch coverage of the price, the open-source software and which parts are not open."
+  },
+  {
+    "name": "The Standard",
+    "source": "https://www.thestandard.com.hk/finance/article/341576/Hugging-Faces-duck-robot-powered-by-a-Chinese-chip-sold-over-10000-units",
+    "category": "Articles and Coverage",
+    "registry_description": "Business report on sales passing 10,000 units, the Rockchip processor and Pollen's aim to deliver before Christmas."
+  },
+  {
+    "name": "We made a new robot.",
+    "source": "https://www.youtube.com/watch?v=RAtzEyGBGFU",
+    "category": "Videos",
+    "registry_description": "Official launch film from Pollen Robotics."
+  },
+  {
+    "name": "Meet Microduck, the $399 Tiny Robot You Can Teach New Tricks",
+    "source": "https://www.youtube.com/watch?v=reiTh7K4KSc",
+    "category": "Videos",
+    "registry_description": "Official product overview."
+  },
+  {
+    "name": "Microduck Sim 2 Real",
+    "source": "https://www.youtube.com/watch?v=szW7N_7B3tU",
+    "category": "Videos",
+    "registry_description": "Official side-by-side of policies in simulation and on the robot."
+  },
+  {
+    "name": "Hugging Face Pushes Deeper Into Robotics With MicroDuck",
+    "source": "https://www.youtube.com/watch?v=LF7GmLKgvcc",
+    "category": "Videos",
+    "registry_description": "Bloomberg Tech segment."
+  },
+  {
+    "name": "'Microduck' robot enters growing market of AI toys",
+    "source": "https://www.youtube.com/watch?v=i_IMO0knP3I",
+    "category": "Videos",
+    "registry_description": "Global News segment."
+  },
+  {
+    "name": "Pollen Discord",
+    "source": "https://discord.com/invite/pollen-community-519098054377340948",
+    "category": "Community",
+    "registry_description": "Official community server; the Microduck channels are where the team answers questions."
+  },
+  {
+    "name": "Pollen Robotics on Hugging Face",
+    "source": "https://huggingface.co/pollen-robotics",
+    "category": "Community",
+    "registry_description": "Organization page hosting the sandbox Space and models."
+  },
+  {
+    "name": "Pollen Robotics on YouTube",
+    "source": "https://www.youtube.com/@PollenRobotics",
+    "category": "Community",
+    "registry_description": "Official channel."
+  },
+  {
+    "name": "@pollenrobotics on X",
+    "source": "https://x.com/pollenrobotics",
+    "category": "Community",
+    "registry_description": "Official account."
+  },
+  {
+    "name": "Open Duck Mini",
+    "source": "https://github.com/apirrone/Open_Duck_Mini",
+    "category": "Lineage",
+    "registry_description": "The open-hardware predecessor: BOM, CAD, and the original mjlab training work."
+  },
+  {
+    "name": "Open Duck Mini Runtime",
+    "source": "https://github.com/apirrone/Open_Duck_Mini_Runtime",
+    "category": "Lineage",
+    "registry_description": "Raspberry Pi runtime for Open Duck Mini."
+  },
+  {
+    "name": "microduck_runtime (legacy)",
+    "source": "https://github.com/TommyZihao/microduck_runtime",
+    "category": "Lineage",
+    "registry_description": "Pre-launch Raspberry Pi runtime for the Microduck prototype; superseded by `pollen-robotics/microduck`."
+  }
+]

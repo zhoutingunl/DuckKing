@@ -22,7 +22,7 @@ test('microphone permission starts in the connection gesture before a delayed wo
      }
    };
  });
- await page.goto('/?room=1');await page.locator('#connect-voice').click();
+ await page.goto('/index.html?room=1');await page.locator('#connect-voice').click();
  await expect.poll(()=>page.evaluate(()=>window.micGestures)).toEqual([true]);
  await expect(page.locator('#voice-caption')).toContainText('正在加载录音组件');
  await expect(page.locator('#talk-button')).toBeEnabled({timeout:15000});
@@ -36,7 +36,7 @@ test('microphone denial stays visible and a direct retry recovers without reconn
    const native=navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);let calls=0;
    navigator.mediaDevices.getUserMedia=options=>++calls===1?Promise.reject(new DOMException('Fixture denial','NotAllowedError')):native(options);
  });
- await page.goto('/?room=1');await page.locator('#connect-voice').click();
+ await page.goto('/index.html?room=1');await page.locator('#connect-voice').click();
  await expect(page.locator('#voice-caption')).toContainText('浏览器未允许此网站');
  await expect(page.locator('#talk-button')).toBeDisabled();
  await page.locator('#prepare-microphone').click();await expect(page.locator('#talk-button')).toBeEnabled();
@@ -51,7 +51,7 @@ test('an unanswered microphone request stops waiting and exposes a retry without
    const native=navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);let calls=0;
    navigator.mediaDevices.getUserMedia=options=>++calls===1?new Promise(()=>{}):native(options);
  });
- await page.goto('/?room=1');await page.locator('#connect-voice').click();
+ await page.goto('/index.html?room=1');await page.locator('#connect-voice').click();
  await expect(page.locator('#voice-badge')).toHaveText('灵矽已连接');
  await page.clock.fastForward(13000);
  await expect(page.locator('#voice-caption')).toContainText('浏览器未完成麦克风授权');
@@ -83,7 +83,7 @@ test('push-to-talk captures framed PCM, receives playback, and releases micropho
       if(data.type==='disconnect')send({type:'voice_status',state:'disconnected'});
     });
   });
-  await page.goto('/?room=1');
+  await page.goto('/index.html?room=1');
   await page.locator('#connect-voice').click();
   await expect(page.locator('#talk-button')).toBeEnabled();
   await page.locator('#talk-button').dispatchEvent('pointerdown',{pointerId:1});
@@ -105,7 +105,7 @@ test('activation and connection failure stay explicit instead of faking a reply'
       socket.send(JSON.stringify(count===1?{type:'voice_status',state:'awaiting_binding',activation_code:'123456'}:{type:'voice_status',state:'error',error:'协议测试：账号尚未绑定'}));
     }
   }));
-  await page.goto('/?room=1');
+  await page.goto('/index.html?room=1');
   await page.locator('#connect-voice').click();
   await expect(page.locator('#activation')).toContainText('123456');
   await expect(page.locator('#talk-button')).toBeDisabled();
@@ -121,7 +121,7 @@ test('a rejected local voice connection gives actionable feedback and can be ret
     if(++attempts===1)socket.close({code:1008,reason:'Local protocol test rejection'});
     else socket.send(JSON.stringify({type:'voice_status',state:'ready'}));
   }));
-  await page.goto('/?room=1');
+  await page.goto('/index.html?room=1');
   await page.locator('#connect-voice').click();
   await expect(page.locator('#voice-badge')).toHaveText('连接异常');
   await expect(page.locator('#notice')).toContainText('本地语音通道连接失败');
@@ -145,7 +145,7 @@ test('stalled thinking can be reset and recovery never starts recording automati
       if(state)socket.send(JSON.stringify({type:'voice_status',state}));
     });
   });
-  await page.goto('/?room=1');
+  await page.goto('/index.html?room=1');
   await page.locator('#connect-voice').click();
   await expect(page.locator('#talk-button')).toBeEnabled();
   await page.locator('#talk-button').dispatchEvent('pointerdown',{pointerId:1});

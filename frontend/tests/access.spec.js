@@ -9,7 +9,7 @@ test('independent visitors cannot list, enter or stop each other’s rooms',asyn
   const b=(await(await second.request.post('/api/rooms/claim')).json()).room;
   expect(a).not.toBe(b);
   const mine=await first.newPage(),other=await second.newPage();
-  await Promise.all([mine.goto(`/?room=${a}`),other.goto(`/?room=${b}`)]);
+  await Promise.all([mine.goto(`/index.html?room=${a}`),other.goto(`/index.html?room=${b}`)]);
   await expect(mine.locator('#connection-label')).toContainText('已连接');
   await expect(other.locator('#connection-label')).toContainText('已连接');
   await expect(mine.locator('.room-links a')).toHaveText([`房间 ${a}`]);
@@ -21,7 +21,7 @@ test('independent visitors cannot list, enter or stop each other’s rooms',asyn
   expect((await second.request.get(`/api/state?room=${a}`)).status()).toBe(404);
   expect((await second.request.get(`/api/actions/${action}?room=${a}`)).status()).toBe(404);
   await expect.poll(async()=>(await(await first.request.get(`/api/actions/${action}?room=${a}`)).json()).status).toBe('completed');
-  await other.goto(`/?room=${a}`);
+  await other.goto(`/index.html?room=${a}`);
   await expect(other.locator('#room-recovery')).toBeVisible();
   await expect(other.locator('body')).toHaveClass(/room-unavailable/);
   for(const endpoint of ['ws','scene-ws','voice','scene-voice']){

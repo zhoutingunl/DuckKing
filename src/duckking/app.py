@@ -133,6 +133,9 @@ def create_app(
     from .seesaw_api import install_seesaw_api
 
     install_seesaw_api(app, get_room, ROOT)
+    from .feature_api import install_feature_api
+
+    install_feature_api(app, get_room, ROOT)
 
     async def socket_room(ws):
         # Selection is a protocol frame so existing HTTPS bridges need no changes.
@@ -191,7 +194,7 @@ def create_app(
 
     @app.post("/api/rooms/claim")
     async def claim_room(language: str = "zh"):
-        if language not in {"zh", "fr", "en"}:
+        if language not in {"zh", "fr", "en", "ja"}:
             raise HTTPException(422, "不支持的房间语言")
         return await app.state.room_registry.claim(language=language, owner=current_owner.get())
 
@@ -317,6 +320,7 @@ def create_app(
                 "stage",
                 "balance",
                 "seesaw",
+                "functional",
                 "unknown",
             },
         }
@@ -721,7 +725,7 @@ def create_app(
 
     @app.get("/api/voice/profiles")
     async def voice_profiles(room: str = "1", language: str = "zh"):
-        if language not in {"zh", "en", "fr"}:
+        if language not in {"zh", "en", "fr", "ja"}:
             raise HTTPException(status_code=400, detail="不支持的对话语言")
         return public_profiles(get_room(room).settings, language)
 
@@ -800,19 +804,20 @@ def create_app(
                         mode = data.get("mode", "cloud")
                         language = data.get("language")
                         if language is not None and (not isinstance(language, str)
-                                                     or language not in {"zh", "en", "fr"}):
+                                                     or language not in {"zh", "en", "fr", "ja"}):
                             raise ValueError("不支持的对话语言")
                         # The installed offline command model/parser is Chinese.
                         # Other languages go directly to their real Linx agent.
-                        if language in {"en", "fr"}:
+                        if language in {"en", "fr", "ja"}:
                             mode = "cloud"
                         if mode not in {"cloud", "local_first"}:
                             raise ValueError("未知语音模式")
                         if mode != "cloud" and getattr(voice_motion.backend, "scene", None) in {
                             "balance",
                             "seesaw",
+                            "functional",
                         }:
-                            raise ValueError("平衡与跷跷板教练使用灵矽理解，请选择灵矽模式")
+                            raise ValueError("此场景使用灵矽理解，请选择灵矽模式")
                         if (
                             mode == "local_first"
                             and voice_motion.studio
@@ -895,6 +900,19 @@ def create_app(
                         await ws.close(code=1000)
 
     static = ROOT / "frontend" / "dist"
+    if (static / "features.html").is_file():
+        from fastapi.responses import RedirectResponse
+
+        @app.get("/", include_in_schema=False)
+        async def scene_home(request: Request):
+            query = dict(request.query_params)
+            query["sort"] = "top"
+            from urllib.parse import urlencode
+
+            # Relative Location preserves a path-stripping proxy's public
+            # prefix even when this process also serves the direct root domain.
+            return RedirectResponse("features.html?" + urlencode(query), status_code=307)
+
     if static.is_dir():
         app.mount("/", StaticFiles(directory=static, html=True), name="frontend")
     else:

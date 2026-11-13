@@ -5,6 +5,7 @@ Observation layout, home pose and 50 Hz inference follow microduck_rl/infer_poli
 """
 
 import asyncio
+import logging
 import math
 import secrets
 import time
@@ -337,6 +338,7 @@ class MuJoCoBackend:
         except asyncio.CancelledError:
             raise
         except Exception:
+            logging.getLogger(__name__).exception("mujoco_tick_failed scene=%s", self.scene)
             self.error = "MuJoCo 推进失败，请重置场景"
             if self.idle:
                 self.idle.enabled = False

@@ -1,5 +1,7 @@
+import {featureMessages} from './feature-messages.js';
 // UI translations only; never rewrite transcripts or user-authored content.
 export const messages = [
+  ...featureMessages,
   ["选择上方场景，准备后即可开始。", "Choose a scene above to get started.", "Choisis une scène ci-dessus pour commencer."],
   ["演示完成 · 结束画面", "Show complete · final frame", "Spectacle terminé · dernière image"],
   ["四只鸭，四个固定声部。听见成员依次加入。", "Four ducks, four fixed parts. Hear each singer join.", "Quatre canards, quatre voix fixes. Écoute les chanteurs se joindre au chœur."],

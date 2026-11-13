@@ -8,7 +8,7 @@ test('named choreographies run real backend phases and return to neutral',async(
       if(typeof event.payload==='string')frames.push(JSON.parse(event.payload));
     });
   });
-  await page.goto('/?room=1');
+  await page.goto('/index.html?room=1');
   await expect(page.getByText('本地工作台已连接')).toBeVisible();
   for(const [name,label,phase] of [['flash_step','闪身步','回闪'],['bear_shake','狗熊哆嗦毛','抖毛']]){
     const responsePromise=page.waitForResponse(response=>new URL(response.url()).pathname.endsWith('/api/actions')&&response.request().postDataJSON().name===name);
@@ -27,7 +27,7 @@ test('named choreographies run real backend phases and return to neutral',async(
 
 test('mobile names fit and Escape cancels a choreography',async({page})=>{
   await page.setViewportSize({width:390,height:844});
-  await page.goto('/?room=1');
+  await page.goto('/index.html?room=1');
   const accepted=page.waitForResponse(response=>new URL(response.url()).pathname.endsWith('/api/actions')&&response.request().postDataJSON().name==='bear_shake');
   await page.locator('[data-action="bear_shake"]').click();
   const id=(await (await accepted).json()).id;

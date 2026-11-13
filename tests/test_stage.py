@@ -623,3 +623,45 @@ async def test_dance_mcp_freezes_selected_set_and_gather_handles_no_selection(ba
     )
     assert result["result"]["isError"] and len(seen) == 2
     await motion.close()
+
+
+async def test_transient_posture_handoff_waits_and_has_a_hard_simulation_deadline(
+    backend, monkeypatch
+):
+    ready, ticks = False, 0
+    stage = backend.stage
+    monkeypatch.setattr("duckking.stage.measure_posture",
+                        lambda *args: {"observed": "stand" if ready else "transition"})
+
+    async def settling(delay):
+        nonlocal ready, ticks
+        backend.data.time += delay
+        ticks += 1
+        ready = ticks >= 3
+
+    monkeypatch.setattr("duckking.stage.asyncio.sleep", settling)
+    await stage.wait_ready()
+    assert ticks == 3
+    ready = False
+    before = backend.data.time
+
+    async def never_settles(delay):
+        backend.data.time += delay
+
+    monkeypatch.setattr("duckking.stage.asyncio.sleep", never_settles)
+    with pytest.raises(ValueError, match="坐稳或站稳"):
+        await stage.wait_ready()
+    assert backend.data.time - before <= 1.23
+
+
+async def test_posture_readiness_wait_cancels_without_starting_a_performance(backend, monkeypatch):
+    monkeypatch.setattr("duckking.stage.measure_posture", lambda *args: {"observed": "transition"})
+
+    async def cancel(delay):
+        raise asyncio.CancelledError
+
+    monkeypatch.setattr("duckking.stage.asyncio.sleep", cancel)
+    with pytest.raises(asyncio.CancelledError):
+        await backend.stage.dance(["a"])
+    assert all(not driver.command.any() for driver in backend.drivers)
+    assert not backend.stage.running

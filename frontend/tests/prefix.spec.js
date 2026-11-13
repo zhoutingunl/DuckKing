@@ -74,6 +74,9 @@ test(`${secure?'HTTPS':'HTTP'} prefix serves pages, physical state, actions and 
   const sockets=[];page.on('websocket',socket=>sockets.push(socket.url()));
   try{
     await page.goto(prefix+'?room=1');
+    await expect(page).toHaveURL(prefix+'features.html?room=1&sort=top');
+    await expect(page.locator('#feature-catalog')).toBeVisible();
+    await page.goto(prefix+'index.html?room=1');
     expect(await page.evaluate(()=>window.isSecureContext)).toBe(true);
     await expect(page.locator('#connection-label')).toHaveText('本地工作台已连接');
     await page.locator('[data-action="nod"]').click();

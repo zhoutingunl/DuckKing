@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import {pickLanguage, TRANSLATIONS, ARIA_LABELS, translate} from '../src/ui-language.js';
+import {pickVoiceLanguage, pickLanguage, TRANSLATIONS, ARIA_LABELS, translate} from '../src/ui-language.js';
 
 test('language pick prefers explicit URL over saved choice over server default', () => {
   assert.equal(pickLanguage({urlLang: 'fr', savedLang: 'zh', serverLang: 'zh'}), 'fr');
@@ -82,4 +82,12 @@ test('joined explanation and live status translate without losing sentences',()=
 test('localized status preserves user-authored cue names even when they match a UI phrase',()=>{
   assert.equal(translate('当前口令：点点头；通过 2，拒绝 1','fr'),'Mot-clé actuel : 点点头 ; acceptés 2, refusés 1');
   assert.equal(translate('待确认暗号：下班，第 2 版','en'),'Shortcut awaiting confirmation: 下班, version 2');
+});
+
+
+test('Japanese voice choice is independent from interface locale and explicit choices win',()=>{
+ assert.equal(pickVoiceLanguage({urlVoiceLang:'ja',urlLang:'fr',savedVoiceLang:'zh'}),'ja');
+ assert.equal(pickVoiceLanguage({urlLang:'en',savedVoiceLang:'ja'}),'en');
+ assert.equal(pickVoiceLanguage({savedVoiceLang:'ja',interfaceLanguage:'fr'}),'ja');
+ assert.equal(pickVoiceLanguage({urlVoiceLang:'invalid',savedVoiceLang:'invalid',interfaceLanguage:'fr'}),'fr');
 });

@@ -1,0 +1,25 @@
+{
+  "registry_commit": "9cfa5abca6f143b8af0048aeb6004dc5e67f81e8",
+  "policy_registry_entries": 44,
+  "readme_list_items": 313,
+  "github_primary_repos_attempted": 207,
+  "github_readmes_success": 206,
+  "github_failures": [
+    "Harboria/harboria"
+  ],
+  "github_trees_checked": 29,
+  "github_tree_failures": [
+    "Raghav-16/Microduck_Manipulation",
+    "npow/microduck-coop"
+  ],
+  "hf_search_models_all_pages": 1191,
+  "hf_search_pages": 2,
+  "hf_remaining_next": false,
+  "hf_detailed_cards_cached": 65,
+  "hf_novel_name_cards": 33,
+  "hf_novel_name_success": 33,
+  "community_spaces_attempted": 23,
+  "community_spaces_readme_meta_success": 21,
+  "retrieval_date": "2026-11-13 Asia/Shanghai",
+  "not_done": "No policy inference or physics/hardware trials performed. Not every HF card/source/history reviewed; all 1191 metadata rows indexed, 65+ cards deep-read. Live Space browser functions not exercised."
+}
