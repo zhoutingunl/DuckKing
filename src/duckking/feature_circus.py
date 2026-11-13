@@ -213,14 +213,14 @@ class CircusWorld:
             pass
         except Exception:
             traceback.print_exc()
-            self.error = "跳绳物理实验未能继续，请重置后再试"
+            self.error = "跳绳物理实验未能继续；再次点击动作会自动准备新一轮。"
         finally:
             self.ready.set()
             self.done.set()
 
     async def perform(self, command):
         if self.done.is_set():
-            raise ValueError("本轮已结束，请先重置再开始")
+            raise ValueError("本轮已结束；再次点击动作会自动重置起点。")
         self.begin.set()
         try:
             await asyncio.to_thread(self.done.wait)

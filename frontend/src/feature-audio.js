@@ -12,7 +12,7 @@ export class FeatureAudio {
  }
  stop(){clearTimeout(this.watch);this.key=null;for(const node of [this.source,this.tone]){try{node?.stop()}catch{}node?.disconnect()}this.source=this.tone=null;this.gain?.disconnect();this.gain=null}
  update(feature){
-  if(feature?.status!=='running'||!['emotions','theremin'].includes(feature.capability)){this.stop();return}
+  if(feature?.status!=='running'||feature.phase==='preparing'||!['emotions','theremin'].includes(feature.capability)){this.stop();return}
   clearTimeout(this.watch);this.watch=setTimeout(()=>this.stop(),1000);
   if(this.ctx?.state!=='running')return;
   if(this.key!==feature.id){this.stop();this.key=feature.id;this.watch=setTimeout(()=>this.stop(),1000)}

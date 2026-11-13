@@ -87,6 +87,8 @@ class FeatureBackend:
                         self.ready.set_result(True)
                 elif message.get("type") == "state":
                     self.state = message["state"]
+                    if self.state.get("feature", {}).get("stop_unconfirmed"):
+                        raise ValueError(self.state["feature"]["recovery_reason"])
                 elif message.get("type") == "reply":
                     future = self.pending.get(message.get("id"))
                     if future and not future.done():
@@ -97,7 +99,7 @@ class FeatureBackend:
                 elif message.get("type") == "error":
                     raise ValueError(message["message"])
             if not self.closed:
-                raise ValueError("物理进程已退出，请重置或重新准备场景")
+                raise ValueError("物理进程已退出，请重新准备场景。")
         except asyncio.CancelledError:
             raise
         except Exception as exc:
@@ -107,6 +109,7 @@ class FeatureBackend:
             for future in self.pending.values():
                 if not future.done():
                     future.set_exception(ValueError(self.error))
+            await self.close()
 
     async def rpc(self, command):
         if self.closed or self.error:

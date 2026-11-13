@@ -146,14 +146,14 @@ class ClimbingWorld(PlaygroundWorld):
                 self.bam.update()
                 mujoco.mj_step(self.model, self.data)
             if not np.isfinite(self.data.qpos).all():
-                raise ValueError("物理数值异常，已暂停，请重置")
+                raise ValueError("物理数值异常，已暂停；请重新准备场景。")
         else:
             super().tick()
             self.filtered = self.pol.last_action.copy()
 
     async def perform(self, command):
         if self.data.time > 0.001:
-            raise ValueError("本轮已结束，请先重置场景再试")
+            raise ValueError("本轮已结束；再次点击动作会自动重置起点。")
         stable = 0.0
         highest = float(self.data.qpos[2])
         if self.capability == "climb":

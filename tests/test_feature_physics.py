@@ -225,12 +225,71 @@ async def test_ball_policy_is_blind_and_memory_resets(runtime):
         stopped = world.data.time
         await world.snapshot()
         assert world.data.time == stopped
-        with pytest.raises(ValueError, match="重置"):
-            await world.perform(FeatureCommand(action="balance_ball"))
+        outcome = await world.perform(FeatureCommand(action="balance_ball"))
+        assert outcome["verified"] and world.data.time > stopped + 9.9
+        assert any(v.any() for v in world.memory.values())
         await world.reset()
         assert not any(v.any() for v in world.memory.values())
         assert world.data.time == 0
     finally:
+        await world.close()
+
+
+async def test_ball_worker_continues_then_recovers_only_after_leaving_ball(runtime):
+    import io
+
+    import mujoco
+    import numpy as np
+
+    from duckking.feature_worker import Worker
+    from duckking.feature_worlds import make_world
+
+    world = make_world(ASSETS, "basketball")
+    resets = []
+    original_reset = world.reset
+
+    async def reset():
+        await original_reset()
+        resets.append((float(world.data.time), all(not v.any() for v in world.memory.values())))
+
+    world.reset = reset
+    worker = Worker(world, "basketball", "physics-continuation", io.StringIO())
+    try:
+        await worker.handle({"id": "first", "command": {
+            "action": "balance_ball", "request_id": "first"}})
+        await worker.task
+        assert worker.current["verified"] and world.data.time == pytest.approx(10)
+        pose, velocity = world.data.qpos.copy(), world.data.qvel.copy()
+        memory = {k: v.copy() for k, v in world.memory.items()}
+        ball = world.model.body("ball").id
+        ball_start = world.data.xpos[ball, :2].copy()
+        await worker.handle({"id": "second", "command": {
+            "action": "roll_forward", "request_id": "second"}})
+        assert worker.current["preparation"] == "continue" and not resets
+        np.testing.assert_array_equal(world.data.qpos, pose)
+        np.testing.assert_array_equal(world.data.qvel, velocity)
+        for key in memory:
+            np.testing.assert_array_equal(world.memory[key], memory[key])
+        await worker.task
+        assert worker.current["verified"] and world.data.time == pytest.approx(20)
+        distance = float(np.linalg.norm(world.data.xpos[ball, :2] - ball_start))
+        assert worker.current["outcome"]["ball_travel_m"] == pytest.approx(distance)
+        assert not resets
+
+        # A physical disturbance moves the free base off the ball. This is
+        # test setup, not an action outcome or a successful recovery policy.
+        world.data.qpos[2] = 0.06
+        mujoco.mj_forward(world.model, world.data)
+        await worker.handle({"id": "third", "command": {
+            "action": "balance_ball", "request_id": "third"}})
+        assert worker.current["phase"] == "preparing"
+        await worker.task
+        assert resets == [(0, True)]
+        assert worker.current["restarted"] and worker.current["verified"]
+        assert world.data.time == pytest.approx(10)
+        assert [r["id"] for r in worker.results] == ["first", "second", "third"]
+    finally:
+        await worker.cancel()
         await world.close()
 
 

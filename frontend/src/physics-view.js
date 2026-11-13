@@ -185,7 +185,7 @@ export function physicsView(container,{label=null,onCameraChange}={}) {
     if(captionStatus.hidden===functional)captionStatus.hidden=!functional;
     if(functional){
       const states={idle:'等待指令',running:'正在执行',completed:'任务完成',failed:'本轮未完成',cancelled:'任务已取消'};
-      const text=translate(states[state.feature.status]??'等待指令');
+      const text=translate(state.feature.phase==='preparing'?'正在准备场景':states[state.feature.status]??'等待指令');
       if(captionStatus.textContent!==text)captionStatus.textContent=text;
     }
     updateHeadingGuide(state);
@@ -235,6 +235,7 @@ export function physicsView(container,{label=null,onCameraChange}={}) {
         distance=Math.max(distance,local.z+Math.abs(local.x)/horizontal,local.z+Math.abs(local.y)/vertical);
       }
       camera.position.copy(target).addScaledVector(direction,Math.min(6,distance));
+      floor.position.set(x,0,-y);grid.position.set(Math.round(x*10)/10,.0001,-Math.round(y*10)/10);
       controls.update();invalidate();
     }
     // Reveal the real fall without cropping feet on a narrow screen. Enlarge

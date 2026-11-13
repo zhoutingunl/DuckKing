@@ -413,7 +413,9 @@ def voice_tools(capability):
             "description": (
                 f"当前功能场景：{entry['title']}。{entry['description']} "
                 f"可执行动作：{', '.join(entry['commands'])}。start 执行有时限任务，stop 取消，"
-                "status 查询本轮实际结果，reset 显式重置。受理不等于完成，"
+                "连续动作会按当前姿态继续；需要起点的项目会在新指令前自动准备，"
+                "准备期间不代表已完成。status 查询实际结果，reset 仅用于用户明确要求回到起点。"
+                "动作不可用时按返回原因解释，不能让用户反复点击无效按钮。受理不等于完成，"
                 "必须按 verified 和失败原因"
                 "回答。pending=true 表示还在执行，不得说已成功。不能声称临时训练出新技能。"
                 "回窝只有仿真接通与虚拟电量，不是真实电气充电。"

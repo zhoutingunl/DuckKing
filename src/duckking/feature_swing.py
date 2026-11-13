@@ -104,7 +104,7 @@ class SwingWorld(PolicyWorld):
             self.bam.update()
             mujoco.mj_step(self.model, self.data)
         if not np.isfinite(self.data.qpos).all():
-            raise ValueError("物理数值异常，请重置")
+            raise ValueError("物理数值异常，已暂停；请重新准备场景。")
 
     def endpoints(self):
         return [
