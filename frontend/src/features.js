@@ -18,6 +18,7 @@ import {FeatureAudio} from './feature-audio.js';
 import {createFeatureIntent} from './feature-intent.js';
 
 await setupRoom();
+const legacyURL=new URL(location.href);if(legacyURL.searchParams.has('metric')){legacyURL.searchParams.delete('metric');history.replaceState(history.state,'',legacyURL)}
 const $=id=>document.getElementById(id),loader=createPhysicsModelLoader();
 const feedback=createLoadingState($('scene-placeholder')),choir=new StudioChoir(),sound=new FeatureAudio();
 const intent=createFeatureIntent();
@@ -55,7 +56,7 @@ const sources={
 };
 const statusLabels={idle:'等待指令',running:'正在执行',completed:'任务完成',failed:'本轮未完成',cancelled:'任务已取消'};
 let catalog=[],selected=null,latest=null,revision=null,expectedRevision=null,busy=false,online=false,epoch=0,modelPromise=null,modelAbort=null,session=null,voice;
-let sort=savedChoice('sort')==='latest'?'latest':'top',metric=savedChoice('metric')==='clicks'?'clicks':'engagement',category='全部',expanded=false;
+let sort=savedChoice('sort')==='latest'?'latest':'top',category='全部',expanded=false;
 const visits=sceneVisit({send:payload=>fetch(appURL('api/features/visits'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload),keepalive:true,signal:AbortSignal.timeout(8000)}),eligible:()=>!document.hidden&&!unavailable()});
 const visitTimer=setInterval(()=>visits.pulse(),5000);
 for(const type of ['pointerdown','keydown'])window.addEventListener(type,()=>visits.interact(),{passive:true});
@@ -179,9 +180,8 @@ function filterCards(){
  $('show-all-scenes').hidden=sort!=='top'||expanded||n<=10;
 }
 async function loadCatalog(){
- const data=await api(`api/features/catalog?sort=${sort}&metric=${metric}`);catalog=data.capabilities;
+ const data=await api(`api/features/catalog?sort=${sort}`);catalog=data.capabilities;
  for(const b of document.querySelectorAll('[data-sort]'))b.setAttribute('aria-pressed',String(b.dataset.sort===sort));
- $('ranking-metric').value=metric;$('ranking-metric').closest('label').hidden=sort!=='top';
  $('ranking-note').textContent=sort==='latest'?'按场景加入时间排列。':data.ranking.recommended?'暂无记录，先试试精选场景。':'人气排名每日更新。';
  $('feature-catalog').replaceChildren();
  for(const entry of catalog){const b=document.createElement('button');b.dataset.capability=entry.id;b.dataset.category=entry.category;b.setAttribute('aria-pressed',String(selected?.id===entry.id));const title=document.createElement('strong'),detail=document.createElement('span');title.textContent=entry.title;detail.textContent=entry.description;b.append(title,detail);b.onclick=()=>select(entry,true,true);$('feature-catalog').append(b)}
@@ -189,7 +189,6 @@ async function loadCatalog(){
  filterCards();
 }
 for(const b of document.querySelectorAll('[data-sort]'))b.onclick=async()=>{sort=b.dataset.sort;expanded=false;rememberChoice('sort',sort);try{await loadCatalog()}catch(e){notify(e.message)}};
-$('ranking-metric').onchange=async()=>{metric=$('ranking-metric').value;rememberChoice('metric',metric);try{await loadCatalog()}catch(e){notify(e.message)}};
 $('show-all-scenes').onclick=()=>{expanded=true;filterCards()};
 $('scene-settings-toggle').onclick=()=>{const shown=$('scene-settings').hidden;$('scene-settings').hidden=!shown;$('scene-settings-toggle').setAttribute('aria-expanded',String(shown))};
 $('stilt-height').onchange=()=>{if(selected?.id==='stilts')void select(selected,true,true)};

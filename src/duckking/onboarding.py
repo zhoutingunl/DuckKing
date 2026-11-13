@@ -82,6 +82,13 @@ DEFAULT_LANG_CODE = "zh"
 REPLY_CLAUSE = "用简短中文回答，一般不超过两句话"
 
 REPLY_DIRECTIVES = {
+    "ja": (
+        "日本語で簡潔に答えてください。通常は二文以内。日本語の依頼を既存の中国語の"
+        "動作ルールへ意味で対応させてから、現在公開されているツールを呼び出してください。"
+        "例：うなずいて→点头、前に進んで→前进、左に曲がって→左转、右に曲がって→右转、"
+        "止まって→停止、座って→坐下、立って→站起。ツール名や内部フィールド名を"
+        "読み上げず、実行結果を確認してから日本語で返答してください。"
+    ),
     "fr": (
         "用法语回答，尽量简短，一般不超过两句话。用户说法语时，先把法语表述映射到规则中的"
         "中文触发词再调用对应工具，例如 pas éclair 对应闪身步，secoue ta fourrure 或"
@@ -228,7 +235,8 @@ def main():
     parser.add_argument(
         "--lang-code",
         default=DEFAULT_LANG_CODE,
-        help="新建智能体的交互语言代码，默认 zh，法语为 fr；全量列表见灵矽 GET /v1/languages",
+        help=("新建智能体的交互语言代码，默认 zh，法语 fr，日语 ja；"
+              "全量列表见灵矽 GET /v1/languages"),
     )
     parser.add_argument(
         "--sync-prompt",

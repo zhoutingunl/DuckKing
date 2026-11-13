@@ -67,7 +67,7 @@ class VoiceSession:
             voice_settings(self.settings, language, agent_id)
         if language != self.language:
             self.voice_style = None
-            if language in {"en", "fr"}:
+            if language in {"en", "fr", "ja"}:
                 self.persona = "default"
         self.language = language
 
@@ -94,7 +94,7 @@ class VoiceSession:
 
     def set_persona(self, arguments):
         choice = PersonaChoice.model_validate(arguments)
-        if self.language in {"en", "fr"} and choice.persona != "default":
+        if self.language in {"en", "fr", "ja"} and choice.persona != "default":
             raise ValueError("此角色尚未配置当前对话语言，请使用默认角色")
         if choice.persona != "default" and choice.persona not in profiles(self.settings)["agents"]:
             raise ValueError("此角色尚未配置")

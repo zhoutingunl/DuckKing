@@ -14,6 +14,7 @@ from duckking.voice_profiles import store_profiles
 def configured(path):
     store_profiles(path / 'voice-profiles.json', {'agents': {
         'language_fr': {'id': 'private-fr', 'transport': 'bound_device'},
+        'language_ja': {'id': 'private-ja', 'transport': 'bound_device'},
         'language_zh': {'id': 'private-zh'},
     }})
     return Settings(data_dir=path, ws_url='wss://old.example/ws', ws_token='old-secret',
@@ -35,13 +36,13 @@ def test_language_identities_are_private_stable_and_distinct_per_room(tmp_path):
     original = settings.identity()
     identities = set()
     for room in ['1', '2']:
-        for language in ['en', 'fr']:
+        for language in ['en', 'fr', 'ja']:
             s = device_settings(settings.for_room(room), language)
             assert s.ws_url == s.ws_token == s.device_id == s.client_id == ''
             assert s.identity() == s.identity()
             identities.add(s.identity()['device_id'])
             assert (s.data_dir / 'identity.json').stat().st_mode & 0o777 == 0o600
-    assert len(identities) == 4
+    assert len(identities) == 6
     assert original['device_id'] not in identities
     assert settings.identity() == original
     assert voice_settings(settings, 'zh', 'private-zh') is settings
@@ -68,9 +69,12 @@ def test_missing_or_mismatched_binding_never_uses_chinese_device(tmp_path, failu
         assert not selected.data_dir.exists()  # ordinary connects never provision
 
 
-async def test_bound_transport_uses_verified_device_not_root_overrides(tmp_path, monkeypatch):
+@pytest.mark.parametrize("language", ["fr", "ja"])
+async def test_bound_transport_uses_verified_device_not_root_overrides(
+    tmp_path, monkeypatch, language
+):
     settings = configured(tmp_path)
-    selected = prepare(settings)
+    selected = prepare(settings, language)
     seen, messages = [], []
 
     async def cloud(ws):
@@ -92,18 +96,18 @@ async def test_bound_transport_uses_verified_device_not_root_overrides(tmp_path,
             }}
         monkeypatch.setattr('duckking.voice.provision', provision)
         voice = VoiceSession(send, MotionController(PreviewBackend()), settings)
-        voice.set_language('fr')
+        voice.set_language(language)
         try:
             await voice.open()
             assert voice.state == 'ready'
             await voice.disconnect()
             await voice.open()
-            assert seen == [(selected.identity()['device_id'], 'private-fr')] * 2
+            assert seen == [(selected.identity()['device_id'], f"private-{language}")] * 2
             events = [e for e in voice.diagnostics.events if e['event'] == 'cloud_connect']
             assert all(e['device_route'] == 'language_device' for e in events)
             serialized = json.dumps(messages) + json.dumps(voice.diagnostics.snapshot())
             assert selected.identity()['device_id'] not in serialized
-            assert 'private-fr' not in serialized and 'old-secret' not in serialized
+            assert f"private-{language}" not in serialized and 'old-secret' not in serialized
         finally:
             await voice.disconnect()
 

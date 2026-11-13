@@ -1,5 +1,7 @@
 // Functional-scene copy shares the site's language switch and live DOM translator.
 export const featureMessages = [
+ ["日语识别与回复由灵矽提供；界面语言保持不变。", "Linx handles Japanese recognition and replies; the interface language stays unchanged.", "Linx reconnaît le japonais et répond en japonais ; la langue de l’interface reste inchangée."],
+ ["日语对话尚未配置，请联系管理员启用；不会自动切换成中文。", "Japanese voice is not configured yet. Contact the administrator; it will not fall back to Chinese.", "La voix japonaise n’est pas configurée. Contacte l’administrateur ; aucun repli vers le chinois."],
  ["设置", "Settings", "Réglages"],
  ["MuJoCo 仿真", "MuJoCo simulation", "Simulation MuJoCo"],
  ["三阶段加官方恢复；Mac 通过，Linux 未通过。", "Three stages plus official recovery; Mac trial passed, Linux trial failed.", "Trois phases et rétablissement officiel ; essai Mac réussi, essai Linux échoué."],

@@ -3,7 +3,7 @@ from datetime import UTC
 
 import pytest
 
-from duckking.scene_discovery import SceneDiscovery, VisitEvent
+from duckking.scene_discovery import MAX_VISIT_ACTIVE_MS, SceneDiscovery, VisitEvent
 
 
 def event(id, capability="basketball", operation="start", sequence=1, active_ms=0):
@@ -59,7 +59,7 @@ def test_dedupe_foreign_scope_and_bounded_wall_time(tmp_path):
         store.event(event(str(uuid.uuid4()), "invalid"), "a", entries)
 
 
-def test_click_and_engagement_modes_can_rank_differently(tmp_path):
+def test_ranking_always_uses_effective_time_not_click_count(tmp_path):
     now = [1000.0]
     store = SceneDiscovery(tmp_path / "usage.sqlite3", clock=lambda: now[0])
     entries = {"hop": {}, "basketball": {}}
@@ -69,8 +69,26 @@ def test_click_and_engagement_modes_can_rank_differently(tmp_path):
     store.event(event(id), "a", entries)
     now[0] += 10
     store.event(event(id, operation="end", sequence=2, active_ms=10000), "a", entries)
-    assert store.catalog(entries, metric="clicks")["capabilities"][0]["id"] == "hop"
-    assert store.catalog(entries, metric="engagement")["capabilities"][0]["id"] == "basketball"
+    ranked = store.catalog(entries)
+    assert ranked["capabilities"][0]["id"] == "basketball"
+    assert ranked["ranking"]["metric"] == "engagement"
+
+
+def test_one_visit_cannot_accrue_more_than_five_minutes_across_restarts(tmp_path):
+    now = [1000.0]
+    path = tmp_path / "usage.sqlite3"
+    entries = {"basketball": {}}
+    visit = str(uuid.uuid4())
+    store = SceneDiscovery(path, clock=lambda: now[0])
+    store.event(event(visit), "owner", entries)
+    for sequence in range(2, 70):
+        now[0] += 15
+        store = SceneDiscovery(path, clock=lambda: now[0])
+        store.event(event(visit, operation="pulse", sequence=sequence,
+                          active_ms=(sequence - 1) * 15000), "owner", entries)
+    row = store.catalog(entries)["capabilities"][0]["usage"]
+    assert row == {"scene": "basketball", "clicks": 1, "active_ms": MAX_VISIT_ACTIVE_MS}
+    assert store.catalog(entries)["ranking"]["visit_cap_ms"] == MAX_VISIT_ACTIVE_MS
 
 
 def test_beijing_midnight_is_the_snapshot_boundary(tmp_path):

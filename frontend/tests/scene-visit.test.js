@@ -34,3 +34,12 @@ test('HTTP contexts without randomUUID can still enter and track a scene',async(
   else delete globalThis.crypto.randomUUID;
  }
 });
+
+
+test('one visible active scene is capped even with continued input and heartbeat delivery',async()=>{
+ let time=0;const events=[];
+ const visit=sceneVisit({send:async e=>events.push(e),eligible:()=>true,now:()=>time,newId:()=>"bounded",maxActiveMs:15000});
+ await visit.enter('a');
+ for(let i=0;i<20;i++){time+=5000;visit.interact();await visit.pulse()}
+ await visit.end();assert.equal(events.at(-1).active_ms,15000);
+});

@@ -29,9 +29,8 @@ def install_feature_api(app, get_room, root):
     @app.get("/api/features/catalog")
     async def catalog(
         sort: str = Query("top", pattern="^(top|latest)$"),
-        metric: str = Query("engagement", pattern="^(engagement|clicks)$"),
     ):
-        return await asyncio.to_thread(app.state.discovery.catalog, CATALOG, sort, metric)
+        return await asyncio.to_thread(app.state.discovery.catalog, CATALOG, sort)
 
     @app.post("/api/features/visits", status_code=202)
     async def visit(body: VisitEvent, room: str = "1"):

@@ -61,7 +61,7 @@ def public_profiles(settings, language="zh"):
 
 def language_agent(settings, language):
     """Resolve a private per-connection agent; never rebind a shared device."""
-    if not isinstance(language, str) or language not in {"zh", "en", "fr"}:
+    if not isinstance(language, str) or language not in {"zh", "en", "fr", "ja"}:
         raise ValueError("不支持的对话语言")
     agents = profiles(settings)["agents"]
     entry = agents.get(f"language_{language}")

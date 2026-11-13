@@ -18,6 +18,8 @@ from zoneinfo import ZoneInfo
 
 from pydantic import BaseModel, ConfigDict, Field
 
+MAX_VISIT_ACTIVE_MS = 5 * 60 * 1000
+
 RECOMMENDED = (
     "basketball",
     "stilts",
@@ -65,7 +67,7 @@ class SceneDiscovery:
         db.row_factory = sqlite3.Row
         return db
 
-    def catalog(self, entries, sort="top", metric="engagement"):
+    def catalog(self, entries, sort="top"):
         now = self.clock()
         day = datetime.fromtimestamp(now, ZoneInfo("Asia/Shanghai")).date().isoformat()
         with self.lock, closing(self.connect()) as db, db:
@@ -85,7 +87,7 @@ class SceneDiscovery:
 
         def order(key):
             values = totals.get(key, {})
-            score = values.get("active_ms" if metric == "engagement" else "clicks", 0)
+            score = values.get("active_ms", 0)
             return (-score, -values.get("clicks", 0), fallback.get(key, 1000), key)
 
         keys = sorted(
@@ -105,7 +107,8 @@ class SceneDiscovery:
                 "day": day,
                 "timezone": "Asia/Shanghai",
                 "sort": sort,
-                "metric": metric,
+                "metric": "engagement",
+                "visit_cap_ms": MAX_VISIT_ACTIVE_MS,
                 "recommended": not any(r.get("clicks", 0) for r in totals.values()),
                 "recommended_ids": [k for k in RECOMMENDED if k in entries],
             },
@@ -162,6 +165,7 @@ class SceneDiscovery:
                     event.active_ms - old["reported"],
                     int(max(0, now - old["updated"]) * 1000),
                     15000,
+                    max(0, MAX_VISIT_ACTIVE_MS - old["credited"]),
                 ),
             )
             db.execute(
@@ -172,7 +176,7 @@ class SceneDiscovery:
                     event.sequence,
                     max(old["reported"], event.active_ms),
                     delta,
-                    event.operation == "end",
+                    event.operation == "end" or old["credited"] + delta >= MAX_VISIT_ACTIVE_MS,
                     event.id,
                 ),
             )

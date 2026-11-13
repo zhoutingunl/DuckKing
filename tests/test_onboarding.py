@@ -277,14 +277,14 @@ async def test_prompt_sync_refuses_languages_without_a_directive(tmp_path):
     key, calls, http = platform(tmp_path, agents=[{"id": "duck", "agentName": "DuckKing"}])
     original = http._transport.handler
 
-    def with_japanese(request):
+    def with_unsupported_language(request):
         if request.url.path == "/xiaozhi/agent/duck":
             return httpx.Response(
-                200, json={"code": 0, "data": {"systemPrompt": "ancien", "langCode": "ja"}}
+                200, json={"code": 0, "data": {"systemPrompt": "ancien", "langCode": "de"}}
             )
         return original(request)
 
-    http._transport.handler = with_japanese
+    http._transport.handler = with_unsupported_language
     async with http:
         with pytest.raises(ValueError, match="暂无"):
             await setup_device(Settings(data_dir=tmp_path / "s"), key, http=http, sync_prompt=True)

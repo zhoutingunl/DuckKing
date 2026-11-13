@@ -386,7 +386,8 @@ def test_bad_height_is_rejected_before_replacing_a_room_world(monkeypatch):
             assert client.post("/api/features/prepare", json=payload).status_code == 422
         assert not create.called
         assert client.get("/api/features/catalog?sort=invalid").status_code == 422
-        assert client.get("/api/features/catalog?metric=invalid").status_code == 422
+        legacy = client.get("/api/features/catalog?metric=clicks").json()
+        assert legacy["ranking"]["metric"] == "engagement"
 
 
 def test_explicit_reprepare_releases_matching_old_world_and_never_falls_back(monkeypatch):

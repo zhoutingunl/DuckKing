@@ -136,7 +136,7 @@ tail -n 50 ~/.local/share/duckking/voice.jsonl
 
 | 事件 / 字段 | 排查含义 |
 |---|---|
-| `cloud_connect` / `language` / `agent_profile` / `device_route` | 实际请求的 zh/en/fr、白名单配置名及原房间/语言专用设备路径；未指定语言记为 unspecified。不记录云端 ID，也不代表云端识别已正确 |
+| `cloud_connect` / `language` / `agent_profile` / `device_route` | 实际请求的 zh/en/fr/ja、白名单配置名及原房间/语言专用设备路径；未指定语言记为 unspecified。不记录云端 ID，也不代表云端识别已正确 |
 | `listen_start` → `uplink_first_frame` → `listen_stop` | 是否实际收到麦克风数据；结束时 `uplink_frames=0` 表示没有完整音频帧 |
 | `stt` / `text` / `text_chars` | 脱敏识别文本与原文本长度，便于核对“听错”还是“选错工具” |
 | `tool_start` / `tool_end` | 白名单工具名、协议方法和结果类别，不保存参数或调用 ID |
@@ -259,3 +259,8 @@ HTTP API 用 `room=<房间编号>` 查询参数选择房间（省略时兼容房
 `/` 和 Vite 根入口跳转到 `/features.html?sort=top`；旧语音工作台用 `/index.html`。浏览目录不启动物理，选中场景才自动准备（不自动开赛）。有 `?feature=<id>` 的链接会直接准备该功能。可选资源安装见 [功能场景](FUNCTIONAL_SCENES.md)。
 
 本地排行榜存放在 `DUCKKING_DATA_DIR/scene-discovery.sqlite3`；部署时应保留该数据目录。首次加入时间不随重启改变；TOP在北京时间每天首个目录请求时冻结。测试可使用临时数据目录，避免把开发点击混入产品统计。
+
+
+日语对话使用顶部「日本語（音声）」或`?voice_lang=ja`，保留当前界面语言。中英法菜单恢复界面与对话语言同步。对话语言会跨刷新保存；切换会关闭旧录音/回复与会话，不能继承中文离线识别或未验证的克隆音色。启用语音前，管理员先创建`language_ja`配置，再为各房间准备`languages/ja`独立设备，见README。普通页面不使用平台管理Key或自动绑定设备。
+
+场景排名固定累加每次有效体验时间，单次5分钟封顶；浏览器和服务器双重限制。服务器按已入账时长约束跨心跳、跨重启累计，达到上限后关闭该次记录。`metric`旧查询参数不再影响排序，页面移除热度选择与Playground覆盖对照，原始来源表仍保留在功能规格文档。

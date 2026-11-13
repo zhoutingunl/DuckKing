@@ -8,10 +8,39 @@ import {messages, patterns} from './ui-messages.js';
 
 const STORAGE_KEY = 'duckking-ui-language';
 const LANGUAGES = new Set(['zh', 'en', 'fr']);
+const VOICE_STORAGE_KEY = 'duckking-voice-language';
+const VOICE_LANGUAGES = new Set([...LANGUAGES, 'ja']);
 
 let prefsPromise = null, readyPromise = null, observer = null;
 let activeLanguage = 'zh';
+let activeVoiceLanguage = 'zh';
 export const currentLanguage = () => activeLanguage;
+export const currentVoiceLanguage = () => activeVoiceLanguage;
+
+export function pickVoiceLanguage({urlVoiceLang,urlLang,savedVoiceLang,interfaceLanguage='zh'}={}) {
+  if (VOICE_LANGUAGES.has(urlVoiceLang)) return urlVoiceLang;
+  if (LANGUAGES.has(urlLang)) return urlLang;
+  if (VOICE_LANGUAGES.has(savedVoiceLang)) return savedVoiceLang;
+  return interfaceLanguage;
+}
+
+function storeVoiceLanguage(language) {
+  try {localStorage.setItem(VOICE_STORAGE_KEY,language)} catch {}
+}
+
+export function setVoiceLanguage(language) {
+  if (!VOICE_LANGUAGES.has(language)) return;
+  const previousVoiceLanguage=activeVoiceLanguage;
+  activeVoiceLanguage=language;storeVoiceLanguage(language);
+  document.documentElement.dataset.voiceLanguage=language;
+  const url=new URL(location.href);
+  if(language===activeLanguage)url.searchParams.delete('voice_lang');
+  else url.searchParams.set('voice_lang',language);
+  history.replaceState(history.state,'',url);
+  if(previousVoiceLanguage!==language)window.dispatchEvent(new CustomEvent('duckking-language-changed',{
+    detail:{language:activeLanguage,previous:activeLanguage,voiceLanguage:language,previousVoiceLanguage},
+  }));
+}
 
 export function pickLanguage({urlLang, savedLang, serverLang} = {}) {
   for (const candidate of [urlLang, savedLang, serverLang]) {
@@ -375,12 +404,16 @@ export function setLanguage(language) {
   // Resolve pending UI writes using the old language before changing it.
   if (observer) translateChanges(observer.takeRecords());
   const previous = activeLanguage;
+  const previousVoiceLanguage = activeVoiceLanguage;
   activeLanguage = language; storeLanguage(language);
+  activeVoiceLanguage = language;storeVoiceLanguage(language);
   document.documentElement.lang = language === 'zh' ? 'zh-CN' : language;
+  document.documentElement.dataset.voiceLanguage=language;
   const url = new URL(location.href); url.searchParams.delete('lang');
+  url.searchParams.delete('voice_lang');
   history.replaceState(history.state, '', url);
   applyInterface(language);
-  if (previous !== language) window.dispatchEvent(new CustomEvent('duckking-language-changed', {detail:{language, previous}}));
+  if (previous !== language || previousVoiceLanguage !== language) window.dispatchEvent(new CustomEvent('duckking-language-changed', {detail:{language, previous,voiceLanguage:language,previousVoiceLanguage}}));
 }
 
 export function initUILanguage() {
@@ -391,7 +424,12 @@ export function initUILanguage() {
     const saved = savedLanguage();
     const prefs = LANGUAGES.has(urlLang) || LANGUAGES.has(saved) ? null : await uiPreferences();
     activeLanguage = pickLanguage({urlLang, savedLang:saved, serverLang:prefs?.language});
+    let savedVoiceLang;try{savedVoiceLang=localStorage.getItem(VOICE_STORAGE_KEY)}catch{}
+    const urlVoiceLang=new URLSearchParams(location.search).get('voice_lang');
+    activeVoiceLanguage=pickVoiceLanguage({urlVoiceLang,urlLang,savedVoiceLang,interfaceLanguage:activeLanguage});
+    storeVoiceLanguage(activeVoiceLanguage);
     document.documentElement.lang = activeLanguage === 'zh' ? 'zh-CN' : activeLanguage;
+    document.documentElement.dataset.voiceLanguage=activeVoiceLanguage;
     document.getElementById('audio-diagnostics')?.setAttribute('data-ui-text','');
     applyInterface(activeLanguage);
     // Observe Chinese too: later language changes reuse the document and model.

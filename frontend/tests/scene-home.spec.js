@@ -42,8 +42,7 @@ test('home is TOP, latest stays selectable and phone controls share compact rows
  await expect(page).toHaveURL(/sort=latest/);
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
  await page.locator('#sort-top').click();
- await page.locator('#ranking-metric').selectOption('clicks');
- await expect(page).toHaveURL(/metric=clicks/);
+ await expect(page.locator('#ranking-metric,.feature-coverage')).toHaveCount(0);
  expect(errors).toEqual([]);
  await page.request.post('/api/scenes/close?room=1');
 });

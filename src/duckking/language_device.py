@@ -12,7 +12,7 @@ from .voice_profiles import language_agent, profiles
 
 
 def device_settings(settings, language):
-    if not isinstance(language, str) or language not in {"zh", "en", "fr"}:
+    if not isinstance(language, str) or language not in {"zh", "en", "fr", "ja"}:
         raise ValueError("不支持的对话语言")
     # Never carry another language's static token or identity overrides over.
     return replace(settings, data_dir=settings.data_dir / "languages" / language,

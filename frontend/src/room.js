@@ -1,10 +1,11 @@
 import {appURL,setRoom,setServiceInstance,setRoomUnavailable} from './urls.js';
-import {pickLanguage,savedLanguage,uiPreferences,currentLanguage} from './ui-language.js';
+import {initUILanguage,currentVoiceLanguage} from './ui-language.js';
 
 export function rememberChoice(key,value){const url=new URL(location.href);url.searchParams.set(key,value);history.replaceState(null,'',url)}
 export const savedChoice=key=>new URL(location.href).searchParams.get(key);
 
 export async function setupRoom({claim=true}={}){
+  await initUILanguage();
   const main=document.querySelector('main'),bar=document.createElement('div');bar.className='room-bar';bar.setAttribute('aria-label','独立房间');
   const label=document.createElement('strong');label.id='room-label';label.textContent='正在选择房间…';
   const links=document.createElement('span');links.className='room-links';links.tabIndex=0;links.setAttribute('aria-label','房间列表，可横向滚动');
@@ -19,12 +20,8 @@ export async function setupRoom({claim=true}={}){
   banner.append(heading,explanation,reconnect);
   const roomLanguageNote=document.createElement('small');roomLanguageNote.id='room-language-note';roomLanguageNote.className='room-language-note';roomLanguageNote.hidden=true;roomLanguageNote.setAttribute('role','status');
   bar.after(banner,roomLanguageNote);
-  let room=new URL(location.href).searchParams.get('room'),creating=false,signature='',instance=null,lost=false,polling=false,timer,language=currentLanguage();
-  if(!room&&claim){
-    const preferences=await uiPreferences(),params=new URLSearchParams(location.search);
-    language=pickLanguage({urlLang:params.get('lang'),savedLang:savedLanguage(),serverLang:preferences?.language});
-  }
-  window.addEventListener('duckking-language-changed',()=>{language=currentLanguage();roomLanguageNote.hidden=true});
+  let room=new URL(location.href).searchParams.get('room'),creating=false,signature='',instance=null,lost=false,polling=false,timer,language=currentVoiceLanguage();
+  window.addEventListener('duckking-language-changed',()=>{language=currentVoiceLanguage();roomLanguageNote.hidden=true});
   const urlFor=id=>{const url=new URL(location.href);url.searchParams.set('room',id);return url};
   async function request(path,method='GET'){
     const response=await fetch(appURL(path),{method,cache:'no-store',signal:AbortSignal.timeout(10000)});
@@ -73,11 +70,11 @@ export async function setupRoom({claim=true}={}){
     if(!room){
       const data=await request(`api/rooms/claim?language=${language}`,'POST');
       room=data.room;
-      if(['fr','en'].includes(language)&&data.voice_language!==language){
+      if(['fr','en','ja'].includes(language)&&data.voice_language!==language){
         // 译回提示文本在主工作台由字典处理；此处写入原文供匹配。
         roomLanguageNote.textContent=language==='fr'
           ?'法语对话尚未配置，请联系管理员启用；不会自动切换成中文。'
-          :'英语对话尚未配置，请联系管理员启用；不会自动切换成中文。';
+          :language==='ja'?'日语对话尚未配置，请联系管理员启用；不会自动切换成中文。':'英语对话尚未配置，请联系管理员启用；不会自动切换成中文。';
         roomLanguageNote.hidden=false;
       }
     }
