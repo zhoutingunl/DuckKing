@@ -20,14 +20,18 @@ async function checkVisible(page,views,control){
   const target=document.querySelector(control);target.scrollIntoView({block:'center'});
   const outer=dock.getBoundingClientRect();
   for(const id of views){
-   const r=document.getElementById(id).getBoundingClientRect();
+   const element=document.getElementById(id),r=element.getBoundingClientRect();
+   const canvas=element.querySelector('canvas').getBoundingClientRect();
    if(r.y < -1||r.bottom>viewport.height+1||r.height<=85)issues.push(`${id}: outside viewport or too short`);
+   if(canvas.height<Math.min(170,viewport.height*.20))issues.push(`${id}: render area too small`);
+   const caption=element.querySelector('.physics-caption');
+   if(caption&&canvas.bottom>caption.getBoundingClientRect().top+1)issues.push(`${id}: caption covers canvas`);
    if(r.left<outer.left-1||r.right>outer.right+1||r.top<outer.top-1||r.bottom>outer.bottom+1)issues.push(`${id}: clipped by dock`);
   }
   const r=target.getBoundingClientRect();
   if(r.top<0||r.bottom>viewport.height||r.left<0||r.right>viewport.width)issues.push(`${control}: outside viewport`);
   if(!target.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)))issues.push(`${control}: obscured`);
-  if(outer.height>=viewport.height*.45)issues.push('dock too tall');
+  if(outer.height>viewport.height*.51||viewport.height-outer.height<230)issues.push('not enough room for controls');
   if(document.documentElement.scrollWidth>viewport.width||innerWidth!==viewport.width)issues.push('page overflow');
   return issues;
  },{views,control,viewport})).toEqual([]);

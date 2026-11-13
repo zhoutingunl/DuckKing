@@ -49,7 +49,7 @@
   .home-page .balance-entry{order:2;margin-top:18px}.home-page footer{order:3}
   .home-page .workspace{display:block;min-width:0}
   .home-page .stage-card{position:sticky;top:0;z-index:8;box-shadow:0 3px 12px #25351a18}
-  .home-page #viewport{height:clamp(155px,24svh,230px);min-height:155px}
+  .home-page #viewport{height:clamp(150px,calc(48svh - 90px),330px);min-height:150px}
   .home-page .stage-toolbar{padding:8px 10px;gap:6px}.home-page .stage-title{gap:5px}.home-page .stage-title b,.home-page .mini-crown{display:none}
   .home-page .stage-caption{padding:5px 10px 8px}.home-page .stage-caption>span:last-child{display:none}.home-page .telemetry{display:none}
   .home-page .controls{margin-top:12px;grid-template-columns:1fr}
