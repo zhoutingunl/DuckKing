@@ -220,6 +220,23 @@ export function physicsView(container,{label=null,onCameraChange}={}) {
       const [x,y,z]=state.camera_follow,target=new THREE.Vector3(x,state.feature.capability==='stilts'?(state.stilt_height_m??0)*.5+.13:z+.08,-y),delta=target.clone().sub(controls.target);
       camera.position.add(delta);controls.target.copy(target);if(Number.isFinite(state.camera_radius_m)){const distance=Math.min(12,Math.max(1.5,state.camera_radius_m*4));camera.position.sub(target).normalize().multiplyScalar(distance).add(target);controls.maxDistance=Math.max(6,distance)}floor.position.set(x,0,-y);grid.position.set(Math.round(x*10)/10,.0001,-Math.round(y*10)/10);controls.update();invalidate();
     }
+    if(state.feature?.capability==='basketball'&&!manualView&&state.ducks?.length){
+      // Include the ball down to the floor and the head/label above the torso.
+      // Tracking the real pose also keeps a rolling ball centred after a trial.
+      const [x,y,z]=state.ducks[0].position,top=z+.23;
+      const target=new THREE.Vector3(x,top/2,-y),delta=target.clone().sub(controls.target);
+      camera.position.add(delta);controls.target.copy(target);controls.update();
+      const bounds=[-.14,.14].flatMap(dx=>[-.14,.14].flatMap(dy=>[0,top].map(h=>new THREE.Vector3(x+dx,h,-y+dy))));
+      const direction=camera.position.clone().sub(target).normalize(),inverse=camera.quaternion.clone().invert();
+      const vertical=Math.tan(THREE.MathUtils.degToRad(camera.fov/2))*.84,horizontal=vertical*camera.aspect;
+      let distance=.5;
+      for(const point of bounds){
+        const local=point.sub(target).applyQuaternion(inverse);
+        distance=Math.max(distance,local.z+Math.abs(local.x)/horizontal,local.z+Math.abs(local.y)/vertical);
+      }
+      camera.position.copy(target).addScaledVector(direction,Math.min(6,distance));
+      controls.update();invalidate();
+    }
     // Reveal the real fall without cropping feet on a narrow screen. Enlarge
     // the view only as needed; a user's orbit/zoom always takes precedence.
     if(state.scene==='table'&&state.tabletop?.dropped_at!=null&&!manualView){
@@ -265,8 +282,19 @@ export function physicsView(container,{label=null,onCameraChange}={}) {
   // Keep at least one physical pixel per CSS pixel, including on software GPUs.
   // Model parsing, shader compilation and background-tab delays are not evidence
   // that the image should be permanently shrunk to a 160px-wide thumbnail.
-  function resize(){if(disposed)return;const {width,height}=container.getBoundingClientRect();if(width&&height){renderer.setPixelRatio(reduced?1:Math.min(devicePixelRatio,2));renderer.setSize(width,height);camera.aspect=width/height;camera.updateProjectionMatrix();invalidate();}}
-  const observer=new ResizeObserver(resize);observer.observe(container);
+  function resize(){
+    if(disposed)return;
+    const {width,height:outerHeight}=container.getBoundingClientRect();
+    const height=outerHeight-(getComputedStyle(caption).position==='static'?caption.getBoundingClientRect().height:0);
+    if(width&&height>0){
+      renderer.setPixelRatio(reduced?1:Math.min(devicePixelRatio,2));renderer.setSize(width,height);
+      camera.aspect=width/height;
+      // Preserve horizontal room in narrow single/paired views, not just vertical FOV.
+      camera.fov=THREE.MathUtils.radToDeg(2*Math.atan(Math.tan(THREE.MathUtils.degToRad(19))/Math.min(1,camera.aspect)));
+      camera.updateProjectionMatrix();invalidate();
+    }
+  }
+  const observer=new ResizeObserver(resize);observer.observe(container);observer.observe(caption);
   function draw(){
     const moving=controls.update();
     for(const [id,ring] of rings){
@@ -285,7 +313,7 @@ export function physicsView(container,{label=null,onCameraChange}={}) {
     selection(value){selection=value;invalidate()},
     interaction(callback,mode="select"){interaction=callback;interactionMode=mode;if(!callback){stick.visible=false;for(const ring of rings.values())ring.visible=false}invalidate()},
     renderNow(){scheduler.flush()},
-    frameScene(scene,{height=0}={}){if(disposed)return;controls.maxDistance=6;manualView=false;floorFramed=false;seatedView=scene==='seated';resize();controls.enableDamping=false;controls.update();const close=scene==='carry',seated=scene==='seated',table=scene==='table';camera.position.set(...(scene==='stilts'?[height*2+.85,height*1.2+.62,height*2+.95]:scene==='backflip'?[2.8,2.2,2]:scene==='long_jump'?[1.1,.85,1.3]:scene==='basketball'?[.95,.85,1.1]:scene==='swing'?[1.25,.85,1.3]:scene==='circus'?[1.15,.75,1.15]:scene==='navigation'?[1.5,1.3,1.6]:scene==='stage'?[2.7,2.1,0]:scene==='choir'?[1.15,.70,.15]:seated?[1.05,.90,-1.05]:table?[1.35,.98,-1.35]:close?[.6,.4,.65]:scene==='seesaw'?[.72,.85,-1.15]:scene==='balance'?[1.25,.82,1.35]:[.85,.62,.95]));controls.target.set(scene==='backflip' ? .4 : scene==='long_jump' ? .28 : close ? .12 : table ? .20 : 0,scene==='stilts' ? height*.5+.13 : scene==='backflip' ? .75 : scene==='basketball' ? .3 : scene==='long_jump' ? .24 : scene==='swing' ? .42 : scene==='circus' ? .22 : scene==='seesaw' ? .22 : scene==='balance' ? .13 : seated ? .52 : table ? .25 : .13,table ? -.10 : 0);if(container.clientWidth<600&&["ball","standup","basketball","runup_roll","terrain","roller_glide"].includes(scene))camera.position.sub(controls.target).multiplyScalar(.7).add(controls.target);controls.update();controls.saveState();controls.enableDamping=true;invalidate()},
+    frameScene(scene,{height=0}={}){if(disposed)return;controls.maxDistance=6;manualView=false;floorFramed=false;seatedView=scene==='seated';resize();controls.enableDamping=false;controls.update();const close=scene==='carry',seated=scene==='seated',table=scene==='table';camera.position.set(...(scene==='stilts'?[height*2+.85,height*1.2+.62,height*2+.95]:scene==='backflip'?[2.8,2.2,2]:scene==='long_jump'?[1.1,.85,1.3]:scene==='basketball'?[.65,.68,.75]:scene==='swing'?[1.25,.85,1.3]:scene==='circus'?[1.15,.75,1.15]:scene==='navigation'?[1.5,1.3,1.6]:scene==='stage'?[2.7,2.1,0]:scene==='choir'?[1.15,.70,.15]:seated?[1.05,.90,-1.05]:table?[1.35,.98,-1.35]:close?[.6,.4,.65]:scene==='seesaw'?[.72,.85,-1.15]:scene==='balance'?[1.25,.82,1.35]:[.85,.62,.95]));controls.target.set(scene==='backflip' ? .4 : scene==='long_jump' ? .28 : close ? .12 : table ? .20 : 0,scene==='stilts' ? height*.5+.13 : scene==='backflip' ? .75 : scene==='basketball' ? .3 : scene==='long_jump' ? .24 : scene==='swing' ? .42 : scene==='circus' ? .22 : scene==='seesaw' ? .22 : scene==='balance' ? .13 : seated ? .52 : table ? .25 : .13,table ? -.10 : 0);if(container.clientWidth<600&&["ball","standup","runup_roll","terrain","roller_glide"].includes(scene))camera.position.sub(controls.target).multiplyScalar(.7).add(controls.target);controls.update();controls.saveState();controls.enableDamping=true;invalidate()},
     reset(){if(disposed)return;manualView=false;floorFramed=false;controls.enableDamping=false;controls.update();controls.reset();controls.enableDamping=true;invalidate()},
     dispose(){
       if(disposed)return;disposed=true;scheduler.dispose();events.abort();observer.disconnect();visibility.disconnect();document.removeEventListener('visibilitychange',setVisibility);

@@ -22,7 +22,10 @@
   .duck-appearance select{min-width:56px;max-width:72px}
 }
 @media(max-width:760px){
- .physics-caption{position:absolute;bottom:0;left:0;right:0;z-index:3;display:flex;align-items:center;gap:9px;padding:4px 8px;background:#edf0e5ed;min-height:44px}
+ /* Give the colour/status row its own space, outside the camera's render area. */
+ :is(#physics-viewport,#baseline-viewport,#trained-viewport,#demo-viewport,#demo-second):has(>.physics-caption){display:flex;flex-direction:column}
+ :is(#physics-viewport,#baseline-viewport,#trained-viewport,#demo-viewport,#demo-second):has(>.physics-caption)>canvas{flex:1;min-height:0}
+ .physics-caption{position:static;flex:none;z-index:3;display:flex;align-items:center;gap:9px;padding:4px 8px;background:#edf0e5;min-height:44px}
  .physics-caption .duck-appearance,.stage-caption .duck-appearance{position:static;flex:none;max-width:none;background:transparent;border:0;box-shadow:none;padding:0;margin:0}
  .physics-status{font-size:11px;color:#60734d;overflow-wrap:anywhere;min-width:0}
  .stage-caption{gap:10px}.stage-caption .duck-appearance+span{font-size:11px;min-width:0;overflow-wrap:anywhere}.stage-caption:has(.duck-appearance)>span:last-child{display:none}
