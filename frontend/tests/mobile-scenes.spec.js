@@ -23,7 +23,7 @@ async function checkVisible(page,views,control){
    const element=document.getElementById(id),r=element.getBoundingClientRect();
    const canvas=element.querySelector('canvas').getBoundingClientRect();
    if(r.y < -1||r.bottom>viewport.height+1||r.height<=85)issues.push(`${id}: outside viewport or too short`);
-   if(canvas.height<Math.min(170,viewport.height*.20))issues.push(`${id}: render area too small`);
+   if(canvas.height<Math.min(170,viewport.height*.20))issues.push(`${id}: render area too small (${canvas.height}, screen ${viewport.height}, language ${document.documentElement.lang})`);
    const caption=element.querySelector('.physics-caption');
    if(caption&&canvas.bottom>caption.getBoundingClientRect().top+1)issues.push(`${id}: caption covers canvas`);
    if(r.left<outer.left-1||r.right>outer.right+1||r.top<outer.top-1||r.bottom>outer.bottom+1)issues.push(`${id}: clipped by dock`);
