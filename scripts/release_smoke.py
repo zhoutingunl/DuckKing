@@ -74,11 +74,12 @@ async def verify(base, commit):
         modes = await client.get(urljoin(base, "api/voice/modes"), params={'room': room})
         modes.raise_for_status()
         assert modes.json()["local_first"] is True and modes.json()["available"] is True
-        for page in ["", "training.html", "balance.html", "seesaw.html", "scenarios.html",
-                     "demos.html", "studio.html",
+        for page in ["", "features.html", "index.html", "training.html", "balance.html",
+                     "seesaw.html", "scenarios.html", "demos.html", "studio.html",
                      "experience.html", "statistics.html", "deploys.html"]:
-            response = await client.get(urljoin(base, page))
+            response = await client.get(urljoin(base, page), follow_redirects=True)
             response.raise_for_status()
+            assert str(response.url).startswith(base), "A page escaped the deployment prefix"
             assert "DuckKing" in response.text and "<html" in response.text
             for asset in re.findall(r'(?:src|href)="([^\"]+\.(?:js|css))"', response.text):
                 url = urljoin(urljoin(base, page), asset)
