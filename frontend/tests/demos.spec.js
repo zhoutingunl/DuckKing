@@ -227,7 +227,7 @@ test('stopping the table song silences every music node and cancels the real cho
 });
 
 test('source link stays at the desktop edge and scrolls with mobile navigation',async({page})=>{
- for(const language of ['zh','en','fr'])for(const width of [1440,820,390]){
+ for(const language of ['zh','en','fr','ja'])for(const width of [1440,820,390]){
   await page.setViewportSize({width,height:900});await page.goto(`/index.html?lang=${language}`);
   await expect(page.locator('html')).toHaveAttribute('lang',language==='zh'?'zh-CN':language);
   const source=await page.locator('.home-nav .repo-link').boundingBox();
@@ -249,7 +249,7 @@ test('source link stays at the desktop edge and scrolls with mobile navigation',
   }
   await expect(page.locator('.home-nav .repo-link')).toBeInViewport({ratio:1});
   await page.locator('#lang-switch-button').click();
-  await expect(page.getByRole('menuitem')).toHaveText(['中文','English','Français','日本語（音声）']);
+  await expect(page.getByRole('menuitem')).toHaveText(['中文','English','Français','日本語']);
   for(const option of await page.getByRole('menuitem').all())await expect(option).toBeInViewport({ratio:1});
   // Source is reachable at the end of navigation; language never scrolls away.
   await page.locator('.nav-destinations a').last().scrollIntoViewIfNeeded();

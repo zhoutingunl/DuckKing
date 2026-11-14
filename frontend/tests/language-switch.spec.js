@@ -192,6 +192,12 @@ test('prepared MuJoCo scene keeps both canvases and translates painted labels wi
  const state=(await(await request.get('/api/scenes/state?room=2')).json()).backend;
  expect(state.balance.phase).toBe('idle');
  await page.evaluate(()=>{window.paintedLabels=[]});
+ await choose(page,'ja');
+ await expect.poll(()=>page.evaluate(()=>window.paintedLabels)).toContain('学習後');
+ await expect.poll(()=>page.evaluate(()=>window.paintedLabels)).toContain('未学習');
+ expect(await page.evaluate(()=>window.originalViews[0]===document.querySelector('#physics-viewport canvas')&&window.originalViews[1]===document.querySelector('#baseline-viewport canvas'))).toBe(true);
+ expect({prepares,models}).toEqual(counts);
+ await page.evaluate(()=>{window.paintedLabels=[]});
  await choose(page,'zh');
  await expect.poll(()=>page.evaluate(()=>window.paintedLabels)).toContain('目标朝向');
  expect({prepares,models}).toEqual(counts);
