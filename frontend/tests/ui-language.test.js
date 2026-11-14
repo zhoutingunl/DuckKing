@@ -1,7 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import {pickVoiceLanguage, pickLanguage, TRANSLATIONS, ARIA_LABELS, translate} from '../src/ui-language.js';
+import {pickLanguage, TRANSLATIONS, ARIA_LABELS, translate} from '../src/ui-language.js';
+import {patterns} from '../src/ui-messages.js';
+import {japanesePatterns} from '../src/ja-messages.js';
 
 test('language pick prefers explicit URL over saved choice over server default', () => {
   assert.equal(pickLanguage({urlLang: 'fr', savedLang: 'zh', serverLang: 'zh'}), 'fr');
@@ -10,7 +12,7 @@ test('language pick prefers explicit URL over saved choice over server default',
   assert.equal(pickLanguage({serverLang: 'fr'}), 'fr');
   assert.equal(pickLanguage({serverLang: 'en'}), 'en');
   assert.equal(pickLanguage({}), 'zh');
-  assert.equal(pickLanguage({urlLang: 'de', savedLang: 'xx', serverLang: 'ja'}), 'zh');
+  assert.equal(pickLanguage({urlLang: 'de', savedLang: 'xx', serverLang: 'de'}), 'zh');
 });
 
 test('every entry provides distinct non-empty English and French translations', () => {
@@ -85,9 +87,31 @@ test('localized status preserves user-authored cue names even when they match a 
 });
 
 
-test('Japanese voice choice is independent from interface locale and explicit choices win',()=>{
- assert.equal(pickVoiceLanguage({urlVoiceLang:'ja',urlLang:'fr',savedVoiceLang:'zh'}),'ja');
- assert.equal(pickVoiceLanguage({urlLang:'en',savedVoiceLang:'ja'}),'en');
- assert.equal(pickVoiceLanguage({savedVoiceLang:'ja',interfaceLanguage:'fr'}),'ja');
- assert.equal(pickVoiceLanguage({urlVoiceLang:'invalid',savedVoiceLang:'invalid',interfaceLanguage:'fr'}),'fr');
+test('Japanese URLs, saved voice-only preferences and explicit switches select both languages',()=>{
+ assert.equal(pickLanguage({urlVoiceLang:'ja',urlLang:'fr',savedLang:'zh'}),'ja');
+ assert.equal(pickLanguage({urlLang:'ja',savedLang:'fr'}),'ja');
+ assert.equal(pickLanguage({urlLang:'en',savedVoiceLang:'ja',savedLang:'fr'}),'en');
+ assert.equal(pickLanguage({savedVoiceLang:'ja',savedLang:'fr'}),'ja');
+ assert.equal(pickLanguage({savedLang:'ja',serverLang:'zh'}),'ja');
+ assert.equal(pickLanguage({urlVoiceLang:'invalid',serverLang:'fr'}),'fr');
+});
+
+test('Japanese covers every shared label and remains stable during repeated UI updates',()=>{
+ for(const [source,t] of [...TRANSLATIONS,...ARIA_LABELS]){
+  assert.ok(t.ja?.trim(),`Missing Japanese: ${source}`);
+  assert.equal(translate(t.ja,'ja'),t.ja,`Japanese changes on a second pass: ${source}`);
+ }
+ assert.equal(translate('本地预览','ja'),'ローカルプレビュー');
+ assert.equal(translate('房间 12 · 独立语音与场景','ja'),'ルーム 12 · 独立した音声とシーン');
+ assert.equal(translate('当前口令：点点头；通过 2，拒绝 1','ja'),'現在の合図：点点头；承認 2、拒否 1');
+ assert.equal(translate('待确认暗号：下班，第 2 版','ja'),'確認待ちの合図：下班、バージョン 2');
+ assert.equal(translate('房间 2 · 灵矽已连接 · 正在执行','ja'),'ルーム 2 · Linx 接続済み · 実行中');
+});
+
+test('Japanese dynamic templates keep every capture and explicit raw-content slot',()=>{
+ const tokens=Array.from({length:15},(_,i)=>`⟪${i}⟫`);
+ for(const [pattern,en] of patterns){
+  assert.ok(japanesePatterns[pattern.source],`Missing Japanese pattern: ${pattern.source}`);
+  assert.deepEqual([...japanesePatterns[pattern.source].matchAll(/⟪(\d+)⟫/g)].map(m=>m[1]).sort(),[...en(...tokens).matchAll(/⟪(\d+)⟫/g)].map(m=>m[1]).sort());
+ }
 });

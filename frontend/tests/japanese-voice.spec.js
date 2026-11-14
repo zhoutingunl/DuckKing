@@ -1,6 +1,6 @@
 import {test,expect} from '@playwright/test';
 
-for(const locale of ['zh','fr'])test(`${locale}: Japanese voice preserves the interface, closes old audio and survives reconnect and reload`,async({page,context})=>{
+for(const locale of ['zh','fr'])test(`${locale}: Japanese switches the interface, closes old audio and survives reconnect and reload`,async({page,context})=>{
  test.setTimeout(90000);
  await context.grantPermissions(['microphone']);
  await page.route('**/api/voice/modes*',route=>route.fulfill({json:{local_first:true,available:true}}));
@@ -20,11 +20,11 @@ for(const locale of ['zh','fr'])test(`${locale}: Japanese voice preserves the in
  await page.locator('#connect-voice').click();await expect(page.locator('#talk-button')).toBeEnabled();
  expect(connects.at(-1)).toMatchObject({language:locale,mode:locale==='zh'?'local_first':'cloud'});
  await page.locator('#lang-switch-button').click();await page.locator('[data-lang=ja]').click();
- await expect(page.locator('html')).toHaveAttribute('lang',locale==='zh'?'zh-CN':'fr');
+ await expect(page.locator('html')).toHaveAttribute('lang','ja');
  await expect(page.locator('html')).toHaveAttribute('data-voice-language','ja');
  await expect(page.locator('#talk-button')).toBeDisabled();
  await expect.poll(()=>commands.includes('disconnect')).toBe(true);
- await expect(page.locator('#voice-language-hint')).toContainText(locale==='zh'?'日语识别与回复':'japonais');
+ await expect(page.locator('#voice-language-hint')).toContainText('日本語は Linx クラウド');
  await page.locator('#connect-voice').click();await expect(page.locator('#talk-button')).toBeEnabled();
  expect(connects.at(-1)).toMatchObject({language:'ja',mode:'cloud'});
  channel.send(JSON.stringify({type:'voice_status',state:'disconnected'}));
@@ -34,7 +34,7 @@ for(const locale of ['zh','fr'])test(`${locale}: Japanese voice preserves the in
  const count=connects.length;
  await page.reload();await expect(page.locator('html')).toHaveAttribute('data-voice-language','ja');
  expect(connects.length).toBe(count);
- await expect(page.locator('html')).toHaveAttribute('lang',locale==='zh'?'zh-CN':'fr');
+ await expect(page.locator('html')).toHaveAttribute('lang','ja');
  await page.locator('#lang-switch-button').click();await expect(page.locator('[data-lang=ja]')).toHaveAttribute('aria-current','true');
  await page.locator('[data-lang=zh]').click();
  await expect(page.locator('html')).toHaveAttribute('data-voice-language','zh');

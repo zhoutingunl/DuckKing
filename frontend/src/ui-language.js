@@ -1,15 +1,15 @@
 // Region-aware language for every page and its real-time interface states.
 // The backend decides the default from a local IP database; the visitor can
-// always override with ?lang=zh|en|fr or the nav "语言" menu (stored locally).
+// always override with ?lang=zh|en|fr|ja or the nav "语言" menu (stored locally).
 // Human/cloud transcripts and diagnostic data retain their original content.
 
 import {appURL} from './urls.js';
 import {messages, patterns} from './ui-messages.js';
+import {japaneseMessages, japanesePatterns} from './ja-messages.js';
 
 const STORAGE_KEY = 'duckking-ui-language';
-const LANGUAGES = new Set(['zh', 'en', 'fr']);
+const LANGUAGES = new Set(['zh', 'en', 'fr', 'ja']);
 const VOICE_STORAGE_KEY = 'duckking-voice-language';
-const VOICE_LANGUAGES = new Set([...LANGUAGES, 'ja']);
 
 let prefsPromise = null, readyPromise = null, observer = null;
 let activeLanguage = 'zh';
@@ -17,33 +17,15 @@ let activeVoiceLanguage = 'zh';
 export const currentLanguage = () => activeLanguage;
 export const currentVoiceLanguage = () => activeVoiceLanguage;
 
-export function pickVoiceLanguage({urlVoiceLang,urlLang,savedVoiceLang,interfaceLanguage='zh'}={}) {
-  if (VOICE_LANGUAGES.has(urlVoiceLang)) return urlVoiceLang;
-  if (LANGUAGES.has(urlLang)) return urlLang;
-  if (VOICE_LANGUAGES.has(savedVoiceLang)) return savedVoiceLang;
-  return interfaceLanguage;
-}
-
 function storeVoiceLanguage(language) {
   try {localStorage.setItem(VOICE_STORAGE_KEY,language)} catch {}
 }
 
-export function setVoiceLanguage(language) {
-  if (!VOICE_LANGUAGES.has(language)) return;
-  const previousVoiceLanguage=activeVoiceLanguage;
-  activeVoiceLanguage=language;storeVoiceLanguage(language);
-  document.documentElement.dataset.voiceLanguage=language;
-  const url=new URL(location.href);
-  if(language===activeLanguage)url.searchParams.delete('voice_lang');
-  else url.searchParams.set('voice_lang',language);
-  history.replaceState(history.state,'',url);
-  if(previousVoiceLanguage!==language)window.dispatchEvent(new CustomEvent('duckking-language-changed',{
-    detail:{language:activeLanguage,previous:activeLanguage,voiceLanguage:language,previousVoiceLanguage},
-  }));
-}
-
-export function pickLanguage({urlLang, savedLang, serverLang} = {}) {
-  for (const candidate of [urlLang, savedLang, serverLang]) {
+// Both URL forms select one language for the interface and the next voice
+// session. Read the legacy voice-only preference so existing Japanese visitors
+// receive the Japanese interface on their next visit as well.
+export function pickLanguage({urlLang, urlVoiceLang, savedLang, savedVoiceLang, serverLang} = {}) {
+  for (const candidate of [urlVoiceLang, urlLang, savedVoiceLang, savedLang, serverLang]) {
     if (LANGUAGES.has(candidate)) return candidate;
   }
   return 'zh';
@@ -292,6 +274,9 @@ export const ARIA_LABELS = new Map(Object.entries({
 }));
 
 for (const [source, en, fr] of messages) TRANSLATIONS.set(source, {en, fr});
+for (const [source, translations] of [...TRANSLATIONS, ...ARIA_LABELS]) {
+  translations.ja = japaneseMessages[source];
+}
 
 // Long sentences are often joined with a live status. Index by their first two
 // characters, so translating an update does not scan the whole catalogue.
@@ -317,8 +302,12 @@ export function translate(text, language = activeLanguage) {
       const match = source.match(pattern);
       if (match) {
         const values = match.slice(1).map((value,index) => rawValues?.includes(index) ? value : translate(value, language));
-        if (!allowContent && values.some(value => /[\u4e00-\u9fff]/.test(value ?? ''))) continue;
-        translated = (language === 'fr' ? fr : en)(...values); break;
+        if (!allowContent && values.some((value,index) => /[\u4e00-\u9fff]/.test(value ?? '') &&
+          (language !== 'ja' || (value === match[index+1] && !TRANSLATIONS.get(value)?.ja && !/[\u3040-\u30ff]/.test(value))))) continue;
+        translated = language === 'ja'
+          ? japanesePatterns[pattern.source]?.replace(/⟪(\d+)⟫/g, (_,index) => values[Number(index)] ?? '')
+          : (language === 'fr' ? fr : en)(...values);
+        if (translated) break;
       }
     }
   }
@@ -419,15 +408,15 @@ export function setLanguage(language) {
 export function initUILanguage() {
   if (readyPromise) return readyPromise;
   readyPromise = (async () => {
-    const urlLang = new URLSearchParams(location.search).get('lang');
-    if (LANGUAGES.has(urlLang)) storeLanguage(urlLang);
-    const saved = savedLanguage();
-    const prefs = LANGUAGES.has(urlLang) || LANGUAGES.has(saved) ? null : await uiPreferences();
-    activeLanguage = pickLanguage({urlLang, savedLang:saved, serverLang:prefs?.language});
+    const params = new URLSearchParams(location.search);
+    const urlLang = params.get('lang'), urlVoiceLang = params.get('voice_lang');
     let savedVoiceLang;try{savedVoiceLang=localStorage.getItem(VOICE_STORAGE_KEY)}catch{}
-    const urlVoiceLang=new URLSearchParams(location.search).get('voice_lang');
-    activeVoiceLanguage=pickVoiceLanguage({urlVoiceLang,urlLang,savedVoiceLang,interfaceLanguage:activeLanguage});
-    storeVoiceLanguage(activeVoiceLanguage);
+    const saved = savedLanguage();
+    const explicit = [urlVoiceLang,urlLang,savedVoiceLang,saved].some(value=>LANGUAGES.has(value));
+    const prefs = explicit ? null : await uiPreferences();
+    activeLanguage = pickLanguage({urlLang,urlVoiceLang,savedLang:saved,savedVoiceLang,serverLang:prefs?.language});
+    activeVoiceLanguage=activeLanguage;
+    storeLanguage(activeLanguage);storeVoiceLanguage(activeVoiceLanguage);
     document.documentElement.lang = activeLanguage === 'zh' ? 'zh-CN' : activeLanguage;
     document.documentElement.dataset.voiceLanguage=activeVoiceLanguage;
     document.getElementById('audio-diagnostics')?.setAttribute('data-ui-text','');

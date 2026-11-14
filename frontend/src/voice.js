@@ -68,9 +68,7 @@ export function setupVoice({appendLog,notify,endpoint='/voice',cloudOnly=false,b
   function update(){
     syncConnectionProgress();
     languageHint.hidden=currentVoiceLanguage()==='zh';
-    languageHint.textContent=currentVoiceLanguage()==='ja'
-      ?'日语识别与回复由灵矽提供；界面语言保持不变。'
-      :'仅中文支持本地识别；当前语言使用灵矽云端。';
+    languageHint.textContent='仅中文支持本地识别；当前语言使用灵矽云端。';
     const unavailable=listenUnavailable();
     if($('voice-route'))$('voice-route').textContent=voiceRouteText({mode,state,route,reason:routeReason,asrMs:routeAsrMs,localFeedback});
     if(mode==='local_first'&&!localAvailable&&state==='disconnected')$('voice-route').textContent='本地识别暂未就绪；本地优先模式会明确转交灵矽。';

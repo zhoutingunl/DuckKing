@@ -20,7 +20,6 @@ export const featureMessages = [
  ["场景恢复失败，请重新准备场景。", "Scene recovery failed. Reload the scene.", "Le rétablissement a échoué. Recharge la scène."],
  ["场景停止失败，请重新准备场景。", "Scene stop was not confirmed. Reload the scene.", "L’arrêt n’a pas été confirmé. Recharge la scène."],
  ["场景恢复未结束，请重新准备场景。", "Scene recovery did not finish. Reload the scene.", "Le rétablissement n’a pas abouti. Recharge la scène."],
- ["日语识别与回复由灵矽提供；界面语言保持不变。", "Linx handles Japanese recognition and replies; the interface language stays unchanged.", "Linx reconnaît le japonais et répond en japonais ; la langue de l’interface reste inchangée."],
  ["日语对话尚未配置，请联系管理员启用；不会自动切换成中文。", "Japanese voice is not configured yet. Contact the administrator; it will not fall back to Chinese.", "La voix japonaise n’est pas configurée. Contacte l’administrateur ; aucun repli vers le chinois."],
  ["设置", "Settings", "Réglages"],
  ["MuJoCo 仿真", "MuJoCo simulation", "Simulation MuJoCo"],

@@ -1,7 +1,7 @@
 import './style.css';
 import './site-nav.css';
 import './mobile-stage.js';
-import {currentLanguage, currentVoiceLanguage, setVoiceLanguage, setLanguage, initUILanguage} from './ui-language.js';
+import {currentLanguage, setLanguage, initUILanguage} from './ui-language.js';
 
 await initUILanguage();
 
@@ -14,7 +14,7 @@ const destinations=[
  ['statistics.html','交互统计',true],['experience.html','使用体验',true],
  ['deploys.html','部署记录',true],
 ];
-const languages=[['zh','中文'],['en','English'],['fr','Français'],['ja','日本語（音声）']];
+const languages=[['zh','中文'],['en','English'],['fr','Français'],['ja','日本語']];
 const nav=document.querySelector('.site-topbar nav');
 if(nav){
  const page=location.pathname.split('/').at(-1)||'index.html';
@@ -48,10 +48,10 @@ if(nav){
  for(const [code,name] of languages){
   const option=document.createElement('button');
   option.type='button';option.setAttribute('role','menuitem');option.textContent=name;option.dataset.lang=code;
-  option.addEventListener('click',()=>{menu.hidden=true;button.setAttribute('aria-expanded','false');code==='ja'?setVoiceLanguage(code):setLanguage(code)});
+  option.addEventListener('click',()=>{menu.hidden=true;button.setAttribute('aria-expanded','false');setLanguage(code)});
   menu.append(option);
  }
- const markCurrent=()=>{for(const option of menu.children)option.setAttribute('aria-current',option.dataset.lang===(currentVoiceLanguage()==='ja'?'ja':currentLanguage())?'true':'false')};
+ const markCurrent=()=>{for(const option of menu.children)option.setAttribute('aria-current',option.dataset.lang===currentLanguage()?'true':'false')};
  markCurrent();
  button.addEventListener('click',()=>{menu.hidden=!menu.hidden;button.setAttribute('aria-expanded',String(!menu.hidden))});
  document.addEventListener('click',event=>{if(!wrap.contains(event.target)){menu.hidden=true;button.setAttribute('aria-expanded','false')}});
