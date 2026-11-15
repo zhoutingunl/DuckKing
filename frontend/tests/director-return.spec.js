@@ -26,6 +26,7 @@ for(const device of [
   try{
    await page.goto('/features.html?room=1&feature=director&lang=zh');
    await expect(page.locator('[data-feature-action=conduct]')).toBeEnabled({timeout:45000});
+   const directorURL=page.url();
    await page.locator('#feature-order').fill('A B C D');await page.locator('[data-feature-action=conduct]').click();
    await expect.poll(async()=>{
     const b=(await(await request.get('/api/scenes/state?room=1')).json()).backend;
@@ -34,7 +35,7 @@ for(const device of [
    await page.getByRole('link',{name:'演示场景',exact:true}).click();const firstNod=await playIdentity(page);
    const before=(await(await request.get('/api/scenes/state?room=1')).json()).backend;
    const beforePrepare=prepares.length;
-   await page.getByRole('link',{name:'首页',exact:true}).click();
+   await page.goto(directorURL);
    await expect(page.locator('#task-status')).toHaveText('场景已切换');
    await expect(page.locator('#scene-placeholder')).toContainText('可停止房间任务');
    await expect(page.locator('#scene-placeholder')).not.toHaveClass(/loading-feedback/);
