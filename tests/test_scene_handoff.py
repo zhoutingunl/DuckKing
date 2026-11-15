@@ -108,6 +108,14 @@ async def test_real_director_worker_exits_before_demo_can_start(
         await old.invoke({"action": "conduct", "order": ["a", "b", "c", "d"]})
         assert old.process.returncode is None
         assert old.state["feature"]["status"] == "running"
+        original = app.state.rooms["1"].scene_motion
+        stopped = await endpoint["/api/scenes/actions"](
+            Action(name="stop"), "1", old.revision
+        )
+        assert (await original.wait(stopped["id"]))["status"] == "completed"
+        assert old.state["feature"]["status"] == "cancelled"
+        assert old.process.returncode is None  # Stop preserves the scene.
+        await old.invoke({"action": "conduct", "order": ["a", "b", "c", "d"]})
         record = await endpoint["/api/scenes/start"](Action(name="scene_ball"), "1")
         assert old.closed and old.process.returncode is not None and old.reader.done()
         current = app.state.rooms["1"].scene_motion
@@ -115,6 +123,13 @@ async def test_real_director_worker_exits_before_demo_can_start(
         assert current.backend.scene == "ball"
         action = await current.submit(Action(name="nod"))
         assert (await current.wait(action["id"]))["status"] == "completed"
+        walk = await current.submit(Action(name="walk", duration=3))
+        stopped = await endpoint["/api/scenes/actions"](
+            Action(name="stop"), "1", current.backend.revision
+        )
+        assert (await current.wait(stopped["id"]))["status"] == "completed"
+        assert (await current.wait(walk["id"]))["status"] == "cancelled"
+        assert app.state.rooms["1"].scene_motion is current
     finally:
         await endpoint["/api/scenes/close"]("1", False)
         if old:
