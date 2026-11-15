@@ -459,6 +459,8 @@ Three.js 渲染官方几何，不会用预设踢球动画替换实际关节结�
 
 ## 功能场景的独立物理工作进程
 
+功能页重新进入时先读取房间状态，不替换已存在的演示舞台。停止使用通用 `stop` 动作；`/api/scenes/actions?expected_revision=…` 在房间锁内校验版本后受理，防止旧页面误停其他页面刚切换的新世界。锁等待最多 8 秒，浏览器的受理与结果轮询合计最多 10 秒；只有动作结果为 `completed` 才显示停止确认，失败、取消或超时不算已停止，也不重放 POST。停止保留当前世界，不调用功能准备。迟到的旧状态不能覆盖确认，其他页面的新任务或场景版本会撤销旧确认。检查见 `tests/test_scene_stop_revision.py`、`frontend/tests/scene-stop.test.js` 和 `frontend/tests/director-return.spec.js`。
+
 `features.html` 经房间 API 或灵矽 `duck_feature` 工具调用 `FeatureBackend`；后者用私有 JSON 行协议管理一个 CPU 子进程。控制器和 ONNX 推理不会占住 ASGI 主事件循环，仍共享物理房间并发额度、原有模型下载/状态 WebSocket 和语言会话。结束后冻结实际物理姿态；取消与异常不回退预览。新任务先停止旧任务；场景切换时断开语音并过滤旧版本状态。
 
 进入演示、动作训练场或互动工坊时，`POST /api/scenes/start` 在房间锁内释放原功能场景进程，再创建标准 MuJoCo 舞台；不能把标准场景指令送进功能场景协议。停止任务不等于释放世界，因此运行中、已停止和旧指令失败后的功能场景都需要这个交接。语音仍占用时先返回冲突并保留旧世界；新舞台创建失败则清空准备状态，允许再次选择重试，不复活旧任务。协议边界与真实进程退出分别由 `tests/test_scene_handoff.py` 和页面流程 `frontend/tests/scene-handoff.spec.js` 回归。

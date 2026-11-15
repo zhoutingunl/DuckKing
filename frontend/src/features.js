@@ -16,6 +16,7 @@ import {translate} from './ui-language.js';
 import {sceneVisit} from './scene-visit.js';
 import {FeatureAudio} from './feature-audio.js';
 import {createFeatureIntent} from './feature-intent.js';
+import {stopRoomScene,newerSceneActivity} from './scene-stop.js';
 
 await setupRoom();
 const legacyURL=new URL(location.href);if(legacyURL.searchParams.has('metric')){legacyURL.searchParams.delete('metric');history.replaceState(history.state,'',legacyURL)}
@@ -71,6 +72,7 @@ const sources={
 };
 const statusLabels={idle:'等待指令',running:'正在执行',completed:'任务完成',failed:'本轮未完成',cancelled:'任务已取消'};
 let catalog=[],selected=null,latest=null,revision=null,expectedRevision=null,busy=false,online=false,epoch=0,modelPromise=null,modelAbort=null,session=null,voice;
+let roomPacket=null,stopAck=null,stopping=false,stopError='';
 let sort=savedChoice('sort')==='latest'?'latest':'top',category='全部',expanded=false;
 const visits=sceneVisit({send:payload=>fetch(appURL('api/features/visits'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload),keepalive:true,signal:AbortSignal.timeout(8000)}),eligible:()=>!document.hidden&&!unavailable()});
 const visitTimer=setInterval(()=>visits.pulse(),5000);
@@ -84,6 +86,10 @@ function appendLog(text,label='任务'){
  while($('activity-log').children.length>60)$('activity-log').firstChild.remove();
 }
 function unavailable(action){
+ if(stopping)return '正在停止任务，请等待确认。';
+ if(otherScene())return stopAck?.revision===roomPacket.backend.revision?'当前房间任务已停止。可直接返回演示，或重新准备所选功能。':'当前功能未准备。可停止房间任务，或点击重新准备场景。';
+ if(!busy&&!roomPacket?.backend&&document.body.dataset.sceneChosen==='true')return '当前房间没有物理场景。可重新准备所选功能。';
+ if(!busy&&latest&&revision!==latest.revision&&session&&!session.active)return '可重新准备场景';
  if(busy||!online||!latest||latest.feature?.capability!==selected?.id||revision!==latest.revision)return '请等小鸭显示后再开始。';
  if(latest.feature.recovery_required)return latest.feature.recovery_reason;
  if(latest.feature.phase==='preparing')return '请等待场景准备完成。';
@@ -94,16 +100,34 @@ function controls(){
  for(const b of document.querySelectorAll('[data-feature-action]')){const reason=unavailable(b.dataset.featureAction);b.disabled=!!reason;b.title=reason?translate(reason):''}
  const reasons=unavailable()?[unavailable()]:Object.values(latest?.feature?.actions??{}).filter(a=>!a.enabled).map(a=>a.reason);
  $('feature-action-hint').textContent=[...new Set(reasons)].map(reason=>translate(reason)).join(' ');$('feature-action-hint').hidden=!reasons.length;
- $('stop-feature').disabled=$('release-feature').disabled=!latest||busy;
- $('prepare-feature').disabled=busy;$('stilt-height').disabled=busy;
+ $('stop-feature').disabled=$('release-feature').disabled=(!latest&&!roomPacket?.backend)||busy||stopping;
+ $('prepare-feature').disabled=busy||stopping;$('stilt-height').disabled=busy||stopping;
  $('prepare-feature').hidden=busy||!!(latest&&!latest.error&&!latest.feature?.recovery_required&&online);
- for(const b of document.querySelectorAll('[data-capability]'))b.disabled=busy;
+ for(const b of document.querySelectorAll('[data-capability]'))b.disabled=busy||stopping;
  window.dispatchEvent(new Event('duckking-voice-readiness'));
 }
 async function api(path,body,signal){
  const response=await fetch(appURL(path),{...(body?{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}:{}),signal:signal??AbortSignal.timeout(100000)});
  if(response.status===204)return {};
- const data=await response.json();if(!response.ok)throw Error(typeof data.detail==='string'?data.detail:data.detail?.message??'场景请求未完成');return data;
+ const data=await response.json();if(!response.ok){const error=Error(typeof data.detail==='string'?data.detail:data.detail?.message??'场景请求未完成');error.status=response.status;error.code=data.detail?.code;throw error}return data;
+}
+function otherScene(){
+ const b=roomPacket?.backend;
+ return !!b&&(b.scene!=='functional'||b.feature?.capability!==selected?.id||(expectedRevision&&expectedRevision!==b.revision));
+}
+function showOtherScene(){
+ const stopped=stopAck?.revision===roomPacket?.backend?.revision;
+ const running=!!roomPacket?.action&&roomPacket.action.name!=='stop'||roomPacket?.backend?.feature?.status==='running'||roomPacket?.backend?.balance?.execution==='running'||roomPacket?.backend?.seesaw?.execution==='running';
+ latest=null;revision=null;viewer?.clear();choir.stop();sound.stop();
+ const message='房间已切换场景，所选功能当前未在执行。可停止房间任务，或重新准备所选功能。';
+ feedback.reset(stopped?'当前房间任务已停止。可直接返回演示，或重新准备所选功能。':message);
+ $('task-status').textContent=stopping?'正在停止任务':stopError?'停止未确认':stopped?'任务已停止':running?'当前房间任务执行中':'场景已切换';
+ $('task-status').dataset.outcome=stopped?'stopped':stopping?'stopping':stopError?'stop_failed':'scene_changed';
+ $('sim-status').textContent=stopped?'停止已确认，场景保留':'所选功能未准备';
+ $('result-message').textContent=stopError||message;
+ $('feature-metrics').replaceChildren();$('feature-winner').hidden=$('sensor-panel').hidden=true;
+ if(!stopError)$('notice').hidden=true;
+ controls();
 }
 function describe(entry){
  $('stilt-height-wrap').hidden=entry.id!=='stilts';
@@ -126,16 +150,35 @@ async function disconnect(){
 async function select(entry,replace=true,clicked=false){
  document.body.dataset.sceneChosen='true';$('functional-workspace').hidden=false;$('functional-activity').hidden=false;ensureViewer();
  if(clicked)requestAnimationFrame(()=>$('functional-workspace').scrollIntoView({block:'start',behavior:'auto'}));
- if(busy){if(!clicked)return;modelAbort?.abort();busy=false}if(clicked)void visits.enter(entry.id);else void visits.end();intent.cancel();busy=true;const mine=++epoch;expectedRevision=null;selected=entry;describe(entry);controls();choir.stop();sound.stop();$('notice').hidden=true;
+ if(stopping)return;
+ if(busy){if(!clicked)return;modelAbort?.abort();busy=false}if(clicked)void visits.enter(entry.id);else void visits.end();intent.cancel();busy=true;const mine=++epoch;expectedRevision=null;latest=null;revision=null;stopAck=null;stopError='';selected=entry;describe(entry);controls();choir.stop();sound.stop();$('notice').hidden=true;
  modelAbort?.abort();modelAbort=new AbortController();const signal=modelAbort.signal;
- session=feedback.begin({phase:'backend',cancel:()=>{modelAbort.abort();session.cancelled()},retry:()=>select(entry,true)});
- const experience=measurement('load'),started=performance.now();
+ session=null;const experience=measurement('load'),started=performance.now();
  try{
-  await disconnect();const data=await api('api/features/prepare',{capability:entry.id,replace,...(entry.id==='stilts'?{variant:Number($('stilt-height').value)}:{})},signal);signal.throwIfAborted();
+  let data;
+  if(!replace){
+   // Returning to this page observes the room; it never replaces a demo world.
+   feedback.reset('正在读取当前房间状态');$('task-status').textContent='正在读取房间状态';$('sim-status').textContent='';
+   try{data=await api('api/scenes/state',null,AbortSignal.any([signal,AbortSignal.timeout(8000)]))}catch(error){if(error.status!==503)throw error}
+   signal.throwIfAborted();if(mine!==epoch)return;
+   roomPacket=data??null;
+   if(data&&otherScene()){busy=false;showOtherScene();experience.finish('cancelled');return}
+  }
+  session=feedback.begin({phase:'backend',cancel:()=>{modelAbort.abort();session.cancelled()},retry:()=>select(entry,true)});
+  $('task-status').textContent='正在准备场景';$('sim-status').textContent='正在准备所选功能';$('result-message').textContent='';
+  if(!data){await disconnect();data=await api('api/features/prepare',{capability:entry.id,replace,...(entry.id==='stilts'?{variant:Number($('stilt-height').value)}:{})},signal)}signal.throwIfAborted();
+  roomPacket=data;
   if(mine!==epoch)return;latest=data.backend;expectedRevision=latest.revision;revision=null;online=true;await loadModel(latest,signal,mine);
   rememberChoice('feature',entry.id);experience.finish('completed',{scene_ms:Math.round(performance.now()-started)},{scene:'functional'});
   $('sim-status').textContent='场景已准备，等待指令';
- }catch(error){if(mine!==epoch)return;experience.finish(signal.aborted?'cancelled':'failed');signal.aborted?session.cancelled():session.fail(error);notify(error.message)}
+ }catch(error){
+  if(mine!==epoch)return;experience.finish(signal.aborted?'cancelled':'failed');
+  if(error.code==='scene_conflict'){
+   try{roomPacket=await api('api/scenes/state',null,AbortSignal.timeout(8000));if(mine===epoch&&otherScene()){busy=false;showOtherScene();return}}catch{/* Keep the actionable error below. */}
+  }
+  if(session){signal.aborted?session.cancelled():session.fail(error)}else feedback.reset(error.message);
+  $('task-status').textContent=signal.aborted?'已停止等待':'准备未完成';$('sim-status').textContent='可重新准备场景';notify(error.message);
+ }
  finally{if(mine===epoch){busy=false;controls();feed.refresh()}}
 }
 async function loadModel(state,signal,mine=epoch){
@@ -154,13 +197,19 @@ async function loadModel(state,signal,mine=epoch){
 }
 const seen=new Set();
 function update(packet){
- const state=packet.backend;if(!state||state.scene!=='functional'){
-  if(!busy&&(latest||revision||online)){latest=null;online=false;revision=null;viewer?.clear();feedback.reset('选择一个功能场景开始。');controls()}return;
+ roomPacket=packet;
+ if(stopAck&&newerSceneActivity(packet,stopAck)){stopAck=null;stopError=''}
+ const state=packet.backend;
+ if(!busy&&selected&&otherScene()&&document.body.dataset.sceneChosen==='true'){showOtherScene();return}
+ if(!state){
+  if(!busy&&document.body.dataset.sceneChosen==='true'){latest=null;revision=expectedRevision=null;viewer?.clear();choir.stop();sound.stop();feedback.reset('当前房间没有物理场景。可重新准备所选功能。');$('task-status').textContent='当前无执行任务';$('sim-status').textContent='所选功能未准备';controls()}return;
  }
+ if(state.scene!=='functional')return;
  if(state.feature.capability!==selected?.id||state.revision!==expectedRevision)return;latest=state;online=!state.error;
- viewer?.update(state);choir.update(state.seated_choir);sound.update(state.feature);
- const f=state.feature;$('task-status').textContent=f.phase==='preparing'?'正在准备场景':statusLabels[f.status]??f.status;$('result-message').textContent=f.message??'';
- $('task-status').dataset.outcome=f.status;
+ viewer?.update(state);if(stopAck){choir.stop();sound.stop()}else{choir.update(state.seated_choir);sound.update(state.feature)}
+ const f=state.feature,stopped=!!stopAck,stoppedLabel=f.status==='running'||f.status==='cancelled'?'任务已取消':'任务已停止';
+ $('task-status').textContent=stopping?'正在停止任务':stopError?'停止未确认':stopped?stoppedLabel:f.phase==='preparing'?'正在准备场景':statusLabels[f.status]??f.status;$('result-message').textContent=stopError||(stopped?'当前任务已停止，可重新开始。':f.message??'');
+ $('task-status').dataset.outcome=stopError?'stop_failed':stopped?'stopped':f.status;
  $('feature-winner').hidden=!f.outcome?.winner;$('feature-winner').textContent=({a:'鸭 A 获胜',b:'鸭 B 获胜',draw:'平局'})[f.outcome?.winner]??'';
  $('feature-metrics').replaceChildren();
  const values={stages_completed:['已完成阶段',1,''],roll_deg:['实际滚转',1,'°'],on_head_fraction:['头顶支撑比例',100,'%'],ratio:['实际 / 目标转速',1,'×'],elapsed_seconds:['本轮计时',1,'s'],red_lights:['已遇红灯',1,''],rope_gap_m:['绳端连接误差',100,'cm'],marker_x_m:['绳中点位置',100,'cm'],climb_height_m:['最高身体高度',100,'cm'],gates_passed:['已过路锥',1,'/ 8'],cones_hit:['碰锥数',1,''],single_blade_seconds:['连续单脚承重',1,'s'],wind_force_n:['逆风推力',1,'N'],foot_friction:['脚部摩擦系数',1,''],height_cm:['高跷高度',1,'cm'],rotation_deg:['实际转角',1,'°'],flight_seconds:['实际腾空',1,'s'],actual_speed_m_s:['实际速度',1,'m/s'],mean_speed_m_s:['平均速度',1,'m/s'],lateral_drift_m:['侧向偏移',100,'cm'],ball_offset_m:['身体距球心',100,'cm'],ball_travel_m:['球的位移',100,'cm'],supported_seconds:['球上支撑时间',1,'s'],target_support_feet:['落台支撑脚',1,''],stable_seconds:['连续站稳',1,'s'],gap_m:['平台间隙',100,'cm'],drop_m:['平台落差',100,'cm'],distance_m:['实际位移',100,'cm'],sim_time:['仿真时间',1,'s'],max_clearance_m:['最高离地',100,'cm'],support_feet:['支撑脚',1,''],distance_m_to_target:['距目标',100,'cm'],frequency_hz:['音高',1,'Hz'],ray_distance_m:['前方距离',100,'cm'],virtual_battery_percent:['虚拟电量',1,'%'],steps_completed:['已落足',1,''],swing_span_deg:['摆幅',1,'°'],minimum_string_m:['最短绳长',100,'cm'],maximum_string_m:['最长绳长',100,'cm'],clean_skips:['有效跳绳',1,''],full_revolutions:['绳圈数',1,''],real_time_factor:['仿真 / 墙钟',1,'×'],foot_ball_contacts:['脚球接触采样',1,'']};
@@ -183,15 +232,34 @@ async function command(action){
    if(entry.id==='emotions')await sound.load(action);
   },async()=>{
    if(unavailable(action))return;
+   stopAck=null;stopError='';
    await api('api/features/command',body);appendLog(translate(labels[action]),'本地演示');await feed.refresh();
   });
  }catch(error){notify(error.message)}
 }
-async function control(operation){intent.cancel();try{choir.stop();sound.stop();await api('api/features/command',{operation,request_id:requestId()});await feed.refresh()}catch(error){notify(error.message)}}
+async function control(){
+ if(stopping||busy)return;intent.cancel();choir.stop();sound.stop();stopping=true;stopError='';controls();$('notice').hidden=true;$('task-status').textContent='正在停止任务';
+ try{
+  const observedRevision=roomPacket?.backend?.revision??latest?.revision;
+  const signal=AbortSignal.timeout(10000),packet=await api('api/scenes/state',null,signal);
+  roomPacket=packet;const currentRevision=packet.backend.revision;
+  if(observedRevision&&observedRevision!==currentRevision)throw Error('房间场景已更新，请确认当前场景后再次停止。');
+  const result=await stopRoomScene(api,{revision:currentRevision,id:requestId(),signal});
+  stopAck={...result,revision:currentRevision,commandRevision:packet.backend.balance?.command_revision??packet.backend.seesaw?.command_revision};
+  stopping=false;update(packet);
+  if(otherScene())showOtherScene();
+  else{$('notice').hidden=true;$('sim-status').textContent='停止已确认，场景保留'}
+  void feed.refresh();
+ }catch(error){
+  stopping=false;stopAck=null;stopError='停止尚未确认。请重试停止任务，或释放场景后重新准备。';
+  if(otherScene())showOtherScene();else{$('task-status').textContent='停止未确认';$('sim-status').textContent='请重试停止任务';}
+  notify(stopError);appendLog(error.message,'停止未确认');
+ }finally{stopping=false;controls()}
+}
 $('stop-feature').addEventListener('click',()=>control('stop'));
 $('prepare-feature').addEventListener('click',()=>select(selected,true));$('reset-camera').addEventListener('click',()=>viewer?.reset());$('clear-log').addEventListener('click',()=>$('activity-log').replaceChildren());
-$('release-feature').addEventListener('click',async()=>{if(busy)return;intent.cancel();busy=true;controls();try{await disconnect();await api('api/scenes/close',{});epoch++;modelAbort?.abort();latest=null;revision=expectedRevision=null;choir.stop();sound.stop();viewer?.clear();feedback.reset('场景已释放，点击重新准备即可继续。')}catch(error){notify(error.message)}finally{busy=false;controls()}});
-window.addEventListener('keydown',event=>{if(event.key==='Escape'&&latest)void control('stop')});
+$('release-feature').addEventListener('click',async()=>{if(busy||stopping)return;intent.cancel();busy=true;controls();try{await disconnect();await api('api/scenes/close',{});epoch++;modelAbort?.abort();latest=roomPacket=stopAck=null;stopError='';revision=expectedRevision=null;choir.stop();sound.stop();viewer?.clear();feedback.reset('场景已释放，点击重新准备即可继续。');$('task-status').textContent='场景已释放';$('sim-status').textContent='可重新准备场景';$('notice').hidden=true}catch(error){notify(error.message)}finally{busy=false;controls()}});
+window.addEventListener('keydown',event=>{if(event.key==='Escape'&&(latest||roomPacket?.backend))void control()});
 const feed=sceneStateFeed({readState:signal=>api('api/scenes/state',null,signal),onState:update,onStatus:({mode})=>{online=mode==='websocket'||mode==='http';controls()}});
 async function enableSceneSound(){
  if(selected?.id==='director')await choir.enable();

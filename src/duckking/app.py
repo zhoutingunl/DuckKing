@@ -36,6 +36,7 @@ from .voice_profiles import public_profiles
 
 ROOT = Path(__file__).resolve().parents[2]
 SCENE_STATE_ACK_TIMEOUT = 30
+SCENE_ACTION_GUARD_TIMEOUT = 8
 VOICE_BROWSER_IDLE_TIMEOUT = 45
 
 
@@ -663,9 +664,26 @@ def create_app(
         return await scene_controller(room).snapshot()
 
     @app.post("/api/scenes/actions", status_code=202)
-    async def scene_action(body: Action, room: str = "1"):
+    async def scene_action(
+        body: Action, room: str = "1", expected_revision: str | None = None
+    ):
         try:
+            if expected_revision is not None:
+                if not 1 <= len(expected_revision) <= 100:
+                    raise HTTPException(422, "无效的场景版本")
+                selected = get_room(room)
+                async with asyncio.timeout(SCENE_ACTION_GUARD_TIMEOUT):
+                    async with selected.scene_lock:
+                        controller = scene_controller(room)
+                        if controller.backend.revision != expected_revision:
+                            raise HTTPException(409, {
+                                "code": "scene_changed",
+                                "message": "房间场景已更新，请确认当前场景后再次停止。",
+                            })
+                        return await controller.submit(body)
             return await scene_controller(room).submit(body)
+        except TimeoutError as exc:
+            raise HTTPException(504, "场景仍在切换，停止尚未确认，请稍后重试。") from exc
         except ValueError as exc:
             raise HTTPException(409, str(exc)) from exc
 
