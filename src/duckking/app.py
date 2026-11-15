@@ -422,7 +422,10 @@ def create_app(
             if selected.scene_motion and getattr(selected.scene_motion.backend, "scene", None) in {
                 "balance",
                 "seesaw",
+                "functional",
             }:
+                # These backends own different worlds/protocols. Stopping their
+                # task does not turn them into the standard demo/studio backend.
                 if selected.voice:
                     raise HTTPException(409, "请先断开当前房间语音，再切换物理世界")
                 await selected.scene_motion.close()
