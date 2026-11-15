@@ -1,6 +1,10 @@
 import {test,expect} from '@playwright/test';
 import {existsSync} from 'node:fs';
 
+// Live WebGL snapshotting can delay the three-second physical chorus past its audio window.
+// Keep API traces; the signal proof runs on the real audio rendering thread.
+test.use({isMobile:true,hasTouch:true,viewport:{width:390,height:844},trace:{mode:'retain-on-failure',snapshots:false,screenshots:false}});
+
 // Controlled mobile-policy fixture, not an iPhone speaker test. The context,
 // decoded clips, oscillator signal and physical scene remain real browser/CPU work.
 async function mobileAudioPolicy(page){
@@ -54,16 +58,15 @@ async function assertLocalSound(page,voiceSockets){
  expect(voiceSockets).toEqual([]);
 }
 test.describe('local mobile sound without Linx',()=>{
- test.use({isMobile:true,hasTouch:true,viewport:{width:390,height:844}});
  for(const scene of [
   {id:'director',action:'conduct'},
   {id:'theremin',action:'play',optional:'../../external/features/upstream/src'},
   {id:'emotions',action:'curious',optional:'../../external/features/emotions/sounds/curious.wav'},
- ])test(`${scene.id}: a scene action generates local audio without microphone or cloud`,async({page})=>{
+ ])test(`${scene.id}: a scene action generates local audio without microphone or cloud`,async({page,request})=>{
   test.skip(!!scene.optional&&!existsSync(new URL(scene.optional,import.meta.url)),'Requires the corresponding optional feature assets');
   test.setTimeout(90000);await mobileAudioPolicy(page);
   const voiceSockets=[];page.on('websocket',socket=>{if(/\/(?:scene-)?voice(?:\?|$)/.test(socket.url()))voiceSockets.push(socket.url())});
-  await page.request.post('/api/scenes/close?room=1');
+  await request.post('/api/scenes/close?room=1');
   try{
    await page.goto(`/features.html?room=1&feature=${scene.id}&lang=zh`);
    const action=page.locator(`[data-feature-action=${scene.action}]`);await expect(action).toBeEnabled({timeout:45000});
@@ -72,25 +75,25 @@ test.describe('local mobile sound without Linx',()=>{
    await page.locator('#stop-feature').tap();
    await expect.poll(()=>peak(page),{timeout:5000}).toBeLessThan(.00001);
    await expect(page.locator('#voice-badge')).toHaveText('未连接灵矽');
-  }finally{await page.request.post('/api/scenes/close?room=1')}
+  }finally{await page.close();await request.post('/api/scenes/close?room=1')}
  });
 
- test('dual-duck chorus starts local audio directly from its action button',async({page})=>{
+ test('dual-duck chorus starts local audio directly from its action button',async({page,request})=>{
   test.setTimeout(90000);await mobileAudioPolicy(page);
   const voiceSockets=[];page.on('websocket',socket=>{if(/\/(?:scene-)?voice(?:\?|$)/.test(socket.url()))voiceSockets.push(socket.url())});
-  await page.request.post('/api/scenes/close?room=1');
+  await request.post('/api/scenes/close?room=1');
   try{
    await page.goto('/scenarios.html?room=1&lang=zh');await page.locator('[data-scene=duo]').tap();
    const chorus=page.locator('[data-sim-action=chorus]');await expect(chorus).toBeEnabled({timeout:45000});
    await chorus.tap();await assertLocalSound(page,voiceSockets);
    await page.locator('#stop-scene').tap();await expect.poll(()=>peak(page)).toBeLessThan(.00001);
-  }finally{await page.request.post('/api/scenes/close?room=1')}
+  }finally{await page.close();await request.post('/api/scenes/close?room=1')}
  });
 
- test('blocked audio activation reports failure without starting a silent task, then retries locally',async({page})=>{
+ test('blocked audio activation reports failure without starting a silent task, then retries locally',async({page,request})=>{
   test.setTimeout(90000);await mobileAudioPolicy(page);const starts=[];
   page.on('request',request=>{if(new URL(request.url()).pathname==='/api/features/command'&&request.postDataJSON()?.operation==='start')starts.push(request.postDataJSON())});
-  await page.request.post('/api/scenes/close?room=1');
+  await request.post('/api/scenes/close?room=1');
   try{
    await page.goto('/features.html?room=1&feature=director&lang=zh');const action=page.locator('[data-feature-action=conduct]');
    await expect(action).toBeEnabled({timeout:45000});await page.locator('#feature-order').fill('A');
@@ -99,6 +102,6 @@ test.describe('local mobile sound without Linx',()=>{
    await page.evaluate(()=>window.localAudioAudit.blocked=false);await action.tap();
    await expect.poll(()=>page.evaluate(()=>window.localAudioAudit.peak),{timeout:20000}).toBeGreaterThan(.0001);expect(starts).toHaveLength(1);
    await page.locator('#stop-feature').tap();
-  }finally{await page.request.post('/api/scenes/close?room=1')}
+  }finally{await page.close();await request.post('/api/scenes/close?room=1')}
  });
 });
