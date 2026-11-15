@@ -39,7 +39,7 @@ async function invoke(name,args,rehearsalText){
 }
 async function select(scene){
  if(loading||voiceBusy())return;
- void choir.enable().catch(error=>notify(error.message));choir.stop();
+ if(scene.scene==='seated')void choir.enable().catch(error=>notify(error.message));choir.stop();
  rememberChoice('studio',scene.id);loadAbort?.abort();loadAbort=new AbortController();const signal=loadAbort.signal;
  loadSession=loadingFeedback.begin({phase:'backend',cancel:()=>{loadAbort.abort();loadSession.cancelled()},retry:()=>select(scene),retryLabel:'重新准备场景'});
  loading=true;selected=null;controls();$('notice').hidden=true;
