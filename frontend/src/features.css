@@ -51,3 +51,12 @@
 @media(max-width:480px){.features-page .stage-toolbar{column-gap:6px;row-gap:4px;padding:6px 10px}.feature-stage-tools{gap:4px}.features-page .feature-stage-tools button{margin-left:0;font-size:11px}}
 
 .scene-settings select{font:inherit;color:inherit;background:#fff;border:1px solid #d7dfbd;border-radius:8px;padding:8px;max-width:100%}
+
+@media(max-width:760px) and (min-height:480px){
+ .features-page .mobile-stage-layout>.scene-stage{display:none}
+ .features-page .mobile-stage-layout .scene-controls{margin-top:0}
+ .features-page .mobile-stage-layout #controls-title{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+ .features-page .mobile-stage-layout .feature-voice-example{margin:0 0 12px;font-size:14px}
+ .features-page .mobile-stage-layout .feature-commands{margin:0 0 14px}
+ .features-page .mobile-stage-layout .feature-details{border:1px solid #dce2d0;border-radius:18px;overflow:hidden}
+}

@@ -81,6 +81,64 @@ test('readiness fixtures disable unavailable actions and explain the recovery pa
  }finally{await page.request.post('/api/scenes/close?room=1')}
 });
 
+test.describe('phone action entry',()=>{
+test.use({isMobile:true,hasTouch:true,viewport:{width:390,height:844}});
+for(const capability of ['movement','dock'])test(`${capability}: selecting a scene exposes actions before details and preserves the world across layouts`,async({page},info)=>{
+ test.skip(capability==='dock'&&!existsSync(new URL('../../external/features/playground/hardware/microdock-v2/policy/scoot_dock.onnx',import.meta.url)), 'Requires the optional MicroDock policy assets');
+ test.setTimeout(90000);
+ const action=capability==='dock'?'dock':'walk';
+ const prepares=[];page.on('request',request=>{if(new URL(request.url()).pathname==='/api/features/prepare')prepares.push(request.url())});
+ await page.request.post('/api/scenes/close?room=1');
+ try{
+  await page.goto('/features.html?room=1&lang=zh');
+  await page.locator('#show-all-scenes').click();
+  await page.locator(`[data-capability=${capability}]`).tap();
+  await expect(page.locator(`[data-feature-action=${action}]`)).toBeEnabled({timeout:45000});
+  await expect(page.locator('#scene-placeholder')).toBeHidden();
+  // Do not scroll the controls into view: selecting the scene must reveal them.
+  const checkEntry=async()=>{
+   await expect.poll(()=>page.evaluate(action=>{
+    const button=document.querySelector(`[data-feature-action=${action}]`),r=button.getBoundingClientRect();
+    const dock=document.querySelector('.mobile-stage-dock').getBoundingClientRect();
+    return r.top>=dock.bottom&&r.bottom<=innerHeight&&button.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2));
+   },action)).toBe(true);
+  };
+  await checkEntry();
+  if(capability==='dock'){
+   await expect(page.locator('[data-feature-action=undock]')).toBeDisabled();
+   await expect(page.locator('#feature-action-hint')).toContainText('先回窝');
+  }
+  await expect(page.locator('.feature-evidence #feature-introduction')).toHaveCount(1);
+  await expect(page.locator('.scene-controls>.feature-details')).toHaveCount(1);
+  await expect(page.locator('.physics-caption')).toContainText('等待指令');
+  await page.screenshot({path:info.outputPath(`${capability}-phone-actions.png`)});
+  await page.locator('#physics-viewport canvas').evaluate(canvas=>window.featureCanvas=canvas);
+  const revision=(await(await page.request.get('/api/scenes/state?room=1')).json()).backend.revision;
+  if(capability==='movement')await page.locator('#feature-duration').fill('36');
+  const accepted=page.waitForResponse(response=>new URL(response.url()).pathname==='/api/features/command'&&response.request().postDataJSON()?.action===action);
+  await page.locator(`[data-feature-action=${action}]`).tap();expect((await accepted).ok()).toBe(true);
+  await page.locator('#stop-feature').tap();
+  await expect(page.locator('#task-status')).toHaveText('任务已取消',{timeout:10000});
+  for(const viewport of [{width:1440,height:1050},{width:667,height:375}]){
+   await page.setViewportSize(viewport);
+   await expect(page.locator('.scene-stage>.feature-details')).toHaveCount(1);
+   await expect(page.locator('.scene-actions>#feature-introduction')).toHaveCount(1);
+   await expect(page.locator('.mobile-stage-dock')).toHaveCount(0);
+  }
+  for(const viewport of [{width:320,height:568},{width:390,height:844}]){
+   await page.setViewportSize(viewport);
+   // Only the scene-selection scroll is repeated after resizing, never a control scroll.
+   await page.locator('#functional-workspace').evaluate(element=>element.scrollIntoView({block:'start'}));
+   await checkEntry();
+   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+  }
+  expect(await page.locator('#physics-viewport canvas').evaluate(canvas=>canvas===window.featureCanvas)).toBe(true);
+  expect((await(await page.request.get('/api/scenes/state?room=1')).json()).backend.revision).toBe(revision);
+  expect(prepares).toHaveLength(1);
+ }finally{await page.request.post('/api/scenes/close?room=1')}
+});
+});
+
 test.describe('phone basketball',()=>{
 test.use({isMobile:true,hasTouch:true});
 test('mobile basketball keeps a large unobscured canvas while trial controls remain tappable',async({page},info)=>{

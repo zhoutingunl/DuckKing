@@ -20,6 +20,21 @@ import {createFeatureIntent} from './feature-intent.js';
 await setupRoom();
 const legacyURL=new URL(location.href);if(legacyURL.searchParams.has('metric')){legacyURL.searchParams.delete('metric');history.replaceState(history.state,'',legacyURL)}
 const $=id=>document.getElementById(id),loader=createPhysicsModelLoader();
+// Keep the original nodes and desktop positions when moving phone-only details.
+const mobileLayout=matchMedia('(max-width:760px) and (min-height:480px)');
+const mobilePlacements=[
+ {element:document.querySelector('.feature-details'),parent:document.querySelector('.scene-controls'),before:null},
+ {element:$('feature-introduction'),parent:document.querySelector('.feature-evidence'),before:$('feature-source')},
+].map(placement=>{
+ const anchor=document.createComment('desktop feature details position');
+ placement.element.before(anchor);return {...placement,anchor};
+});
+function placeFeatureDetails(){
+ for(const {element,parent,before,anchor} of mobilePlacements){
+  if(mobileLayout.matches)parent.insertBefore(element,before);else anchor.after(element);
+ }
+}
+placeFeatureDetails();mobileLayout.addEventListener('change',placeFeatureDetails);
 const feedback=createLoadingState($('scene-placeholder')),choir=new StudioChoir(),sound=new FeatureAudio();
 const intent=createFeatureIntent();
 const labels={routine:'完整连续技',backroll:'后滚翻',headstand:'倒立后起身',spin_left:'向左头旋',spin_right:'向右头旋',play_game:'开始比赛',try_trick:'开始挑战',try_climb:'开始攀爬',try_course:'开始体验',recover_back:'仰卧起身',recover_front:'俯卧起身',stilt_walk:'高跷走十秒',flip:'尝试后空翻',run:'快跑五秒',balance_ball:'球上平衡十秒',roll_forward:'球上向前十秒',jump_gap:'跳到对面平台',walk:'向前走',backward:'向后退',turn_left:'向左转',turn_right:'向右转',sit:'坐下',stand:'站起来',nod:'点点头',curious:'好奇',sad:'难过',devastated:'委屈坐下',mmh:'嗯？',yes:'点头答应',yes_fast:'连连点头',no:'摇头拒绝',defiant:'不服气',angry:'生气',mock:'调皮',excited:'兴奋',impatient:'等不及了',laugh:'笑起来',conduct:'按顺序轮唱',dock:'回窝坐好',undock:'离窝站起来',hop:'跳一下',lift_left:'抬左脚',lift_right:'抬右脚',lower:'放下脚',observe:'看看前方',look_left:'向左看',look_right:'向右看',look_forward:'看前方',play:'演奏距离琴',near:'物体靠近',far:'物体远离',cross:'跨过门槛',find_red:'找红色',find_blue:'找蓝色',find_green:'找绿色',kick_left:'找到球用左脚踢',kick_right:'找到球用右脚踢',go_door:'去门口',go_home:'回窝旁',go_table:'去桌旁',steps:'踩着标记走',swing:'荡起来',jump_rope:'一起跳绳'};
@@ -203,7 +218,7 @@ $('scene-settings-toggle').onclick=()=>{const shown=$('scene-settings').hidden;$
 $('stilt-height').onchange=()=>{if(selected?.id==='stilts')void select(selected,true,true)};
 $('ground-style').onchange=()=>viewer?.setGround($('ground-style').value);
 try{await loadCatalog();const choice=savedChoice('feature');selected=catalog.find(c=>c.id===choice)??catalog.find(c=>c.id==='movement')??catalog[0];if(choice)await select(selected,false);else{describe(selected);feedback.reset('选择一个功能场景开始。');controls()}}catch(error){notify(error.message)}
-window.addEventListener('pagehide',()=>{clearInterval(visitTimer);void visits.end();intent.cancel();epoch++;modelAbort?.abort();feed.close();choir.stop();sound.stop();viewer?.dispose();void sound.close();void choir.ctx?.close()});
+window.addEventListener('pagehide',()=>{mobileLayout.removeEventListener('change',placeFeatureDetails);clearInterval(visitTimer);void visits.end();intent.cancel();epoch++;modelAbort?.abort();feed.close();choir.stop();sound.stop();viewer?.dispose();void sound.close();void choir.ctx?.close()});
 
 function drawDistance(distance){
  const canvas=$('distance-map'),ctx=canvas.getContext('2d');ctx.clearRect(0,0,320,320);ctx.fillStyle='#edf3e4';ctx.fillRect(0,0,320,320);ctx.strokeStyle='#81995d';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(160,285);ctx.lineTo(160,30);ctx.stroke();ctx.fillStyle='#405b2c';ctx.beginPath();ctx.arc(160,285,10,0,Math.PI*2);ctx.fill();
