@@ -62,7 +62,7 @@ for(const button of document.querySelectorAll('[data-scene]'))button.addEventLis
   catch(e){const cancelled=loadAbort.signal.aborted;sceneExperience?.finish(cancelled?'cancelled':'failed');sceneExperience=null;sceneRequestedAt=null;if(cancelled)loadSession.cancelled();else{loadSession.fail(e);notify(loadingError(e))}$('sim-status').textContent=cancelled?'已停止等待':'物理场景启动失败';}
   finally{sceneRequestPending=false;changing=false;buttons();}
 });
-for(const button of document.querySelectorAll('[data-sim-action]'))button.addEventListener('click',async()=>{if(button.dataset.simAction==='chorus')await chorus.enable();await action(button.dataset.simAction);});
+for(const button of document.querySelectorAll('[data-sim-action]'))button.addEventListener('click',async()=>{try{if(button.dataset.simAction==='chorus')await chorus.enable();await action(button.dataset.simAction)}catch(error){notify(error.message)}});
 $('enable-chorus').addEventListener('click',()=>chorus.enable().catch(e=>notify(e.message)));
 $('release-scene').addEventListener('click',async()=>{
   try{const response=await fetch(appURL('api/scenes/close'),{method:'POST',signal:AbortSignal.timeout(15000)});
