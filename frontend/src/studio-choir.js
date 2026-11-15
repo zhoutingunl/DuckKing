@@ -1,9 +1,10 @@
 import {odeToJoyScore} from './table-scores.js';
+import {createLocalAudioContext,resumeLocalAudio} from './local-audio.js';
 
 // A short phrase begins only after the selected physical singer is confirmed standing.
 export class StudioChoir {
  constructor(){this.ctx=null;this.nodes=new Set();this.key=null;this.played=new Set();this.watch=null;this.scheduled=[]}
- async enable(){this.ctx??=new AudioContext();await this.ctx.resume();return this.ctx.state==='running'}
+ async enable(){if(!this.ctx||this.ctx.state==='closed')this.ctx=createLocalAudioContext();return resumeLocalAudio(this.ctx)}
  stop(){for(const node of this.nodes){try{node.stop()}catch{}}this.nodes.clear();clearTimeout(this.watch);this.played.clear();this.key=null}
  update(state){
   if(!state?.live||!state.running||state.phase!=='solo'||!state.music_started){this.stop();return}

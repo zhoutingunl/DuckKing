@@ -1,9 +1,10 @@
 import {appURL} from './urls.js';
+import {createLocalAudioContext,resumeLocalAudio} from './local-audio.js';
 
 // Local sound follows confirmed scene time. It never claims to be Linx speech.
 export class FeatureAudio {
  constructor(){this.ctx=null;this.buffers=new Map();this.key=null;this.source=null;this.tone=null;this.watch=null}
- async enable(){this.ctx??=new AudioContext();await this.ctx.resume()}
+ async enable(){if(!this.ctx||this.ctx.state==='closed')this.ctx=createLocalAudioContext();return resumeLocalAudio(this.ctx)}
  async load(emotion){
   if(this.buffers.has(emotion))return this.buffers.get(emotion);
   const response=await fetch(appURL(`api/features/emotion-audio/${emotion}.wav`),{signal:AbortSignal.timeout(10000)});

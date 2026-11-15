@@ -77,6 +77,7 @@ robotd 路径的物理计算在官方 MuJoCo body 中完成，官方 robotd 运�
 | 交互统计 | `statistics.py`、`frontend/src/statistics.js` | 脱敏事件 → 最近 500 轮、百分位、统计页 | 单调时钟、有界日志恢复；缺失不补零、不同后端可筛选；不推断物理或扬声器延迟 |
 | 端侧 MCP | `mcp.py` | JSON-RPC → 工具结果 | 初始化 / 工具发现 / 白名单调用；结果关联原请求 ID |
 | 浏览器音频 | `frontend/src/voice.js`、`audio-output.js`、`audio-codec.js` | 麦克风 / 语音事件 | 录音权限、流式重采样、分帧、播放队列与释放麦克风 |
+| 本地声音启用 | `frontend/src/local-audio.js`、`studio-choir.js`、`feature-audio.js`、`chorus.js` | 用户点击 → 播放会话、静音解锁、有界恢复 | 无麦克风和云端依赖；保留已启用的双工会话；实际物理阶段决定发声与停止 |
 | 离线语音路由 | `hybrid_voice.py`、`local_commands.py` | PCM / 转写 → 本地动作或一次云端回退 | 有界内存录音、整句匹配、取消隔离；不保存录音 |
 | 离线识别进程 | `asr_service.py`、`asr_client.py` | loopback HTTP → 转写 | sherpa-onnx / SenseVoiceSmall、单推理线程、限流；仅共享 worker，不共享房间动作 |
 | 物理场景 | `simulation.py`、`official_skills.py`、`grasp.py`、`posture.py` | 动作 → 实际状态 / 接触结果 | 独立房间的 MuJoCo 数据、固定官方策略、有界验证 |
@@ -251,6 +252,12 @@ sequenceDiagram
 浏览器采集和播放复用一个硬件默认采样率的 AudioContext，采集端仍通过 PCMFramer 连续重采样为 16 kHz / 60 ms 帧。松开说话按钮静音麦克风并结束本轮分帧，保留轨道、采集节点和声音上下文供下一轮复用；断开才释放麦克风。AudioWorklet 每个上下文只加载一次。连接、说话、松手及本地声音测试的用户手势中尝试激活播放，恢复等待限时 1.5 秒，不阻塞网络连接或断开。支持可选 Audio Session API 的浏览器在申请麦克风之前切换为 `play-and-record`，并在授权等待、静音待命、说话和回复播放期间保持；停止并释放麦克风后才切回 `playback`，离页关闭时恢复 `auto`。播放队列仅在按住录音期间暂停，与音轨是否仍被持有分别管理。其他浏览器继续使用 Web Audio。
 
 下行待播和已调度音频合计最多 12 秒 / 300 帧，超出部分丢弃并提示重新说话；恢复播放按原顺序处理，打断会同时清理待播和已调度节点，迟到的恢复不能复活旧音频。本地 250 ms 测试提示音明确标为声音测试，不是灵矽回复。「声音诊断」的计数及 `browser_audio` 事件由浏览器上报，按房间隔离，只接受状态枚举和非负整数白名单，不收集录音或设备标识；同状态最多每秒落盘一次，状态变化立即记录。`ended_frames` 只代表浏览器播放节点结束，不能作为扬声器确实出声的证明。
+
+### 本地音乐与音效的手机播放
+
+四鸭临场导演和工坊的指挥合唱共用 `StudioChoir`；情绪录音与距离琴共用 `FeatureAudio`；动作训练场的双鸭合唱使用 `createChorus`。三者通过 `local-audio.js` 在用户点击的同步调用中选择 `playback`、启动一个静音采样并恢复 AudioContext，不能等资源下载或后端动作完成后才解锁。已有 `play-and-record` 会话保持不变，不影响语音连接期间的静音待命麦克风；本地声音本身不连接灵矽、不申请麦克风。恢复拒绝或 1.5 秒内未就绪时报告失败，用户可以通过“启用 / 测试声音”或再次点击重试，不自动重放旧任务。
+
+这修正了本地播放器与语音播放器初始化不一致的问题：前者原来只 `resume()`，连接语音则会另外设置手机音频会话并解锁输出。[Audio Session 规范](https://www.w3.org/TR/audio-session/#audiocontext)把 AudioContext 的默认类型定义为 `ambient`，因此不能用桌面上能播放来推断手机播放会话已配置。不支持可选 Audio Session API 的浏览器继续使用普通 Web Audio 和静音采样解锁；浏览器状态、音符调度或波形测量均不等同于 iPhone／企业微信扬声器实听。
 
 云端连接整体限时 35 秒，发送/关闭云端 socket 限时 5 秒。连接任务与浏览器指令接收分离，用户可以在连接或恢复期间断开，也可以用「重置语音」取消卡住的一轮并重建会话。日志接收枚举字段、整数计数、本地产生的时间/序号及脱敏 STT 文字（最多 2000 字符）；不写入云端 session ID、原始工具调用 ID、原始异常正文或音频。统计直接消费过滤后的事件，独立于最近 200 条事件窗口，不从旧文件回放。
 

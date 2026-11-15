@@ -39,7 +39,7 @@ async function invoke(name,args,rehearsalText){
 }
 async function select(scene){
  if(loading||voiceBusy())return;
- void choir.enable();choir.stop();
+ if(scene.scene==='seated')void choir.enable().catch(error=>notify(error.message));choir.stop();
  rememberChoice('studio',scene.id);loadAbort?.abort();loadAbort=new AbortController();const signal=loadAbort.signal;
  loadSession=loadingFeedback.begin({phase:'backend',cancel:()=>{loadAbort.abort();loadSession.cancelled()},retry:()=>select(scene),retryLabel:'重新准备场景'});
  loading=true;selected=null;controls();$('notice').hidden=true;
@@ -101,7 +101,7 @@ function connect(){
 }
 $('reset-camera').addEventListener('click',()=>viewer?.reset());
 $('stop-studio').addEventListener('click',()=>{choir.stop();voice.interrupt();void invoke('duck_task',{operation:'cancel'})});
-$('enable-sound').addEventListener('click',()=>void choir.enable());
+$('enable-sound').addEventListener('click',()=>void choir.enable().catch(error=>notify(error.message)));
 $('clear-log').addEventListener('click',()=>$('activity-log').replaceChildren());
 window.addEventListener('keydown',e=>{if(e.code==='Escape'&&selected){choir.stop();voice.interrupt();void invoke('duck_task',{operation:'cancel'})}});
 window.addEventListener('duckking-voice-state',e=>{voiceState=e.detail.state;controls()});
