@@ -1,5 +1,14 @@
 // Functional-scene copy shares the site's language switch and live DOM translator.
 export const featureMessages = [
+ ["浏览器无法绘制模型，请使用支持 WebGL 的浏览器。", "Cannot render the model. Use a browser with WebGL support.", "Impossible d’afficher le modèle. Utilise un navigateur compatible WebGL."],
+ ["准备未完成", "Preparation incomplete", "Préparation incomplète"],
+ ["脚球接触采样", "Foot–ball contact samples", "Échantillons de contact pied–ballon"],
+ ["场景已释放", "Scene released", "Scène libérée"],
+ ["停止尚未确认，请重试或释放场景。", "Stop is not confirmed. Try again or release the scene.", "L’arrêt n’est pas confirmé. Réessaie ou libère la scène."],
+ ["本地操作 ·", "Local control ·", "Commande locale ·"],
+ ["灵矽 ·", "Linx ·", "Linx ·"],
+ ["本机音源 ·", "Local audio ·", "Audio local ·"],
+
  ["正在停止任务，请等待确认。", "Stopping the task. Wait for confirmation.", "Arrêt en cours. Attends la confirmation."],
  ["当前功能未准备。可停止房间任务，或点击重新准备场景。", "This feature is not ready. Stop the room task or prepare this feature.", "Cette fonction n’est pas prête. Arrête la tâche du salon ou prépare cette fonction."],
  ["房间已切换场景，所选功能当前未在执行。可停止房间任务，或重新准备所选功能。", "The room changed scenes. This feature is not running. Stop the room task or prepare this feature.", "Le salon a changé de scène. Cette fonction ne s’exécute pas. Arrête la tâche du salon ou prépare cette fonction."],

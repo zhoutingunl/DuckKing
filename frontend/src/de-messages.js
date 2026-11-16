@@ -2,6 +2,15 @@
 // Automated translation draft; critical controls reviewed during implementation.
 // No runtime translation calls; original user/cloud content stays unchanged.
 export const germanMessages = {
+  "浏览器无法绘制模型，请使用支持 WebGL 的浏览器。": "Das Modell kann nicht dargestellt werden. Verwende einen Browser mit WebGL-Unterstützung.",
+  "准备未完成": "Vorbereitung nicht abgeschlossen",
+  "脚球接触采样": "Messwerte zum Fuß-Ball-Kontakt",
+  "场景已释放": "Szene freigegeben",
+  "停止尚未确认，请重试或释放场景。": "Der Stopp ist noch nicht bestätigt. Versuche es erneut oder gib die Szene frei.",
+  "本地操作 ·": "Lokale Steuerung ·",
+  "灵矽 ·": "Linx ·",
+  "本机音源 ·": "Lokale Audioquelle ·",
+
   "预录演示音轨为中文；语言菜单切换界面与真人语音对话。": "Die vorab aufgenommenen Demo-Tonspuren sind auf Chinesisch. Das Sprachmenü ändert die Oberfläche und den Live-Sprachdialog.",
   "德语对话尚未配置，请联系管理员启用；不会自动切换成中文。": "Der deutsche Sprachdialog ist noch nicht eingerichtet. Bitte den Administrator um Aktivierung bitten; es wird nicht automatisch auf Chinesisch umgeschaltet.",
   "DuckKing · 语音与动作工作台": "DuckKing · Stimme & Bewegung Workbench",
