@@ -280,7 +280,7 @@ async def test_prompt_sync_refuses_languages_without_a_directive(tmp_path):
     def with_unsupported_language(request):
         if request.url.path == "/xiaozhi/agent/duck":
             return httpx.Response(
-                200, json={"code": 0, "data": {"systemPrompt": "ancien", "langCode": "de"}}
+                200, json={"code": 0, "data": {"systemPrompt": "ancien", "langCode": "xx"}}
             )
         return original(request)
 
@@ -290,3 +290,12 @@ async def test_prompt_sync_refuses_languages_without_a_directive(tmp_path):
             await setup_device(Settings(data_dir=tmp_path / "s"), key, http=http, sync_prompt=True)
     assert not any(method == "PUT" for method, _, _ in calls)
     assert not list((tmp_path / "s").glob("prompt-backup-*.txt"))
+
+
+def test_german_prompt_preserves_authoritative_motion_and_failure_rules():
+    from duckking.onboarding import REPLY_CLAUSE, REPLY_DIRECTIVES
+    german = agent_prompt("de")
+    assert german == PROMPT.replace(REPLY_CLAUSE, REPLY_DIRECTIVES["de"], 1)
+    assert "Antworte kurz und natürlich auf Deutsch" in german
+    assert "nicke → 点头" in german
+    assert "nach dem tatsächlichen Werkzeugergebnis" in german

@@ -1,14 +1,15 @@
 // Region-aware language for every page and its real-time interface states.
 // The backend decides the default from a local IP database; the visitor can
-// always override with ?lang=zh|en|fr|ja or the nav "语言" menu (stored locally).
+// always override with ?lang=zh|en|fr|ja|de or the nav "语言" menu (stored locally).
 // Human/cloud transcripts and diagnostic data retain their original content.
 
 import {appURL} from './urls.js';
 import {messages, patterns} from './ui-messages.js';
 import {japaneseMessages, japanesePatterns} from './ja-messages.js';
+import {germanMessages, germanPatterns} from './de-messages.js';
 
 const STORAGE_KEY = 'duckking-ui-language';
-const LANGUAGES = new Set(['zh', 'en', 'fr', 'ja']);
+const LANGUAGES = new Set(['zh', 'en', 'fr', 'ja', 'de']);
 const VOICE_STORAGE_KEY = 'duckking-voice-language';
 
 let prefsPromise = null, readyPromise = null, observer = null;
@@ -276,6 +277,7 @@ export const ARIA_LABELS = new Map(Object.entries({
 for (const [source, en, fr] of messages) TRANSLATIONS.set(source, {en, fr});
 for (const [source, translations] of [...TRANSLATIONS, ...ARIA_LABELS]) {
   translations.ja = japaneseMessages[source];
+  translations.de = germanMessages[source];
 }
 
 // Long sentences are often joined with a live status. Index by their first two
@@ -304,8 +306,8 @@ export function translate(text, language = activeLanguage) {
         const values = match.slice(1).map((value,index) => rawValues?.includes(index) ? value : translate(value, language));
         if (!allowContent && values.some((value,index) => /[\u4e00-\u9fff]/.test(value ?? '') &&
           (language !== 'ja' || (value === match[index+1] && !TRANSLATIONS.get(value)?.ja && !/[\u3040-\u30ff]/.test(value))))) continue;
-        translated = language === 'ja'
-          ? japanesePatterns[pattern.source]?.replace(/⟪(\d+)⟫/g, (_,index) => values[Number(index)] ?? '')
+        translated = ['ja','de'].includes(language)
+          ? (language === 'de' ? germanPatterns : japanesePatterns)[pattern.source]?.replace(/⟪(\d+)⟫/g, (_,index) => values[Number(index)] ?? '')
           : (language === 'fr' ? fr : en)(...values);
         if (translated) break;
       }

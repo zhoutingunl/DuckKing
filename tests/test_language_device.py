@@ -15,6 +15,7 @@ def configured(path):
     store_profiles(path / 'voice-profiles.json', {'agents': {
         'language_fr': {'id': 'private-fr', 'transport': 'bound_device'},
         'language_ja': {'id': 'private-ja', 'transport': 'bound_device'},
+        'language_de': {'id': 'private-de', 'transport': 'bound_device'},
         'language_zh': {'id': 'private-zh'},
     }})
     return Settings(data_dir=path, ws_url='wss://old.example/ws', ws_token='old-secret',
@@ -36,24 +37,25 @@ def test_language_identities_are_private_stable_and_distinct_per_room(tmp_path):
     original = settings.identity()
     identities = set()
     for room in ['1', '2']:
-        for language in ['en', 'fr', 'ja']:
+        for language in ['en', 'fr', 'ja', 'de']:
             s = device_settings(settings.for_room(room), language)
             assert s.ws_url == s.ws_token == s.device_id == s.client_id == ''
             assert s.identity() == s.identity()
             identities.add(s.identity()['device_id'])
             assert (s.data_dir / 'identity.json').stat().st_mode & 0o777 == 0o600
-    assert len(identities) == 6
+    assert len(identities) == 8
     assert original['device_id'] not in identities
     assert settings.identity() == original
     assert voice_settings(settings, 'zh', 'private-zh') is settings
 
 
+@pytest.mark.parametrize('language', ['fr', 'de'])
 @pytest.mark.parametrize('failure', ['missing', 'corrupt', 'wrong_agent', 'wrong_device'])
-def test_missing_or_mismatched_binding_never_uses_chinese_device(tmp_path, failure):
+def test_missing_or_mismatched_binding_never_uses_chinese_device(tmp_path, failure, language):
     settings = configured(tmp_path)
-    selected = device_settings(settings, 'fr')
+    selected = device_settings(settings, language)
     if failure != 'missing':
-        prepare(settings)
+        prepare(settings, language)
         marker = selected.data_dir / 'binding.json'
         data = json.loads(marker.read_text())
         if failure == 'wrong_agent':
@@ -63,13 +65,13 @@ def test_missing_or_mismatched_binding_never_uses_chinese_device(tmp_path, failu
         marker.write_text('broken' if failure == 'corrupt' else json.dumps(data))
     voice = VoiceSession(None, MotionController(PreviewBackend()), settings)
     with pytest.raises(ValueError, match='尚未准备'):
-        voice.set_language('fr')
+        voice.set_language(language)
     assert voice.language is None
     if failure == 'missing':
         assert not selected.data_dir.exists()  # ordinary connects never provision
 
 
-@pytest.mark.parametrize("language", ["fr", "ja"])
+@pytest.mark.parametrize("language", ["fr", "ja", "de"])
 async def test_bound_transport_uses_verified_device_not_root_overrides(
     tmp_path, monkeypatch, language
 ):

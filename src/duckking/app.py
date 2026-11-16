@@ -195,7 +195,7 @@ def create_app(
 
     @app.post("/api/rooms/claim")
     async def claim_room(language: str = "zh"):
-        if language not in {"zh", "fr", "en", "ja"}:
+        if language not in {"zh", "fr", "en", "ja", "de"}:
             raise HTTPException(422, "不支持的房间语言")
         return await app.state.room_registry.claim(language=language, owner=current_owner.get())
 
@@ -746,7 +746,7 @@ def create_app(
 
     @app.get("/api/voice/profiles")
     async def voice_profiles(room: str = "1", language: str = "zh"):
-        if language not in {"zh", "en", "fr", "ja"}:
+        if language not in {"zh", "en", "fr", "ja", "de"}:
             raise HTTPException(status_code=400, detail="不支持的对话语言")
         return public_profiles(get_room(room).settings, language)
 
@@ -824,12 +824,14 @@ def create_app(
                     if command == "connect":
                         mode = data.get("mode", "cloud")
                         language = data.get("language")
-                        if language is not None and (not isinstance(language, str)
-                                                     or language not in {"zh", "en", "fr", "ja"}):
+                        if language is not None and (
+                            not isinstance(language, str)
+                            or language not in {"zh", "en", "fr", "ja", "de"}
+                        ):
                             raise ValueError("不支持的对话语言")
                         # The installed offline command model/parser is Chinese.
                         # Other languages go directly to their real Linx agent.
-                        if language in {"en", "fr", "ja"}:
+                        if language in {"en", "fr", "ja", "de"}:
                             mode = "cloud"
                         if mode not in {"cloud", "local_first"}:
                             raise ValueError("未知语音模式")
