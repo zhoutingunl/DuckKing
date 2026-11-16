@@ -117,3 +117,7 @@ DuckKing 编写场景目录、房间进程隔离、语音工具、取消/验收�
 
 - 连续技使用 [reble2421/microduck-acrobatics](https://github.com/reble2421/microduck-acrobatics/tree/76cdd4d5b4ce76630a34cc06a3a4b6fc179c438d) 固定 `76cdd4d5b4ce76630a34cc06a3a4b6fc179c438d`，Apache-2.0。保留原始许可、CPU benchmark、策略与分段验收；本项目添加异步节拍、错误检查、取消/重置和渲染接口，适配 MuJoCo 阻尼 API；没有复用作者批量成功率。
 - 本站两米竞速、轮滑竞速、8°上坡、红灯停和双鸭拔河借鉴 [Microduck Arena 公开活动](https://huggingface.co/spaces/pollen-robotics/microduck-arena/tree/9305b754862c56b2b2ce512c063c34600efbf932/arena/events) 的游戏概念与规则参数，控制器和比赛状态机由本站独立实现。只使用已安装的通用步态，不分发Arena运行器或其独立reference权重，不声称等价于官方评分环境。拔河为颈部连接16段实际胶囊绳，比赛失败会暂停；它不是嘴夹绳。
+
+## 德语界面文案
+
+`frontend/src/de-messages.js` 基于仓库既有中英文界面文案，使用 DeepSeek `deepseek-flash` 生成静态德语初稿，实施时检查核心操作、状态、占位参数与原文内容保留。没有德语母语人工校审声明。发布后不调用翻译服务，用户录音、转写和云端回复不经过这份词典。德语实时识别与合成由灵矽提供，不把系统合成的验收口令当作真人录音或口音准确率结果。

@@ -14,7 +14,7 @@ const destinations=[
  ['statistics.html','交互统计',true],['experience.html','使用体验',true],
  ['deploys.html','部署记录',true],
 ];
-const languages=[['zh','中文'],['en','English'],['fr','Français'],['ja','日本語']];
+const languages=[['zh','中文'],['en','English'],['fr','Français'],['ja','日本語'],['de','Deutsch']];
 const nav=document.querySelector('.site-topbar nav');
 if(nav){
  const page=location.pathname.split('/').at(-1)||'index.html';

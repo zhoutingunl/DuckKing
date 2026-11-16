@@ -1,6 +1,8 @@
 import {featureMessages} from './feature-messages.js';
 // UI translations only; never rewrite transcripts or user-authored content.
 export const messages = [
+  ["预录演示音轨为中文；语言菜单切换界面与真人语音对话。", "Prerecorded demo audio is in Chinese; the language menu changes the interface and live voice conversation.", "L’audio préenregistré des démos est en chinois ; le menu de langue change l’interface et la conversation vocale en direct."],
+  ["德语对话尚未配置，请联系管理员启用；不会自动切换成中文。", "German conversation is not configured. Ask the administrator to enable it; Chinese will not be used as a fallback.", "Le dialogue allemand n’est pas configuré. Contactez l’administrateur pour l’activer ; aucun basculement automatique vers le chinois."],
   ...featureMessages,
   ["选择上方场景，准备后即可开始。", "Choose a scene above to get started.", "Choisis une scène ci-dessus pour commencer."],
   ["演示完成 · 结束画面", "Show complete · final frame", "Spectacle terminé · dernière image"],

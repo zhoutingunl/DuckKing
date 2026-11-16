@@ -17,13 +17,14 @@ from duckking.voice_profiles import language_agent, public_profiles, store_profi
 def configured(path):
     store_profiles(path / 'voice-profiles.json', {'voices': {}, 'agents': {
         'language_fr': {'id': 'private-fr'}, 'language_en': {'id': 'private-en'},
-        'language_ja': {'id': 'private-ja'}, 'language_zh': {'id': 'private-zh'},
+        'language_ja': {'id': 'private-ja'}, 'language_de': {'id': 'private-de'},
+        'language_zh': {'id': 'private-zh'},
         'studio': {'id': 'private-studio'},
     }})
     return Settings(data_dir=path)
 
 
-@pytest.mark.parametrize('language', ['fr', 'en', 'ja', 'zh'])
+@pytest.mark.parametrize('language', ['fr', 'en', 'ja', 'de', 'zh'])
 async def test_language_selects_private_handshake_without_rebinding(tmp_path, language):
     settings = configured(tmp_path)
     messages, headers = [], []
@@ -119,7 +120,7 @@ def test_missing_or_invalid_language_never_falls_back_to_chinese(tmp_path, langu
         language_agent(Settings(data_dir=tmp_path), language)
 
 
-@pytest.mark.parametrize("language", ["fr", "ja"])
+@pytest.mark.parametrize("language", ["fr", "ja", "de"])
 def test_browser_language_uses_cloud_not_chinese_offline_model(tmp_path, monkeypatch, language):
     settings = configured(tmp_path)
     seen = []
@@ -232,7 +233,8 @@ def test_explicit_language_profiles_require_a_chinese_profile_too(tmp_path):
         language_agent(Settings(data_dir=tmp_path), 'zh')
 
 
-async def test_japanese_profile_requires_matching_voice_and_auto_language_asr(tmp_path):
+@pytest.mark.parametrize("language", ["ja", "de"])
+async def test_profile_requires_matching_voice_and_auto_language_asr(tmp_path, language):
     key = tmp_path / "key"
     key.write_text("test-key")
     settings = Settings(data_dir=tmp_path / "state")
@@ -246,11 +248,11 @@ async def test_japanese_profile_requires_matching_voice_and_auto_language_asr(tm
         elif path == "/v1/voices":
             data = {"voices": [
                 {"id": "chinese-only", "tags": {"languages": ["zh"]}},
-                {"id": "japanese-voice", "tags": {"languages": ["ja"]}},
+                {"id": "compatible-voice", "tags": {"languages": [language]}},
             ]}
         elif request.method == "POST":
             agent.update(json.loads(request.content))
-            data = "private-ja"
+            data = f"private-{language}"
         elif request.method == "PUT":
             agent.update(json.loads(request.content))
             data = None
@@ -259,31 +261,36 @@ async def test_japanese_profile_requires_matching_voice_and_auto_language_asr(tm
         return httpx.Response(200, json={"code": 0, "data": data})
 
     async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as http:
-        result = await setup_language_profile(settings, key, "ja", http=http)
-    assert agent["langCode"] == "ja" and agent["ttsVoiceId"] == "japanese-voice"
+        result = await setup_language_profile(settings, key, language, http=http)
+    assert agent["langCode"] == language and agent["ttsVoiceId"] == "compatible-voice"
     assert agent["extra"]["asr"]["enable_auto_lang"] is True
-    assert "日本語" in agent["systemPrompt"] and "うなずいて" in agent["systemPrompt"]
+    directive = "日本語" if language == "ja" else "Antworte immer auf natürlichem Deutsch"
+    assert directive in agent["systemPrompt"]
+    assert ("うなずいて" if language == "ja" else "nicke → 点头") in agent["systemPrompt"]
     assert "简短自然中文确认" not in agent["systemPrompt"]
     assert not any("/device/" in path or "/ota" in path for path in calls)
-    assert language_agent(settings, "ja") == "private-ja"
+    assert language_agent(settings, language) == f"private-{language}"
     assert result["voice_verified"] is False
-    assert "private-ja" not in json.dumps(result)
+    assert f"private-{language}" not in json.dumps(result)
     with TestClient(create_app(settings=settings)) as client:
-        assert client.post("/api/rooms/claim?language=ja").json()["voice_language"] == "ja"
-        assert client.get("/api/voice/profiles?language=ja").json() == {
+        claim = client.post(f"/api/rooms/claim?language={language}").json()
+        assert claim["voice_language"] == language
+        assert client.get(f"/api/voice/profiles?language={language}").json() == {
             "voices": [], "personas": [],
         }
 
 
-async def test_japanese_cannot_be_overridden_by_a_chinese_clone_or_persona(tmp_path):
+@pytest.mark.parametrize("language", ["ja", "de"])
+async def test_language_cannot_be_overridden_by_a_chinese_clone_or_persona(tmp_path, language):
     store_profiles(tmp_path / "voice-profiles.json", {
         "voices": {"chinese-only": {"id": "private-clone"}},
-        "agents": {"language_ja": {"id": "private-ja"}, "coach": {"id": "private-coach"}},
+        "agents": {f"language_{language}": {"id": f"private-{language}"},
+                   "coach": {"id": "private-coach"}},
     })
     settings = Settings(data_dir=tmp_path)
     voice = VoiceSession(None, MotionController(PreviewBackend()), settings)
-    voice.set_language("ja")
-    assert public_profiles(settings, "ja") == {"voices": [], "personas": []}
+    voice.set_language(language)
+    assert public_profiles(settings, language) == {"voices": [], "personas": []}
     with pytest.raises(ValueError, match="当前对话语言"):
         await voice.set_style({"profile": "chinese-only"})
     with pytest.raises(ValueError, match="当前对话语言"):

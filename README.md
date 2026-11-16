@@ -132,7 +132,7 @@ uv run duckking-setup --room 2
 
 初始化显式创建或复用专用 DuckKing 智能体并绑定设备，不在页面加载时执行。也可按页面激活码在灵矽控制台绑定。手工设备凭证填写到 `~/.secrets/duckking.env`，参考 [.env.example](.env.example)，权限设为 600；设备 token 不等于平台管理 Key。新增工具后重新连接语音；已有中文智能体可用 `uv run duckking-setup --sync-prompt` 备份并同步工具提示词。多语言配置和同步使用下方的 `--language-profile`，同时验证语种、音色和自动识别语言开关。
 
-**按地区默认语言：美国/英国→英语，欧洲（非英国）→法语，其他→中文。** 地区查询使用服务器本地 IP 库，代理头仅在来源命中 `DUCKKING_GEO_TRUSTED_PROXIES` 时受信任；未核实代理时回退中文。页面共用中英法日界面，覆盖动态状态、提示、动作标签与训练说明；用户转写和真实云端回复保留原文。顶部最右「语言」的中文、English、Français、日本語选项同时选择界面与下一次灵矽会话的默认回答语言，选择后原地更新界面，保留房间、模型和视角；若正在使用真人语音面板，会取消当前录音、停止旧回复并释放旧会话，用户重新连接后使用新语言；手机上固定在品牌右侧第一行；「源代码」随第二行导航横向滚动，不单独固定。所有页面顶部都有「首页」入口；导航顺序为首页、语音工作台、动作训练场、演示场景、现场互动、训练新动作、交互统计、使用体验、部署记录、源代码、语言。`?lang=zh|en|fr|ja` 可覆盖默认并保存选择；兼容的 `?voice_lang=ja` 同时切换日文界面与对话。旧版只保存的日语语音偏好会迁移为日文界面。日文词典随前端打包，运行时不调用外部翻译服务；录音台词、用户转写和真实云端回复保持原文。英语、法语和日语对话仅支持灵矽云端，面板会说明本地动作识别仅支持中文；切回中文时恢复用户的识别方式偏好。连接等待时显示真实通道阶段及已等待秒数，可随时断开取消；这不是云端内部处理进度。
+**按地区默认语言：美国/英国→英语，欧洲（非英国）→法语，其他→中文。** 地区查询使用服务器本地 IP 库，代理头仅在来源命中 `DUCKKING_GEO_TRUSTED_PROXIES` 时受信任；未核实代理时回退中文。页面共用中英法日德界面，覆盖动态状态、提示、动作标签与训练说明；用户转写和真实云端回复保留原文。顶部最右「语言」的中文、English、Français、日本語、Deutsch 选项同时选择界面与下一次灵矽会话的默认回答语言，选择后原地更新界面，保留房间、模型和视角；若正在使用真人语音面板，会取消当前录音、停止旧回复并释放旧会话，用户重新连接后使用新语言；手机上固定在品牌右侧第一行；「源代码」随第二行导航横向滚动，不单独固定。所有页面顶部都有「首页」入口；导航顺序为首页、语音工作台、动作训练场、演示场景、现场互动、训练新动作、交互统计、使用体验、部署记录、源代码、语言。`?lang=zh|en|fr|ja|de` 可覆盖默认并保存选择；兼容的 `?voice_lang=ja` 同时切换日文界面与对话。旧版只保存的日语语音偏好会迁移为日文界面。日文与德文词典随前端打包，运行时不调用外部翻译服务；录音台词、用户转写和真实云端回复保持原文。英语、法语、日语和德语对话仅支持灵矽云端，面板会说明本地动作识别仅支持中文；切回中文时恢复用户的识别方式偏好。连接等待时显示真实通道阶段及已等待秒数，可随时断开取消；这不是云端内部处理进度。
 
 首次启用多语言，在服务的数据目录下执行一次：
 
@@ -141,9 +141,10 @@ uv run duckking-setup --language-profile --lang-code zh
 uv run duckking-setup --language-profile --lang-code en
 uv run duckking-setup --language-profile --lang-code fr
 uv run duckking-setup --language-profile --lang-code ja
+uv run duckking-setup --language-profile --lang-code de
 ```
 
-语言智能体存于私有 `voice-profiles.json` 的 `language_zh/en/fr/ja` 白名单。英语、法语和日语配置使用 `transport: bound_device`：每个房间在 `languages/en`、`languages/fr`、`languages/ja` 下保留独立私有设备身份，预先绑定对应语言智能体；重连仍发送 `X-Agent-ID`，原房间设备、场景及所有权保持不变。仅切换 Header 的旧配置不能保证云端告别遵循语言；升级时须重跑语言配置，并为已启用房间执行下面的设备准备命令。页面不会创建或重新绑定设备；缺失或不匹配的绑定记录明确报错，不回退原中文设备。已有 `DUCKKING_FRENCH_ROOMS` / `DUCKKING_ENGLISH_ROOMS` 仍可作为分房偏好，但不能代替语言智能体配置。缺少目标语言配置时明确报错，不偷偷用中文回复。当前离线命令链仅支持中文；英语/法语/日语直接使用灵矽云端。预录剧场音轨仍为中文，界面明确标注；不会将它们称为法语实连回复。
+语言智能体存于私有 `voice-profiles.json` 的 `language_zh/en/fr/ja/de` 白名单。英语、法语、日语和德语配置使用 `transport: bound_device`：每个房间在 `languages/en`、`languages/fr`、`languages/ja`、`languages/de` 下保留独立私有设备身份，预先绑定对应语言智能体；重连仍发送 `X-Agent-ID`，原房间设备、场景及所有权保持不变。仅切换 Header 的旧配置不能保证云端告别遵循语言；升级时须重跑语言配置，并为已启用房间执行下面的设备准备命令。页面不会创建或重新绑定设备；缺失或不匹配的绑定记录明确报错，不回退原中文设备。已有 `DUCKKING_FRENCH_ROOMS` / `DUCKKING_ENGLISH_ROOMS` 仍可作为分房偏好，但不能代替语言智能体配置。缺少目标语言配置时明确报错，不偷偷用中文回复。当前离线命令链仅支持中文；英语/法语/日语/德语直接使用灵矽云端。预录剧场音轨仍为中文，界面明确标注；不会将它们称为所选语言的实时云端回复。
 
 为每个已启用房间准备所需的非中文语言（以下以房间 1 为例，最多按 `DUCKKING_MAX_ROOMS` 重复）：
 
@@ -151,6 +152,7 @@ uv run duckking-setup --language-profile --lang-code ja
 uv run duckking-setup --room 1 --language-device --lang-code fr
 uv run duckking-setup --room 1 --language-device --lang-code en
 uv run duckking-setup --room 1 --language-device --lang-code ja
+uv run duckking-setup --room 1 --language-device --lang-code de
 ```
 
 已用系统合成的法语/英语口令验证真实灵矽 STT → 点头工具完成 → 对应语言语音回复及自动告别，见 [验证记录](docs/VALIDATION.md)。这不等于 iPhone 真机、真人口音或噪声环境已验收。

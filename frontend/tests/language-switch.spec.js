@@ -31,7 +31,7 @@ test('language cycles preserve the document, canvas, room and canonical status l
  await expect(page.locator('.action-diagnostics code')).toHaveText(['开始动作 · nod','nod · completed']);
  const raw=await page.locator('.action-diagnostics code').allTextContents();
  const count=modelRequests;
- for(const [lang,source,action,diagnostic] of [['fr','Aperçu local','Début du mouvement','Diagnostic'],['en','Local preview','Starting action','Diagnostics'],['zh','本地预览','开始动作','诊断详情']]){
+ for(const [lang,source,action,diagnostic] of [['fr','Aperçu local','Début du mouvement','Diagnostic'],['en','Local preview','Starting action','Diagnostics'],['de','Lokale Vorschau','Aktion starten','Diagnose'],['zh','本地预览','开始动作','诊断详情']]){
   await choose(page,lang);
   await expect(page.locator('#data-source')).toHaveText(source);
   await expect(page.locator('#activity-log')).toContainText(action);
@@ -51,7 +51,7 @@ test('temporary language and scene restrictions never overwrite the preferred vo
  await page.goto('/index.html?room=1&lang=zh');
  await expect(page.locator('#voice-mode')).toBeEnabled();
  await page.selectOption('#voice-mode','local_first');
- for(const lang of ['fr','en']){
+ for(const lang of ['fr','en','de']){
   await choose(page,lang);
   await expect(page.locator('#voice-mode')).toHaveValue('cloud');
   await expect(page.locator('#voice-language-hint')).toBeVisible();
@@ -72,7 +72,7 @@ test('temporary language and scene restrictions never overwrite the preferred vo
  await expect(page.locator('#voice-mode')).toHaveValue('cloud');
 });
 
-test('switching language cancels capture and old voice frames; reconnect uses the new language',async({page,context})=>{
+for(const language of ['fr','de'])test(`${language}: switching language cancels capture and old voice frames; reconnect uses the new language`,async({page,context})=>{
  await context.grantPermissions(['microphone']);
  await localModes(page);
  const commands=[],channels=[];
@@ -94,9 +94,9 @@ test('switching language cancels capture and old voice frames; reconnect uses th
  // A programmatic pointer starts capture without hiding the language menu.
  await page.locator('#talk-button').dispatchEvent('pointerdown',{pointerId:1});
  await expect.poll(()=>commands.some(x=>x.type==='listen_start')).toBe(true);
- await choose(page,'fr');
+ await choose(page,language);
  await expect(page.locator('#talk-button')).toBeDisabled();
- await expect(page.locator('#notice')).toContainText('Langue de conversation modifiée');
+ await expect(page.locator('#notice')).toContainText(language==='fr'?'Langue de conversation modifiée':'Dialogsprache geändert');
  expect(commands.some(x=>x.type==='disconnect')).toBe(true);
  expect(commands.some(x=>x.type==='listen_stop')).toBe(false);
  expect(commands.filter(x=>x.type==='connect')).toHaveLength(1);
@@ -108,14 +108,14 @@ test('switching language cancels capture and old voice frames; reconnect uses th
  await expect(page.locator('#talk-button')).toBeEnabled();
  await expect(page.locator('#notice')).toBeHidden();
  expect(commands.filter(x=>x.type==='connect')).toEqual([
-  {type:'connect',mode:'cloud',language:'zh'},{type:'connect',mode:'cloud',language:'fr'},
+  {type:'connect',mode:'cloud',language:'zh'},{type:'connect',mode:'cloud',language},
  ]);
  // A cloud idle close must not reset the next connection to Chinese.
  channels[1].close();
  await expect(page.locator('#connect-voice')).toHaveAttribute('data-state','disconnected');
  await page.locator('#connect-voice').click();
  await expect(page.locator('#talk-button')).toBeEnabled();
- expect(commands.filter(x=>x.type==='connect').at(-1)).toEqual({type:'connect',mode:'cloud',language:'fr'});
+ expect(commands.filter(x=>x.type==='connect').at(-1)).toEqual({type:'connect',mode:'cloud',language});
  await choose(page,'en');
  await expect(page.locator('#talk-button')).toBeDisabled();
  await expect(page.locator('#activity-log')).toContainText('你好，我是灵矽。');
@@ -198,6 +198,12 @@ test('prepared MuJoCo scene keeps both canvases and translates painted labels wi
  expect(await page.evaluate(()=>window.originalViews[0]===document.querySelector('#physics-viewport canvas')&&window.originalViews[1]===document.querySelector('#baseline-viewport canvas'))).toBe(true);
  expect({prepares,models}).toEqual(counts);
  await page.evaluate(()=>{window.paintedLabels=[]});
+ await choose(page,'de');
+ await expect.poll(()=>page.evaluate(()=>window.paintedLabels)).toContain('Nach dem Training');
+ await expect.poll(()=>page.evaluate(()=>window.paintedLabels)).toContain('Untrainiert');
+ expect(await page.evaluate(()=>window.originalViews[0]===document.querySelector('#physics-viewport canvas')&&window.originalViews[1]===document.querySelector('#baseline-viewport canvas'))).toBe(true);
+ expect({prepares,models}).toEqual(counts);
+ await page.evaluate(()=>{window.paintedLabels=[]});
  await choose(page,'zh');
  await expect.poll(()=>page.evaluate(()=>window.paintedLabels)).toContain('目标朝向');
  expect({prepares,models}).toEqual(counts);
@@ -229,4 +235,23 @@ test('voice profiles follow the new language and stale or failed requests cannot
  await expect(page.locator('#voice-profile')).toBeDisabled();
  await expect(page.locator('#voice-profile option')).toHaveCount(0);
  await expect(page.locator('#apply-voice')).toBeDisabled();
+});
+
+
+test('German URL and menu persist across reload and report missing voice configuration',async({page})=>{
+ await localModes(page);
+ await page.goto('/index.html?room=1&voice_lang=de');
+ await expect(page.locator('html')).toHaveAttribute('lang','de');
+ await expect(page.locator('#voice-mode')).toHaveValue('cloud');
+ await expect(page.locator('#voice-language-hint')).toBeVisible();
+ await choose(page,'zh');
+ await choose(page,'de');
+ await page.reload();
+ await expect(page.locator('html')).toHaveAttribute('lang','de');
+ await expect(page.locator('#lang-switch-button')).toHaveText('Sprache');
+ await page.locator('#connect-voice').click();
+ await expect(page.locator('#voice-badge')).toHaveText('Verbindungsfehler');
+ await expect(page.locator('#talk-button')).toBeDisabled();
+ await expect(page.locator('#notice')).not.toHaveText(/[\u4e00-\u9fff]/);
+ await expect(page.locator('#connect-voice')).toBeEnabled();
 });

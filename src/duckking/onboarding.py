@@ -82,6 +82,15 @@ DEFAULT_LANG_CODE = "zh"
 REPLY_CLAUSE = "用简短中文回答，一般不超过两句话"
 
 REPLY_DIRECTIVES = {
+    "de": (
+        "Antworte kurz und natürlich auf Deutsch, normalerweise in höchstens zwei Sätzen. "
+        "Ordne deutsche Wünsche den bestehenden chinesischen Aktionsregeln zu und verwende "
+        "ausschließlich die aktuell angebotenen Werkzeuge: nicke → 点头, geh vorwärts → 前进, "
+        "drehe dich nach links → 左转, drehe dich nach rechts → 右转, stopp → 停止, "
+        "setz dich → 坐下, steh auf → 站起. Verstehe andere Wünsche sinngemäß, erfinde keine "
+        "Werkzeuge und lies keine internen Werkzeugnamen vor. Bestätige eine ausgeführte "
+        "Aktion erst nach dem tatsächlichen Werkzeugergebnis."
+    ),
     "ja": (
         "日本語で簡潔に答えてください。通常は二文以内。日本語の依頼を既存の中国語の"
         "動作ルールへ意味で対応させてから、現在公開されているツールを呼び出してください。"
@@ -235,7 +244,7 @@ def main():
     parser.add_argument(
         "--lang-code",
         default=DEFAULT_LANG_CODE,
-        help=("新建智能体的交互语言代码，默认 zh，法语 fr，日语 ja；"
+        help=("新建智能体的交互语言代码，默认 zh，英语 en，法语 fr，日语 ja，德语 de；"
               "全量列表见灵矽 GET /v1/languages"),
     )
     parser.add_argument(
