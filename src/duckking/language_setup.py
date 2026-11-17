@@ -17,11 +17,16 @@ def conversation_prompt(language):
         return prompt
     # Remove the second Chinese-only response instruction as well as the intro.
     prompt = prompt.replace("简短自然中文确认", "简短自然语言确认")
+    # Localize the optional duck sound too: otherwise a valid foreign-language
+    # confirmation may still end with the Chinese character from the base rule.
+    sound = {"en": "quack", "fr": "coin-coin", "ja": "ガー", "de": "quak", "es": "cuac"}
+    prompt = prompt.replace("说一声“嘎”", f"说一声“{sound[language]}”")
     instruction = {
         "es": "Responde siempre en español natural, incluidos saludos, confirmaciones, errores "
               "y despedidas. Entiende también chino, inglés, francés, japonés y alemán, "
               "pero mantén el español como idioma de respuesta salvo que el usuario pida "
-              "expresamente otro idioma. No leas los nombres internos de las herramientas.",
+              "expresamente otro idioma. No leas los nombres internos de las herramientas. "
+              "Si imitas a un pato, utiliza «cuac».",
         "de": "Antworte immer auf natürlichem Deutsch, auch bei Begrüßungen, Bestätigungen, "
               "Fehlermeldungen und beim Abschied. Verstehe auch Chinesisch, Englisch, "
               "Französisch und Japanisch, aber behalte Deutsch als Antwortsprache bei, "

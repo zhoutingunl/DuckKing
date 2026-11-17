@@ -8,7 +8,7 @@ from websockets.asyncio.server import serve
 
 from duckking.app import create_app
 from duckking.config import Settings
-from duckking.language_setup import setup_language_profile
+from duckking.language_setup import conversation_prompt, setup_language_profile
 from duckking.motion import MotionController, PreviewBackend
 from duckking.voice import VoiceSession
 from duckking.voice_profiles import language_agent, public_profiles, store_profiles
@@ -22,6 +22,28 @@ def configured(path):
         'studio': {'id': 'private-studio'},
     }})
     return Settings(data_dir=path)
+
+
+@pytest.mark.parametrize("language,sound", [
+    ("en", "quack"), ("fr", "coin-coin"), ("ja", "ガー"), ("de", "quak"), ("es", "cuac"),
+])
+def test_optional_duck_sound_uses_conversation_language_without_changing_rules(language, sound):
+    from duckking.onboarding import agent_prompt
+
+    prompt = conversation_prompt(language)
+    base = agent_prompt(language).replace("简短自然中文确认", "简短自然语言确认")
+    expected = base.replace("说一声“嘎”", f"说一声“{sound}”")
+    assert prompt.startswith(expected + "\n\n")
+    assert "嘎" not in prompt
+    assert f"说一声“{sound}”" in prompt
+    # The sound remains occasional, short and subordinate to intelligible results.
+    assert "不要每句话都加，不影响听清指令和结果" in prompt
+
+
+def test_chinese_prompt_keeps_original_duck_sound():
+    from duckking.onboarding import PROMPT
+
+    assert conversation_prompt("zh") == PROMPT
 
 
 @pytest.mark.parametrize('language', ['fr', 'en', 'ja', 'de', 'es', 'zh'])
