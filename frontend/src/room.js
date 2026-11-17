@@ -70,11 +70,11 @@ export async function setupRoom({claim=true}={}){
     if(!room){
       const data=await request(`api/rooms/claim?language=${language}`,'POST');
       room=data.room;
-      if(['fr','en','ja','de'].includes(language)&&data.voice_language!==language){
+      if(['fr','en','ja','de','es'].includes(language)&&data.voice_language!==language){
         // 译回提示文本在主工作台由字典处理；此处写入原文供匹配。
         roomLanguageNote.textContent=language==='fr'
           ?'法语对话尚未配置，请联系管理员启用；不会自动切换成中文。'
-          :language==='de'?'德语对话尚未配置，请联系管理员启用；不会自动切换成中文。':language==='ja'?'日语对话尚未配置，请联系管理员启用；不会自动切换成中文。':'英语对话尚未配置，请联系管理员启用；不会自动切换成中文。';
+          :language==='es'?'西班牙语对话尚未配置，请联系管理员启用；不会自动切换成中文。':language==='de'?'德语对话尚未配置，请联系管理员启用；不会自动切换成中文。':language==='ja'?'日语对话尚未配置，请联系管理员启用；不会自动切换成中文。':'英语对话尚未配置，请联系管理员启用；不会自动切换成中文。';
         roomLanguageNote.hidden=false;
       }
     }

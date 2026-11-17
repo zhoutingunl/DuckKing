@@ -31,7 +31,7 @@ test('language cycles preserve the document, canvas, room and canonical status l
  await expect(page.locator('.action-diagnostics code')).toHaveText(['开始动作 · nod','nod · completed']);
  const raw=await page.locator('.action-diagnostics code').allTextContents();
  const count=modelRequests;
- for(const [lang,source,action,diagnostic] of [['fr','Aperçu local','Début du mouvement','Diagnostic'],['en','Local preview','Starting action','Diagnostics'],['de','Lokale Vorschau','Aktion starten','Diagnose'],['zh','本地预览','开始动作','诊断详情']]){
+ for(const [lang,source,action,diagnostic] of [['fr','Aperçu local','Début du mouvement','Diagnostic'],['en','Local preview','Starting action','Diagnostics'],['de','Lokale Vorschau','Aktion starten','Diagnose'],['es','Vista previa local','Iniciando acción','Diagnóstico'],['zh','本地预览','开始动作','诊断详情']]){
   await choose(page,lang);
   await expect(page.locator('#data-source')).toHaveText(source);
   await expect(page.locator('#activity-log')).toContainText(action);
@@ -51,7 +51,7 @@ test('temporary language and scene restrictions never overwrite the preferred vo
  await page.goto('/index.html?room=1&lang=zh');
  await expect(page.locator('#voice-mode')).toBeEnabled();
  await page.selectOption('#voice-mode','local_first');
- for(const lang of ['fr','en','de']){
+ for(const lang of ['fr','en','de','es']){
   await choose(page,lang);
   await expect(page.locator('#voice-mode')).toHaveValue('cloud');
   await expect(page.locator('#voice-language-hint')).toBeVisible();
@@ -72,7 +72,7 @@ test('temporary language and scene restrictions never overwrite the preferred vo
  await expect(page.locator('#voice-mode')).toHaveValue('cloud');
 });
 
-for(const language of ['fr','de'])test(`${language}: switching language cancels capture and old voice frames; reconnect uses the new language`,async({page,context})=>{
+for(const language of ['fr','de','es'])test(`${language}: switching language cancels capture and old voice frames; reconnect uses the new language`,async({page,context})=>{
  await context.grantPermissions(['microphone']);
  await localModes(page);
  const commands=[],channels=[];
@@ -96,7 +96,7 @@ for(const language of ['fr','de'])test(`${language}: switching language cancels 
  await expect.poll(()=>commands.some(x=>x.type==='listen_start')).toBe(true);
  await choose(page,language);
  await expect(page.locator('#talk-button')).toBeDisabled();
- await expect(page.locator('#notice')).toContainText(language==='fr'?'Langue de conversation modifiée':'Dialogsprache geändert');
+ await expect(page.locator('#notice')).toContainText({fr:'Langue de conversation modifiée',de:'Dialogsprache geändert',es:'Idioma de conversación cambiado'}[language]);
  expect(commands.some(x=>x.type==='disconnect')).toBe(true);
  expect(commands.some(x=>x.type==='listen_stop')).toBe(false);
  expect(commands.filter(x=>x.type==='connect')).toHaveLength(1);
@@ -204,6 +204,12 @@ test('prepared MuJoCo scene keeps both canvases and translates painted labels wi
  expect(await page.evaluate(()=>window.originalViews[0]===document.querySelector('#physics-viewport canvas')&&window.originalViews[1]===document.querySelector('#baseline-viewport canvas'))).toBe(true);
  expect({prepares,models}).toEqual(counts);
  await page.evaluate(()=>{window.paintedLabels=[]});
+ await choose(page,'es');
+ await expect.poll(()=>page.evaluate(()=>window.paintedLabels)).toContain('Entrenado');
+ await expect.poll(()=>page.evaluate(()=>window.paintedLabels)).toContain('Sin entrenar');
+ expect(await page.evaluate(()=>window.originalViews[0]===document.querySelector('#physics-viewport canvas')&&window.originalViews[1]===document.querySelector('#baseline-viewport canvas'))).toBe(true);
+ expect({prepares,models}).toEqual(counts);
+ await page.evaluate(()=>{window.paintedLabels=[]});
  await choose(page,'zh');
  await expect.poll(()=>page.evaluate(()=>window.paintedLabels)).toContain('目标朝向');
  expect({prepares,models}).toEqual(counts);
@@ -251,6 +257,24 @@ test('German URL and menu persist across reload and report missing voice configu
  await expect(page.locator('#lang-switch-button')).toHaveText('Sprache');
  await page.locator('#connect-voice').click();
  await expect(page.locator('#voice-badge')).toHaveText('Verbindungsfehler');
+ await expect(page.locator('#talk-button')).toBeDisabled();
+ await expect(page.locator('#notice')).not.toHaveText(/[\u4e00-\u9fff]/);
+ await expect(page.locator('#connect-voice')).toBeEnabled();
+});
+
+test('Spanish URL and menu persist across reload and report missing voice configuration',async({page})=>{
+ await localModes(page);
+ await page.goto('/index.html?room=1&voice_lang=es');
+ await expect(page.locator('html')).toHaveAttribute('lang','es');
+ await expect(page.locator('#voice-mode')).toHaveValue('cloud');
+ await expect(page.locator('#voice-language-hint')).toBeVisible();
+ await choose(page,'zh');
+ await choose(page,'es');
+ await page.reload();
+ await expect(page.locator('html')).toHaveAttribute('lang','es');
+ await expect(page.locator('#lang-switch-button')).toHaveText('Idioma');
+ await page.locator('#connect-voice').click();
+ await expect(page.locator('#voice-badge')).toHaveText('Error de conexión');
  await expect(page.locator('#talk-button')).toBeDisabled();
  await expect(page.locator('#notice')).not.toHaveText(/[\u4e00-\u9fff]/);
  await expect(page.locator('#connect-voice')).toBeEnabled();

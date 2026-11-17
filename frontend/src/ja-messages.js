@@ -2,6 +2,7 @@
 // Navigation, voice controls and key scene terminology reviewed for Japanese.
 // Runtime never calls a translation service; authored transcripts stay unchanged.
 export const japaneseMessages = {
+  "西班牙语对话尚未配置，请联系管理员启用；不会自动切换成中文。": "スペイン語の会話はまだ設定されていません。管理者に有効化を依頼してください。中国語には自動で切り替わりません。",
   "浏览器无法绘制模型，请使用支持 WebGL 的浏览器。": "モデルを描画できません。WebGL 対応のブラウザを使用してください。",
   "准备未完成": "準備が完了していません",
   "脚球接触采样": "足とボールの接触サンプル",

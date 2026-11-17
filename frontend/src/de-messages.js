@@ -2,6 +2,7 @@
 // Automated translation draft; critical controls reviewed during implementation.
 // No runtime translation calls; original user/cloud content stays unchanged.
 export const germanMessages = {
+  "西班牙语对话尚未配置，请联系管理员启用；不会自动切换成中文。": "Der spanische Sprachdialog ist noch nicht eingerichtet. Bitte den Administrator um Aktivierung bitten; es wird nicht automatisch auf Chinesisch umgeschaltet.",
   "浏览器无法绘制模型，请使用支持 WebGL 的浏览器。": "Das Modell kann nicht dargestellt werden. Verwende einen Browser mit WebGL-Unterstützung.",
   "准备未完成": "Vorbereitung nicht abgeschlossen",
   "脚球接触采样": "Messwerte zum Fuß-Ball-Kontakt",

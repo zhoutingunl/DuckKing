@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 
 import {pickLanguage, TRANSLATIONS, ARIA_LABELS, translate} from '../src/ui-language.js';
 import {patterns} from '../src/ui-messages.js';
+import {spanishPatterns} from '../src/es-messages.js';
 import {germanPatterns} from '../src/de-messages.js';
 import {japanesePatterns} from '../src/ja-messages.js';
 
@@ -16,11 +17,11 @@ test('language pick prefers explicit URL over saved choice over server default',
   assert.equal(pickLanguage({urlLang: 'xx', savedLang: 'xx', serverLang: 'xx'}), 'zh');
 });
 
-test('every entry provides complete English, French and German translations', () => {
+test('every entry provides complete English, French, German and Spanish translations', () => {
   assert.ok(TRANSLATIONS.size > 85);
   for (const [source, translations] of TRANSLATIONS) {
     assert.ok(source.trim().length > 0, '键不能为空');
-    for (const language of ['en', 'fr', 'de']) {
+    for (const language of ['en', 'fr', 'de', 'es']) {
       assert.ok(
         (translations[language] ?? '').length > 0,
         `缺少${language === 'en' ? '英语' : '法语'}翻译: ${source}`,
@@ -30,7 +31,7 @@ test('every entry provides complete English, French and German translations', ()
     }
   }
   for (const [source, translations] of ARIA_LABELS) {
-    for (const language of ['en', 'fr', 'de']) {
+    for (const language of ['en', 'fr', 'de', 'es']) {
       assert.ok(
         (translations[language] ?? '').length > 0 && source !== translations[language],
         `aria 翻译无效: ${source}`,
@@ -64,7 +65,7 @@ test('key voice-panel copy and nav destinations stay covered', () => {
 
 
 test('dynamic labels and multiline translation are idempotent', () => {
-  for (const language of ['en','fr','de']) {
+  for (const language of ['en','fr','de','es']) {
     for (const text of ['本地预览','房间 12 · 独立语音与场景',
       '3 / 32 个房间 · 物理场景 1 / 4','未收录内容\n保持原样',
       '使用官方 MicroDuck 外观的动画预览，不进行物理计算。灵矽语音已连接。']) {
@@ -78,7 +79,7 @@ test('dynamic labels and multiline translation are idempotent', () => {
 
 test('joined explanation and live status translate without losing sentences',()=>{
   const explanation='4 × exp(−(距停靠中心 / 12 cm)²)。配重越靠近红色区中心，得分越高；奖励的是配重的位置，不是鸭子回中。';
-  for(const language of ['fr','en','de']){
+  for(const language of ['fr','en','de','es']){
     const result=translate(explanation+' 等候实际采样。',language);
     assert.doesNotMatch(result,/[\u4e00-\u9fff]/);
     assert.equal(translate(result,language),result);
@@ -141,5 +142,27 @@ test('German selection, complete labels and raw-content captures are stable',()=
  for(const [pattern,en] of patterns){
   assert.ok(germanPatterns[pattern.source],`Missing German pattern: ${pattern.source}`);
   assert.deepEqual([...germanPatterns[pattern.source].matchAll(/⟪(\d+)⟫/g)].map(m=>m[1]).sort(),[...en(...tokens).matchAll(/⟪(\d+)⟫/g)].map(m=>m[1]).sort());
+ }
+});
+
+test('Spanish selection, complete labels and raw-content captures are stable',()=>{
+ assert.equal(pickLanguage({urlLang:'es',savedVoiceLang:'ja',serverLang:'fr'}),'es');
+ assert.equal(pickLanguage({urlVoiceLang:'es',urlLang:'zh'}),'es');
+ assert.equal(pickLanguage({savedVoiceLang:'es',serverLang:'zh'}),'es');
+ for(const [source,t] of [...TRANSLATIONS,...ARIA_LABELS]){
+  assert.ok(t.es?.trim(),`Missing Spanish: ${source}`);
+  assert.equal(translate(t.es,'es'),t.es,`Spanish changes on second pass: ${source}`);
+ }
+ assert.equal(translate('本地预览','es'),'Vista previa local');
+ for(const text of ['当前口令：点点头；通过 2，拒绝 1','待确认暗号：下班，第 2 版']){
+  const result=translate(text,'es');
+  assert.notEqual(result,text);
+  assert.ok(result.includes(text.includes('点点头')?'点点头':'下班'));
+  assert.equal(translate(result,'es'),result);
+ }
+ const tokens=Array.from({length:15},(_,i)=>`⟪${i}⟫`);
+ for(const [pattern,en] of patterns){
+  assert.ok(spanishPatterns[pattern.source],`Missing Spanish pattern: ${pattern.source}`);
+  assert.deepEqual([...spanishPatterns[pattern.source].matchAll(/⟪(\d+)⟫/g)].map(m=>m[1]).sort(),[...en(...tokens).matchAll(/⟪(\d+)⟫/g)].map(m=>m[1]).sort());
  }
 });
