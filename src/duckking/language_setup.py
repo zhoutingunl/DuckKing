@@ -18,6 +18,10 @@ def conversation_prompt(language):
     # Remove the second Chinese-only response instruction as well as the intro.
     prompt = prompt.replace("简短自然中文确认", "简短自然语言确认")
     instruction = {
+        "es": "Responde siempre en español natural, incluidos saludos, confirmaciones, errores "
+              "y despedidas. Entiende también chino, inglés, francés, japonés y alemán, "
+              "pero mantén el español como idioma de respuesta salvo que el usuario pida "
+              "expresamente otro idioma. No leas los nombres internos de las herramientas.",
         "de": "Antworte immer auf natürlichem Deutsch, auch bei Begrüßungen, Bestätigungen, "
               "Fehlermeldungen und beim Abschied. Verstehe auch Chinesisch, Englisch, "
               "Französisch und Japanisch, aber behalte Deutsch als Antwortsprache bei, "
@@ -101,7 +105,7 @@ async def setup_language_profile(settings, key_file: Path, language, *, http=Non
                 raise ValueError("云端语言配置校验失败，未启用此语言")
         config["agents"][profile_key] = {
             "id": agent_id, "label": language,
-            **({"transport": "bound_device"} if language in {"en", "fr", "ja", "de"} else {}),
+            **({"transport": "bound_device"} if language in {"en", "fr", "ja", "de", "es"} else {}),
         }
         store_profiles(profile_root(settings) / "voice-profiles.json", config)
         return {"status": "language_profile_configured", "language": language,

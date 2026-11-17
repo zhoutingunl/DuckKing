@@ -18,13 +18,13 @@ def configured(path):
     store_profiles(path / 'voice-profiles.json', {'voices': {}, 'agents': {
         'language_fr': {'id': 'private-fr'}, 'language_en': {'id': 'private-en'},
         'language_ja': {'id': 'private-ja'}, 'language_de': {'id': 'private-de'},
-        'language_zh': {'id': 'private-zh'},
+        'language_es': {'id': 'private-es'}, 'language_zh': {'id': 'private-zh'},
         'studio': {'id': 'private-studio'},
     }})
     return Settings(data_dir=path)
 
 
-@pytest.mark.parametrize('language', ['fr', 'en', 'ja', 'de', 'zh'])
+@pytest.mark.parametrize('language', ['fr', 'en', 'ja', 'de', 'es', 'zh'])
 async def test_language_selects_private_handshake_without_rebinding(tmp_path, language):
     settings = configured(tmp_path)
     messages, headers = [], []
@@ -114,13 +114,13 @@ async def test_language_survives_cloud_close_and_reconnect_in_same_room(tmp_path
             await voice.disconnect()
 
 
-@pytest.mark.parametrize('language', ['fr', 'en', 'ja', 'de', ['fr']])
+@pytest.mark.parametrize('language', ['fr', 'en', 'ja', 'de', 'es', 'xx', ['fr']])
 def test_missing_or_invalid_language_never_falls_back_to_chinese(tmp_path, language):
     with pytest.raises(ValueError):
         language_agent(Settings(data_dir=tmp_path), language)
 
 
-@pytest.mark.parametrize("language", ["fr", "ja", "de"])
+@pytest.mark.parametrize("language", ["fr", "ja", "de", "es"])
 def test_browser_language_uses_cloud_not_chinese_offline_model(tmp_path, monkeypatch, language):
     settings = configured(tmp_path)
     seen = []
@@ -233,7 +233,7 @@ def test_explicit_language_profiles_require_a_chinese_profile_too(tmp_path):
         language_agent(Settings(data_dir=tmp_path), 'zh')
 
 
-@pytest.mark.parametrize("language", ["ja", "de"])
+@pytest.mark.parametrize("language", ["ja", "de", "es"])
 async def test_profile_requires_matching_voice_and_auto_language_asr(tmp_path, language):
     key = tmp_path / "key"
     key.write_text("test-key")
@@ -264,9 +264,12 @@ async def test_profile_requires_matching_voice_and_auto_language_asr(tmp_path, l
         result = await setup_language_profile(settings, key, language, http=http)
     assert agent["langCode"] == language and agent["ttsVoiceId"] == "compatible-voice"
     assert agent["extra"]["asr"]["enable_auto_lang"] is True
-    directive = "日本語" if language == "ja" else "Antworte immer auf natürlichem Deutsch"
+    directive = {"ja": "日本語", "de": "Antworte immer auf natürlichem Deutsch",
+                 "es": "Responde siempre en español natural"}[language]
     assert directive in agent["systemPrompt"]
-    assert ("うなずいて" if language == "ja" else "nicke → 点头") in agent["systemPrompt"]
+    trigger = {"ja": "うなずいて", "de": "nicke → 点头",
+               "es": "asiente con la cabeza → 点头"}[language]
+    assert trigger in agent["systemPrompt"]
     assert "简短自然中文确认" not in agent["systemPrompt"]
     assert not any("/device/" in path or "/ota" in path for path in calls)
     assert language_agent(settings, language) == f"private-{language}"
@@ -280,7 +283,7 @@ async def test_profile_requires_matching_voice_and_auto_language_asr(tmp_path, l
         }
 
 
-@pytest.mark.parametrize("language", ["ja", "de"])
+@pytest.mark.parametrize("language", ["ja", "de", "es"])
 async def test_language_cannot_be_overridden_by_a_chinese_clone_or_persona(tmp_path, language):
     store_profiles(tmp_path / "voice-profiles.json", {
         "voices": {"chinese-only": {"id": "private-clone"}},

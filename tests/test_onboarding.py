@@ -299,3 +299,12 @@ def test_german_prompt_preserves_authoritative_motion_and_failure_rules():
     assert "Antworte kurz und natürlich auf Deutsch" in german
     assert "nicke → 点头" in german
     assert "nach dem tatsächlichen Werkzeugergebnis" in german
+
+
+def test_spanish_prompt_preserves_authoritative_motion_and_failure_rules():
+    from duckking.onboarding import REPLY_CLAUSE, REPLY_DIRECTIVES
+    spanish = agent_prompt("es")
+    assert spanish == PROMPT.replace(REPLY_CLAUSE, REPLY_DIRECTIVES["es"], 1)
+    assert "Responde en español" in spanish
+    assert "asiente con la cabeza → 点头" in spanish
+    assert "resultado real de la herramienta" in spanish
