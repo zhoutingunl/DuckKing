@@ -141,7 +141,7 @@ flowchart TB
 
 `voice.js` 的连接指令包含 `language`；后台仅接受 zh/en/fr/ja/de/es，从私有 `voice-profiles.json` 解析对应智能体，通过官方 `X-Agent-ID` 握手头选择本次会话。英语、法语、日语、德语和西班牙语使用 `bound_device` 配置：`language_device.py` 从当前房间的 `languages/en|fr|ja|de|es` 选择预绑定设备，校验私有 binding.json 与当前智能体及设备身份匹配；不继承原房间的固定 token 或身份覆盖。身份、ID 不返回浏览器，原房间绑定不变。实测仅切换 Header 时普通法语回复正常、闲置告别仍为中文，所以不能把 Header 选择等同于全链路语言切换。缺失语言配置报错并可重试；语言切换重建会话，保持房间所有权。英语/法语/日语/德语/西班牙语强制云端，中文仍支持离线优先。未标记支持相应语言的克隆音色不列出也不能强行选择；角色切换目前仅支持中文配置。
 
-`language_setup.py` 是显式运维入口：复用中文 DuckKing，为英语/法语/日语/德语/西班牙语创建或更新独立智能体，验证 langCode、兼容 TTS 音色和 `extra.asr.enable_auto_lang`。更新专用智能体前保存私有备份。随后运维对每个房间执行 `--language-device --lang-code en|fr|ja|de|es`，为新身份显式绑定并回读校验；普通页面连接不使用管理 Key，也不触发设备绑定。提示词要求默认语言用于欢迎、动作确认、错误和告别。旧房间语言池不再是语言切换的必需条件。配置成功不代表真实语音测试通过，实际证据单列于 [验证记录](VALIDATION.md)。
+`language_setup.py` 是显式运维入口：复用中文 DuckKing，为英语/法语/日语/德语/西班牙语创建或更新独立智能体，验证 langCode、兼容 TTS 音色和 `extra.asr.enable_auto_lang`。更新专用智能体前保存私有备份。随后运维对每个房间执行 `--language-device --lang-code en|fr|ja|de|es`，为新身份显式绑定并回读校验；普通页面连接不使用管理 Key，也不触发设备绑定。提示词要求默认语言用于欢迎、动作确认、错误和告别；可选鸭叫也按语言输出（中文“嘎”、英语 quack、法语 coin-coin、日语ガー、德语 quak、西班牙语 cuac），保留偶尔使用且不影响听清结果的限制。旧房间语言池不再是语言切换的必需条件。配置成功不代表真实语音测试通过，实际证据单列于 [验证记录](VALIDATION.md)。
 
 官方协议依据：[智能体与音色切换](https://linx.qiniu.com/docs/xrobot/platform/agent-voice-switch)、[智能体 API](https://linx.qiniu.com/docs/xrobot/api/agent)。
 
