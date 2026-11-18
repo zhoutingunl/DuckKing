@@ -530,9 +530,18 @@ def create_app(
             raise HTTPException(422, str(exc)) from exc
 
     @app.post("/api/scenes/close", status_code=204)
-    async def close_scene(room: str = "1", if_unused: bool = False):
+    async def close_scene(
+        room: str = "1", if_unused: bool = False, expected_revision: str | None = None
+    ):
         selected = get_room(room)
         async with selected.scene_lock:
+            if expected_revision is not None and (
+                selected.scene_motion is None
+                or selected.scene_motion.backend.revision != expected_revision
+            ):
+                raise HTTPException(
+                    409, {"code": "scene_changed", "message": "房间场景已更新，请重新选择动作。"}
+                )
             if if_unused and app.state.room_registry.busy(selected):
                 raise HTTPException(409, "房间仍有人使用，保留物理场景")
             if selected.voice is not None:

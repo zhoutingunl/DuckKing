@@ -7,7 +7,7 @@ import { VoiceAudio } from './audio-output.js';
 import {acquireMicrophone,microphoneError} from './microphone.js';
 import {voiceRouteText} from './voice-route.js';
 
-export function setupVoice({appendLog,notify,endpoint='/voice',cloudOnly=false,beforeListen=null,listenUnavailable=()=>''}){
+export function setupVoice({appendLog,notify,endpoint='/voice',cloudOnly=false,beforeListen=null,listenUnavailable=()=>'',requireReady=false}){
   const $=id=>document.getElementById(id),talk=$('talk-button'),connect=$('connect-voice'),connectLabel=$('connect-label');
   let ws=null,state='disconnected',pressed=false,recording=null,timeout=null,heartbeat=null,closingTimer=null,voiceNotice=null;
   function voiceError(text){voiceNotice=text;notify(text)}
@@ -81,8 +81,8 @@ export function setupVoice({appendLog,notify,endpoint='/voice',cloudOnly=false,b
     talk.setAttribute('aria-label',canInterrupt?'打断并说话':'按住说话');
     talk.classList.toggle('recording',state==='listening');
     $('enable-sound').disabled=pressed;
-    connect.disabled=state==='disconnecting';
     const connected=['connecting','recovering','interrupting','ready','listening','thinking','speaking'].includes(state);
+    connect.disabled=state==='disconnecting'||requireReady&&!!unavailable&&!connected;
     connect.classList.toggle('connected',connected);
     connect.dataset.state=state;
     $('voice-badge').classList.toggle('connected',connected);
@@ -231,7 +231,7 @@ export function setupVoice({appendLog,notify,endpoint='/voice',cloudOnly=false,b
       send({type:'disconnect'});clearPlayback();
       closingTimer=setTimeout(()=>closing?.close(),7000);return;
     }
-    if(ws?.readyState===WebSocket.CONNECTING)return;
+    if(ws?.readyState===WebSocket.CONNECTING||requireReady&&listenUnavailable())return;
     const notice=$('notice')??$('demo-notice');
     if(voiceNotice&&notice&&[voiceNotice,translate(voiceNotice)].includes(notice.textContent))notice.hidden=true;
     voiceNotice=null;
@@ -342,7 +342,19 @@ export function setupVoice({appendLog,notify,endpoint='/voice',cloudOnly=false,b
   window.addEventListener('pageshow',event=>{if(event.persisted)window.location.reload()});
   window.addEventListener('duckking-room-lost',()=>{void release(false);closeMicrophone();ws?.close();clearPlayback()});
   window.addEventListener('pagehide',()=>{clearInterval(connectionTimer);clearInterval(heartbeat);clearTimeout(closingTimer);release(false);closeMicrophone();ws?.close();output.close();clearTimeout(audioReportTimer)});
-  return {send, disconnect(){void release(false);closeMicrophone();if(ws?.readyState===WebSocket.OPEN)send({type:'disconnect'});else ws?.close();clearPlayback()}, get state(){return state}, clearPlayback, interrupt(){
+  return {send, disconnect(){void release(false);closeMicrophone();if(ws?.readyState===WebSocket.OPEN)send({type:'disconnect'});else ws?.close();clearPlayback()}, get state(){return state}, clearPlayback,
+    setTarget(nextEndpoint,nextCloudOnly,{requireIdle=false}={}){
+      if(requireIdle&&!['disconnected','error','awaiting_binding','busy'].includes(state))return false;
+      if(endpoint===nextEndpoint&&cloudOnly===nextCloudOnly)return true;
+      if(ws){
+        send({type:'disconnect'});const previous=ws;ws=null;previous.close();
+        experience.finish('cancelled');clearInterval(heartbeat);clearTimeout(closingTimer);
+        void release(false);closeMicrophone();clearPlayback();
+      }
+      $('activation').hidden=true;$('activation').textContent='';
+      endpoint=nextEndpoint;cloudOnly=nextCloudOnly;state='disconnected';restoreMode();return true;
+    },
+    interrupt(){
     clearPlayback();
     if(['ready','thinking','speaking'].includes(state)){
       experience.finish('cancelled');minGeneration=generation+1;state='interrupting';send({type:'interrupt'});update();

@@ -66,13 +66,17 @@ export const TRANSLATIONS = new Map(Object.entries({
     fr: "Rencontre ton petit canard virtuel. Dis d'abord bonjour, puis ensemble faites le premier pas.",
   },
   '正在连接工作台': {en: 'Connecting to the workbench…', fr: "Connexion à l'atelier…"},
-  '语音 × PPO · 新实验': {en: 'Voice × PPO · New experiment', fr: 'Voix × PPO · Nouvelle expérience'},
   '训练新动作': {en: 'Train a new motion', fr: 'Entraîner un nouveau mouvement'},
-  '转盘站稳，跷跷板停靠。用语音挑战 PPO，看小鸭怎样学会新技能。': {
-    en: 'Balance on the wheel, dock on the seesaw. Challenge PPO with your voice and watch the duck learn.',
-    fr: 'Tenir sur la roulette, se poser sur la balançoire. Défie le PPO avec la voix et regarde le canard apprendre.',
+  'MuJoCo 平地动作': {en: 'MuJoCo floor moves', fr: 'Mouvements au sol dans MuJoCo'},
+  '随机外观': {en: 'Random appearance', fr: 'Apparence aléatoire'},
+  '平地动作使用 MuJoCo 物理仿真。': {
+    en: 'Floor moves run in the MuJoCo physics simulator. ',
+    fr: 'Les mouvements au sol utilisent la simulation physique MuJoCo. ',
   },
-  '选择训练场景 ': {en: 'Pick a training scene ', fr: "Choisir un scénario d'entraînement "},
+  '房间场景已更新，请重新选择动作。': {
+    en: 'The room scene changed. Choose a move again.',
+    fr: 'La scène du salon a changé. Choisis à nouveau un mouvement.',
+  },
   '动画预览': {en: 'Animation preview', fr: 'Aperçu animé'},
   '■ 停止': {en: '■ Stop', fr: '■ Stop'},
   '停止当前动作': {en: 'Stop the current action', fr: "Arrêter l'action en cours"},
