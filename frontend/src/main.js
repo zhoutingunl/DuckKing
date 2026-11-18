@@ -8,6 +8,8 @@ import { setupVoice } from './voice.js';
 import { appURL } from './urls.js';
 import { createSocket } from './transport.js';
 import { initUILanguage } from './ui-language.js';
+import {setupGroundPreference} from './ground-preference.js';
+import {setupWorkbenchPhysics} from './workbench-physics.js';
 
 import { setupRoom } from './room.js';
 await setupRoom();
@@ -20,10 +22,10 @@ try { scene = createDuckScene($('viewport'),{onLoad:timing=>appendLog(
   `官方外观${timing.result==='ready'?'已显示':'加载失败'} · ${(timing.elapsed_ms/1000).toFixed(1)} 秒${['persistent','http'].includes(timing.cache)?' · 使用缓存':''}`,
   '模型加载',timing.result!=='ready')}); }
 catch { $('canvas-fallback').hidden = false; }
-let seen=0, completed=new Set(), reconnectDelay=500;
+let seen=0, completed=new Set(), physicsCompleted=0, reconnectDelay=500, physics, preview;
 let backendKind='preview',voiceState='disconnected',voiceMode='cloud',voiceRoute='cloud';
 function scope(){
-  $('scope-note').textContent=(backendKind==='preview'?'使用官方 MicroDuck 外观的动画预览，不进行物理计算。':'正在连接官方 robotd；本页为官方外观动画示意，物理画面请查看 MuJoCo 窗口。')+
+  $('scope-note').textContent=(physics?.active?'平地动作使用 MuJoCo 物理仿真。':backendKind==='preview'?'使用官方 MicroDuck 外观的动画预览，不进行物理计算。':'正在连接官方 robotd；本页为官方外观动画示意，物理画面请查看 MuJoCo 窗口。')+
     (voiceMode==='local_first'?(voiceRoute==='cloud_fallback'?'当前指令已选择灵矽处理。':['ready','listening','thinking'].includes(voiceState)?'本地优先语音已启用，未匹配时转交灵矽。':'本地优先语音尚未启用。'):['ready','listening','thinking','speaking'].includes(voiceState)?'灵矽语音已连接。':'灵矽语音尚未连接。');
 }
 window.addEventListener('duckking-voice-state',event=>{
@@ -50,6 +52,10 @@ export async function post(url,body={}) {
 }
 let actionRequests=Promise.resolve();
 function action(name){
+  if(physics.active){
+    $('flat-action-notice').hidden=true;
+    return physics.action(name);
+  }
   // Serialize request acceptance, not motion duration, so a rapid Stop cannot
   // arrive before the preceding Walk request on another HTTP connection.
   actionRequests=actionRequests.then(()=>post('/api/actions',{name,request_id:requestId()}))
@@ -57,35 +63,75 @@ function action(name){
   return actionRequests;
 }
 document.querySelectorAll('[data-action]').forEach(button=>button.addEventListener('click',()=>action(button.dataset.action)));
-$('reset-camera').addEventListener('click',()=>scene?.resetCamera());
+$('reset-camera').addEventListener('click',()=>physics.active?physics.resetCamera():scene?.resetCamera());
 $('scene-settings-toggle').addEventListener('click',()=>{const shown=$('scene-settings').hidden;$('scene-settings').hidden=!shown;$('scene-settings-toggle').setAttribute('aria-expanded',String(shown))});
-$('ground-style').addEventListener('change',()=>scene?.setGround($('ground-style').value));
 $('clear-log').addEventListener('click',()=>{$('activity-log').replaceChildren();});
 window.addEventListener('keydown',e=>{if(e.key==='Escape')action('stop');});
+function renderAction(label, status, velocity){
+  $('current-action').textContent=label;
+  if($('duck-mood').textContent!==status)$('duck-mood').replaceChildren(document.createElement('i'),document.createTextNode(status));
+  $('velocity').textContent=Number(velocity??0).toFixed(2);
+}
+function renderPreview(){
+  $('backend-badge').textContent=backendKind==='preview'?'动画预览':'robotd 适配';
+  $('data-source').textContent=backendKind==='preview'?'本地预览':preview?.backend.connected?'官方 robotd':'未连接';
+  $('reset-position').disabled=backendKind!=='preview';
+  const action=preview?.action;
+  const mood=action?'正在'+(names[action.name]??'执行动作')+(action.phase?' · '+action.phase:''):'正在等待你的指令';
+  renderAction(names[action?.name]??'待机',mood,preview?.backend.velocity?.forward);
+  $('action-count').textContent=String(completed.size).padStart(2,'0');
+}
+const voice=setupVoice({appendLog,notify,listenUnavailable:()=>physics?.voiceUnavailable()??'',requireReady:true});
+physics=setupWorkbenchPhysics({
+  voice,appendLog,
+  notify(message){
+    $('flat-action-notice').textContent=message;$('flat-action-notice').hidden=!message;
+  },
+  onMode(active){
+    $('viewport').hidden=active;$('workbench-physics').hidden=!active;$('leave-physics').hidden=!active;
+    $('flat-action-notice').hidden=true;
+    if(active){
+      $('backend-badge').textContent='MuJoCo 仿真';
+      $('action-count').textContent=String(physicsCompleted).padStart(2,'0');
+      const stage=$('workbench-physics'),{top,bottom}=stage.getBoundingClientRect();
+      if(bottom<=0||top>=innerHeight)stage.scrollIntoView({block:'nearest',behavior:'instant'});
+    }else renderPreview();
+    scope();
+  },
+  onState(state,label,status){
+    $('data-source').textContent=state?.connected?'MuJoCo 仿真':'未连接';
+    renderAction(label??'待机',status??label??'正在等待你的指令',state?.velocity?.forward);
+  },
+  onBusy(busy){
+    for(const button of document.querySelectorAll('[data-action]:not([data-action=stop]),#leave-physics')){
+      button.disabled=busy||button.id==='reset-position'&&!physics.active&&backendKind!=='preview';
+    }
+  },
+  onCompleted(){$('action-count').textContent=String(++physicsCompleted).padStart(2,'0')},
+});
+setupGroundPreference($('ground-style'),style=>{
+  $('viewport').dataset.groundStyle=style;
+  scene?.setGround(style);physics.setGround(style);
+},{randomDefault:true});
 function connect(){
   const ws=createSocket('ws');
   ws.onopen=()=>{reconnectDelay=500;$('connection-label').textContent='本地工作台已连接';$('connection-dot').classList.remove('offline')};
   ws.onmessage=event=>{
     const data=JSON.parse(event.data);if(data.type!=='state')return;
-    backendKind=data.backend.kind;scope();
-    $('backend-badge').textContent=backendKind==='preview'?'动画预览':'robotd 适配';
-    $('data-source').textContent=backendKind==='preview'?'本地预览':data.backend.connected?'官方 robotd':'未连接';
-    $('reset-position').disabled=backendKind!=='preview';
-    if(data.backend.error&&backendKind!=='preview')notify(data.backend.error);
+    preview=data;backendKind=data.backend.kind;scope();
+    if(!physics.active){
+      renderPreview();
+      if(data.backend.error&&backendKind!=='preview')notify(data.backend.error);
+    }
     scene?.update(data.backend);
-    $('current-action').textContent=names[data.action?.name]??'待机';
-    const mood=data.action?'正在'+(names[data.action.name]??'执行动作')+(data.action.phase?' · '+data.action.phase:''):'正在等待你的指令';
-    $('duck-mood').replaceChildren(document.createElement('i'),document.createTextNode(mood));
-    $('velocity').textContent=Number(data.backend.velocity?.forward??0).toFixed(2);
     for(const event of data.events){
       if(event.id<=seen)continue;seen=event.id;
       if(event.status==='completed')completed.add(event.action_id);
       const text=actionEventText(event);
       appendLog(text,({action:'动作请求',phase:'动作节拍',result:'执行结果'})[event.kind]??'系统',event.status==='failed',event.text);
     }
-    $('action-count').textContent=String(completed.size).padStart(2,'0');
+    if(!physics.active)$('action-count').textContent=String(completed.size).padStart(2,'0');
     if(data.error)notify(data.error);
   };
   ws.onclose=()=>{$('connection-label').textContent='连接中断 · 正在重连';$('connection-dot').classList.add('offline');setTimeout(connect,reconnectDelay);reconnectDelay=Math.min(reconnectDelay*2,5000)};
 }connect();
-setupVoice({appendLog,notify});

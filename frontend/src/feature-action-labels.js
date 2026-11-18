@@ -1,0 +1,18 @@
+export const featureActionLabels = {
+  routine:'完整连续技', backroll:'后滚翻', headstand:'倒立后起身', spin_left:'向左头旋',
+  spin_right:'向右头旋', play_game:'开始比赛', try_trick:'开始挑战', try_climb:'开始攀爬',
+  try_course:'开始体验', recover_back:'仰卧起身', recover_front:'俯卧起身', stilt_walk:'高跷走十秒',
+  flip:'尝试后空翻', run:'快跑五秒', balance_ball:'球上平衡十秒', roll_forward:'球上向前十秒',
+  jump_gap:'跳到对面平台', walk:'向前走', backward:'向后退', turn_left:'向左转',
+  turn_right:'向右转', sit:'坐下', stand:'站起来', nod:'点点头',
+  curious:'好奇', sad:'难过', devastated:'委屈坐下', mmh:'嗯？',
+  yes:'点头答应', yes_fast:'连连点头', no:'摇头拒绝', defiant:'不服气',
+  angry:'生气', mock:'调皮', excited:'兴奋', impatient:'等不及了',
+  laugh:'笑起来', conduct:'按顺序轮唱', dock:'回窝坐好', undock:'离窝站起来',
+  hop:'跳一下', lift_left:'抬左脚', lift_right:'抬右脚', lower:'放下脚',
+  observe:'看看前方', look_left:'向左看', look_right:'向右看', look_forward:'看前方',
+  play:'演奏距离琴', near:'物体靠近', far:'物体远离', cross:'跨过门槛',
+  find_red:'找红色', find_blue:'找蓝色', find_green:'找绿色', kick_left:'找到球用左脚踢',
+  kick_right:'找到球用右脚踢', go_door:'去门口', go_home:'回窝旁', go_table:'去桌旁',
+  steps:'踩着标记走', swing:'荡起来', jump_rope:'一起跳绳',
+};

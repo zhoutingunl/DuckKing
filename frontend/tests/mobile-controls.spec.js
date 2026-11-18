@@ -14,7 +14,7 @@ for(const language of ['zh','en','fr'])test(`${language}: mobile controls fit wi
     // Focusing the real select must not depend on the mobile browser enlarging a tiny font.
     await page.locator('#voice-mode').focus();
     expect(await page.locator('#voice-mode').evaluate(el=>parseFloat(getComputedStyle(el).fontSize))).toBeGreaterThanOrEqual(16);
-    const grid=page.locator('.action-grid');
+    const grid=page.locator('.action-card > .action-grid');
     await grid.scrollIntoViewIfNeeded();
     const bounds=await grid.boundingBox();
     for(const button of await grid.locator('button').all()){

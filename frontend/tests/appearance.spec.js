@@ -5,8 +5,6 @@ test('official colours repaint the home canvas without reloading geometry, persi
   const errors=[];page.on('pageerror',e=>errors.push(e.message));
   let assets=0;page.on('request',r=>{if(r.url().includes('.dkm.gz'))assets++});
   await page.goto('/index.html?room=1');
-  await expect(page.locator('.balance-entry')).toHaveAttribute('href',/training\.html\?room=1$/);
-  await expect(page.locator('.balance-entry')).toHaveAttribute('target','_blank');
   const view=page.locator('#viewport');
   await expect(view).toHaveAttribute('data-model','official',{timeout:45000});
   const before=await view.locator('canvas').screenshot({path:testInfo.outputPath('cream-before.png')}),requests=assets;

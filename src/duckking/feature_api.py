@@ -115,11 +115,27 @@ def install_feature_api(app, get_room, root):
             return await selected.scene_motion.snapshot()
 
     @app.post("/api/features/command", status_code=202)
-    async def command(body: FeatureCommand, room: str = "1"):
-        current = get_room(room).scene_motion
-        if current is None or getattr(current.backend, "scene", None) != "functional":
-            raise HTTPException(409, "请先准备功能场景")
-        try:
-            return await current.backend.invoke(body.model_dump())
-        except ValueError as exc:
-            raise HTTPException(422, str(exc)) from exc
+    async def command(
+        body: FeatureCommand, room: str = "1", expected_revision: str | None = None
+    ):
+        selected = get_room(room)
+
+        async def invoke():
+            current = selected.scene_motion
+            if expected_revision is not None and (
+                current is None or current.backend.revision != expected_revision
+            ):
+                raise HTTPException(
+                    409, {"code": "scene_changed", "message": "房间场景已更新，请重新选择动作。"}
+                )
+            if current is None or getattr(current.backend, "scene", None) != "functional":
+                raise HTTPException(409, "请先准备功能场景")
+            try:
+                return await current.backend.invoke(body.model_dump())
+            except ValueError as exc:
+                raise HTTPException(422, str(exc)) from exc
+
+        if expected_revision is None:
+            return await invoke()
+        async with selected.scene_lock:
+            return await invoke()

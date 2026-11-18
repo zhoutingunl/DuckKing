@@ -17,6 +17,8 @@ import {sceneVisit} from './scene-visit.js';
 import {FeatureAudio} from './feature-audio.js';
 import {createFeatureIntent} from './feature-intent.js';
 import {stopRoomScene,newerSceneActivity} from './scene-stop.js';
+import {featureActionLabels as labels} from './feature-action-labels.js';
+import {setupGroundPreference} from './ground-preference.js';
 
 await setupRoom();
 const legacyURL=new URL(location.href);if(legacyURL.searchParams.has('metric')){legacyURL.searchParams.delete('metric');history.replaceState(history.state,'',legacyURL)}
@@ -38,7 +40,6 @@ function placeFeatureDetails(){
 placeFeatureDetails();mobileLayout.addEventListener('change',placeFeatureDetails);
 const feedback=createLoadingState($('scene-placeholder')),choir=new StudioChoir(),sound=new FeatureAudio();
 const intent=createFeatureIntent();
-const labels={routine:'完整连续技',backroll:'后滚翻',headstand:'倒立后起身',spin_left:'向左头旋',spin_right:'向右头旋',play_game:'开始比赛',try_trick:'开始挑战',try_climb:'开始攀爬',try_course:'开始体验',recover_back:'仰卧起身',recover_front:'俯卧起身',stilt_walk:'高跷走十秒',flip:'尝试后空翻',run:'快跑五秒',balance_ball:'球上平衡十秒',roll_forward:'球上向前十秒',jump_gap:'跳到对面平台',walk:'向前走',backward:'向后退',turn_left:'向左转',turn_right:'向右转',sit:'坐下',stand:'站起来',nod:'点点头',curious:'好奇',sad:'难过',devastated:'委屈坐下',mmh:'嗯？',yes:'点头答应',yes_fast:'连连点头',no:'摇头拒绝',defiant:'不服气',angry:'生气',mock:'调皮',excited:'兴奋',impatient:'等不及了',laugh:'笑起来',conduct:'按顺序轮唱',dock:'回窝坐好',undock:'离窝站起来',hop:'跳一下',lift_left:'抬左脚',lift_right:'抬右脚',lower:'放下脚',observe:'看看前方',look_left:'向左看',look_right:'向右看',look_forward:'看前方',play:'演奏距离琴',near:'物体靠近',far:'物体远离',cross:'跨过门槛',find_red:'找红色',find_blue:'找蓝色',find_green:'找绿色',kick_left:'找到球用左脚踢',kick_right:'找到球用右脚踢',go_door:'去门口',go_home:'回窝旁',go_table:'去桌旁',steps:'踩着标记走',swing:'荡起来',jump_rope:'一起跳绳'};
 const sources={
  acrobatics:'社区杂技策略与独立 CPU 验收器；25 ms 名义电机延迟。逐段检查滚动、头顶接触、转速、停转与恢复，失败就暂停，不沿用作者批量成功率。',
  tof:'六十四束 MuJoCo 射线，45° × 45° 视野，最远四米；无回波为灰色。这是理想仿真测距，没有模拟真实 ToF 噪声。',
@@ -78,8 +79,8 @@ const visits=sceneVisit({send:payload=>fetch(appURL('api/features/visits'),{meth
 const visitTimer=setInterval(()=>visits.pulse(),5000);
 for(const type of ['pointerdown','keydown'])window.addEventListener(type,()=>visits.interact(),{passive:true});
 document.addEventListener('visibilitychange',()=>{void visits.pulse()});
-let viewer;
-function ensureViewer(){if(viewer)return;try{viewer=physicsView($('physics-viewport'))}catch{notify('浏览器无法绘制模型，请使用支持 WebGL 的浏览器。')}}
+let viewer, floor;
+function ensureViewer(){if(viewer)return;try{viewer=physicsView($('physics-viewport'));viewer.setGround(floor)}catch{notify('浏览器无法绘制模型，请使用支持 WebGL 的浏览器。')}}
 function notify(text){$('notice').textContent=text;$('notice').hidden=false}
 function appendLog(text,label='任务'){
  const row=document.createElement('p'),tag=document.createElement('strong');tag.textContent=translate(label)+' ';row.append(tag,document.createTextNode(text));$('activity-log').append(row);
@@ -284,7 +285,7 @@ for(const b of document.querySelectorAll('[data-sort]'))b.onclick=async()=>{sort
 $('show-all-scenes').onclick=()=>{expanded=true;filterCards()};
 $('scene-settings-toggle').onclick=()=>{const shown=$('scene-settings').hidden;$('scene-settings').hidden=!shown;$('scene-settings-toggle').setAttribute('aria-expanded',String(shown))};
 $('stilt-height').onchange=()=>{if(selected?.id==='stilts')void select(selected,true,true)};
-$('ground-style').onchange=()=>viewer?.setGround($('ground-style').value);
+setupGroundPreference($('ground-style'),style=>{floor=style;viewer?.setGround(style)});
 try{await loadCatalog();const choice=savedChoice('feature');selected=catalog.find(c=>c.id===choice)??catalog.find(c=>c.id==='movement')??catalog[0];if(choice)await select(selected,false);else{describe(selected);feedback.reset('选择一个功能场景开始。');controls()}}catch(error){notify(error.message)}
 window.addEventListener('pagehide',()=>{mobileLayout.removeEventListener('change',placeFeatureDetails);clearInterval(visitTimer);void visits.end();intent.cancel();epoch++;modelAbort?.abort();feed.close();choir.stop();sound.stop();viewer?.dispose();void sound.close();void choir.ctx?.close()});
 

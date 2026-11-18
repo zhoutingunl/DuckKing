@@ -27,11 +27,13 @@ test('homepage loads the official rig and still labels scripted motion as previe
 test('missing official visuals report failure and can be retried explicitly',async({page})=>{
   await page.route('**/api/models/microduck/manifest',route=>route.fulfill({status:503,json:{detail:'模型未安装'}}));
   await page.goto('/index.html?room=1');
-  await expect(page.locator('#viewport')).toHaveAttribute('data-model','failed');
-  await expect(page.locator('.model-status')).toContainText('官方模型加载失败');
+  const preview=page.locator('#viewport');
+  const loading=preview.locator('.model-status');
+  await expect(preview).toHaveAttribute('data-model','failed');
+  await expect(loading).toContainText('官方模型加载失败');
   await page.unroute('**/api/models/microduck/manifest');
-  await page.getByRole('button',{name:'重新加载模型'}).click();
-  await expect(page.locator('#viewport')).toHaveAttribute('data-model','official',{timeout:45000});
+  await loading.getByRole('button',{name:'重新加载模型'}).click();
+  await expect(preview).toHaveAttribute('data-model','official',{timeout:45000});
 });
 
 test('official model cache is shared by rooms and load timings reach the server',async({page})=>{

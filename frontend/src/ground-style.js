@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-export const GROUND_STYLES=['grid','checker','wood','track','stage'];
+import {GROUND_STYLES} from './ground-preference.js';
 export function groundStyle(floor,grid,invalidate){
  const textures=new Map();
  function apply(key){

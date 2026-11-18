@@ -14,7 +14,6 @@
 .room-bar{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:12px 16px;margin:0 0 20px;border:1px solid var(--line,#deded5);border-radius:12px;font-size:13px;background:#fffdf5}.room-bar strong{margin-right:auto;font-weight:500}.room-bar a{color:inherit;padding:6px 10px;border-radius:6px}.room-bar a[aria-current=page]{background:#f4d66b;text-decoration:none}
 
 .audio-details{font-size:12px;color:#65705b;margin:8px 0 16px}.audio-details summary{cursor:pointer}.audio-details pre{font:inherit;white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.6}
-.balance-entry{display:flex;align-items:center;justify-content:space-between;gap:20px;padding:18px 24px;margin:0 0 24px;background:#eaf1f3;border:1px solid #b7cdd5;border-radius:14px;color:#26546a;text-decoration:none}.balance-entry-label{display:block;font-size:11px;letter-spacing:.08em;margin-bottom:5px}.balance-entry strong{font-size:20px}.balance-entry p{font-size:13px;line-height:1.6;margin:6px 0 0;color:#526d79}.balance-entry-action{flex-shrink:0;font-size:14px;font-weight:600}.balance-entry:hover,.balance-entry:focus-visible{border-color:#26546a;background:#e2edf1}.balance-entry:focus-visible{outline:2px solid #26546a;outline-offset:3px}@media(max-width:640px){.balance-entry{align-items:flex-start;flex-direction:column;gap:14px;padding:18px}.balance-entry-action{align-self:flex-end}}
 
 .model-status{position:absolute;left:1rem;right:1rem;top:1rem;padding:.7rem 1rem;border-radius:.7rem;background:#f6f7f2e8;color:#526044;z-index:2;font-size:.85rem}.model-status[hidden]{display:none}.model-status button{margin-left:.5rem}
 
@@ -26,8 +25,8 @@
 .mic-retry{margin-top:10px;max-width:100%;white-space:normal}
 
 /* Keep the preview independent of the taller action/voice sidebar. */
-.home-page .workspace{align-items:start}.home-page #viewport{flex:none;height:clamp(270px,42svh,430px);min-height:270px}
-@media(min-width:761px) and (max-height:850px){.home-page main{padding-top:20px}.home-page .intro{margin-bottom:16px}.home-page .eyebrow{margin-bottom:6px}.home-page h1{font-size:30px;margin-bottom:6px}.home-page .balance-entry{padding:10px 18px;margin-bottom:16px}.home-page .balance-entry p{display:none}.home-page .balance-entry strong{font-size:17px}.home-page .stage-toolbar{padding:13px 18px}.home-page #viewport{height:clamp(240px,calc(100svh - 420px),400px);min-height:240px}}
+.home-page .workspace{align-items:start}.home-page :is(#viewport,#workbench-physics){flex:none;height:clamp(270px,42svh,430px);min-height:270px}
+@media(min-width:761px) and (max-height:850px){.home-page main{padding-top:20px}.home-page .intro{margin-bottom:16px}.home-page .eyebrow{margin-bottom:6px}.home-page h1{font-size:30px;margin-bottom:6px}.home-page .stage-toolbar{padding:13px 18px}.home-page :is(#viewport,#workbench-physics){height:clamp(240px,calc(100svh - 420px),400px);min-height:240px}}
 .loading-feedback{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:18px;background:rgba(248,250,241,.96);border:1px solid #d2ddc1;border-radius:12px;color:#405136;font-size:14px;text-align:center;z-index:5}
 .loading-feedback>small{font-size:12px;line-height:1.7}.loading-feedback progress{width:min(280px,90%);height:8px;accent-color:#668238}.loading-feedback>span:last-child{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}.load-action{padding:9px 16px;border:1px solid #8eaa62;border-radius:8px;background:#edf5da;color:#384e21;font-size:13px;min-height:36px}.model-status.loading-feedback{position:absolute;inset:auto 16px 24%}.loading-feedback[role=alert]{border-color:#d7a68c;background:#fff3eb;color:#7c422a}
 .room-recovery{padding:18px 20px;margin:0 0 18px;border:2px solid #c78a55;border-radius:12px;background:#fff4df;color:#654524}.room-recovery strong{font-size:16px}.room-recovery p{font-size:13px;line-height:1.7;margin:8px 0 12px}.room-recovery button{padding:10px 18px;border:1px solid #a16b37;border-radius:8px;background:white;color:#654524}.room-unavailable main>[inert]{opacity:.6}.restored-choice{outline:2px solid #8c9c4b;outline-offset:2px}
@@ -46,10 +45,10 @@
   .home-page main{display:flex;flex-direction:column;padding-top:12px}
   .home-page .intro{margin-bottom:12px;gap:8px}.home-page h1{font-size:24px;margin-bottom:4px}.home-page .eyebrow{display:none}.home-page .subtitle{font-size:12px}
   .home-page .connection-pill{padding:4px 8px;font-size:10px}
-  .home-page .balance-entry{order:2;margin-top:18px}.home-page footer{order:3}
+  .home-page footer{order:3}
   .home-page .workspace{display:block;min-width:0}
   .home-page .stage-card{position:sticky;top:0;z-index:8;box-shadow:0 3px 12px #25351a18}
-  .home-page #viewport{height:clamp(150px,calc(50svh - 90px),330px);min-height:150px}
+  .home-page :is(#viewport,#workbench-physics){height:clamp(150px,calc(50svh - 90px),330px);min-height:150px}
   .home-page .stage-toolbar{padding:8px 10px;gap:6px}.home-page .stage-title{gap:5px}.home-page .stage-title b,.home-page .mini-crown{display:none}
   .home-page .stage-caption{padding:5px 10px 8px}.home-page .stage-caption>span:last-child{display:none}.home-page .telemetry{display:none}
   .home-page .controls{margin-top:12px;grid-template-columns:1fr}
@@ -87,3 +86,18 @@
 
 .scene-settings-short{display:none}
 @media(max-width:480px){.scene-settings-long{display:none}.scene-settings-short{display:inline}}
+
+.workbench-scene-settings select{max-width:100%}
+#workbench-physics{position:relative;background:#e9ede0;overflow:hidden}
+#workbench-physics canvas{display:block;width:100%;height:100%;touch-action:none}
+@media(min-width:761px) and (min-height:600px){
+ .home-page .stage-card:has(#workbench-physics:not([hidden])){position:sticky;top:12px}
+}
+.flat-actions{margin-top:14px;border-top:1px solid var(--line)}
+.flat-actions summary{padding:12px 0;min-height:44px;cursor:pointer;color:#455232;font-size:14px;font-weight:600}
+.flat-action-group{min-width:0;margin:0 0 12px;padding:0;border:0}
+.flat-action-group legend{margin-bottom:5px;padding:0;color:#556046;font-size:13px}
+.flat-actions .action-grid{margin-top:0}
+.flat-single-actions{margin-bottom:12px}
+.flat-actions .action-grid button{min-height:44px;padding:8px 10px;color:var(--ink);font-size:13px;overflow-wrap:anywhere;touch-action:manipulation}
+.flat-actions :focus-visible,#leave-physics:focus-visible{outline:2px solid #567232;outline-offset:2px}
