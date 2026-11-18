@@ -44,6 +44,15 @@ for (const {action, scene, path, result} of [
   test.skip(action === 'hop' && !existsSync(new URL('../../external/features/policies/hop/policy.onnx', import.meta.url)),
     'Requires the optional hopping policy');
   test.setTimeout(90000);
+  const voiceChannels = [];
+  if (action === 'sit') await page.routeWebSocket(/\/(?:scene-)?voice(?:\?|$)/, socket => {
+    voiceChannels.push(new URL(socket.url()).pathname);
+    socket.onMessage(message => {
+      const {type} = JSON.parse(message);
+      if (type === 'connect') socket.send(JSON.stringify({type: 'voice_status', state: 'ready'}));
+      if (type === 'disconnect') socket.close();
+    });
+  });
   await page.request.post('/api/scenes/close?room=1');
   try {
     await page.goto('/index.html?room=1&lang=zh');
@@ -60,6 +69,7 @@ for (const {action, scene, path, result} of [
     const command = await accepted;
     const revision = new URL(command.url()).searchParams.get('expected_revision');
     const stage = page.locator('#workbench-physics');
+    await expect(stage).toBeInViewport();
     await expect(stage).toHaveAttribute('data-rendered-scene', scene);
     await expect(stage).toHaveAttribute('data-ground-style', 'checker');
     await expect(page.locator('#viewport')).toBeHidden();
@@ -77,10 +87,25 @@ for (const {action, scene, path, result} of [
       const response = await page.request.post(`/api/${endpoint}?room=1&expected_revision=stale`, {data});
       expect(response.status()).toBe(409);
     }
+    const voice = page.locator('#connect-voice');
+    if (action === 'sit') {
+      await voice.click();
+      await expect(voice).toHaveAttribute('data-state', 'ready');
+      expect(voiceChannels).toEqual(['/scene-voice']);
+      await page.locator('#leave-physics').click();
+      await expect(page.locator('#flat-action-notice')).toContainText('请先断开当前语音');
+      await voice.click();
+      await expect(voice).toHaveAttribute('data-state', 'disconnected');
+    }
     await page.locator('#leave-physics').click();
     await expect(page.locator('#backend-badge')).toHaveText('动画预览');
     await expect(page.locator('#viewport')).toHaveAttribute('data-ground-style', 'checker');
     expect((await page.request.get('/api/scenes/state?room=1')).status()).toBe(503);
+    if (action === 'sit') {
+      await voice.click();
+      await expect(voice).toHaveAttribute('data-state', 'ready');
+      expect(voiceChannels).toEqual(['/scene-voice', '/voice']);
+    }
   } finally {
     await page.request.post('/api/scenes/close?room=1');
   }

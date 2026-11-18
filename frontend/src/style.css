@@ -90,6 +90,9 @@
 .workbench-scene-settings select{max-width:100%}
 #workbench-physics{position:relative;background:#e9ede0;overflow:hidden}
 #workbench-physics canvas{display:block;width:100%;height:100%;touch-action:none}
+@media(min-width:761px) and (min-height:600px){
+ .home-page .stage-card:has(#workbench-physics:not([hidden])){position:sticky;top:12px}
+}
 .flat-actions{margin-top:14px;border-top:1px solid var(--line)}
 .flat-actions summary{padding:12px 0;min-height:44px;cursor:pointer;color:#455232;font-size:14px;font-weight:600}
 .flat-action-group{min-width:0;margin:0 0 12px;padding:0;border:0}

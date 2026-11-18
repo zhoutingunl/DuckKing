@@ -93,6 +93,8 @@ physics=setupWorkbenchPhysics({
     if(active){
       $('backend-badge').textContent='MuJoCo 仿真';
       $('action-count').textContent=String(physicsCompleted).padStart(2,'0');
+      const stage=$('workbench-physics'),{top,bottom}=stage.getBoundingClientRect();
+      if(bottom<=0||top>=innerHeight)stage.scrollIntoView({block:'nearest',behavior:'instant'});
     }else renderPreview();
     scope();
   },

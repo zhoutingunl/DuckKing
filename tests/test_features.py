@@ -409,3 +409,34 @@ def test_explicit_reprepare_releases_matching_old_world_and_never_falls_back(mon
         assert response.status_code == 503
         assert old.close.await_count == 1 and create.await_count == 1
         assert app.state.rooms["1"].scene_motion is None
+
+
+def test_guarded_requests_only_change_the_matching_physics_world():
+    app = create_app()
+    with TestClient(app) as client:
+        backend = SimpleNamespace(
+            revision="current",
+            scene="functional",
+            invoke=AsyncMock(return_value={"status": "running"}),
+        )
+        world = SimpleNamespace(backend=backend, close=AsyncMock())
+        room = app.state.rooms["1"]
+        room.scene_motion = world
+
+        for path, body in [("features/command", {"action": "hop"}), ("scenes/close", {})]:
+            rejected = client.post(f"/api/{path}?expected_revision=stale", json=body)
+            assert rejected.status_code == 409
+            assert rejected.json()["detail"]["code"] == "scene_changed"
+        backend.invoke.assert_not_awaited()
+        world.close.assert_not_awaited()
+        assert room.scene_motion is world
+
+        submitted = client.post(
+            "/api/features/command?expected_revision=current", json={"action": "hop"}
+        )
+        assert submitted.status_code == 202
+        backend.invoke.assert_awaited_once()
+        released = client.post("/api/scenes/close?expected_revision=current", json={})
+        assert released.status_code == 204
+        world.close.assert_awaited_once()
+        assert room.scene_motion is None
