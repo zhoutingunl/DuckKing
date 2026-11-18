@@ -34,13 +34,15 @@ test('waiting for a model stays visible, can cancel, and does not retry a cancel
     if(attempts===1){await gate;await route.abort().catch(()=>{});}else await route.continue();
   });
   await page.goto('/index.html?room=1');
+  const preview=page.locator('#viewport');
+  const loading=preview.locator('.model-status');
   await expect.poll(()=>attempts).toBe(1);
-  await expect(page.locator('.model-status')).toContainText('已等待');
-  await page.getByRole('button',{name:'停止等待'}).click();release();
-  await expect(page.locator('#viewport')).toHaveAttribute('data-model','cancelled');
+  await expect(loading).toContainText('已等待');
+  await loading.getByRole('button',{name:'停止等待'}).click();release();
+  await expect(preview).toHaveAttribute('data-model','cancelled');
   await page.waitForTimeout(400);expect(attempts).toBe(1);
-  await page.getByRole('button',{name:'重新加载模型'}).click();
-  await expect(page.locator('#viewport')).toHaveAttribute('data-model','official',{timeout:45000});
+  await loading.getByRole('button',{name:'重新加载模型'}).click();
+  await expect(preview).toHaveAttribute('data-model','official',{timeout:45000});
   expect(attempts).toBe(2);
 });
 
