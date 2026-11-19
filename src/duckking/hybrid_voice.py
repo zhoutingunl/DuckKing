@@ -8,7 +8,8 @@ import httpx
 
 from . import asr_client
 from .diagnostics import redact_transcript
-from .local_commands import ALIASES, parse_commands
+from .feature_catalog import WORKBENCH, WORKBENCH_ACTIONS
+from .local_commands import ALIASES, BOUNDED_DURATION, parse_commands
 from .mcp import DeviceMCP
 from .voice import IO_TIMEOUT, RECORDING_LIMIT, VoiceSession
 
@@ -122,27 +123,41 @@ class HybridVoiceSession(VoiceSession):
                 await self._local_done("没有识别到清晰语音，请再说一次。", success=False)
                 return
             backend = self.motion.backend
+            workbench = getattr(backend, "capability", None) == WORKBENCH
             plan = parse_commands(text, physical=backend.kind == "mujoco",
-                                  scene=getattr(backend, "scene", None))
+                                  scene="skills" if workbench else getattr(backend, "scene", None))
             if not plan.actions:
                 await self._fallback(pcm, plan.reason)
+                return
+            if workbench and any(a.name != "stop" and a.name not in WORKBENCH_ACTIONS
+                                 for a in plan.actions):
+                await self._fallback(pcm, "unsupported_context")
                 return
             # Parsing and context checks cover the whole utterance before any action.
             await self._route("local", "matched", asr_ms=result["asr_ms"])
             for action in plan.actions:
                 if generation != self.generation:
                     return
-                record = await self.motion.submit(action)
-                executed = True
+                if workbench and action.name != "stop":
+                    command = {"action": action.name, "request_id": action.request_id}
+                    if action.name in BOUNDED_DURATION:
+                        command["duration"] = action.duration
+                    executed = True  # A cancelled RPC may already have reached the worker.
+                    record = await backend.invoke(command)
+                    wait = backend.wait_for_result
+                else:
+                    record = await self.motion.submit(action)
+                    executed = True
+                    wait = self.motion.wait
                 tool = "duck_set_scene" if action.name.startswith("scene_") else TOOLS.get(
                     action.name, "duck_" + action.name
                 )
                 call = self.diagnostics.sequence + 1
                 self.record("action_start", call=call, tool=tool)
+                active = (record["id"], call, tool, wait)
                 await self.send({"type": "voice_milestone", "phase": "action_start",
                                  "turn": self.turn, "generation": generation})
-                active = (record["id"], call, tool)
-                finished = await self.motion.wait(record["id"])
+                finished = await wait(record["id"])
                 self.last_activity = time.monotonic()
                 self.record("action_end", call=call, tool=tool, result=finished["status"])
                 active = None
@@ -155,10 +170,12 @@ class HybridVoiceSession(VoiceSession):
             names = " → ".join(ALIASES[a.name].split("|")[0] for a in plan.actions)
             await self._local_done("本地已完成：" + names, success=True)
         except asyncio.CancelledError:
-            if active:
+            if executed:
                 await self._stop_motion()
-                finished = await self.motion.wait(active[0])
-                self.record("action_end", call=active[1], tool=active[2], result=finished["status"])
+            if active:
+                request_id, call, tool, wait = active
+                finished = await wait(request_id)
+                self.record("action_end", call=call, tool=tool, result=finished["status"])
             raise
         except Exception:
             if executed:

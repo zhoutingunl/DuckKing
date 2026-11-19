@@ -9,7 +9,7 @@ from fastapi.testclient import TestClient
 
 from duckking.app import create_app
 from duckking.feature_backend import FeatureBackend
-from duckking.feature_catalog import CATALOG, FeatureCommand
+from duckking.feature_catalog import CATALOG, WORKBENCH, FeatureCommand, voice_tools
 from duckking.feature_worker import Worker
 from duckking.mcp import DeviceMCP
 from duckking.motion import MotionController
@@ -77,6 +77,18 @@ def test_catalogue_covers_ten_groups_without_claiming_hardware_charging():
     assert len(CATALOG) == 41
     assert CATALOG["dock"]["observation"] == "simulated_tag_and_proprioception"
     assert CATALOG["soccer"]["observation"] == "rgb"
+
+
+def test_workbench_tool_exposes_only_single_duck_actions():
+    assert WORKBENCH not in CATALOG
+    tool = voice_tools(WORKBENCH)[0]
+    actions = tool["inputSchema"]["properties"]["action"]["enum"]
+    assert {"nod", "roulade", "hop", "recover_back", "laugh"} <= set(actions)
+    for action in ("duo_walk", "stage_gather", "conduct", "kick_left", "skate"):
+        assert action not in actions
+        with pytest.raises(ValueError, match="当前场景不支持"):
+            FeatureCommand(action=action).check(WORKBENCH)
+    assert "order" not in tool["inputSchema"]["properties"]
 
 
 async def test_stop_cancels_physics_before_reply_and_preserves_cancelled_result():
@@ -409,6 +421,29 @@ def test_explicit_reprepare_releases_matching_old_world_and_never_falls_back(mon
         assert response.status_code == 503
         assert old.close.await_count == 1 and create.await_count == 1
         assert app.state.rooms["1"].scene_motion is None
+
+
+def test_workbench_preparation_reuses_a_healthy_room_world(monkeypatch):
+    create = AsyncMock(side_effect=ValueError("new world unavailable"))
+    monkeypatch.setattr(FeatureBackend, "create", create)
+    app = create_app()
+    with TestClient(app) as client:
+        old = SimpleNamespace(
+            backend=SimpleNamespace(
+                scene="functional", capability=WORKBENCH, variant=None, error=None, closed=False,
+                state={"feature": {"recovery_required": False}},
+            ),
+            snapshot=AsyncMock(return_value={"backend": {"revision": "kept"}}),
+            close=AsyncMock(),
+        )
+        app.state.rooms["1"].scene_motion = old
+        body = {"capability": WORKBENCH, "replace": True}
+        response = client.post("/api/features/prepare", json=body)
+        assert response.json()["backend"]["revision"] == "kept"
+        assert not old.close.called and not create.called
+        old.backend.state["feature"]["recovery_required"] = True
+        assert client.post("/api/features/prepare", json=body).status_code == 503
+        assert old.close.await_count == 1 and create.await_count == 1
 
 
 def test_guarded_requests_only_change_the_matching_physics_world():

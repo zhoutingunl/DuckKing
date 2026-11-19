@@ -118,7 +118,7 @@ class MuJoCoBackend:
     kind = "mujoco"
     default_speed = 0.25
 
-    def __init__(self, assets: Path, *, progress=None):
+    def __init__(self, assets: Path, *, progress=None, skills_only=False):
         progress = progress or (lambda *args: None)
         self.assets = assets
         self.table_build_task = None
@@ -132,6 +132,10 @@ class MuJoCoBackend:
             "roulade": "roulade.onnx", "ground_pick": "alpha_ground_pick.onnx",
             "roller": "roller.onnx", "roller_crouch": "roller_crouch.onnx",
         }
+        if skills_only:
+            policies = {
+                key: policies[key] for key in ("walk", "sitstand", "roulade", "ground_pick")
+            }
         self.sessions = {}
         for index, (key, file) in enumerate(policies.items()):
             progress("policies", index, len(policies))
@@ -140,10 +144,11 @@ class MuJoCoBackend:
             )
         progress("policies", len(policies), len(policies))
         self.models = {}
-        for index, scene in enumerate(("ball", "duo", "carry")):
-            progress("models", index, 3)
+        initial_scenes = ("skills",) if skills_only else ("ball", "duo", "carry")
+        for index, scene in enumerate(initial_scenes):
+            progress("models", index, len(initial_scenes))
             self.models[scene] = self._build(scene)
-        progress("models", 3, 3)
+        progress("models", len(initial_scenes), len(initial_scenes))
         # Geometry belongs to the compiled model, not to a reset of its dynamic state.
         self.revisions = {scene: uuid.uuid4().hex for scene in self.models}
         self.visual_cache = {}
@@ -152,7 +157,7 @@ class MuJoCoBackend:
         self.chorus = None
         self.selected = "a"
         progress("settling", 0, 1)
-        self.load("ball")
+        self.load(initial_scenes[0])
         progress("settling", 1, 1)
 
     def _build(self, scene):

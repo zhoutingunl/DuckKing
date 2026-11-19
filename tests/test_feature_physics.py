@@ -203,6 +203,85 @@ async def test_real_worker_cancel_reset_and_release_are_acknowledged(capability,
         await backend.invoke({"action": action})
 
 
+async def test_single_duck_workbench_reuses_one_worker(tmp_path, monkeypatch):
+    from duckking import asr_client
+    from duckking.config import Settings
+    from duckking.feature_backend import FeatureBackend
+    from duckking.hybrid_voice import HybridVoiceSession
+    from duckking.motion import MotionController
+
+    backend = await FeatureBackend.create(ASSETS, "workbench")
+    try:
+        process, visual = backend.process, backend.geometry()
+        assert visual["physics"] and visual["dynamic_geometry"]
+        assert {geom["duck"] for geom in visual["geoms"] if geom["duck"]} == {"a"}
+        geometry_ids = {geom["id"] for geom in visual["geoms"]}
+        for name, policy in (
+            ("sit", "movement"), ("hop", "hop"), ("recover_back", "standup"),
+            ("stand", "movement"), ("recover_front", "standup"),
+        ):
+            result = await backend.invoke({"action": name}, wait=True)
+            state = await backend.snapshot()
+            assert result["verified"] is True, result
+            assert state["workbench_policy"] == policy
+            assert state["revision"] == visual["revision"]
+            assert [duck["id"] for duck in state["ducks"]] == ["a"]
+            assert {geom["id"] for geom in state["geoms"]} <= geometry_ids
+            assert backend.process is process and backend.geometry() is visual
+        assert result["restarted"] is True  # The second recovery uses its prescribed initial pose.
+
+        first = await backend.invoke({"action": "run", "request_id": "workbench-stop"})
+        assert first["status"] == "running"
+        await backend.stop()
+        state = await backend.snapshot()
+        assert state["feature"]["status"] == "cancelled"
+        frozen = state["sim_time"]
+        await asyncio.sleep(0.6)
+        assert (await backend.snapshot())["sim_time"] == frozen
+
+        text = "点头0.2秒，再坐下，最后站起来"
+        messages = []
+
+        async def recognize(pcm):
+            return {"text": text, "speech": True, "asr_ms": 120}
+
+        async def send(message):
+            messages.append(message)
+
+        async def fallback(pcm, reason):
+            messages.append({"reason": reason})
+
+        monkeypatch.setattr(asr_client, "recognize", recognize)
+        voice = HybridVoiceSession(send, MotionController(backend), Settings(data_dir=tmp_path))
+        monkeypatch.setattr(voice, "_fallback", fallback)
+        await voice.open()
+        try:
+            await voice.listen(True)
+            await voice.audio(bytes(1920))
+            await voice.listen(False)
+            await voice.processing
+            state = await backend.snapshot()
+            assert state["revision"] == visual["revision"]
+            results = state["feature"]["results"]
+            assert [r["action"] for r in results[-3:]] == ["nod", "sit", "stand"]
+            assert all(r["verified"] for r in results[-3:])
+            assert any(
+                m.get("feedback") == "completed" and m["source"] == "local" for m in messages
+            )
+
+            text = "先点头，再进入双鸭场景"
+            await voice.listen(True)
+            await voice.audio(bytes(1920))
+            await voice.listen(False)
+            await voice.processing
+            assert messages[-1] == {"reason": "unsupported_context"}
+            assert (await backend.snapshot())["feature"]["results"] == results
+        finally:
+            await voice.disconnect()
+    finally:
+        await backend.close()
+
+
 async def test_ball_policy_is_blind_and_memory_resets(runtime):
     import mujoco
     import numpy as np

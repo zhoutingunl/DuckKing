@@ -127,17 +127,20 @@ export function physicsView(container,{label=null,onCameraChange}={}) {
     for(const {object} of renderBatches)object.dispose();
     world.clear();geometries.forEach(g=>g.dispose());materials.forEach(m=>m.dispose());textures.forEach(t=>t.dispose());
     geometries=[];materials=[];textures=[];renderBatches=[];readyToRender=false;revision=null;latest=null;selection=null;headingGuide=null;headingTexture=null;centerGuide=null;
+    dynamicGeometry=false;activeGeoms.clear();
     floor.position.set(0,0,0);grid.position.set(0,.0001,0);
-    caption.hidden=true;objects.clear();labels.clear();annotations.clear();parts={};delete container.dataset.choraleParts;renderer.renderLists.dispose();appearance.setDucks([]);delete container.dataset.renderedScene;
+    caption.hidden=true;objects.clear();labels.clear();annotations.clear();parts={};delete container.dataset.choraleParts;renderer.renderLists.dispose();appearance.setDucks([]);delete container.dataset.renderedScene;delete container.dataset.renderedPolicy;
     delete container.dataset.headingTarget;
     delete container.dataset.headingSurface;
     delete container.dataset.centerTarget;
     delete container.dataset.centerSurface;
     renderer.shadowMap.needsUpdate=true;invalidate();
   }
+  let dynamicGeometry=false,activeGeoms=new Set();
+  const hiddenMatrix=new THREE.Matrix4().makeScale(0,0,0);
   function load(model){
     if(disposed)return;
-    clear();const meshes=new Map(),shared=new Map();
+    clear();dynamicGeometry=model.dynamic_geometry===true;const meshes=new Map(),shared=new Map();
     const decode=value=>Uint8Array.from(atob(value),char=>char.charCodeAt(0)).buffer;
     for(const [id,value] of Object.entries(model.meshes)){
       const key=value.positions&&value.indices?`${value.positions.byteOffset}:${value.positions.length}:${value.indices.byteOffset}:${value.indices.length}`:null;
@@ -170,6 +173,7 @@ export function physicsView(container,{label=null,onCameraChange}={}) {
       object.castShadow=object.receiveShadow=true;object.frustumCulled=false;object.userData.geoms=batch.geoms.map(geom=>geom.id);
       object.instanceMatrix.setUsage(THREE.DynamicDrawUsage);world.add(object);
       batch.geoms.forEach((geom,index)=>objects.set(geom.id,{object,index}));
+      if(dynamicGeometry)for(let index=0;index<batch.geoms.length;index++)object.setMatrixAt(index,hiddenMatrix);
       renderBatches.push({object,geoms:batch.geoms});
     }
     repaint();appearance.setDucks(model.geoms.map(geom=>geom.duck));
@@ -177,6 +181,7 @@ export function physicsView(container,{label=null,onCameraChange}={}) {
   }
   function update(state){
     if(disposed)return;
+    const previous=latest;
     latest=state;
     if(state.stage&&(selection?.instance!==state.stage.instance||state.stage.selection_version>selection.selection_version)){selection=state.stage;invalidate()}
     if(state.revision!==revision)return;
@@ -185,7 +190,7 @@ export function physicsView(container,{label=null,onCameraChange}={}) {
     if(captionStatus.hidden===functional)captionStatus.hidden=!functional;
     if(functional){
       const states={idle:'等待指令',running:'正在执行',completed:'任务完成',failed:'本轮未完成',cancelled:'任务已取消'};
-      const text=translate(state.feature.phase==='preparing'?'正在准备场景':states[state.feature.status]??'等待指令');
+      const text=translate(state.feature.phase==='preparing'?(state.workbench_policy?'准备新一轮':'正在准备场景'):states[state.feature.status]??'等待指令');
       if(captionStatus.textContent!==text)captionStatus.textContent=text;
     }
     updateHeadingGuide(state);
@@ -197,13 +202,34 @@ export function physicsView(container,{label=null,onCameraChange}={}) {
       }
       const [x,y,z]=duck.position;labels.get(duck.id).position.set(x,y,z+.20);
     }
-    for(const point of state.annotations??[]){
+    const points=state.annotations??[];
+    if(dynamicGeometry){
+      const visible=new Set(points.map(point=>point.id));
+      for(const [id,sprite] of annotations)if(sprite.visible&&!visible.has(id)){sprite.visible=false;invalidate()}
+    }
+    for(const point of points){
       let sprite=annotations.get(point.id);
       if(!sprite){const canvas=document.createElement('canvas');canvas.width=256;canvas.height=64;const texture=new THREE.CanvasTexture(canvas);textures.push(texture);const material=new THREE.SpriteMaterial({map:texture,depthTest:false});materials.push(material);sprite=new THREE.Sprite(material);sprite.scale.set(.18,.045,1);world.add(sprite);annotations.set(point.id,sprite)}
       if(sprite.userData.text!==point.text){sprite.userData.text=point.text;paintAnnotation(sprite);invalidate()}
+      if(!sprite.visible){sprite.visible=true;invalidate()}
       sprite.position.set(...point.position);
     }
     const changed=new Set();
+    if(dynamicGeometry){
+      const ids=new Set(state.geoms.map(geom=>geom.id));
+      for(const id of activeGeoms){
+        if(ids.has(id))continue;
+        const entry=objects.get(id);
+        if(!entry)continue;
+        entry.object.setMatrixAt(entry.index,hiddenMatrix);entry.pose=null;changed.add(entry.object);
+      }
+      activeGeoms=ids;
+      if(manualView&&previous?.workbench_policy&&previous.workbench_policy!==state.workbench_policy){
+        const [x,y]=state.ducks[0].position,[prevX,prevY]=previous.ducks[0].position;
+        const delta=new THREE.Vector3(x-prevX,0,prevY-y);
+        camera.position.add(delta);controls.target.add(delta);controls.update();invalidate();
+      }
+    }
     for(const geom of state.geoms){const entry=objects.get(geom.id);if(!entry)continue;
       const {object,index}=entry,r=geom.rotation;
       // Paused backends still send snapshots. Do not upload identical transforms.
@@ -302,7 +328,11 @@ export function physicsView(container,{label=null,onCameraChange}={}) {
       const chosen=latest?.scene==='stage'&&selection?.selected?.includes(id)?latest.ducks.find(d=>d.id===id):null;
       ring.visible=Boolean(chosen&&interaction);if(chosen)ring.position.set(chosen.position[0],.007,-chosen.position[1]);
     }
-    renderer.render(scene,camera);if(readyToRender)container.dataset.renderedScene=latest.scene;
+    renderer.render(scene,camera);
+    if(readyToRender){
+      container.dataset.renderedScene=latest.scene;
+      if(latest.workbench_policy)container.dataset.renderedPolicy=latest.workbench_policy;
+    }
     return moving;
   }
   scheduler=renderScheduler(draw,{interval:()=>reduced?100:seatedView?66:33});setVisibility();resize();

@@ -370,12 +370,42 @@ CATALOG = {
     ),
 }
 
+WORKBENCH = "workbench"
+WORKBENCH_GROUPS = {
+    "movement": (
+        *CATALOG["movement"]["commands"], "strafe_left", "strafe_right", "shake_head", "tilt_head",
+        "flash_step", "bear_shake", "look_left", "look_right", "look_forward", "look_down",
+        "roulade", "ground_pick", "yawn", "idle_on", "idle_off",
+    ),
+    **{
+        capability: CATALOG[capability]["commands"]
+        for capability in (
+            "hop", "running", "footsteps", "runup_roll", "flamingo", "standup",
+            "acrobatics", "emotions",
+        )
+    },
+}
+WORKBENCH_ACTIONS = {
+    action: capability
+    for capability, actions in WORKBENCH_GROUPS.items()
+    for action in actions
+}
+WORKBENCH_ENTRY = item(
+    1, "MuJoCo 平地动作", "单鸭平地动作，各动作沿用经过适配的物理模型和起始条件。",
+    "运动", list(WORKBENCH_ACTIONS), source="duckking_workbench_pinned_policies",
+)
+
+
+def capability_entry(capability):
+    # The workbench is an entry point for existing skills, not a ranked scene.
+    return WORKBENCH_ENTRY if capability == WORKBENCH else CATALOG.get(capability)
+
 
 class FeatureCommand(BaseModel):
     model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
     operation: str = "start"
     action: str | None = None
-    duration: float = Field(default=3, ge=0.5, le=36)
+    duration: float = Field(default=3, ge=0.2, le=36)
     speed: float = Field(default=0.18, ge=0.02, le=0.3)
     order: list[str] = Field(
         default_factory=lambda: ["a", "b", "c", "d"], min_length=1, max_length=8
@@ -383,19 +413,25 @@ class FeatureCommand(BaseModel):
     request_id: str | None = Field(default=None, min_length=1, max_length=100)
 
     def check(self, capability):
-        if capability not in CATALOG:
+        entry = capability_entry(capability)
+        if entry is None:
             raise ValueError("未知功能场景")
         if self.operation not in {"start", "stop", "reset", "status"}:
             raise ValueError("不支持的功能场景操作")
-        if self.operation == "start" and self.action not in CATALOG[capability]["commands"]:
+        if self.operation == "start" and self.action not in entry["commands"]:
             raise ValueError("当前场景不支持这个动作，请使用页面列出的指令")
+        if capability == WORKBENCH and WORKBENCH_ACTIONS.get(self.action) == "movement":
+            if self.duration > 3:
+                raise ValueError("工作台移动动作最多执行 3 秒")
+        elif self.duration < 0.5:
+            raise ValueError("功能场景时长至少为 0.5 秒")
         if any(member not in {"a", "b", "c", "d"} for member in self.order):
             raise ValueError("合唱成员必须为 A、B、C 或 D")
         return self
 
 
 def voice_tools(capability):
-    entry = CATALOG[capability]
+    entry = capability_entry(capability)
     schema = FeatureCommand.model_json_schema()
     schema["properties"]["operation"]["enum"] = ["start", "stop", "reset", "status"]
     schema["properties"]["action"] = {"type": "string", "enum": entry["commands"]}
@@ -403,10 +439,18 @@ def voice_tools(capability):
     if capability != "movement":
         for field in ("duration", "speed"):
             schema["properties"].pop(field)
+    else:
+        schema["properties"]["duration"]["minimum"] = 0.5
     if capability == "director":
         schema["properties"]["order"]["items"] = {"type": "string", "enum": ["a", "b", "c", "d"]}
     else:
         schema["properties"].pop("order")
+    details = "这里只能控制一只小鸭，所有动作都在平地完成。" if capability == WORKBENCH else (
+        "回窝只有仿真接通与虚拟电量，不是真实电气充电。"
+        "只有四鸭导演的 order 选择成员次序，成员用小写 a/b/c/d；"
+        "只有认识小鸭提供 duration（仿真秒数）和 speed（米/秒），其他技能时长固定。"
+        "音乐为本地播放，语音理解与对话才来自灵矽。"
+    )
     return [
         {
             "name": "duck_feature",
@@ -418,10 +462,7 @@ def voice_tools(capability):
                 "动作不可用时按返回原因解释，不能让用户反复点击无效按钮。受理不等于完成，"
                 "必须按 verified 和失败原因"
                 "回答。pending=true 表示还在执行，不得说已成功。不能声称临时训练出新技能。"
-                "回窝只有仿真接通与虚拟电量，不是真实电气充电。"
-                "只有四鸭导演的 order 选择成员次序，成员用小写 a/b/c/d；"
-                "只有认识小鸭提供 duration（仿真秒数）和 speed（米/秒），其他技能时长固定。"
-                "音乐为本地播放，语音理解与对话才来自灵矽。"
+                f"{details}"
             ),
             "inputSchema": schema,
         }

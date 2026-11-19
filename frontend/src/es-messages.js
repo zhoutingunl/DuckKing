@@ -165,6 +165,8 @@ export const spanishMessages = {
   "当前已经对接，请先离窝。": "Ya está acoplado. Primero sal del nido.",
   "跳绳物理实验未能继续；再次点击动作会自动准备新一轮。": "El experimento físico de saltar la cuerda no pudo continuar. La siguiente acción prepara una nueva ronda automáticamente.",
   "物理进程已退出，请重新准备场景。": "El proceso físico ha finalizado. Vuelve a preparar la escena.",
+  "准备新一轮": "Preparando el siguiente intento",
+  "该动作的物理策略暂不可用。": "La política física de este movimiento no está disponible.",
   "这个动作从起点开始，正在准备新一轮。": "Preparando una nueva ronda desde el punto de inicio.",
   "正在恢复场景，准备执行新指令。": "Restaurando la escena antes de la nueva orden.",
   "小鸭失稳，正在自动恢复起点。": "El pato perdió el equilibrio; restaurando la pose inicial.",

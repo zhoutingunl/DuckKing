@@ -22,6 +22,7 @@ from .config import Settings
 from .deployment import DeploymentStatus
 from .diagnostics import VoiceDiagnostics
 from .experience import ExperienceBatch, ExperienceContext, ExperienceStore, VoiceExperience
+from .feature_catalog import WORKBENCH
 from .geo import RegionResolver
 from .hybrid_voice import HybridVoiceSession
 from .model_metrics import ModelLoadMetrics
@@ -844,11 +845,12 @@ def create_app(
                             mode = "cloud"
                         if mode not in {"cloud", "local_first"}:
                             raise ValueError("未知语音模式")
-                        if mode != "cloud" and getattr(voice_motion.backend, "scene", None) in {
-                            "balance",
-                            "seesaw",
-                            "functional",
-                        }:
+                        if (
+                            mode != "cloud"
+                            and getattr(voice_motion.backend, "scene", None)
+                            in {"balance", "seesaw", "functional"}
+                            and getattr(voice_motion.backend, "capability", None) != WORKBENCH
+                        ):
                             raise ValueError("此场景使用灵矽理解，请选择灵矽模式")
                         if (
                             mode == "local_first"

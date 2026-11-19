@@ -3,6 +3,7 @@
 import asyncio
 from contextlib import suppress
 
+from .feature_catalog import WORKBENCH
 from .motion import Action, MotionController
 from .simulation import MuJoCoBackend
 
@@ -96,6 +97,10 @@ class ExistingWorld:
 
 
 def make_world(assets, capability, *, variant=None):
+    if capability == WORKBENCH:
+        from .workbench_world import WorkbenchWorld
+
+        return WorkbenchWorld(assets, make_world)
     if capability == "acrobatics":
         from .feature_acrobatics import AcrobaticsWorld
 

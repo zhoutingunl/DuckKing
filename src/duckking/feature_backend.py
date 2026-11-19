@@ -174,23 +174,26 @@ class FeatureBackend:
                 while len(self.records) > 60:
                     self.records.popitem(last=False)
         if wait and command.operation == "start":
-            for _ in range(300):
-                if self.error or self.closed:
-                    raise ValueError(self.error or "场景已释放")
-                state = self.state or {}
-                outcomes = state.get("feature", {}).get("results", [])
-                done = next((r for r in outcomes if r["id"] == request_id), None)
-                if done:
-                    return {**done, "operation_failed": done["status"] != "completed"}
-                await asyncio.sleep(0.05)
-            return {
-                "id": request_id,
-                "status": "running",
-                "verified": None,
-                "pending": True,
-                "message": "任务仍在执行，尚无最终结果；可查询状态或停止",
-            }
+            return await self.wait_for_result(request_id)
         return result
+
+    async def wait_for_result(self, request_id):
+        for _ in range(300):
+            if self.error or self.closed:
+                raise ValueError(self.error or "场景已释放")
+            state = self.state or {}
+            outcomes = state.get("feature", {}).get("results", [])
+            done = next((r for r in outcomes if r["id"] == request_id), None)
+            if done:
+                return {**done, "operation_failed": done["status"] != "completed"}
+            await asyncio.sleep(0.05)
+        return {
+            "id": request_id,
+            "status": "running",
+            "verified": None,
+            "pending": True,
+            "message": "任务仍在执行，尚无最终结果；可查询状态或停止",
+        }
 
     def tools(self):
         return voice_tools(self.capability)
