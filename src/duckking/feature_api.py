@@ -10,7 +10,7 @@ from fastapi import HTTPException, Query
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, ConfigDict
 
-from .feature_catalog import CATALOG, FeatureCommand
+from .feature_catalog import CATALOG, WORKBENCH, FeatureCommand, capability_entry
 from .motion import MotionController
 from .scene_discovery import SceneDiscovery, VisitEvent
 
@@ -57,7 +57,7 @@ def install_feature_api(app, get_room, root):
 
     @app.post("/api/features/prepare")
     async def prepare(body: Selection, room: str = "1"):
-        if body.capability not in CATALOG:
+        if capability_entry(body.capability) is None:
             raise HTTPException(422, "未知功能场景")
         if body.variant is not None and body.capability != "stilts":
             raise HTTPException(422, "当前场景没有高跷高度设置")
@@ -66,12 +66,20 @@ def install_feature_api(app, get_room, root):
             current = selected.scene_motion
             if (
                 current
-                and not body.replace
                 and getattr(current.backend, "scene", None) == "functional"
                 and current.backend.capability == body.capability
                 and getattr(current.backend, "variant", None) == body.variant
                 and not current.backend.error
                 and not current.backend.closed
+                and (
+                    not body.replace
+                    or (
+                        body.capability == WORKBENCH
+                        and not (current.backend.state or {}).get("feature", {}).get(
+                            "recovery_required"
+                        )
+                    )
+                )
             ):
                 return await current.snapshot()
             if current and not body.replace:

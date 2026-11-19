@@ -1,5 +1,4 @@
 import {actionEventText, actionLabels, resultLabels} from './action-labels.js';
-import {createChorus} from './chorus.js';
 import {featureActionLabels} from './feature-action-labels.js';
 import {FeatureAudio} from './feature-audio.js';
 import {requestId} from './ids.js';
@@ -10,26 +9,22 @@ import {stopRoomScene} from './scene-stop.js';
 import {appURL} from './urls.js';
 
 const groups = [
-  {scene: 'skills', title: '动作练习场', actions: [
+  {title: '动作练习场', actions: [
     'sit', 'stand', 'look_left', 'look_right', 'look_forward', 'look_down', 'roulade', 'ground_pick',
     'yawn', 'idle_on', 'idle_off',
   ]},
-  {feature: 'hop', actions: ['hop']},
-  {feature: 'running', actions: ['run']},
-  {feature: 'footsteps', actions: ['steps']},
-  {feature: 'runup_roll', actions: ['try_trick']},
-  {feature: 'flamingo', title: '单脚站稳', actions: ['lift_left', 'lift_right', 'lower']},
-  {feature: 'standup', title: '自己站起来', actions: ['recover_back', 'recover_front']},
-  {feature: 'acrobatics', title: '倒立头旋连续技', actions: [
+  {actions: ['hop', 'run', 'steps', 'try_trick']},
+  {title: '单脚站稳', actions: ['lift_left', 'lift_right', 'lower']},
+  {title: '自己站起来', actions: ['recover_back', 'recover_front']},
+  {title: '倒立头旋连续技', actions: [
     'routine', 'backroll', 'headstand', 'spin_left', 'spin_right',
   ]},
-  {feature: 'emotions', title: '小鸭的心情', actions: [
+  {title: '小鸭的心情', actions: [
     'sad', 'devastated', 'curious', 'mmh', 'yes', 'yes_fast', 'no', 'defiant', 'angry', 'mock',
     'excited', 'impatient', 'laugh',
   ]},
-  {scene: 'duo', title: '双鸭互动', actions: ['duo_walk', 'collide', 'find_companion', 'chorus']},
-  {scene: 'stage', title: '四鸭舞台', actions: ['stage_gather', 'stage_roll', 'stage_dance', 'stage_poke']},
 ];
+const emotions = groups.at(-1).actions;
 const label = name => name === 'try_trick' ? '助跑前滚翻' : actionLabels[name] ?? featureActionLabels[name] ?? name;
 
 async function api(path, body, signal = AbortSignal.timeout(95000)) {
@@ -61,17 +56,10 @@ export function setupWorkbenchPhysics({voice, notify, appendLog, onState, onMode
   const $ = id => document.getElementById(id);
   const element = $('workbench-physics'), loading = createLoadingState($('workbench-physics-loading'));
   const sound = new FeatureAudio(), loadModel = createPhysicsModelLoader();
-  let group, floor, viewer, feed, latest, revision, ready = false, pending, cancelLoad, stopping = false, chorus;
+  let active = false, floor, viewer, feed, latest, revision, ready = false, pending, cancelLoad, stopping = false;
   let seenEvents = 0, seenResults = new Set();
-  const matches = (candidate, state) => state && (candidate.feature
-    ? state.scene === 'functional' && state.feature?.capability === candidate.feature
-    : state.scene === candidate.scene);
+  const matches = state => state?.scene === 'functional' && state.feature?.capability === 'workbench';
   const guarded = path => `${path}?expected_revision=${encodeURIComponent(revision)}`;
-  function stopSound() { sound.stop(); chorus?.stop(); }
-  function enableChorus() {
-    chorus ??= createChorus(text => appendLog(text, '本地演示'));
-    return chorus.enable();
-  }
 
   function updateButtons() {
     const busy = !!pending || stopping;
@@ -81,14 +69,14 @@ export function setupWorkbenchPhysics({voice, notify, appendLog, onState, onMode
   }
 
   function update(packet) {
-    if (!group || !ready) return;
+    if (!active || !ready) return;
     const state = packet.backend;
-    if (!matches(group, state) || state.revision !== revision) {
+    if (!matches(state) || state.revision !== revision) {
       ready = false;
       revision = null;
       latest = null;
       viewer.clear();
-      stopSound();
+      sound.stop();
       loading.reset('房间场景已更新，请重新选择动作。');
       onState(null, '场景已切换');
       updateButtons();
@@ -96,10 +84,7 @@ export function setupWorkbenchPhysics({voice, notify, appendLog, onState, onMode
     }
     latest = state;
     viewer.update(state);
-    if (!stopping) {
-      sound.update(state.feature);
-      chorus?.update(state.chorus);
-    }
+    if (!stopping) sound.update({...state.feature, capability: state.workbench_policy});
     for (const event of packet.events ?? []) {
       if (event.id <= seenEvents) continue;
       seenEvents = event.id;
@@ -120,27 +105,20 @@ export function setupWorkbenchPhysics({voice, notify, appendLog, onState, onMode
       ?? (feature && feature.status !== 'idle' ? feature.message : null));
   }
 
-  async function prepare(candidate, signal) {
+  async function prepare(signal) {
     ready = false;
     revision = null;
     latest = null;
     viewer?.clear();
-    stopSound();
+    sound.stop();
     onState(null, '正在准备场景');
     const session = loading.begin({cancel: () => void control('stop')});
     try {
       let packet = await api('api/scenes/state');
-      if (!matches(candidate, packet.backend) || packet.backend.error) {
-        if (candidate.feature) {
-          packet = await api('api/features/prepare', {capability: candidate.feature, replace: true});
-        } else {
-          await waitForAction(await api('api/scenes/start', {
-            name: `scene_${candidate.scene}`, request_id: requestId(),
-          }));
-          packet = await api('api/scenes/state');
-        }
+      if (!matches(packet.backend) || packet.backend.error || packet.backend.feature.recovery_required) {
+        packet = await api('api/features/prepare', {capability: 'workbench', replace: true});
       }
-      if (!matches(candidate, packet.backend)) throw Error('房间场景已更新，请重新选择动作。');
+      if (!matches(packet.backend)) throw Error('房间场景已更新，请重新选择动作。');
       const state = packet.backend;
       revision = state.revision;
       signal.throwIfAborted();
@@ -155,7 +133,7 @@ export function setupWorkbenchPhysics({voice, notify, appendLog, onState, onMode
       });
       signal.throwIfAborted();
       viewer.load(model);
-      viewer.frameScene(state.view_scene ?? state.scene);
+      viewer.frameScene('skills');
       viewer.update(state);
       viewer.renderNow();
       seenEvents = packet.events?.at(-1)?.id ?? 0;
@@ -173,16 +151,17 @@ export function setupWorkbenchPhysics({voice, notify, appendLog, onState, onMode
     }
   }
 
-  function run(candidate, name) {
+  function run(name) {
     if (pending || stopping) return;
-    const cloudOnly = !!candidate.feature || candidate.scene === 'stage';
-    if ((candidate !== group || !ready || latest?.error) && !voice.setTarget('/scene-voice', cloudOnly, {requireIdle: true})) {
+    const needsPreparation = !ready || latest?.error || latest?.feature?.recovery_required;
+    if (needsPreparation && !voice.setTarget('/scene-voice', false, {requireIdle: true})) {
       notify('请先断开当前语音，再切换功能场景');
       return;
     }
-    const soundReady = (candidate.feature === 'emotions' ? sound.enable().then(() => sound.load(name))
-      : name === 'chorus' ? enableChorus() : null)?.then(() => null, error => error);
-    group = candidate;
+    const soundReady = emotions.includes(name)
+      ? sound.enable().then(() => sound.load(name)).then(() => null, error => error)
+      : null;
+    active = true;
     onMode(true);
     feed ??= sceneStateFeed({
       readState: signal => api('api/scenes/state', null, signal),
@@ -191,20 +170,13 @@ export function setupWorkbenchPhysics({voice, notify, appendLog, onState, onMode
     });
     const controller = cancelLoad = new AbortController();
     pending = (async () => {
-      if (!ready || !matches(candidate, latest) || latest.error) await prepare(candidate, controller.signal);
+      if (needsPreparation) await prepare(controller.signal);
       const audioError = await soundReady;
       controller.signal.throwIfAborted();
-      if (audioError) throw audioError;
       const action = latest?.feature?.actions?.[name];
       if (action?.enabled === false) throw Error(action.reason);
-      const body = {request_id: requestId()};
-      if (candidate.scene === 'stage') {
-        if (name === 'stage_poke') body.member = 'a';
-        else body.members = ['a', 'b', 'c', 'd'];
-      }
-      await (candidate.feature
-        ? api(guarded('api/features/command'), {...body, operation: 'start', action: name})
-        : api(guarded('api/scenes/actions'), {...body, name}));
+      if (audioError) throw audioError;
+      await api(guarded('api/features/command'), {operation: 'start', action: name, duration: 1.2, request_id: requestId()});
       await feed.refresh();
     })().catch(error => { if (!controller.signal.aborted) notify(error.message); }).finally(() => {
       pending = cancelLoad = null;
@@ -217,7 +189,7 @@ export function setupWorkbenchPhysics({voice, notify, appendLog, onState, onMode
     if (stopping || (name !== 'stop' && pending)) return;
     stopping = true;
     cancelLoad?.abort();
-    stopSound();
+    sound.stop();
     updateButtons();
     try {
       await pending;
@@ -244,13 +216,13 @@ export function setupWorkbenchPhysics({voice, notify, appendLog, onState, onMode
       return;
     }
     stopping = true;
-    stopSound();
+    sound.stop();
     updateButtons();
     try {
       if (revision) await api(guarded('api/scenes/close'), {});
     } catch (error) {
       if (error.code !== 'scene_changed') {
-        voice.setTarget('/scene-voice', !!group.feature || group.scene === 'stage');
+        voice.setTarget('/scene-voice', false);
         notify(error.message);
         return;
       }
@@ -259,8 +231,8 @@ export function setupWorkbenchPhysics({voice, notify, appendLog, onState, onMode
       updateButtons();
     }
     feed?.close();
-    feed = latest = group = revision = null;
-    ready = false;
+    feed = latest = revision = null;
+    active = ready = false;
     viewer?.dispose();
     viewer = null;
     onMode(false);
@@ -271,7 +243,7 @@ export function setupWorkbenchPhysics({voice, notify, appendLog, onState, onMode
   singleMoves.className = 'flat-single-actions action-grid';
   for (const candidate of groups) {
     let grid = singleMoves;
-    if (candidate.actions.length === 1) {
+    if (!candidate.title) {
       if (!singleMoves.isConnected) $('flat-action-groups').append(singleMoves);
     } else {
       const fieldset = document.createElement('fieldset');
@@ -288,16 +260,14 @@ export function setupWorkbenchPhysics({voice, notify, appendLog, onState, onMode
       button.type = 'button';
       button.dataset.flatAction = name;
       button.textContent = label(name);
-      button.addEventListener('click', () => run(candidate, name));
+      button.addEventListener('click', () => run(name));
       grid.append(button);
     }
   }
 
   for (const id of ['connect-voice', 'enable-sound']) $(id).addEventListener('click', () => {
-    if (group?.scene === 'duo') void enableChorus().catch(error => notify(error.message));
-    if (group?.feature === 'emotions') {
-      const actions = group.actions;
-      void sound.enable().then(() => Promise.all(actions.map(name => sound.load(name))))
+    if (active && (latest?.feature?.actions?.[emotions[0]]?.enabled ?? false)) {
+      void sound.enable().then(() => Promise.all(emotions.map(name => sound.load(name))))
         .catch(error => notify(error.message));
     }
   });
@@ -305,18 +275,17 @@ export function setupWorkbenchPhysics({voice, notify, appendLog, onState, onMode
     cancelLoad?.abort();
     feed?.close();
     viewer?.dispose();
-    chorus?.dispose();
     void sound.close();
   }, {once: true});
 
   return {
-    get active() { return !!group; },
+    get active() { return active; },
     action(name) {
       if (name === 'stop' || name === 'reset') void control(name);
-      else run(groups[0], name);
+      else run(name);
     },
     voiceUnavailable() {
-      return group && (!ready || pending || stopping || !feed.fresh() || latest?.error)
+      return active && (!ready || pending || stopping || !feed.fresh() || latest?.error || latest?.feature?.recovery_required)
         ? '请等小鸭显示后再开始。' : '';
     },
     setGround(style) { floor = style; element.dataset.groundStyle = style; viewer?.setGround(style); },

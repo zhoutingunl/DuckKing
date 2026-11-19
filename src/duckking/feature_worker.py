@@ -9,7 +9,7 @@ from collections import deque
 from contextlib import suppress
 from pathlib import Path
 
-from .feature_catalog import CATALOG, FeatureCommand
+from .feature_catalog import WORKBENCH, FeatureCommand, capability_entry
 from .feature_lifecycle import start_plan
 
 RESET_TIMEOUT = 10
@@ -19,6 +19,7 @@ RESET_CANCEL_TIMEOUT = 3
 class Worker:
     def __init__(self, world, capability, revision, output):
         self.world, self.capability = world, capability
+        self.entry = capability_entry(capability)
         self.revision, self.output = revision, output
         self.task = None
         self.results = deque(maxlen=60)
@@ -30,6 +31,8 @@ class Worker:
     def plan(self, state, action):
         if self.recovery_error:
             return {"mode": "blocked", "reason": self.recovery_error}
+        if self.capability == WORKBENCH:
+            return self.world.plan(state, action)
         return start_plan(self.world, self.capability, self.current, state, action)
 
     def emit(self, message):
@@ -40,7 +43,7 @@ class Worker:
         state = await self.world.snapshot()
         preparing = self.current.get("phase") == "preparing"
         actions = {}
-        for action in CATALOG[self.capability]["commands"]:
+        for action in self.entry["commands"]:
             plan = self.plan(state, action)
             actions[action] = {
                 "enabled": plan["mode"] != "blocked" and not preparing,
@@ -54,8 +57,8 @@ class Worker:
             "feature": {
                 **self.current,
                 "capability": self.capability,
-                "source": CATALOG[self.capability]["source"],
-                "observation": CATALOG[self.capability]["observation"],
+                "source": self.entry["source"],
+                "observation": self.entry["observation"],
                 "results": list(self.results),
                 "metrics": self.world.metrics,
                 "actions": actions,
@@ -65,7 +68,7 @@ class Worker:
             },
         }
 
-    async def cancel(self):
+    async def cancel(self, next_action=None):
         if self.task and not self.task.done():
             self.task.cancel()
             with suppress(asyncio.CancelledError):
@@ -81,7 +84,10 @@ class Worker:
                 self.results.append(dict(self.current))
         self.task = None
         try:
-            await self.world.stop()
+            if self.capability == WORKBENCH:
+                await self.world.stop(next_action)
+            else:
+                await self.world.stop()
         except Exception:
             self.recovery_error = "场景停止失败，请重新准备场景。"
             self.stop_unconfirmed = True
@@ -152,7 +158,10 @@ class Worker:
         finally:
             if not self.stop_unconfirmed:
                 try:
-                    await self.world.stop()
+                    if self.capability == WORKBENCH:
+                        await self.world.finish()
+                    else:
+                        await self.world.stop()
                 except Exception:
                     self.recovery_error = "场景停止失败，请重新准备场景。"
                     self.stop_unconfirmed = True
@@ -179,7 +188,7 @@ class Worker:
                     if plan["mode"] == "blocked":
                         raise ValueError(plan["reason"])
                 if command.operation != "status":
-                    await self.cancel()
+                    await self.cancel(command.action if command.operation == "start" else None)
                 if command.operation == "reset":
                     await self.reset_world()
                     self.recovery_error = None
@@ -189,6 +198,8 @@ class Worker:
                     plan = self.plan(await self.world.snapshot(), command.action)
                     if plan["mode"] == "blocked":
                         raise ValueError(plan["reason"])
+                    if self.capability == WORKBENCH:
+                        self.world.activate(command.action)
                     self.world.metrics = {}
                     self.current = {
                         "id": command.request_id,
@@ -231,7 +242,7 @@ class Worker:
 async def main(output):
     assets, capability, revision = sys.argv[1:4]
     variant = int(sys.argv[4]) if len(sys.argv) == 5 else None
-    if capability not in CATALOG:
+    if capability_entry(capability) is None:
         raise ValueError("未知功能场景")
     assets = await asyncio.to_thread(Path(assets).resolve)
     sys.path.insert(0, str(assets / "features/bam"))

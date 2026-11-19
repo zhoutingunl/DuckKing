@@ -37,7 +37,7 @@
 | 页面 | 可以做什么 |
 |---|---|
 | [TOP / 最新场景](https://duck.qbox.net/features.html?sort=top) | 四十一项功能，按人气、加入时间和类别浏览；选择后自动准备，不自动开赛 |
-| [语音工作台](https://duck.qbox.net/index.html) | 基础移动、头部动作和舞步；展开「MuJoCo 平地动作」可直接尝试坐下与起身、跳跃、单脚站立、快跑、落足、滚翻、倒立头旋、情绪以及双鸭和四鸭编排。地面外观默认随机，手动选择会记在当前浏览器 |
+| [语音工作台](https://duck.qbox.net/index.html) | 基础移动、头部动作和舞步。展开「MuJoCo 平地动作」可在同一舞台尝试单鸭坐下与起身、跳跃、单脚站立、快跑、落足、滚翻、倒立头旋和情绪。地面外观默认随机，浏览器会记住手动选择 |
 | [动作训练场](https://ztmonitor.qbox.net/duckking/scenarios.html) | 单鸭踢球、双鸭互动、嘴部搬运、动作练习场、轮滑；按钮无需启用语音 |
 | [演示场景](https://ztmonitor.qbox.net/duckking/demos.html) | 十三幕逐幕点播；预录对白本地编排与灵矽实连预录指令可现场切换 |
 | [现场互动工坊](https://ztmonitor.qbox.net/duckking/studio.html) | 十项语音任务、本地排练、临场改序与任务控制；真人语音固定走灵矽，见 [使用说明](docs/INTERACTIVE_STUDIO.md) |

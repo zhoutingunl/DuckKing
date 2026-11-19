@@ -166,6 +166,8 @@ export const germanMessages = {
   "当前已经对接，请先离窝。": "Bereits angedockt. Verlasse zuerst das Nest.",
   "跳绳物理实验未能继续；再次点击动作会自动准备新一轮。": "Das Seilspring-Experiment konnte nicht fortgesetzt werden. Die nächste Aktion bereitet automatisch eine neue Runde vor.",
   "物理进程已退出，请重新准备场景。": "Der Physikprozess wurde beendet. Lade die Szene neu.",
+  "准备新一轮": "Nächster Versuch wird vorbereitet",
+  "该动作的物理策略暂不可用。": "Die Physikstrategie für diese Bewegung ist nicht verfügbar.",
   "这个动作从起点开始，正在准备新一轮。": "Eine neue Runde wird vom Startpunkt aus vorbereitet.",
   "正在恢复场景，准备执行新指令。": "Die Szene wird vor dem neuen Befehl wiederhergestellt.",
   "小鸭失稳，正在自动恢复起点。": "Die Ente hat das Gleichgewicht verloren; die Startpose wird wiederhergestellt.",

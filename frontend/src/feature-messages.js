@@ -41,6 +41,8 @@ export const featureMessages = [
  ["当前已经对接，请先离窝。", "Already docked. Leave the dock first.", "Déjà sur le socle. Quitte-le d’abord."],
  ["跳绳物理实验未能继续；再次点击动作会自动准备新一轮。", "The rope experiment could not continue. The next action prepares a fresh round.", "L’expérience de corde s’est arrêtée. La prochaine action prépare un nouvel essai."],
  ["物理进程已退出，请重新准备场景。", "The physics process exited. Reload the scene.", "Le processus physique s’est arrêté. Recharge la scène."],
+ ["准备新一轮", "Preparing the next attempt", "Nouvel essai en préparation"],
+ ["该动作的物理策略暂不可用。", "The physics policy for this move is unavailable.", "La politique physique de ce mouvement est indisponible."],
  ["这个动作从起点开始，正在准备新一轮。", "Preparing a new round from the starting point.", "Préparation d’un nouvel essai depuis le départ."],
  ["正在恢复场景，准备执行新指令。", "Restoring the scene before the new command.", "Rétablissement de la scène avant la nouvelle commande."],
  ["小鸭失稳，正在自动恢复起点。", "The duck lost balance; restoring the starting pose.", "Le canard a perdu l’équilibre ; retour automatique au départ."],

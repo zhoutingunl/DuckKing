@@ -28,30 +28,32 @@ test('workbench keeps training in the navigation and persists only manually chos
   await expect(preview).toHaveAttribute('data-ground-style', 'stage');
   await page.locator('#scene-settings-toggle').click();
   await page.getByText('MuJoCo 平地动作', {exact: true}).click();
-  for (const action of ['sit','roulade','hop','lift_left','recover_back','run','steps','try_trick','headstand','laugh','duo_walk','stage_dance']) {
+  for (const action of ['sit','roulade','hop','lift_left','recover_back','run','steps','try_trick','headstand','laugh']) {
     await expect(page.locator(`[data-flat-action=${action}]`)).toBeVisible();
   }
+  await expect(page.locator('[data-flat-action^=stage_], [data-flat-action=duo_walk], [data-flat-action=collide], [data-flat-action=find_companion], [data-flat-action=chorus]')).toHaveCount(0);
   for (const viewport of [{width: 375, height: 812}, {width: 812, height: 375}]) {
     await page.setViewportSize(viewport);
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(viewport.width);
   }
 });
 
-for (const {action, scene, path, result} of [
-  {action: 'sit', scene: 'skills', path: 'scenes/actions', result: '坐下 · 已完成'},
-  {action: 'hop', scene: 'functional', path: 'features/command', result: '跳一下 · 已完成'},
-]) test(`workbench verifies MuJoCo ${action} and switches back explicitly`, async ({page}) => {
-  test.skip(action === 'hop' && !existsSync(new URL('../../external/features/policies/hop/policy.onnx', import.meta.url)),
-    'Requires the optional hopping policy');
-  test.setTimeout(90000);
-  const voiceChannels = [];
-  if (action === 'sit') await page.routeWebSocket(/\/(?:scene-)?voice(?:\?|$)/, socket => {
+test('workbench prepares once and keeps the same canvas, room and voice across single-duck actions', async ({page}) => {
+  test.setTimeout(120000);
+  const optional = existsSync(new URL('../../external/features/policies/hop/policy.onnx', import.meta.url));
+  const voiceChannels = [], prepares = [], models = [];
+  await page.routeWebSocket(/\/(?:scene-)?voice(?:\?|$)/, socket => {
     voiceChannels.push(new URL(socket.url()).pathname);
     socket.onMessage(message => {
       const {type} = JSON.parse(message);
       if (type === 'connect') socket.send(JSON.stringify({type: 'voice_status', state: 'ready'}));
       if (type === 'disconnect') socket.close();
     });
+  });
+  page.on('request', request => {
+    const path = new URL(request.url()).pathname;
+    if (path === '/api/features/prepare') prepares.push(request.postDataJSON().capability);
+    if (path === '/api/scenes/model.dkm.gz') models.push(request.url());
   });
   await page.request.post('/api/scenes/close?room=1');
   try {
@@ -62,50 +64,57 @@ for (const {action, scene, path, result} of [
     await page.locator('#ground-style').selectOption('checker');
     await page.locator('#scene-settings-toggle').click();
     await page.getByText('MuJoCo 平地动作', {exact: true}).click();
-    const accepted = page.waitForResponse(response =>
-      new URL(response.url()).pathname === `/api/${path}` && response.status() === 202,
-      {timeout: 60000});
-    await page.locator(`[data-flat-action=${action}]`).click();
-    const command = await accepted;
-    const revision = new URL(command.url()).searchParams.get('expected_revision');
-    const stage = page.locator('#workbench-physics');
-    await expect(stage).toBeInViewport();
-    await expect(stage).toHaveAttribute('data-rendered-scene', scene);
+    const stage = page.locator('#workbench-physics'), voice = page.locator('#connect-voice');
+    async function perform(action, result, policy){
+      const accepted = page.waitForResponse(response =>
+        new URL(response.url()).pathname === '/api/features/command'
+        && response.request().postDataJSON()?.action === action,
+        {timeout: 85000});
+      await page.locator(`[data-flat-action=${action}]`).click();
+      const command = await accepted;
+      expect(command.status()).toBe(202);
+      await expect(stage).toBeInViewport();
+      await expect(stage).toHaveAttribute('data-rendered-policy', policy);
+      await expect(page.locator('#activity-log')).toContainText(result, {timeout: 12000});
+      const {backend} = await (await page.request.get('/api/scenes/state?room=1')).json();
+      expect(backend.revision).toBe(new URL(command.url()).searchParams.get('expected_revision'));
+      expect(backend.ducks.map(duck => duck.id)).toEqual(['a']);
+      const actionId = command.request().postDataJSON().request_id;
+      expect(backend.feature.results.find(record => record.id === actionId)?.verified).toBe(true);
+      return backend;
+    }
+    const first = await perform('sit', '坐下 · 已完成', 'movement');
+    await stage.locator('canvas').evaluate(canvas => { window.firstWorkbenchCanvas = canvas; });
     await expect(stage).toHaveAttribute('data-ground-style', 'checker');
     await expect(page.locator('#viewport')).toBeHidden();
     await expect(page.locator('#backend-badge')).toHaveText('MuJoCo 仿真');
-    await expect(page.locator('#activity-log')).toContainText(result, {timeout: 10000});
-    const {backend} = await (await page.request.get('/api/scenes/state?room=1')).json();
-    expect(backend.revision).toBe(revision);
-    const actionId = command.request().postDataJSON().request_id;
-    const outcome = backend.feature?.results.find(record => record.id === actionId)
-      ?? (await (await page.request.get(`/api/scenes/actions/${actionId}?room=1`)).json()).outcome;
-    expect(outcome.verified).toBe(true);
-    for (const [endpoint, data] of [
-      [path, action === 'hop' ? {action} : {name: action}], ['scenes/close', {}],
-    ]) {
-      const response = await page.request.post(`/api/${endpoint}?room=1&expected_revision=stale`, {data});
-      expect(response.status()).toBe(409);
-    }
-    const voice = page.locator('#connect-voice');
-    if (action === 'sit') {
-      await voice.click();
-      await expect(voice).toHaveAttribute('data-state', 'ready');
-      expect(voiceChannels).toEqual(['/scene-voice']);
-      await page.locator('#leave-physics').click();
-      await expect(page.locator('#flat-action-notice')).toContainText('请先断开当前语音');
-      await voice.click();
-      await expect(voice).toHaveAttribute('data-state', 'disconnected');
-    }
+
+    await voice.click();
+    await expect(voice).toHaveAttribute('data-state', 'ready');
+    const next = optional
+      ? await perform('recover_back', '仰卧起身 · 已完成', 'standup')
+      : await perform('stand', '站起来 · 已完成', 'movement');
+    expect(next.revision).toBe(first.revision);
+    if(optional)expect((await perform('hop', '跳一下 · 已完成', 'hop')).revision).toBe(first.revision);
+    else expect(next.feature.actions.hop.enabled).toBe(false);
+    expect(prepares).toEqual(['workbench']);
+    expect(models).toHaveLength(1);
+    expect(await stage.locator('canvas').evaluate(canvas => window.firstWorkbenchCanvas === canvas)).toBe(true);
+    expect(voiceChannels).toEqual(['/scene-voice']);
+    await expect(voice).toHaveAttribute('data-state', 'ready');
+
+    const stale = await page.request.post('/api/features/command?room=1&expected_revision=stale', {data: {action: 'nod'}});
+    expect(stale.status()).toBe(409);
+    await page.locator('#leave-physics').click();
+    await expect(page.locator('#flat-action-notice')).toContainText('请先断开当前语音');
+    await voice.click();
+    await expect(voice).toHaveAttribute('data-state', 'disconnected');
     await page.locator('#leave-physics').click();
     await expect(page.locator('#backend-badge')).toHaveText('动画预览');
-    await expect(page.locator('#viewport')).toHaveAttribute('data-ground-style', 'checker');
     expect((await page.request.get('/api/scenes/state?room=1')).status()).toBe(503);
-    if (action === 'sit') {
-      await voice.click();
-      await expect(voice).toHaveAttribute('data-state', 'ready');
-      expect(voiceChannels).toEqual(['/scene-voice', '/voice']);
-    }
+    await voice.click();
+    await expect(voice).toHaveAttribute('data-state', 'ready');
+    expect(voiceChannels).toEqual(['/scene-voice', '/voice']);
   } finally {
     await page.request.post('/api/scenes/close?room=1');
   }
@@ -116,17 +125,21 @@ test('stopping while the scene prepares prevents the pending motion from startin
   await page.request.post('/api/scenes/close?room=1');
   const requests = [];
   const gate = Promise.withResolvers();
-  await page.route('**/api/scenes/start?*', async route => {
+  await page.route('**/api/features/prepare?*', async route => {
     await gate.promise;
     await route.continue();
   });
   page.on('request', request => {
-    if (new URL(request.url()).pathname === '/api/scenes/actions') requests.push(request.postDataJSON().name);
+    const path = new URL(request.url()).pathname;
+    if (path === '/api/scenes/actions' || path === '/api/features/command'){
+      const body = request.postDataJSON();
+      requests.push(body.name ?? body.action);
+    }
   });
   try {
     await page.goto('/index.html?room=1&lang=zh');
     await page.getByText('MuJoCo 平地动作', {exact: true}).click();
-    const preparing = page.waitForRequest(request => new URL(request.url()).pathname === '/api/scenes/start');
+    const preparing = page.waitForRequest(request => new URL(request.url()).pathname === '/api/features/prepare');
     await page.locator('[data-flat-action=sit]').click();
     await preparing;
     await page.keyboard.press('Escape');
