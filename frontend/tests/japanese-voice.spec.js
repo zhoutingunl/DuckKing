@@ -16,7 +16,7 @@ for(const locale of ['zh','fr'])test(`${locale}: Japanese switches the interface
    }
   });
  });
- await page.goto(`/index.html?room=1&lang=${locale}`);
+ await page.goto(`/index.html?view=preview&room=1&lang=${locale}`);
  await page.locator('#connect-voice').click();await expect(page.locator('#talk-button')).toBeEnabled();
  expect(connects.at(-1)).toMatchObject({language:locale,mode:locale==='zh'?'local_first':'cloud'});
  await page.locator('#lang-switch-button').click();await page.locator('[data-lang=ja]').click();

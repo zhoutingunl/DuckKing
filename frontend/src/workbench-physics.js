@@ -9,11 +9,10 @@ import {stopRoomScene} from './scene-stop.js';
 import {appURL} from './urls.js';
 
 const groups = [
-  {title: '动作练习场', actions: [
+  {actions: [
     'sit', 'stand', 'look_left', 'look_right', 'look_forward', 'look_down', 'roulade', 'ground_pick',
-    'yawn', 'idle_on', 'idle_off',
+    'yawn', 'idle_on', 'idle_off', 'hop', 'run', 'steps', 'try_trick',
   ]},
-  {actions: ['hop', 'run', 'steps', 'try_trick']},
   {title: '单脚站稳', actions: ['lift_left', 'lift_right', 'lower']},
   {title: '自己站起来', actions: ['recover_back', 'recover_front']},
   {title: '倒立头旋连续技', actions: [
@@ -52,24 +51,24 @@ async function waitForAction(record) {
   if (record.status !== 'completed') throw Error(record.error ?? resultLabels[record.status]);
 }
 
-export function setupWorkbenchPhysics({voice, notify, appendLog, onState, onMode, onBusy, onCompleted}) {
+export function setupWorkbenchPhysics({notify, appendLog, onState, onBusy, onCompleted}) {
   const $ = id => document.getElementById(id);
   const element = $('workbench-physics'), loading = createLoadingState($('workbench-physics-loading'));
   const sound = new FeatureAudio(), loadModel = createPhysicsModelLoader();
-  let active = false, floor, viewer, feed, latest, revision, ready = false, pending, cancelLoad, stopping = false;
+  let floor, viewer, feed, latest, revision, ready = false, pending, cancelLoad, stopping = false;
   let seenEvents = 0, seenResults = new Set();
   const matches = state => state?.scene === 'functional' && state.feature?.capability === 'workbench';
   const guarded = path => `${path}?expected_revision=${encodeURIComponent(revision)}`;
 
   function updateButtons() {
     const busy = !!pending || stopping;
-    for (const button of $('flat-action-groups').querySelectorAll('button')) button.disabled = busy;
+    for (const button of document.querySelectorAll('[data-flat-action]')) button.disabled = busy;
     onBusy(busy);
     window.dispatchEvent(new Event('duckking-voice-readiness'));
   }
 
   function update(packet) {
-    if (!active || !ready) return;
+    if (!ready) return;
     const state = packet.backend;
     if (!matches(state) || state.revision !== revision) {
       ready = false;
@@ -101,18 +100,22 @@ export function setupWorkbenchPhysics({voice, notify, appendLog, onState, onMode
     }
     if (seenResults.size > 120) seenResults.delete(seenResults.values().next().value);
     const action = packet.action?.name ?? (feature?.status === 'running' ? feature.action : null);
-    onState(state, label(action), state.error ?? packet.error
+    onState(state, action ? label(action) : null, state.error ?? packet.error
       ?? (feature && feature.status !== 'idle' ? feature.message : null));
   }
 
-  async function prepare(signal) {
+  async function prepare(signal, retry) {
+    // Start the new subscription after preparation so an old scene snapshot
+    // cannot invalidate the model that just finished loading.
+    feed?.close();
+    feed = null;
     ready = false;
     revision = null;
     latest = null;
     viewer?.clear();
     sound.stop();
     onState(null, '正在准备场景');
-    const session = loading.begin({cancel: () => void control('stop')});
+    const session = loading.begin({cancel: () => void control('stop'), retry});
     try {
       let packet = await api('api/scenes/state');
       if (!matches(packet.backend) || packet.backend.error || packet.backend.feature.recovery_required) {
@@ -125,7 +128,7 @@ export function setupWorkbenchPhysics({voice, notify, appendLog, onState, onMode
       if (!viewer) {
         const {physicsView} = await import('./physics-view.js');
         signal.throwIfAborted();
-        viewer = physicsView(element);
+        viewer = physicsView(element, {showCaption: false});
       }
       viewer.setGround(floor);
       const model = await loadModel(appURL('api/scenes/model.dkm.gz'), revision, {
@@ -141,6 +144,11 @@ export function setupWorkbenchPhysics({voice, notify, appendLog, onState, onMode
       ready = true;
       session.ready();
       update(packet);
+      feed = sceneStateFeed({
+        readState: signal => api('api/scenes/state', null, signal),
+        onState: update,
+        onStatus: () => window.dispatchEvent(new Event('duckking-voice-readiness')),
+      });
     } catch (error) {
       if (signal.aborted) session.cancelled();
       else {
@@ -154,23 +162,19 @@ export function setupWorkbenchPhysics({voice, notify, appendLog, onState, onMode
   function run(name) {
     if (pending || stopping) return;
     const needsPreparation = !ready || latest?.error || latest?.feature?.recovery_required;
-    if (needsPreparation && !voice.setTarget('/scene-voice', false, {requireIdle: true})) {
-      notify('请先断开当前语音，再切换功能场景');
-      return;
-    }
+    if (!name && !needsPreparation) return;
+    notify('');
+    $('workbench-start').hidden = true;
+    const {top, bottom} = element.getBoundingClientRect();
+    if (bottom <= 0 || top >= innerHeight) element.scrollIntoView({block: 'nearest', behavior: 'instant'});
     const soundReady = emotions.includes(name)
       ? sound.enable().then(() => sound.load(name)).then(() => null, error => error)
       : null;
-    active = true;
-    onMode(true);
-    feed ??= sceneStateFeed({
-      readState: signal => api('api/scenes/state', null, signal),
-      onState: update,
-      onStatus: () => window.dispatchEvent(new Event('duckking-voice-readiness')),
-    });
     const controller = cancelLoad = new AbortController();
     pending = (async () => {
-      if (needsPreparation) await prepare(controller.signal);
+      if (needsPreparation) await prepare(controller.signal, () => run(name));
+      controller.signal.throwIfAborted();
+      if (!name) return;
       const audioError = await soundReady;
       controller.signal.throwIfAborted();
       const action = latest?.feature?.actions?.[name];
@@ -209,48 +213,13 @@ export function setupWorkbenchPhysics({voice, notify, appendLog, onState, onMode
     }
   }
 
-  $('leave-physics').addEventListener('click', async () => {
-    if (pending || stopping) return;
-    if (!voice.setTarget('/voice', false, {requireIdle: true})) {
-      notify('请先断开当前语音，再切换功能场景');
-      return;
-    }
-    stopping = true;
-    sound.stop();
-    updateButtons();
-    try {
-      if (revision) await api(guarded('api/scenes/close'), {});
-    } catch (error) {
-      if (error.code !== 'scene_changed') {
-        voice.setTarget('/scene-voice', false);
-        notify(error.message);
-        return;
-      }
-    } finally {
-      stopping = false;
-      updateButtons();
-    }
-    feed?.close();
-    feed = latest = revision = null;
-    active = ready = false;
-    viewer?.dispose();
-    viewer = null;
-    onMode(false);
-    updateButtons();
-  });
-
-  const singleMoves = document.createElement('div');
-  singleMoves.className = 'flat-single-actions action-grid';
   for (const candidate of groups) {
-    let grid = singleMoves;
-    if (!candidate.title) {
-      if (!singleMoves.isConnected) $('flat-action-groups').append(singleMoves);
-    } else {
+    const grid = candidate.title ? document.createElement('div') : $('workbench-actions');
+    if (candidate.title) {
+      grid.className = 'action-grid';
       const fieldset = document.createElement('fieldset');
       const legend = document.createElement('legend');
-      grid = document.createElement('div');
       fieldset.className = 'flat-action-group';
-      grid.className = 'action-grid';
       legend.textContent = candidate.title;
       fieldset.append(legend, grid);
       $('flat-action-groups').append(fieldset);
@@ -259,6 +228,7 @@ export function setupWorkbenchPhysics({voice, notify, appendLog, onState, onMode
       const button = document.createElement('button');
       button.type = 'button';
       button.dataset.flatAction = name;
+      button.className = 'flat-move';
       button.textContent = label(name);
       button.addEventListener('click', () => run(name));
       grid.append(button);
@@ -266,7 +236,7 @@ export function setupWorkbenchPhysics({voice, notify, appendLog, onState, onMode
   }
 
   for (const id of ['connect-voice', 'enable-sound']) $(id).addEventListener('click', () => {
-    if (active && (latest?.feature?.actions?.[emotions[0]]?.enabled ?? false)) {
+    if (latest?.feature?.actions?.[emotions[0]]?.enabled) {
       void sound.enable().then(() => Promise.all(emotions.map(name => sound.load(name))))
         .catch(error => notify(error.message));
     }
@@ -278,14 +248,15 @@ export function setupWorkbenchPhysics({voice, notify, appendLog, onState, onMode
     void sound.close();
   }, {once: true});
 
+  $('prepare-physics').addEventListener('click', () => run());
+
   return {
-    get active() { return active; },
     action(name) {
       if (name === 'stop' || name === 'reset') void control(name);
       else run(name);
     },
     voiceUnavailable() {
-      return active && (!ready || pending || stopping || !feed.fresh() || latest?.error || latest?.feature?.recovery_required)
+      return (!ready || pending || stopping || !feed?.fresh() || latest?.error || latest?.feature?.recovery_required)
         ? '请等小鸭显示后再开始。' : '';
     },
     setGround(style) { floor = style; element.dataset.groundStyle = style; viewer?.setGround(style); },

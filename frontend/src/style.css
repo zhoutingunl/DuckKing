@@ -90,14 +90,15 @@
 .workbench-scene-settings select{max-width:100%}
 #workbench-physics{position:relative;background:#e9ede0;overflow:hidden}
 #workbench-physics canvas{display:block;width:100%;height:100%;touch-action:none}
+.workbench-start{height:100%;display:grid;align-content:center;justify-items:center;gap:10px;padding:16px;color:#536044;text-align:center;font-size:13px}
+.workbench-start p{margin:0}
+.workbench-scene-settings a{color:#455232;text-decoration:underline;text-underline-offset:3px}
 @media(min-width:761px) and (min-height:600px){
  .home-page .stage-card:has(#workbench-physics:not([hidden])){position:sticky;top:12px}
 }
-.flat-actions{margin-top:14px;border-top:1px solid var(--line)}
-.flat-actions summary{padding:12px 0;min-height:44px;cursor:pointer;color:#455232;font-size:14px;font-weight:600}
-.flat-action-group{min-width:0;margin:0 0 12px;padding:0;border:0}
+.flat-actions{margin-top:8px}
+.flat-action-group{min-width:0;margin:14px 0 0;padding:0;border:0}
 .flat-action-group legend{margin-bottom:5px;padding:0;color:#556046;font-size:13px}
 .flat-actions .action-grid{margin-top:0}
-.flat-single-actions{margin-bottom:12px}
-.flat-actions .action-grid button{min-height:44px;padding:8px 10px;color:var(--ink);font-size:13px;overflow-wrap:anywhere;touch-action:manipulation}
-.flat-actions :focus-visible,#leave-physics:focus-visible{outline:2px solid #567232;outline-offset:2px}
+.action-grid button.flat-move{min-height:44px;padding:8px 10px;color:var(--ink);font-size:13px;overflow-wrap:anywhere;touch-action:manipulation}
+.action-grid button.flat-move:focus-visible{outline:2px solid #567232;outline-offset:2px}

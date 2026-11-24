@@ -68,6 +68,13 @@ export const TRANSLATIONS = new Map(Object.entries({
   '正在连接工作台': {en: 'Connecting to the workbench…', fr: "Connexion à l'atelier…"},
   '训练新动作': {en: 'Train a new motion', fr: 'Entraîner un nouveau mouvement'},
   'MuJoCo 平地动作': {en: 'MuJoCo floor moves', fr: 'Mouvements au sol dans MuJoCo'},
+  '打开动画预览': {en: 'Open animation preview', fr: "Ouvrir l’aperçu animé"},
+  '打开 MuJoCo 平地动作': {en: 'Open MuJoCo floor moves', fr: 'Ouvrir les mouvements au sol dans MuJoCo'},
+  '选择一个动作，或先准备场景再启用语音。': {
+    en: 'Choose a move, or prepare the scene before enabling voice.',
+    fr: 'Choisis un mouvement ou prépare la scène avant d’activer la voix.',
+  },
+  '准备场景': {en: 'Prepare scene', fr: 'Préparer la scène'},
   '随机外观': {en: 'Random appearance', fr: 'Apparence aléatoire'},
   '平地动作使用 MuJoCo 物理仿真。': {
     en: 'Floor moves run in the MuJoCo physics simulator. ',

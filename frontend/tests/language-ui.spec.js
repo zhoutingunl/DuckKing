@@ -19,11 +19,11 @@ for(const [language,mobile] of [['fr',false],['en',false],['de',false],['de',tru
   await expect(page.locator('.home-nav a')).toHaveCount(10);
   // A genuine server state update must not reintroduce Chinese between frames.
   if(name==='index'){
-   await expect(page.locator('#data-source')).toHaveText({fr:'Aperçu local',en:'Local preview',de:'Lokale Vorschau',es:'Vista previa local'}[language]);
+   await expect(page.locator('#data-source')).toHaveText({fr:'Non connecté',en:'Not connected',de:'Nicht verbunden',es:'Sin conexión'}[language]);
    const frames=await page.evaluate(()=>new Promise(resolve=>{
     const values=[];const sample=()=>{values.push(document.querySelector('#data-source').textContent);if(values.length<35)requestAnimationFrame(sample);else resolve(values)};sample();
    }));
-   expect(new Set(frames)).toEqual(new Set([{fr:'Aperçu local',en:'Local preview',de:'Lokale Vorschau',es:'Vista previa local'}[language]]));
+   expect(new Set(frames)).toEqual(new Set([{fr:'Non connecté',en:'Not connected',de:'Nicht verbunden',es:'Sin conexión'}[language]]));
   }
   // Authored transcripts, equations/code and language names are content, not UI.
   const missing=await page.evaluate(()=>{
@@ -58,7 +58,7 @@ for(const language of ['fr','en','de','es'])test(`${language}: voice handshake a
    if(data.type==='connect')socket.send(JSON.stringify({type:'voice_status',state:'ready',mode:'cloud',language}));
   });
  });
- await page.goto(`/index.html?room=1&lang=${language}`);
+ await page.goto(`/index.html?view=preview&room=1&lang=${language}`);
  await page.locator('#connect-voice').click();
  await expect(page.locator('#talk-button')).toBeEnabled();
  expect(commands.find(x=>x.type==='connect')).toMatchObject({language,mode:'cloud'});
@@ -72,7 +72,7 @@ for(const language of ['fr','en','de','es'])test(`${language}: voice handshake a
 });
 
 test('missing language connection exits preparation and leaves a visible translated error',async({page})=>{
- await page.goto('/index.html?room=1&lang=fr');
+ await page.goto('/index.html?view=preview&room=1&lang=fr');
  await page.locator('#connect-voice').click();
  await expect(page.locator('#voice-badge')).toHaveText('Erreur de connexion');
  await expect(page.locator('#talk-button')).toBeDisabled();

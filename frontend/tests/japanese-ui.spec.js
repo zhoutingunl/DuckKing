@@ -19,8 +19,8 @@ test('Japanese localizes all page interfaces and dynamic labels',async({page})=>
   await page.goto(`/${name}.html?room=1&lang=ja`);await expect(page.locator('html')).toHaveAttribute('lang','ja');await expect(page.locator('#lang-switch-button')).toHaveText('言語');await expect(page.locator('.nav-destinations a').first()).toHaveText('ホーム');
   await expect.poll(()=>untranslated(page),{message:`${name}: untranslated visible interface`,timeout:15000}).toEqual([]);
   if(name==='index'){
-   await expect(page.locator('#data-source')).toHaveText('ローカルプレビュー');
-   expect(await page.evaluate(()=>new Promise(resolve=>{const values=[];const sample=()=>{values.push(document.querySelector('#data-source').textContent);if(values.length<35)requestAnimationFrame(sample);else resolve([...new Set(values)]);};sample();}))).toEqual(['ローカルプレビュー']);
+   await expect(page.locator('#data-source')).toHaveText('接続されていません');
+   expect(await page.evaluate(()=>new Promise(resolve=>{const values=[];const sample=()=>{values.push(document.querySelector('#data-source').textContent);if(values.length<35)requestAnimationFrame(sample);else resolve([...new Set(values)]);};sample();}))).toEqual(['接続されていません']);
   }
  }
  expect(errors).toEqual([]);
@@ -34,13 +34,13 @@ test('legacy voice_lang Japanese link selects Japanese UI and persists across na
  await page.locator('#show-all-scenes').click();await expect(page.locator('[data-capability]:visible')).toHaveCount(41);await expect.poll(()=>untranslated(page)).toEqual([]);
  // Subsequent visits use the preference saved on this page, not the legacy fixture.
  await page.evaluate(()=>{sessionStorage.setItem('japanese-preference-test','set')});
- await page.locator('.nav-destinations a[href*="index.html"]').click();await expect(page.locator('html')).toHaveAttribute('lang','ja');await expect(page.locator('#data-source')).toHaveText('ローカルプレビュー');await page.reload();await expect(page.locator('html')).toHaveAttribute('lang','ja');
+ await page.locator('.nav-destinations a[href*="index.html"]').click();await expect(page.locator('html')).toHaveAttribute('lang','ja');await expect(page.locator('#data-source')).toHaveText('接続されていません');await page.reload();await expect(page.locator('html')).toHaveAttribute('lang','ja');
 });
 
 test('Japanese language changes disconnect cloud speech and preserve the mobile canvas and room',async({page,context})=>{
  test.setTimeout(60000);await page.setViewportSize({width:390,height:844});await context.grantPermissions(['microphone']);const commands=[];let channel;
  await page.routeWebSocket('**/voice',socket=>{channel=socket;socket.onMessage(raw=>{if(typeof raw!=='string')return;const data=JSON.parse(raw);commands.push(data);if(data.type==='join_room')socket.send(JSON.stringify({type:'voice_status',state:'disconnected'}));if(data.type==='connect')socket.send(JSON.stringify({type:'voice_status',state:'ready',mode:'cloud',language:data.language}));});});
- await page.goto('/index.html?room=1&lang=en');await expect(page.locator('#viewport canvas')).toBeVisible({timeout:45000});await page.evaluate(()=>{window.originalCanvas=document.querySelector('#viewport canvas')});
+ await page.goto('/index.html?view=preview&room=1&lang=en');await expect(page.locator('#viewport canvas')).toBeVisible({timeout:45000});await page.evaluate(()=>{window.originalCanvas=document.querySelector('#viewport canvas')});
  await page.locator('#connect-voice').click();await expect(page.locator('#talk-button')).toBeEnabled({timeout:10000});
  await switchLanguage(page,'ja');await expect(page.locator('#talk-button')).toBeDisabled();expect(commands.some(c=>c.type==='disconnect')).toBe(true);expect(commands.filter(c=>c.type==='connect')).toHaveLength(1);
  channel.send(JSON.stringify({type:'voice_status',state:'disconnected'}));await page.locator('#connect-voice').click();await expect(page.locator('#talk-button')).toBeEnabled({timeout:10000});expect(commands.filter(c=>c.type==='connect').at(-1)).toMatchObject({language:'ja',mode:'cloud'});
