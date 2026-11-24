@@ -49,10 +49,33 @@ test('real MuJoCo left/right contacts, duo discovery/collision, chorus and stop'
   await page.getByRole('button',{name:'相向碰面',exact:true}).click();
   await expect(page.locator('#action-result')).toContainText('相向碰面 · 已完成',{timeout:15000});
   expect(Number(await page.locator('#duck-contact').textContent())).toBeGreaterThan(0);
+
+  // The three-second chorus can finish while Playwright snapshots the 3D page.
+  // Stop from the browser as soon as it observes real playback, then verify cancellation.
+  await page.evaluate(()=>{
+    const status=document.querySelector('#chorus-status');
+    const watcher=new MutationObserver(()=>{
+      if(!status.textContent.includes('本地双声部正在合唱'))return;
+      watcher.disconnect();
+      document.querySelector('#stop-scene').click();
+    });
+    watcher.observe(status,{childList:true,subtree:true,characterData:true});
+  });
+  const actionResponse=name=>page.waitForResponse(response=>{
+    const request=response.request();
+    return new URL(response.url()).pathname==='/api/scenes/actions'&&
+      request.method()==='POST'&&request.postDataJSON().name===name;
+  },{timeout:15000});
+  const chorusResponse=actionResponse('chorus'), stopResponse=actionResponse('stop');
   await page.getByRole('button',{name:'同步合唱 ♪'}).click();
-  await expect(page.locator('#chorus-status')).toContainText('本地双声部正在合唱');
-  await page.locator('#stop-scene').click();
+  const [chorus,stop]=await Promise.all([chorusResponse,stopResponse]);
+  expect(chorus.status()).toBe(202);
+  expect(stop.status()).toBe(202);
+  const {id:chorusId}=await chorus.json();
   await expect(page.locator('#action-result')).toContainText('停止 · 已完成');
+  const cancelled=await page.request.get(`/api/scenes/actions/${chorusId}`);
+  expect((await cancelled.json()).status).toBe('cancelled');
+  await expect(page.locator('#chorus-status')).toContainText('合唱声音已停止');
   const state=await (await page.request.get('/api/scenes/state')).json();
   expect(state.backend.chorus).toBeNull();expect(state.backend.physics).toBe(true);
   const requestsBeforeReload=modelRequests;
