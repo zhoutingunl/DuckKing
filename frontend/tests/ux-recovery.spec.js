@@ -15,7 +15,7 @@ test('expired deep link offers one-click recovery and retains choice without rep
 });
 
 test('a visible page detects a restarted service and freezes controls until recovery',async({page})=>{
-  await page.goto('/index.html?room=1');await expect(page.locator('#connection-label')).toContainText('已连接');
+  await page.goto('/index.html?view=preview&room=1');await expect(page.locator('#connection-label')).toContainText('已连接');
   await page.route('**/api/rooms?*',async route=>{
     const response=await route.fetch(),data=await response.json();data.instance='different-service';
     await route.fulfill({response,json:data});
@@ -33,7 +33,7 @@ test('waiting for a model stays visible, can cancel, and does not retry a cancel
     attempts++;
     if(attempts===1){await gate;await route.abort().catch(()=>{});}else await route.continue();
   });
-  await page.goto('/index.html?room=1');
+  await page.goto('/index.html?view=preview&room=1');
   const preview=page.locator('#viewport');
   const loading=preview.locator('.model-status');
   await expect.poll(()=>attempts).toBe(1);
@@ -67,7 +67,7 @@ test('a scenario click shows preparation immediately, before the start request r
 
 test('720p homepage keeps the complete canvas above the fold',async({page},info)=>{
   await page.setViewportSize({width:1280,height:720});
-  await page.goto('/index.html?room=1');
+  await page.goto('/index.html?view=preview&room=1');
   await expect(page.locator('#viewport')).toHaveAttribute('data-model','official',{timeout:45000});
   const box=await page.locator('#viewport').boundingBox();
   expect(box.height).toBeLessThanOrEqual(400);expect(box.y+box.height).toBeLessThanOrEqual(720);

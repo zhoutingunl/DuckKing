@@ -10,7 +10,7 @@ try{
  for(const [name,width,height] of [['desktop',1280,900],['narrow',390,844]]){
   const context=await browser.newContext({viewport:{width,height},deviceScaleFactor:1});
   const page=await context.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.name));
-  const begun=Date.now();await page.goto('https://duck.qbox.net/?measurement=verification',{waitUntil:'domcontentloaded'});
+  const begun=Date.now();await page.goto('https://duck.qbox.net/index.html?view=preview&measurement=verification',{waitUntil:'domcontentloaded'});
   await page.waitForFunction(()=>document.querySelector('#viewport')?.dataset.model==='official',null,{timeout:75000});
   const readyMs=Date.now()-begun;
   await page.evaluate(()=>{window.benchGaps=[];let last=performance.now();window.benchCollect=true;function tick(t){if(!window.benchCollect)return;window.benchGaps.push(t-last);last=t;requestAnimationFrame(tick)}requestAnimationFrame(tick)});

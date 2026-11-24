@@ -5,7 +5,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import {appearanceControls,appearanceFor,studioEnvironment} from './duck-appearance.js';
 import {renderScheduler} from './render-scheduler.js';
 
-export function physicsView(container,{label=null,onCameraChange}={}) {
+export function physicsView(container,{label=null,onCameraChange,showCaption=true}={}) {
   let interaction=null,interactionMode="select",latest=null,pointerStart=null,selection=null,visible=true,disposed=false,scheduler;
   const invalidate=()=>scheduler?.invalidate();
   let syncingCamera=false;
@@ -34,7 +34,7 @@ export function physicsView(container,{label=null,onCameraChange}={}) {
   let objects=new Map(),labels=new Map(),annotations=new Map(),textures=[],geometries=[],materials=[],revision=null;
   let renderBatches=[],readyToRender=false,headingGuide=null,headingTexture=null,centerGuide=null;
   const caption=document.createElement('div');caption.className='physics-caption';caption.hidden=true;
-  const captionStatus=document.createElement('span');captionStatus.className='physics-status';captionStatus.textContent=translate('等待指令');caption.append(captionStatus);container.append(caption);
+  const captionStatus=document.createElement('span');captionStatus.className='physics-status';captionStatus.textContent=translate('等待指令');caption.append(captionStatus);if(showCaption)container.append(caption);
   const ground=groundStyle(floor,grid,invalidate);
   const appearance=appearanceControls(container,repaint);
   function repaint(){
@@ -312,7 +312,7 @@ export function physicsView(container,{label=null,onCameraChange}={}) {
   function resize(){
     if(disposed)return;
     const {width,height:outerHeight}=container.getBoundingClientRect();
-    const height=outerHeight-(getComputedStyle(caption).position==='static'?caption.getBoundingClientRect().height:0);
+    const height=outerHeight-(showCaption&&getComputedStyle(caption).position==='static'?caption.getBoundingClientRect().height:0);
     if(width&&height>0){
       renderer.setPixelRatio(reduced?1:Math.min(devicePixelRatio,2));renderer.setSize(width,height);
       camera.aspect=width/height;
@@ -321,7 +321,7 @@ export function physicsView(container,{label=null,onCameraChange}={}) {
       camera.updateProjectionMatrix();invalidate();
     }
   }
-  const observer=new ResizeObserver(resize);observer.observe(container);observer.observe(caption);
+  const observer=new ResizeObserver(resize);observer.observe(container);if(showCaption)observer.observe(caption);
   function draw(){
     const moving=controls.update();
     for(const [id,ring] of rings){

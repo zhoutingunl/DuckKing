@@ -27,7 +27,8 @@ const save=()=>writeFile(resolve(output,'recording.json'),JSON.stringify(proof,n
 async function open(id,path){
  page=await context.newPage();started=Date.now();chapter={id,page:path,started_at:new Date(started).toISOString(),segments:[],screenshots:[]};
  proof.chapters.push(chapter);page.on('pageerror',e=>proof.page_errors.push({chapter:id,message:e.message}));
- await page.goto(new URL(`${path}?room=${room}`,base).href,{waitUntil:'domcontentloaded',timeout:60000});
+ const url=new URL(path,base);url.searchParams.set('room',room);
+ await page.goto(url.href,{waitUntil:'domcontentloaded',timeout:60000});
  await save();console.log('Opened',id);
 }
 async function mark(name,fn){
@@ -61,7 +62,7 @@ async function stageAction(id){
 }
 try{
  if(needed('home')){
- await open('home','');
+ await open('home','index.html?view=preview');
  await expect(page.locator('#viewport')).toHaveAttribute('data-model','official',{timeout:90000});
  await page.locator('.stage-card').scrollIntoViewIfNeeded();
  await mark('appearance-and-preview',async()=>{
